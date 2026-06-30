@@ -25,6 +25,13 @@ data class ApiVersion(private val parts: List<Int>) : Comparable<ApiVersion> {
 			require(PATTERN.matches(trimmed)) { "Invalid version: '$value'" }
 			return ApiVersion(trimmed.split('.').map(String::toInt))
 		}
+
+		// Parses the leading numeric component of a version, ignoring any pre-release/build suffix
+		// ("1.2.3-beta", "3.9.5+26.2-fabric" -> 1.2.3 / 3.9.5). Null when there is no numeric prefix.
+		fun parseOrNull(value: String): ApiVersion? {
+			val core = value.trim().takeWhile { it.isDigit() || it == '.' }
+			return runCatching { parse(core) }.getOrNull()
+		}
 	}
 }
 

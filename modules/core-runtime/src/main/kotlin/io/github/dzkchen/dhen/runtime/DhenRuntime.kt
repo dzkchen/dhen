@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.runtime
 import io.github.dzkchen.dhen.api.AddonContext
 import io.github.dzkchen.dhen.api.AddonId
 import io.github.dzkchen.dhen.api.AddonMetadata
+import io.github.dzkchen.dhen.api.ApiVersion
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.api.DhenModule
 import io.github.dzkchen.dhen.api.ModuleId
@@ -15,10 +16,16 @@ class DhenRuntime(private val platform: PlatformServices) {
 	private val log = platform.logger("dhen-runtime")
 	private val lifecycle = LifecycleManager(platform, config, log)
 
+	private val desiredEnabled = LinkedHashSet<String>()
+
 	private var started = false
 
 	fun registerAddon(addon: DhenAddon, source: AddonSource = AddonSource.UNKNOWN) {
 		val metadata = addon.metadata
+		if (started) {
+			log.warn("Ignoring addon ${metadata.id} registered after startup; addons are discovered on restart")
+			return
+		}
 		try {
 			registry.recordAddon(metadata, source)
 		} catch (t: DuplicateAddonException) {
@@ -97,10 +104,10 @@ class DhenRuntime(private val platform: PlatformServices) {
 	}
 
 	private fun restoreEnabledState() {
-		val enabledIds = store.loadEnabledModules()
+		desiredEnabled.addAll(store.loadEnabledModules())
 		for (record in registry.all()) {
 			if (record.state != LifecycleState.REGISTERED) continue
-			if (record.id.value in enabledIds) {
+			if (record.id.value in desiredEnabled) {
 				tryEnable(record)
 			} else {
 				record.transitionTo(LifecycleState.DISABLED, "disabled")
@@ -111,6 +118,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 	fun enableModule(id: ModuleId): Boolean {
 		val record = registry.get(id) ?: return false
 		val ok = tryEnable(record)
+		if (ok) desiredEnabled.add(id.value)
 		persistEnabledState()
 		return ok
 	}
@@ -118,6 +126,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 	fun disableModule(id: ModuleId): Boolean {
 		val record = registry.get(id) ?: return false
 		lifecycle.disable(record)
+		desiredEnabled.remove(id.value)
 		persistEnabledState()
 		return record.state == LifecycleState.DISABLED
 	}
@@ -201,7 +210,11 @@ class DhenRuntime(private val platform: PlatformServices) {
 		for (dep in addon.depends) {
 			val present = registry.addon(dep.id) ?: return "missing required addon '${dep.id.value}'"
 			val range = dep.parsedVersionRange
-			if (range != VersionRange.ANY && runCatching { !range.contains(present.version) }.getOrDefault(false)) {
+			if (range == VersionRange.ANY) continue
+			val version = ApiVersion.parseOrNull(present.version)
+			if (version == null) {
+				log.warn("Cannot version-check addon '${dep.id.value}' v${present.version} against ${dep.versionRange}; accepting")
+			} else if (!range.contains(version)) {
 				return "addon '${dep.id.value}' v${present.version} does not satisfy ${dep.versionRange}"
 			}
 		}
@@ -209,7 +222,6 @@ class DhenRuntime(private val platform: PlatformServices) {
 	}
 
 	private fun persistEnabledState() {
-		val enabled = registry.all().filter { it.state == LifecycleState.ENABLED }.map { it.id.value }.toSet()
-		store.saveEnabledModules(enabled)
+		store.saveEnabledModules(desiredEnabled.toSet())
 	}
 }

@@ -63,14 +63,15 @@ private class DisableContextImpl(
 }
 
 // Drives a module between ENABLED and DISABLED. Enable rolls back any registrations it created if
-// onEnable throws; disable always disposes handles (in reverse order) even if onDisable throws.
+// onEnable throws. Disable runs onDisable only for a module that actually enabled, and always
+// disposes its tracked handles (in reverse order) even if onDisable throws.
 class LifecycleManager(
 	private val platform: PlatformServices,
 	private val config: ConfigManager,
 	private val logger: AddonLogger,
 ) {
 	fun enable(record: ModuleRecord) {
-		if (record.state == LifecycleState.ENABLED) return
+		if (!record.state.canTransitionTo(LifecycleState.ENABLED)) return
 		val context = EnableContextImpl(record, platform, config, logger)
 		try {
 			record.module.onEnable(context)
@@ -83,15 +84,15 @@ class LifecycleManager(
 	}
 
 	fun disable(record: ModuleRecord) {
-		if (record.state == LifecycleState.DISABLED) return
-		if (record.state == LifecycleState.ENABLED || record.state == LifecycleState.FAILED) {
+		if (!record.state.canTransitionTo(LifecycleState.DISABLED)) return
+		if (record.state == LifecycleState.ENABLED) {
 			try {
 				record.module.onDisable(DisableContextImpl(record, platform, logger))
 			} catch (t: Throwable) {
 				logger.error("onDisable threw for module ${record.id}; continuing cleanup", t)
 			}
-			disposeHandles(record)
 		}
+		disposeHandles(record)
 		record.transitionTo(LifecycleState.DISABLED, "disabled")
 	}
 
