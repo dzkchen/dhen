@@ -10,6 +10,17 @@ pluginManagement {
 
 	plugins {
 		id("net.fabricmc.fabric-loom") version providers.gradleProperty("loom_version")
+		id("org.jetbrains.kotlin.jvm") version providers.gradleProperty("kotlin_version")
+		id("org.jetbrains.kotlin.plugin.serialization") version providers.gradleProperty("kotlin_version")
+	}
+}
+
+dependencyResolutionManagement {
+	repositories {
+		mavenCentral()
+		maven("https://maven.fabricmc.net/") { name = "Fabric" }
+		maven("https://maven.terraformersmc.com/releases/") { name = "Terraformers" }
+		maven("https://api.modrinth.com/maven") { name = "Modrinth" }
 	}
 }
 
