@@ -16,6 +16,7 @@ repositories {
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
 	maven("https://maven.terraformersmc.com/releases/") { name = "Terraformers" }
+	maven("https://api.modrinth.com/maven") { name = "Modrinth" }
 }
 
 dependencies {
@@ -27,6 +28,7 @@ dependencies {
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
     implementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
 	implementation("com.terraformersmc:modmenu:${providers.gradleProperty("modmenu_version").get()}")
+	implementation("maven.modrinth:yacl:${providers.gradleProperty("yacl_version").get()}")
 }
 
 tasks.processResources {
