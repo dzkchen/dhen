@@ -3,21 +3,26 @@
 	"id": "dhen",
 	"version": "${version}",
 	"name": "dhen",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Modular Fabric client host that discovers and runs Dhen addons.",
 	"authors": [
-		"Me!"
+		"dzkchen"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/dzkchen/dhen"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/dhen/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
 		"client": [
 			{
 				"value": "io.github.dzkchen.dhen.Dhen",
+				"adapter": "kotlin"
+			}
+		],
+		"modmenu": [
+			{
+				"value": "io.github.dzkchen.dhen.platform.DhenModMenu",
 				"adapter": "kotlin"
 			}
 		]

@@ -20,6 +20,7 @@ dependencies {
 
 	implementation(project(":modules:core-api"))
 	implementation(project(":modules:core-runtime"))
+	runtimeOnly(project(":example-addons:dungeon-map"))
 }
 
 tasks.processResources {
