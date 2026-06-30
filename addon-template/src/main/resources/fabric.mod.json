@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "dhen-addon-template",
+	"version": "${version}",
+	"name": "Dhen Addon Template",
+	"description": "Starter native Fabric JAR addon for the Dhen host.",
+	"authors": [
+		"dzkchen"
+	],
+	"contact": {
+		"sources": "https://github.com/dzkchen/dhen"
+	},
+	"license": "CC0-1.0",
+	"environment": "client",
+	"entrypoints": {
+		"dhen": [
+			{
+				"value": "io.github.dzkchen.dhen.addon.template.TemplateAddon",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"depends": {
+		"dhen": "*",
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-language-kotlin": "*"
+	}
+}

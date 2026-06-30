@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "dhen-dungeon-map",
+	"version": "${version}",
+	"name": "Dhen Dungeon Map",
+	"description": "Native JAR example addon for the Dhen host (map-style UI placeholder).",
+	"authors": [
+		"dzkchen"
+	],
+	"contact": {
+		"sources": "https://github.com/dzkchen/dhen"
+	},
+	"license": "CC0-1.0",
+	"environment": "client",
+	"entrypoints": {
+		"dhen": [
+			{
+				"value": "io.github.dzkchen.dhen.example.dungeonmap.DungeonMapAddon",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"depends": {
+		"dhen": "*",
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-language-kotlin": "*"
+	}
+}
