@@ -1,13 +1,7 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
 	id("net.fabricmc.fabric-loom")
 	id("org.jetbrains.kotlin.jvm")
-}
-
-repositories {
-	maven("https://maven.terraformersmc.com/releases/") { name = "Terraformers" }
-	maven("https://api.modrinth.com/maven") { name = "Modrinth" }
+	id("dhen.fabric-common")
 }
 
 dependencies {
@@ -20,33 +14,16 @@ dependencies {
 
 	implementation(project(":modules:core-api"))
 	implementation(project(":modules:core-runtime"))
-	runtimeOnly(project(":example-addons:dungeon-map"))
 }
 
-tasks.processResources {
-	val version = version
-	inputs.property("version", version)
-
-	filesMatching("fabric.mod.json") {
-		expand("version" to version)
-	}
+// devonly
+val copyExampleAddon by tasks.registering(Copy::class) {
+	from(project(":example-addons:dungeon-map").tasks.named("jar"))
+	into(layout.projectDirectory.dir("run/mods"))
 }
 
-tasks.withType<JavaCompile>().configureEach {
-	options.release = 25
-}
-
-kotlin {
-	compilerOptions {
-		jvmTarget = JvmTarget.JVM_25
-	}
-}
-
-java {
-	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+tasks.named("runClient") {
+	dependsOn(copyExampleAddon)
 }
 
 tasks.jar {

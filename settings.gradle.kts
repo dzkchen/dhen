@@ -19,8 +19,6 @@ dependencyResolutionManagement {
 	repositories {
 		mavenCentral()
 		maven("https://maven.fabricmc.net/") { name = "Fabric" }
-		maven("https://maven.terraformersmc.com/releases/") { name = "Terraformers" }
-		maven("https://api.modrinth.com/maven") { name = "Modrinth" }
 	}
 }
 
