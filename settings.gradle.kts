@@ -15,3 +15,10 @@ pluginManagement {
 
 // Should match your modid
 rootProject.name = "dhen"
+
+
+include("modules:core-api")
+include("modules:core-runtime")
+include("modules:platform-fabric")
+include("addon-template")
+include("example-addons:dungeon-map")
