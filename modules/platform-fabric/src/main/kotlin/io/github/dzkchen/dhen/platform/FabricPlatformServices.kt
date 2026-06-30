@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.platform
 
 import com.mojang.blaze3d.platform.InputConstants
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.api.AddonLogger
 import io.github.dzkchen.dhen.api.RegistrationHandle
 import io.github.dzkchen.dhen.runtime.JsonCodec
@@ -14,7 +15,6 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
-import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
@@ -88,7 +88,7 @@ class FabricPlatformServices : PlatformServices {
 				y += 10
 			}
 		}
-		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("dhen", "dhen_hud"), element)
+		HudElementRegistry.addLast(Dhen.id("hud"), element)
 	}
 }
 

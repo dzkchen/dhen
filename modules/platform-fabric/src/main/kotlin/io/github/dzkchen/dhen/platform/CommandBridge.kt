@@ -4,7 +4,6 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContext
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.runtime.DhenRuntime
-import io.github.dzkchen.dhen.runtime.LifecycleState
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -39,10 +38,8 @@ object CommandBridge {
 		)
 	}
 
-	private fun source(ctx: CommandContext<FabricClientCommandSource>) = ctx.source
-
 	private fun feedback(ctx: CommandContext<FabricClientCommandSource>, message: String) {
-		source(ctx).sendFeedback(Component.literal(message))
+		ctx.source.sendFeedback(Component.literal(message))
 	}
 
 	private fun listModules(ctx: CommandContext<FabricClientCommandSource>, runtime: DhenRuntime): Int {

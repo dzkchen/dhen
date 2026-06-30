@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.platform
 import io.github.dzkchen.dhen.runtime.DhenRuntime
 import io.github.dzkchen.dhen.runtime.LifecycleState
 import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.components.StringWidget
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 
@@ -24,8 +25,7 @@ class DhenScreen(private val parent: Screen, private val runtime: DhenRuntime) :
 
 		val diagnostics = runtime.diagnostics()
 		addRenderableWidget(
-			Button.builder(Component.literal("Active handles: ${diagnostics.totalActiveHandles}")) { rebuildWidgets() }
-				.bounds(centerX - 120, y, 240, 20).build(),
+			StringWidget(centerX - 120, y, 240, 20, Component.literal("Active handles: ${diagnostics.totalActiveHandles}"), font),
 		)
 		y += 24
 

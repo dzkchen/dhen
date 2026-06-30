@@ -84,12 +84,6 @@ class ConfigManager(private val store: ConfigStore) {
 		}
 	}
 
-	fun setBoolean(addonId: AddonId, settingId: String, value: Boolean) {
-		val current = valuesByAddon.getOrPut(addonId) { store.loadAddonSettings(addonId) }
-		current[settingId] = value
-		store.saveAddonSettings(addonId, current)
-	}
-
 	private fun defaultOf(schema: SettingSchema): Any? = when (schema) {
 		is BooleanSetting -> schema.default
 	}

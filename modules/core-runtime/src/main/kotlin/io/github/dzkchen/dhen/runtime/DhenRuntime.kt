@@ -44,7 +44,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 	}
 
 	fun collectKeybinds(): List<PlatformKeybind> = registry.all().flatMap { record ->
-		record.metadataKeybinds().map { spec -> PlatformKeybind(platformKeybindId(record.id, spec.id), spec) }
+		record.module.metadata.keybinds.map { spec -> PlatformKeybind(platformKeybindId(record.id, spec.id), spec) }
 	}
 
 	fun start() {
@@ -120,6 +120,4 @@ class DhenRuntime(private val platform: PlatformServices) {
 		val enabled = registry.all().filter { it.state == LifecycleState.ENABLED }.map { it.id.value }.toSet()
 		store.saveEnabledModules(enabled)
 	}
-
-	private fun ModuleRecord.metadataKeybinds() = module.metadata.keybinds
 }
