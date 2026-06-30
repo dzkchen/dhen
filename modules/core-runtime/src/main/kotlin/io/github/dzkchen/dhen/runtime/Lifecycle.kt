@@ -1,6 +1,9 @@
 package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonLogger
+import io.github.dzkchen.dhen.api.ChatContext
+import io.github.dzkchen.dhen.api.ClientContext
+import io.github.dzkchen.dhen.api.HudRenderContext
 import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.ModuleDisableContext
 import io.github.dzkchen.dhen.api.ModuleEnableContext
@@ -24,6 +27,14 @@ private class EnableContextImpl(
 	override val logger: AddonLogger,
 ) : ModuleEnableContext {
 	override val moduleId: ModuleId get() = record.id
+	override val client: ClientContext get() = platform.clientContext
+	override val chat: ChatContext = object : ChatContext {
+		override fun sendSystemMessage(message: String) = platform.sendChat(message)
+	}
+	override val hudRender: HudRenderContext = object : HudRenderContext {
+		override fun addText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle =
+			track(platform.addHudWidget(platformWidgetId(record.id, widgetId), provider))
+	}
 
 	override fun booleanSetting(settingId: SettingId): Boolean = config.getBoolean(record.addonId, settingId)
 
@@ -31,9 +42,7 @@ private class EnableContextImpl(
 		track(platform.bindKeybindHandler(platformKeybindId(record.id, keybindId), handler))
 
 	override fun addHudText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle =
-		track(platform.addHudWidget(platformWidgetId(record.id, widgetId), provider))
-
-	override fun sendChat(message: String) = platform.sendChat(message)
+		hudRender.addText(widgetId, provider)
 
 	private fun track(handle: RegistrationHandle): RegistrationHandle {
 		record.handles.addLast(handle)
@@ -47,8 +56,10 @@ private class DisableContextImpl(
 	override val logger: AddonLogger,
 ) : ModuleDisableContext {
 	override val moduleId: ModuleId get() = record.id
-
-	override fun sendChat(message: String) = platform.sendChat(message)
+	override val client: ClientContext get() = platform.clientContext
+	override val chat: ChatContext = object : ChatContext {
+		override fun sendSystemMessage(message: String) = platform.sendChat(message)
+	}
 }
 
 // Drives a module between ENABLED and DISABLED. Enable rolls back any registrations it created if

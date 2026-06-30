@@ -30,6 +30,10 @@ class MetadataTest {
 		assertEquals("Native JAR", metadata.artifactType.displayName)
 		assertEquals(listOf("Ada"), metadata.authors)
 		assertEquals("[1.0,2.0)", metadata.requiredApiRange)
+		assertEquals(VersionRange.parse("[1.0,2.0)"), metadata.parsedRequiredApiRange)
+		assertEquals(VersionRange.parse("[26.2,27.0)"), metadata.parsedMinecraftVersionRange)
+		assertEquals(VersionRange.parse("[0.19,1.0)"), metadata.parsedFabricLoaderVersionRange)
+		assertEquals(VersionRange.parse("[1.0,2.0)"), metadata.depends.single().parsedVersionRange)
 		assertEquals(listOf(AddonId("sample.library")), metadata.dependencies.map { it.id })
 		assertEquals(listOf(AddonId("sample.conflict")), metadata.conflicts.map { it.id })
 		assertEquals(listOf(ModuleId("sample.addon:demo")), metadata.providedModules)
@@ -58,6 +62,9 @@ class MetadataTest {
 				version = "1.0.0",
 				depends = listOf(AddonDependency(AddonId("sample.library")), AddonDependency(AddonId("sample.library"))),
 			)
+		}
+		assertThrows(IllegalArgumentException::class.java) {
+			AddonMetadata(AddonId("sample.addon"), "Sample", "1.0.0", requiredDhenApi = "1.0,2.0")
 		}
 	}
 

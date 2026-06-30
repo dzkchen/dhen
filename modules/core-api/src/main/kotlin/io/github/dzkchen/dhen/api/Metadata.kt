@@ -28,7 +28,10 @@ data class AddonDependency(
 ) {
 	init {
 		requireNotBlank("addon dependency versionRange", versionRange)
+		VersionRange.parse(versionRange)
 	}
+
+	val parsedVersionRange: VersionRange get() = VersionRange.parse(versionRange)
 }
 
 data class AddonMetadata(
@@ -55,6 +58,9 @@ data class AddonMetadata(
 		requireNotBlank("requiredDhenApi", requiredDhenApi)
 		requireNotBlank("minecraftVersionRange", minecraftVersionRange)
 		requireNotBlank("fabricLoaderVersionRange", fabricLoaderVersionRange)
+		VersionRange.parse(requiredDhenApi)
+		VersionRange.parse(minecraftVersionRange)
+		VersionRange.parse(fabricLoaderVersionRange)
 		requireAllNotBlank("authors", authors)
 		require(sourceUrl == null || sourceUrl.isAbsolute) { "sourceUrl must be absolute when present" }
 		requireUnique("depends", depends.map { it.id })
@@ -68,6 +74,9 @@ data class AddonMetadata(
 	val dependencies: List<AddonDependency> get() = depends
 	val conflicts: List<AddonDependency> get() = breaks
 	val requiredApiRange: String get() = requiredDhenApi
+	val parsedRequiredApiRange: VersionRange get() = VersionRange.parse(requiredDhenApi)
+	val parsedMinecraftVersionRange: VersionRange get() = VersionRange.parse(minecraftVersionRange)
+	val parsedFabricLoaderVersionRange: VersionRange get() = VersionRange.parse(fabricLoaderVersionRange)
 }
 
 data class ModuleMetadata(

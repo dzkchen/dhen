@@ -3,7 +3,13 @@ package io.github.dzkchen.dhen.platform
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.api.AddonLogger
+import io.github.dzkchen.dhen.api.ChatContext
+import io.github.dzkchen.dhen.api.ClientContext
+import io.github.dzkchen.dhen.api.PlayerContext
+import io.github.dzkchen.dhen.api.RawFabricBridge
+import io.github.dzkchen.dhen.api.RawMinecraftBridge
 import io.github.dzkchen.dhen.api.RegistrationHandle
+import io.github.dzkchen.dhen.api.WorldContext
 import io.github.dzkchen.dhen.runtime.JsonCodec
 import io.github.dzkchen.dhen.runtime.PlatformKeybind
 import io.github.dzkchen.dhen.runtime.PlatformServices
@@ -14,6 +20,8 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.chat.Component
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -23,6 +31,7 @@ private const val HUD_TEXT_COLOR: Int = -0x1
 class FabricPlatformServices : PlatformServices {
 	override val configDir: Path = FabricLoader.getInstance().configDir
 	override val jsonCodec: JsonCodec = GsonJsonCodec
+	override val clientContext: ClientContext = FabricClientContext(this)
 
 	private val keyMappings = LinkedHashMap<String, KeyMapping>()
 	private val keybindHandlers = HashMap<String, () -> Unit>()
@@ -90,6 +99,34 @@ class FabricPlatformServices : PlatformServices {
 		}
 		HudElementRegistry.addLast(Dhen.id("hud"), element)
 	}
+}
+
+private class FabricClientContext(private val platform: FabricPlatformServices) : ClientContext {
+	override val player: PlayerContext?
+		get() = Minecraft.getInstance().player?.let { FabricPlayerContext(it) }
+	override val world: WorldContext?
+		get() = Minecraft.getInstance().level?.let { FabricWorldContext(it) }
+	override val chat: ChatContext = object : ChatContext {
+		override fun sendSystemMessage(message: String) = platform.sendChat(message)
+	}
+	override val rawMinecraft: RawMinecraftBridge = object : RawMinecraftBridge {
+		override val client: Any? get() = Minecraft.getInstance()
+		override val player: Any? get() = Minecraft.getInstance().player
+		override val world: Any? get() = Minecraft.getInstance().level
+	}
+	override val rawFabric: RawFabricBridge = object : RawFabricBridge {
+		override val loader: Any? get() = FabricLoader.getInstance()
+	}
+}
+
+private class FabricPlayerContext(private val player: LocalPlayer) : PlayerContext {
+	override val name: String? get() = player.gameProfile.name ?: player.name.string
+	override val raw: Any? get() = player
+}
+
+private class FabricWorldContext(private val world: ClientLevel) : WorldContext {
+	override val name: String? get() = world.dimension().toString()
+	override val raw: Any? get() = world
 }
 
 private class SimpleHandle(override val id: String, private val onDispose: () -> Unit) : RegistrationHandle {

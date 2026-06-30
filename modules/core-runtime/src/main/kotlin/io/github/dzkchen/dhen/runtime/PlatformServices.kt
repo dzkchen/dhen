@@ -1,7 +1,9 @@
 package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonLogger
+import io.github.dzkchen.dhen.api.ClientContext
 import io.github.dzkchen.dhen.api.KeybindSpec
+import io.github.dzkchen.dhen.api.NoClientContext
 import io.github.dzkchen.dhen.api.RegistrationHandle
 import java.nio.file.Path
 
@@ -18,6 +20,7 @@ data class PlatformKeybind(
 interface PlatformServices {
 	val configDir: Path
 	val jsonCodec: JsonCodec
+	val clientContext: ClientContext get() = NoClientContext
 
 	fun logger(name: String): AddonLogger
 

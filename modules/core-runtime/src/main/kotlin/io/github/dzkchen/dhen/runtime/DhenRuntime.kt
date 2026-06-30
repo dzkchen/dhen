@@ -21,6 +21,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 		val context = object : AddonContext {
 			override val addonId: AddonId = metadata.id
 			override val logger = platform.logger("addon/${metadata.id.value}")
+			override val client = platform.clientContext
 
 			override fun registerModule(module: DhenModule) {
 				if (module.metadata.id.addonId != metadata.id) {

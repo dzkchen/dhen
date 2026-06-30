@@ -29,8 +29,53 @@ interface DhenModule {
 interface AddonContext {
 	val addonId: AddonId
 	val logger: AddonLogger
+	val client: ClientContext get() = NoClientContext
+	val rawMinecraft: RawMinecraftBridge get() = client.rawMinecraft
+	val rawFabric: RawFabricBridge get() = client.rawFabric
 
 	fun registerModule(module: DhenModule)
+}
+
+interface ClientContext {
+	val player: PlayerContext?
+	val world: WorldContext?
+	val chat: ChatContext
+	val rawMinecraft: RawMinecraftBridge
+	val rawFabric: RawFabricBridge
+}
+
+interface PlayerContext {
+	val name: String?
+	val raw: Any?
+}
+
+interface WorldContext {
+	val name: String?
+	val raw: Any?
+}
+
+interface ChatContext {
+	fun sendSystemMessage(message: String)
+}
+
+interface TooltipContext {
+	fun addLine(text: String)
+}
+
+interface HudRenderContext {
+	fun addText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle
+
+	fun addText(widgetId: String, provider: () -> String?): RegistrationHandle = addText(WidgetId(widgetId), provider)
+}
+
+interface RawMinecraftBridge {
+	val client: Any?
+	val player: Any?
+	val world: Any?
+}
+
+interface RawFabricBridge {
+	val loader: Any?
 }
 
 // Context handed to a module when it is enabled. Modules ask for platform behavior through
@@ -39,6 +84,11 @@ interface AddonContext {
 interface ModuleEnableContext {
 	val moduleId: ModuleId
 	val logger: AddonLogger
+	val client: ClientContext get() = NoClientContext
+	val chat: ChatContext get() = client.chat
+	val hudRender: HudRenderContext get() = NoHudRenderContext
+	val rawMinecraft: RawMinecraftBridge get() = client.rawMinecraft
+	val rawFabric: RawFabricBridge get() = client.rawFabric
 
 	fun booleanSetting(settingId: SettingId): Boolean
 
@@ -52,12 +102,46 @@ interface ModuleEnableContext {
 
 	fun addHudText(widgetId: String, provider: () -> String?): RegistrationHandle = addHudText(WidgetId(widgetId), provider)
 
-	fun sendChat(message: String)
+	fun sendChat(message: String) = chat.sendSystemMessage(message)
 }
 
 interface ModuleDisableContext {
 	val moduleId: ModuleId
 	val logger: AddonLogger
+	val client: ClientContext get() = NoClientContext
+	val chat: ChatContext get() = client.chat
+	val rawMinecraft: RawMinecraftBridge get() = client.rawMinecraft
+	val rawFabric: RawFabricBridge get() = client.rawFabric
 
-	fun sendChat(message: String)
+	fun sendChat(message: String) = chat.sendSystemMessage(message)
+}
+
+object NoRawMinecraftBridge : RawMinecraftBridge {
+	override val client: Any? = null
+	override val player: Any? = null
+	override val world: Any? = null
+}
+
+object NoRawFabricBridge : RawFabricBridge {
+	override val loader: Any? = null
+}
+
+object NoChatContext : ChatContext {
+	override fun sendSystemMessage(message: String) = Unit
+}
+
+object NoHudRenderContext : HudRenderContext {
+	override fun addText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle = NoopRegistrationHandle("hud:${widgetId.value}")
+}
+
+object NoClientContext : ClientContext {
+	override val player: PlayerContext? = null
+	override val world: WorldContext? = null
+	override val chat: ChatContext = NoChatContext
+	override val rawMinecraft: RawMinecraftBridge = NoRawMinecraftBridge
+	override val rawFabric: RawFabricBridge = NoRawFabricBridge
+}
+
+private class NoopRegistrationHandle(override val id: String) : RegistrationHandle {
+	override fun dispose() = Unit
 }
