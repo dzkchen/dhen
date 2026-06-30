@@ -15,7 +15,7 @@
 	"icon": "assets/dhen/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"main": [
+		"client": [
 			{
 				"value": "io.github.dzkchen.dhen.Dhen",
 				"adapter": "kotlin"
