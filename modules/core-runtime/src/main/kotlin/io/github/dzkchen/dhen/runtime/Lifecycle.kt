@@ -74,33 +74,25 @@ class LifecycleManager(
 		val context = EnableContextImpl(record, platform, config, logger)
 		try {
 			record.module.onEnable(context)
-			record.state = LifecycleState.ENABLED
-			record.failureReason = null
-			record.lastTransition = "enabled"
+			record.transitionTo(LifecycleState.ENABLED, "enabled")
 		} catch (t: Throwable) {
 			logger.error("Failed to enable module ${record.id}", t)
 			disposeHandles(record)
-			record.state = LifecycleState.FAILED
-			record.failureReason = t.message ?: t.javaClass.simpleName
-			record.lastTransition = "enable-failed"
+			record.transitionTo(LifecycleState.FAILED, "enable-failed", t.message ?: t.javaClass.simpleName)
 		}
 	}
 
 	fun disable(record: ModuleRecord) {
-		if (record.state != LifecycleState.ENABLED && record.state != LifecycleState.FAILED) {
-			record.state = LifecycleState.DISABLED
-			record.lastTransition = "disabled"
-			return
+		if (record.state == LifecycleState.DISABLED) return
+		if (record.state == LifecycleState.ENABLED || record.state == LifecycleState.FAILED) {
+			try {
+				record.module.onDisable(DisableContextImpl(record, platform, logger))
+			} catch (t: Throwable) {
+				logger.error("onDisable threw for module ${record.id}; continuing cleanup", t)
+			}
+			disposeHandles(record)
 		}
-		try {
-			record.module.onDisable(DisableContextImpl(record, platform, logger))
-		} catch (t: Throwable) {
-			logger.error("onDisable threw for module ${record.id}; continuing cleanup", t)
-		}
-		disposeHandles(record)
-		record.state = LifecycleState.DISABLED
-		record.failureReason = null
-		record.lastTransition = "disabled"
+		record.transitionTo(LifecycleState.DISABLED, "disabled")
 	}
 
 	// Disposes handles in reverse registration order. A throwing handle does not stop the rest.

@@ -3,9 +3,12 @@ package io.github.dzkchen.dhen
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.platform.CommandBridge
 import io.github.dzkchen.dhen.platform.FabricPlatformServices
+import io.github.dzkchen.dhen.runtime.AddonSource
+import io.github.dzkchen.dhen.runtime.AddonSourceType
 import io.github.dzkchen.dhen.runtime.DhenRuntime
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.loader.api.FabricLoader
+import net.fabricmc.loader.api.ModContainer
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 
@@ -27,7 +30,7 @@ object Dhen : ClientModInitializer {
 		val platform = FabricPlatformServices()
 		runtime = DhenRuntime(platform)
 
-		discoverAddons().forEach { runtime.registerAddon(it) }
+		registerDiscoveredAddons()
 
 		runtime.start()
 		CommandBridge.register(runtime)
@@ -41,22 +44,31 @@ object Dhen : ClientModInitializer {
 		)
 	}
 
-	// Reads native addon JAR entrypoints already loaded by Fabric and hands instances to the runtime.
-	private fun discoverAddons(): List<DhenAddon> {
+	// Reads native addon JAR entrypoints already loaded by Fabric and hands instances to the runtime,
+	// tagging each with the loaded-JAR source so diagnostics can show where it came from.
+	private fun registerDiscoveredAddons() {
 		val containers = FabricLoader.getInstance().getEntrypointContainers(ADDON_ENTRYPOINT, DhenAddon::class.java)
-		val addons = ArrayList<DhenAddon>(containers.size)
 		for (container in containers) {
-			val modId = container.provider.metadata.id
+			val provider = container.provider
+			val modId = provider.metadata.id
 			try {
 				val addon = container.entrypoint
 				LOGGER.info("Discovered Dhen addon '{}' from mod '{}'", addon.metadata.id, modId)
-				addons.add(addon)
+				runtime.registerAddon(addon, AddonSource(AddonSourceType.LOADED_JAR, sourceLocation(provider, modId)))
 			} catch (t: Throwable) {
 				LOGGER.error("Failed to load Dhen addon entrypoint from mod '{}'", modId, t)
 			}
 		}
-		return addons
 	}
+
+	// The on-disk paths Fabric loaded the addon from, falling back to the mod id when the origin
+	// is not a plain path (for example a nested jar) or is otherwise unavailable.
+	private fun sourceLocation(provider: ModContainer, modId: String): String =
+		try {
+			provider.origin.paths.joinToString(", ") { it.fileName.toString() }.ifBlank { modId }
+		} catch (t: Throwable) {
+			modId
+		}
 
 	fun id(path: String): Identifier = Identifier.fromNamespaceAndPath(MOD_ID, path)
 }

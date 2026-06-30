@@ -19,6 +19,8 @@ data class AddonDiagnostics(
 	val artifactType: String,
 	val authors: List<String>,
 	val sourceUrl: String?,
+	val sourceType: String,
+	val sourceLocation: String?,
 	val requiredDhenApi: String,
 	val minecraftVersionRange: String,
 	val fabricLoaderVersionRange: String,

@@ -11,6 +11,7 @@ class FakePlatformServices(override val configDir: Path) : PlatformServices {
 	val keybindHandlers = HashMap<String, () -> Unit>()
 	val hudWidgets = HashMap<String, () -> String?>()
 	val chatMessages = ArrayList<String>()
+	val disposedHandleIds = ArrayList<String>()
 	var registeredKeybinds: List<PlatformKeybind> = emptyList()
 
 	override val jsonCodec: JsonCodec = object : JsonCodec {
@@ -45,6 +46,9 @@ class FakePlatformServices(override val configDir: Path) : PlatformServices {
 
 	private fun handle(id: String, onDispose: () -> Unit) = object : RegistrationHandle {
 		override val id: String = id
-		override fun dispose() = onDispose()
+		override fun dispose() {
+			disposedHandleIds.add(id)
+			onDispose()
+		}
 	}
 }
