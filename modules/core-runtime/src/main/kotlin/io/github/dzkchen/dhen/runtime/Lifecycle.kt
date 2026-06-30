@@ -1,16 +1,21 @@
 package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonLogger
+import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.ModuleDisableContext
 import io.github.dzkchen.dhen.api.ModuleEnableContext
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.RegistrationHandle
+import io.github.dzkchen.dhen.api.SettingId
+import io.github.dzkchen.dhen.api.WidgetId
 
 // Builds the keybind id the platform registers for a module's keybind. Both the physical
 // registration and the per-enable handler binding must agree on this format.
-internal fun platformKeybindId(moduleId: ModuleId, keybindId: String): String = "${moduleId.value}/$keybindId"
+internal fun platformKeybindId(moduleId: ModuleId, keybindId: KeybindId): String = "${moduleId.value}/${keybindId.value}"
 
-internal fun platformWidgetId(moduleId: ModuleId, widgetId: String): String = "${moduleId.value}/$widgetId"
+internal fun platformKeybindId(moduleId: ModuleId, keybindId: String): String = platformKeybindId(moduleId, KeybindId(keybindId))
+
+internal fun platformWidgetId(moduleId: ModuleId, widgetId: WidgetId): String = "${moduleId.value}/${widgetId.value}"
 
 private class EnableContextImpl(
 	private val record: ModuleRecord,
@@ -20,12 +25,12 @@ private class EnableContextImpl(
 ) : ModuleEnableContext {
 	override val moduleId: ModuleId get() = record.id
 
-	override fun booleanSetting(settingId: String): Boolean = config.getBoolean(record.addonId, settingId)
+	override fun booleanSetting(settingId: SettingId): Boolean = config.getBoolean(record.addonId, settingId)
 
-	override fun onKeybind(keybindId: String, handler: () -> Unit): RegistrationHandle =
+	override fun onKeybind(keybindId: KeybindId, handler: () -> Unit): RegistrationHandle =
 		track(platform.bindKeybindHandler(platformKeybindId(record.id, keybindId), handler))
 
-	override fun addHudText(widgetId: String, provider: () -> String?): RegistrationHandle =
+	override fun addHudText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle =
 		track(platform.addHudWidget(platformWidgetId(record.id, widgetId), provider))
 
 	override fun sendChat(message: String) = platform.sendChat(message)

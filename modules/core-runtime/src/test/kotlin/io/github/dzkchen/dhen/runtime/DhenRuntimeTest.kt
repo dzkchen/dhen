@@ -6,10 +6,13 @@ import io.github.dzkchen.dhen.api.AddonMetadata
 import io.github.dzkchen.dhen.api.BooleanSetting
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.api.DhenModule
+import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.KeybindSpec
+import io.github.dzkchen.dhen.api.ModuleCategory
 import io.github.dzkchen.dhen.api.ModuleEnableContext
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.ModuleMetadata
+import io.github.dzkchen.dhen.api.SettingId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
 private val MODULE_ID = ModuleId("sample.addon:demo")
+private val SHOW_HUD_SETTING_ID = SettingId("show_hud")
+private val GREET_KEYBIND_ID = KeybindId("greet")
 
 private class SampleAddon : DhenAddon {
 	override val metadata = AddonMetadata(AddonId("sample.addon"), "Sample", "1.0.0")
@@ -31,13 +36,14 @@ private class DemoModule : DhenModule {
 	override val metadata = ModuleMetadata(
 		id = MODULE_ID,
 		name = "Demo",
-		settings = listOf(BooleanSetting("show_hud", "Show HUD", default = true)),
-		keybinds = listOf(KeybindSpec("greet", "Greet", defaultKey = 71)),
+		category = ModuleCategory.HUD_OVERLAYS,
+		settings = listOf(BooleanSetting(SHOW_HUD_SETTING_ID, "Show HUD", default = true)),
+		keybinds = listOf(KeybindSpec(GREET_KEYBIND_ID, "Greet", defaultKey = 71)),
 	)
 
 	override fun onEnable(context: ModuleEnableContext) {
-		context.addHudText("hud") { if (context.booleanSetting("show_hud")) "hi" else null }
-		context.onKeybind("greet") { context.sendChat("hi") }
+		context.addHudText("hud") { if (context.booleanSetting(SHOW_HUD_SETTING_ID)) "hi" else null }
+		context.onKeybind(GREET_KEYBIND_ID) { context.sendChat("hi") }
 	}
 }
 

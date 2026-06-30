@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonId
 import io.github.dzkchen.dhen.api.BooleanSetting
+import io.github.dzkchen.dhen.api.SettingId
 import io.github.dzkchen.dhen.api.SettingSchema
 import java.nio.file.Files
 import java.nio.file.Path
@@ -67,16 +68,16 @@ class ConfigManager(private val store: ConfigStore) {
 		val current = valuesByAddon.getOrPut(addonId) { store.loadAddonSettings(addonId) }
 		var changed = false
 		for (schema in schemas) {
-			if (!current.containsKey(schema.id)) {
-				current[schema.id] = defaultOf(schema)
+			if (!current.containsKey(schema.id.value)) {
+				current[schema.id.value] = defaultOf(schema)
 				changed = true
 			}
 		}
 		if (changed) store.saveAddonSettings(addonId, current)
 	}
 
-	fun getBoolean(addonId: AddonId, settingId: String): Boolean {
-		val v = valuesByAddon[addonId]?.get(settingId)
+	fun getBoolean(addonId: AddonId, settingId: SettingId): Boolean {
+		val v = valuesByAddon[addonId]?.get(settingId.value)
 		return when (v) {
 			is Boolean -> v
 			is Number -> v.toInt() != 0

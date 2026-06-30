@@ -10,28 +10,43 @@ import net.minecraft.network.chat.Component
 class DhenScreen(private val parent: Screen, private val runtime: DhenRuntime) : Screen(Component.literal("Dhen")) {
 	override fun init() {
 		val centerX = width / 2
+		val panelWidth = 320
+		val left = centerX - panelWidth / 2
 		var y = 36
+		val diagnostics = runtime.diagnostics()
 
-		for (record in runtime.modules()) {
-			val label = "${record.module.metadata.name}: ${stateLabel(record.state)}"
+		for (addon in diagnostics.addons) {
+			val authors = if (addon.authors.isEmpty()) "unknown author" else addon.authors.joinToString(", ")
+			val source = addon.sourceUrl ?: "local/unknown source"
 			addRenderableWidget(
-				Button.builder(Component.literal(label)) {
-					runtime.toggleModule(record.id)
-					rebuildWidgets()
-				}.bounds(centerX - 120, y, 240, 20).build(),
+				StringWidget(left, y, panelWidth, 20, Component.literal("${addon.name} v${addon.version} (${addon.artifactType})"), font),
+			)
+			y += 14
+			addRenderableWidget(
+				StringWidget(left, y, panelWidth, 20, Component.literal("$authors - API ${addon.requiredDhenApi} - $source"), font),
 			)
 			y += 24
 		}
 
-		val diagnostics = runtime.diagnostics()
+		for (record in runtime.modules()) {
+			val label = "${record.module.metadata.category.displayName}: ${record.module.metadata.name} - ${stateLabel(record.state)}"
+			addRenderableWidget(
+				Button.builder(Component.literal(label)) {
+					runtime.toggleModule(record.id)
+					rebuildWidgets()
+				}.bounds(left, y, panelWidth, 20).build(),
+			)
+			y += 24
+		}
+
 		addRenderableWidget(
-			StringWidget(centerX - 120, y, 240, 20, Component.literal("Active handles: ${diagnostics.totalActiveHandles}"), font),
+			StringWidget(left, y, panelWidth, 20, Component.literal("Active handles: ${diagnostics.totalActiveHandles}"), font),
 		)
 		y += 24
 
 		addRenderableWidget(
 			Button.builder(Component.literal("Done")) { onClose() }
-				.bounds(centerX - 120, y + 8, 240, 20).build(),
+				.bounds(left, y + 8, panelWidth, 20).build(),
 		)
 	}
 

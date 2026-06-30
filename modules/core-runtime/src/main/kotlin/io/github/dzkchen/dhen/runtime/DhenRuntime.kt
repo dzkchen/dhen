@@ -103,7 +103,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 				moduleId = md.id.value,
 				addonId = record.addonId.value,
 				name = md.name,
-				category = md.category.name,
+				category = md.category.displayName,
 				state = record.state,
 				activeHandles = record.activeHandleCount,
 				failureReason = record.failureReason,
@@ -111,7 +111,22 @@ class DhenRuntime(private val platform: PlatformServices) {
 			)
 		}
 		val addons = registry.addons().map { md ->
-			AddonDiagnostics(md.id.value, md.name, md.version, registry.byAddon(md.id).size)
+			AddonDiagnostics(
+				addonId = md.id.value,
+				name = md.name,
+				version = md.version,
+				moduleCount = registry.byAddon(md.id).size,
+				artifactType = md.artifactType.displayName,
+				authors = md.authors,
+				sourceUrl = md.sourceUrl?.toString(),
+				requiredDhenApi = md.requiredDhenApi,
+				minecraftVersionRange = md.minecraftVersionRange,
+				fabricLoaderVersionRange = md.fabricLoaderVersionRange,
+				dependencies = md.depends.map { it.id.value },
+				conflicts = md.breaks.map { it.id.value },
+				providedModules = md.providedModules.map { it.value },
+				releaseNotes = md.releaseNotes,
+			)
 		}
 		return DiagnosticsSnapshot(addons, modules)
 	}

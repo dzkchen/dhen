@@ -40,11 +40,17 @@ interface ModuleEnableContext {
 	val moduleId: ModuleId
 	val logger: AddonLogger
 
-	fun booleanSetting(settingId: String): Boolean
+	fun booleanSetting(settingId: SettingId): Boolean
 
-	fun onKeybind(keybindId: String, handler: () -> Unit): RegistrationHandle
+	fun booleanSetting(settingId: String): Boolean = booleanSetting(SettingId(settingId))
 
-	fun addHudText(widgetId: String, provider: () -> String?): RegistrationHandle
+	fun onKeybind(keybindId: KeybindId, handler: () -> Unit): RegistrationHandle
+
+	fun onKeybind(keybindId: String, handler: () -> Unit): RegistrationHandle = onKeybind(KeybindId(keybindId), handler)
+
+	fun addHudText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle
+
+	fun addHudText(widgetId: String, provider: () -> String?): RegistrationHandle = addHudText(WidgetId(widgetId), provider)
 
 	fun sendChat(message: String)
 }

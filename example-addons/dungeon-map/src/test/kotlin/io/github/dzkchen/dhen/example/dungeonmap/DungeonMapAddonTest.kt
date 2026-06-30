@@ -5,8 +5,12 @@ import io.github.dzkchen.dhen.api.AddonId
 import io.github.dzkchen.dhen.api.AddonLogger
 import io.github.dzkchen.dhen.api.BooleanSetting
 import io.github.dzkchen.dhen.api.DhenModule
+import io.github.dzkchen.dhen.api.HudWidgetSpec
+import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.KeybindSpec
 import io.github.dzkchen.dhen.api.ModuleId
+import io.github.dzkchen.dhen.api.SettingId
+import io.github.dzkchen.dhen.api.WidgetId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -21,14 +25,15 @@ class DungeonMapAddonTest {
 		assertEquals(ModuleId("dhen.dungeon-map:greeter"), metadata.id)
 		assertEquals(
 			BooleanSetting(
-				id = "show_hud",
+				id = SettingId("show_hud"),
 				name = "Show HUD line",
 				description = "Render the greeter line on the HUD.",
 				default = true,
 			),
 			metadata.settings.single(),
 		)
-		assertEquals(KeybindSpec(id = "greet", displayName = "Dhen: Greet", defaultKey = 71), metadata.keybinds.single())
+		assertEquals(HudWidgetSpec(id = WidgetId("hud"), name = "Greeter HUD"), metadata.hudWidgets.single())
+		assertEquals(KeybindSpec(id = KeybindId("greet"), displayName = "Dhen: Greet", defaultKey = 71), metadata.keybinds.single())
 	}
 }
 

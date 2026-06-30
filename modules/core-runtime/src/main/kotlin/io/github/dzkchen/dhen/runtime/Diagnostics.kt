@@ -16,6 +16,16 @@ data class AddonDiagnostics(
 	val name: String,
 	val version: String,
 	val moduleCount: Int,
+	val artifactType: String,
+	val authors: List<String>,
+	val sourceUrl: String?,
+	val requiredDhenApi: String,
+	val minecraftVersionRange: String,
+	val fabricLoaderVersionRange: String,
+	val dependencies: List<String>,
+	val conflicts: List<String>,
+	val providedModules: List<String>,
+	val releaseNotes: String,
 )
 
 data class DiagnosticsSnapshot(
