@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component
 class DhenScreen(private val parent: Screen, private val runtime: DhenRuntime) : Screen(Component.literal("Dhen")) {
 	override fun init() {
 		val centerX = width / 2
-		val panelWidth = 320
+		val panelWidth = minOf(320, width - 32)
 		val left = centerX - panelWidth / 2
 		var y = 36
 		val diagnostics = runtime.diagnostics()
