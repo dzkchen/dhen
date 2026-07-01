@@ -71,7 +71,6 @@ class DhenRuntime(private val platform: PlatformServices) {
 		registerResolvedModules()
 		platform.registerKeybinds(collectKeybinds())
 		restoreEnabledState()
-		persistEnabledState()
 
 		log.info("Dhen runtime started: ${registry.addons().size} addon(s), ${registry.all().size} module(s)")
 	}
@@ -79,13 +78,15 @@ class DhenRuntime(private val platform: PlatformServices) {
 	// DISCOVERED -> RESOLVED when the owning addon's required dependencies are present and in range,
 	// otherwise DISCOVERED -> FAILED so the module is excluded from the rest of startup.
 	private fun resolveModules() {
-		for (record in registry.all()) {
-			if (record.state != LifecycleState.DISCOVERED) continue
-			val reason = registry.addon(record.addonId)?.let(::unmetDependency)
-			if (reason == null) {
-				record.transitionTo(LifecycleState.RESOLVED, "resolved")
-			} else {
-				record.transitionTo(LifecycleState.FAILED, "resolve-failed", reason)
+		for (addon in registry.addons()) {
+			val reason = unmetDependency(addon.metadata)
+			for (record in registry.byAddon(addon.id)) {
+				if (record.state != LifecycleState.DISCOVERED) continue
+				if (reason == null) {
+					record.transitionTo(LifecycleState.RESOLVED, "resolved")
+				} else {
+					record.transitionTo(LifecycleState.FAILED, "resolve-failed", reason)
+				}
 			}
 		}
 	}
@@ -197,7 +198,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 
 	// The first enabled module that this module declares a conflict with, or that declares one with it.
 	private fun activeConflict(record: ModuleRecord): ModuleId? {
-		val declared = record.module.metadata.conflicts.toSet()
+		val declared = record.module.metadata.conflicts
 		return registry.all().firstOrNull { other ->
 			other.id != record.id &&
 				other.state == LifecycleState.ENABLED &&

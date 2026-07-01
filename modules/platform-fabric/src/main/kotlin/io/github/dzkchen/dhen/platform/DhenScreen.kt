@@ -16,14 +16,12 @@ class DhenScreen(private val parent: Screen, private val runtime: DhenRuntime) :
 		val diagnostics = runtime.diagnostics()
 
 		for (addon in diagnostics.addons) {
-			val authors = if (addon.authors.isEmpty()) "unknown author" else addon.authors.joinToString(", ")
-			val source = addon.sourceLocation ?: addon.sourceUrl ?: "unknown"
 			addRenderableWidget(
 				StringWidget(left, y, panelWidth, 20, Component.literal("${addon.name} v${addon.version} (${addon.artifactType})"), font),
 			)
 			y += 14
 			addRenderableWidget(
-				StringWidget(left, y, panelWidth, 20, Component.literal("$authors - API ${addon.requiredDhenApi} - ${addon.sourceType}: $source"), font),
+				StringWidget(left, y, panelWidth, 20, Component.literal("${addon.displayAuthors} - API ${addon.requiredDhenApi} - ${addon.sourceType}: ${addon.displaySource}"), font),
 			)
 			y += 24
 		}

@@ -63,9 +63,7 @@ object CommandBridge {
 		}
 		feedback(ctx, "[Dhen] Addons:")
 		for (addon in addons) {
-			val authors = if (addon.authors.isEmpty()) "unknown author" else addon.authors.joinToString(", ")
-			val source = addon.sourceLocation ?: addon.sourceUrl ?: "unknown"
-			feedback(ctx, "  ${addon.addonId} v${addon.version} - ${addon.artifactType} - $authors - ${addon.sourceType}: $source (${addon.moduleCount} module(s))")
+			feedback(ctx, "  ${addon.addonId} v${addon.version} - ${addon.artifactType} - ${addon.displayAuthors} - ${addon.sourceType}: ${addon.displaySource} (${addon.moduleCount} module(s))")
 		}
 		return 1
 	}

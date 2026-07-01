@@ -28,7 +28,10 @@ data class AddonDiagnostics(
 	val conflicts: List<String>,
 	val providedModules: List<String>,
 	val releaseNotes: String,
-)
+) {
+	val displayAuthors: String get() = if (authors.isEmpty()) "unknown author" else authors.joinToString(", ")
+	val displaySource: String get() = sourceLocation ?: sourceUrl ?: "unknown"
+}
 
 data class DiagnosticsSnapshot(
 	val addons: List<AddonDiagnostics>,
