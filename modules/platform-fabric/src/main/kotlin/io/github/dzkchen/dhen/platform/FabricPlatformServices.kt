@@ -28,6 +28,8 @@ import java.nio.file.Path
 
 private const val HUD_TEXT_COLOR: Int = -0x1
 
+private val log = LoggerFactory.getLogger(FabricPlatformServices::class.java)
+
 class FabricPlatformServices : PlatformServices {
 	override val configDir: Path = FabricLoader.getInstance().configDir
 	override val jsonCodec: JsonCodec = GsonJsonCodec
@@ -38,6 +40,7 @@ class FabricPlatformServices : PlatformServices {
 
 	private val hudWidgets = LinkedHashMap<String, () -> String?>()
 	private val hudLock = Any()
+	private val hudFailedWidgets = HashSet<String>()
 	private var hudRegistered = false
 
 	override fun logger(name: String): AddonLogger = Slf4jAddonLogger(name)
@@ -53,7 +56,11 @@ class FabricPlatformServices : PlatformServices {
 			ClientTickEvents.EndTick { _ ->
 				for ((id, mapping) in keyMappings) {
 					while (mapping.consumeClick()) {
-						keybindHandlers[id]?.invoke()
+						try {
+							keybindHandlers[id]?.invoke()
+						} catch (t: Throwable) {
+							log.error("Keybind handler '$id' failed", t)
+						}
 					}
 				}
 			},
@@ -85,12 +92,17 @@ class FabricPlatformServices : PlatformServices {
 		hudRegistered = true
 		val element = HudElement { graphics, _ ->
 			val client = Minecraft.getInstance()
-			val snapshot = synchronized(hudLock) { hudWidgets.values.toList() }
+			val snapshot = synchronized(hudLock) { hudWidgets.entries.map { it.key to it.value } }
 			var y = 4
-			for (provider in snapshot) {
+			for ((id, provider) in snapshot) {
 				val text = try {
-					provider()
+					val rendered = provider()
+					synchronized(hudLock) { hudFailedWidgets.remove(id) }
+					rendered
 				} catch (t: Throwable) {
+					if (synchronized(hudLock) { hudFailedWidgets.add(id) }) {
+						log.error("HUD widget '$id' failed to render", t)
+					}
 					null
 				} ?: continue
 				graphics.text(client.font, Component.literal(text), 4, y, HUD_TEXT_COLOR)
