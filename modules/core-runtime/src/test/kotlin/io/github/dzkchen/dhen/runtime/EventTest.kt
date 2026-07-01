@@ -97,6 +97,19 @@ class EventTest {
 	}
 
 	@Test
+	fun subscriptionCancelledMidDispatchDoesNotRunInSamePass() {
+		val bus = EventBus(RecordingLogger())
+		var secondRan = false
+		lateinit var second: EventBus.Subscription
+		bus.subscribe(ChatReceiveEvent::class) { second.cancel() }
+		second = bus.subscribe(ChatReceiveEvent::class) { secondRan = true }
+
+		bus.dispatch(ChatReceiveEvent("a"))
+
+		assertEquals(false, secondRan)
+	}
+
+	@Test
 	fun eventWithNoSubscribersIsIgnored() {
 		val logger = RecordingLogger()
 		val bus = EventBus(logger)

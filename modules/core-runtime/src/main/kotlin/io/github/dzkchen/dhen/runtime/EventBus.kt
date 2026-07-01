@@ -17,7 +17,8 @@ class EventBus(private val logger: AddonLogger) {
 
 	fun dispatch(event: DhenEvent) {
 		val byId = handlers[event::class] ?: return
-		for (handler in byId.values.toList()) {
+		for ((id, handler) in byId.entries.toList()) {
+			if (!byId.containsKey(id)) continue
 			try {
 				handler(event)
 			} catch (t: Throwable) {
