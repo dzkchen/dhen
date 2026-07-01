@@ -16,11 +16,13 @@ import io.github.dzkchen.dhen.api.ModuleCategory
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.ModuleMetadata
 import io.github.dzkchen.dhen.api.ObjectSetting
+import io.github.dzkchen.dhen.api.ObjectValueSchema
 import io.github.dzkchen.dhen.api.SettingId
 import io.github.dzkchen.dhen.api.StringSetting
 import io.github.dzkchen.dhen.api.StringValueSchema
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -62,6 +64,32 @@ class ConfigManagerTest {
 		@Suppress("UNCHECKED_CAST")
 		val nested = advanced["nested"] as Map<String, Any?>
 		assertEquals("demo", nested["label"])
+	}
+
+	@Test
+	fun materializesDefaultsInsideListItemObjects(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val manager = ConfigManager(store)
+		val addonId = AddonId("config.addon")
+		store.saveAddonSettings(addonId, mapOf("rows" to listOf(emptyMap<String, Any?>())))
+
+		val errors = manager.materializeDefaults(
+			addonId,
+			listOf(
+				ListSetting(
+					SettingId("rows"),
+					"Rows",
+					ObjectValueSchema(fields = listOf(StringSetting(SettingId("label"), "Label", default = "demo"))),
+				),
+			),
+		)
+
+		assertTrue(errors.isEmpty())
+		val saved = store.loadAddonSettings(addonId)
+		@Suppress("UNCHECKED_CAST")
+		val rows = saved["rows"] as List<Map<String, Any?>>
+		assertEquals("demo", rows.single()["label"])
 	}
 
 	@Test
@@ -150,6 +178,55 @@ class ConfigManagerTest {
 	}
 
 	@Test
+	fun requiredBooleanWithoutDefaultDoesNotReadAsFalse(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val addonId = AddonId("config.addon")
+		store.saveAddonSettings(addonId, mapOf("enabled" to "bad"))
+
+		val manager = ConfigManager(store)
+		val errors = manager.materializeDefaults(
+			addonId,
+			listOf(BooleanSetting(SettingId("enabled"), "Enabled", default = null)),
+		)
+
+		assertEquals(listOf("config.addon.enabled: expected boolean"), errors)
+		assertThrows(IllegalStateException::class.java) {
+			manager.getBoolean(addonId, SettingId("enabled"))
+		}
+
+		val missingAddonId = AddonId("config.missing")
+		val missingManager = ConfigManager(store)
+		val missingErrors = missingManager.materializeDefaults(
+			missingAddonId,
+			listOf(BooleanSetting(SettingId("enabled"), "Enabled", default = null)),
+		)
+
+		assertEquals(listOf("config.missing.enabled: required setting is missing"), missingErrors)
+		assertThrows(IllegalStateException::class.java) {
+			missingManager.getBoolean(missingAddonId, SettingId("enabled"))
+		}
+	}
+
+	@Test
+	fun rejectsDuplicateSettingIdsAcrossFlattenedSchemas(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val addonId = AddonId("config.addon")
+
+		val errors = ConfigManager(store).materializeDefaults(
+			addonId,
+			listOf(
+				BooleanSetting(SettingId("enabled"), "Enabled", default = true),
+				BooleanSetting(SettingId("enabled"), "Enabled again", default = false),
+			),
+		)
+
+		assertEquals(listOf("config.addon.enabled: duplicate setting id"), errors)
+		assertFalse(store.loadAddonSettings(addonId).containsKey("enabled"))
+	}
+
+	@Test
 	fun runtimeLogsValidationErrorsWithoutFailingModules(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
 		ConfigStore(platform.configDir, platform.jsonCodec)
@@ -161,6 +238,17 @@ class ConfigManagerTest {
 
 		assertEquals(LifecycleState.DISABLED, runtime.modules().single().state)
 		assertTrue(platform.warnings.any { it.contains("Invalid config value: config.addon.enabled: expected boolean") })
+	}
+
+	@Test
+	fun runtimeLogsDuplicateSettingIdsAcrossModules(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val runtime = DhenRuntime(platform)
+		runtime.registerAddon(DuplicateSettingsAddon())
+
+		runtime.start()
+
+		assertTrue(platform.warnings.any { it.contains("Invalid config value: config.addon.enabled: duplicate setting id") })
 	}
 }
 
@@ -176,5 +264,23 @@ private class ConfigModule : DhenModule {
 		name = "Demo",
 		category = ModuleCategory.HUD_OVERLAYS,
 		settings = listOf(BooleanSetting(SettingId("enabled"), "Enabled", default = true)),
+	)
+}
+
+private class DuplicateSettingsAddon : DhenAddon {
+	override val metadata = AddonMetadata(AddonId("config.addon"), "Config", "1.0.0")
+
+	override fun register(context: AddonContext) {
+		context.registerModule(DuplicateSettingsModule("first", default = true))
+		context.registerModule(DuplicateSettingsModule("second", default = false))
+	}
+}
+
+private class DuplicateSettingsModule(name: String, default: Boolean) : DhenModule {
+	override val metadata = ModuleMetadata(
+		id = ModuleId("config.addon:$name"),
+		name = name,
+		category = ModuleCategory.HUD_OVERLAYS,
+		settings = listOf(BooleanSetting(SettingId("enabled"), "Enabled", default = default)),
 	)
 }

@@ -84,35 +84,27 @@ class ConfigManager(private val store: ConfigStore) {
 	private val schemasByAddon = LinkedHashMap<AddonId, Map<SettingId, SettingSchema>>()
 
 	fun materializeDefaults(addonId: AddonId, schemas: List<SettingSchema>): List<String> {
-		schemasByAddon[addonId] = schemas.associateBy { it.id }
+		val duplicateIds = duplicateSettingIds(schemas)
+		val uniqueSchemas = schemas.filter { it.id !in duplicateIds }
+		schemasByAddon[addonId] = uniqueSchemas.associateBy { it.id }
 		val current = valuesByAddon.getOrPut(addonId) { store.loadAddonSettings(addonId) }
 		var changed = false
-		for (schema in schemas) {
-			if (!current.containsKey(schema.id.value)) {
-				val default = defaultOf(schema)
-				if (default != null) {
-					current[schema.id.value] = default
-					changed = true
-				}
-			} else if (schema is ObjectSetting) {
-				@Suppress("UNCHECKED_CAST")
-				val value = current[schema.id.value] as? MutableMap<String, Any?>
-					?: (current[schema.id.value] as? Map<*, *>)?.toMutableStringMap()
-				if (value != null) {
-					current[schema.id.value] = value
-					changed = materializeObjectDefaults(value, schema.fields) || changed
-				}
-			}
-		}
+		for (schema in uniqueSchemas) changed = materializeSettingDefaults(current, schema) || changed
 		if (changed) store.saveAddonSettings(addonId, current)
-		return ConfigValidator.validate(addonId, current, schemas)
+		return duplicateIds.map { "${addonId.value}.${it.value}: duplicate setting id" } +
+			ConfigValidator.validate(addonId, current, uniqueSchemas)
 	}
 
 	fun getBoolean(addonId: AddonId, settingId: SettingId): Boolean {
 		val v = valuesByAddon[addonId]?.get(settingId.value)
 		return when (v) {
 			is Boolean -> v
-			else -> (schemasByAddon[addonId]?.get(settingId) as? BooleanSetting)?.default ?: false
+			else -> {
+				val default = (schemasByAddon[addonId]?.get(settingId) as? BooleanSetting)?.default
+				default ?: throw IllegalStateException(
+					"Required boolean setting ${addonId.value}.${settingId.value} is missing or invalid",
+				)
+			}
 		}
 	}
 
@@ -123,7 +115,7 @@ class ConfigManager(private val store: ConfigStore) {
 		is FloatRangeSetting -> schema.default
 		is IntRangeSetting -> schema.default
 		is KeybindSetting -> schema.default
-		is ListSetting -> schema.default
+		is ListSetting -> schema.default?.map { materializeDefaultValue(it, schema.itemSchema) }
 		is ObjectSetting -> objectDefault(schema.fields)
 		is StringSetting -> schema.default
 	}
@@ -135,7 +127,7 @@ class ConfigManager(private val store: ConfigStore) {
 		is FloatRangeValueSchema -> schema.default
 		is IntRangeValueSchema -> schema.default
 		is KeybindValueSchema -> schema.default
-		is ListValueSchema -> schema.default
+		is ListValueSchema -> schema.default?.map { materializeDefaultValue(it, schema.itemSchema) }
 		is ObjectValueSchema -> objectDefault(schema.fields)
 		is StringValueSchema -> schema.default
 	}
@@ -149,27 +141,67 @@ class ConfigManager(private val store: ConfigStore) {
 		return out.ifEmpty { null }
 	}
 
+	private fun materializeDefaultValue(value: Any?, schema: SettingValueSchema): Any? = when (schema) {
+		is ListValueSchema -> (value as? List<*>)?.map { materializeDefaultValue(it, schema.itemSchema) } ?: value
+		is ObjectValueSchema -> {
+			val objectValue = (value as? Map<*, *>)?.toMutableStringMap() ?: return value
+			materializeObjectDefaults(objectValue, schema.fields)
+			objectValue
+		}
+		else -> value
+	}
+
+	private fun materializeSettingDefaults(values: MutableMap<String, Any?>, schema: SettingSchema): Boolean {
+		if (!values.containsKey(schema.id.value)) {
+			val default = defaultOf(schema) ?: return false
+			values[schema.id.value] = default
+			return true
+		}
+		return when (schema) {
+			is ListSetting -> {
+				val listValue = (values[schema.id.value] as? List<*>)?.toMutableAnyList() ?: return false
+				values[schema.id.value] = listValue
+				materializeListDefaults(listValue, schema.itemSchema)
+			}
+			is ObjectSetting -> {
+				val objectValue = (values[schema.id.value] as? Map<*, *>)?.toMutableStringMap() ?: return false
+				values[schema.id.value] = objectValue
+				materializeObjectDefaults(objectValue, schema.fields)
+			}
+			else -> false
+		}
+	}
+
 	private fun materializeObjectDefaults(values: MutableMap<String, Any?>, fields: List<SettingSchema>): Boolean {
 		var changed = false
 		for (field in fields) {
-			if (!values.containsKey(field.id.value)) {
-				val default = defaultOf(field)
-				if (default != null) {
-					values[field.id.value] = default
-					changed = true
+			changed = materializeSettingDefaults(values, field) || changed
+		}
+		return changed
+	}
+
+	private fun materializeListDefaults(values: MutableList<Any?>, itemSchema: SettingValueSchema): Boolean {
+		var changed = false
+		for (index in values.indices) {
+			when (itemSchema) {
+				is ListValueSchema -> {
+					val listValue = (values[index] as? List<*>)?.toMutableAnyList() ?: continue
+					values[index] = listValue
+					changed = materializeListDefaults(listValue, itemSchema.itemSchema) || changed
 				}
-			} else if (field is ObjectSetting) {
-				val value = values[field.id.value]
-				@Suppress("UNCHECKED_CAST")
-				val objectValue = value as? MutableMap<String, Any?> ?: (value as? Map<*, *>)?.toMutableStringMap()
-				if (objectValue != null) {
-					values[field.id.value] = objectValue
-					changed = materializeObjectDefaults(objectValue, field.fields) || changed
+				is ObjectValueSchema -> {
+					val objectValue = (values[index] as? Map<*, *>)?.toMutableStringMap() ?: continue
+					values[index] = objectValue
+					changed = materializeObjectDefaults(objectValue, itemSchema.fields) || changed
 				}
+				else -> Unit
 			}
 		}
 		return changed
 	}
+
+	private fun duplicateSettingIds(schemas: List<SettingSchema>): Set<SettingId> =
+		schemas.groupBy { it.id }.filterValues { it.size > 1 }.keys
 }
 
 object ConfigValidator {
@@ -282,6 +314,8 @@ private fun Map<*, *>.toMutableStringMap(): MutableMap<String, Any?> {
 	for ((key, value) in this) if (key is String) out[key] = value
 	return out
 }
+
+private fun List<*>.toMutableAnyList(): MutableList<Any?> = ArrayList(this)
 
 private fun Any?.asIntOrNull(): Int? {
 	val number = this as? Number ?: return null
