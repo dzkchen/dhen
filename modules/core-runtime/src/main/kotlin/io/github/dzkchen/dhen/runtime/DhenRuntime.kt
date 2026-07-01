@@ -100,7 +100,9 @@ class DhenRuntime(private val platform: PlatformServices) {
 			val schemas = registry.byAddon(addon.id)
 				.filter { it.state == LifecycleState.REGISTERED }
 				.flatMap { it.module.metadata.settings }
-			if (schemas.isNotEmpty()) config.materializeDefaults(addon.id, schemas)
+			if (schemas.isNotEmpty()) {
+				for (error in config.materializeDefaults(addon.id, schemas)) log.warn("Invalid config value: $error")
+			}
 		}
 	}
 

@@ -12,6 +12,8 @@ class FakePlatformServices(override val configDir: Path) : PlatformServices {
 	val hudWidgets = HashMap<String, () -> String?>()
 	val chatMessages = ArrayList<String>()
 	val disposedHandleIds = ArrayList<String>()
+	val warnings = ArrayList<String>()
+	val errors = ArrayList<String>()
 	var registeredKeybinds: List<PlatformKeybind> = emptyList()
 
 	override val jsonCodec: JsonCodec = object : JsonCodec {
@@ -22,8 +24,12 @@ class FakePlatformServices(override val configDir: Path) : PlatformServices {
 
 	override fun logger(name: String): AddonLogger = object : AddonLogger {
 		override fun info(message: String) {}
-		override fun warn(message: String) {}
-		override fun error(message: String, throwable: Throwable?) {}
+		override fun warn(message: String) {
+			warnings.add("[$name] $message")
+		}
+		override fun error(message: String, throwable: Throwable?) {
+			errors.add("[$name] $message")
+		}
 	}
 
 	override fun registerKeybinds(keybinds: List<PlatformKeybind>) {
