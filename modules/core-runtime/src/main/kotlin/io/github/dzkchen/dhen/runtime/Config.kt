@@ -127,6 +127,10 @@ class ConfigStore(
 		updateCoreState { it.copy(enabledAddons = ids.toSortedSet()) }
 	}
 
+	fun saveEnabledState(moduleIds: Set<String>, addonIds: Set<String>) {
+		updateCoreState { it.copy(enabledModules = moduleIds.toSortedSet(), enabledAddons = addonIds.toSortedSet()) }
+	}
+
 	fun saveInstalledAddons(addons: Map<String, InstalledAddonState>) {
 		updateCoreState { it.copy(installedAddons = addons.toSortedMap()) }
 	}
@@ -463,10 +467,14 @@ class ConfigStore(
 		)
 		val ADDON_MIGRATIONS = listOf(
 			ConfigMigration(1) { migrated ->
-				val settings = LinkedHashMap<String, Any?>()
-				for ((key, value) in migrated) if (key != "schemaVersion") settings[key] = value
-				migrated.clear()
-				migrated["settings"] = settings
+				val alreadyEnveloped = migrated["settings"] is Map<*, *> &&
+					migrated.keys.all { it == "settings" || it == "schemaVersion" }
+				if (!alreadyEnveloped) {
+					val settings = LinkedHashMap<String, Any?>()
+					for ((key, value) in migrated) if (key != "schemaVersion") settings[key] = value
+					migrated.clear()
+					migrated["settings"] = settings
+				}
 			},
 		)
 		val CORE_FIELDS = setOf(

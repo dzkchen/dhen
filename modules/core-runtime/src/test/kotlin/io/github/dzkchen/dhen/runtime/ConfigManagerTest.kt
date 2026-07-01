@@ -74,6 +74,33 @@ class ConfigManagerTest {
 	}
 
 	@Test
+	fun saveEnabledStatePersistsModulesAndAddonsInOneAtomicWrite(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val goodStore = ConfigStore(platform.configDir, platform.jsonCodec)
+		goodStore.saveCoreState(
+			CoreConfigState(enabledModules = setOf("config.addon:demo"), enabledAddons = setOf("config.addon")),
+		)
+		val before = Files.readString(goodStore.coreFile)
+
+		val badStore = ConfigStore(
+			platform.configDir,
+			object : JsonCodec {
+				override fun encode(value: Any?): String = throw IllegalArgumentException("bad json")
+				override fun decode(text: String): Any? = platform.jsonCodec.decode(text)
+			},
+		)
+
+		assertThrows(IllegalArgumentException::class.java) {
+			badStore.saveEnabledState(emptySet(), emptySet())
+		}
+
+		assertEquals(before, Files.readString(goodStore.coreFile))
+		val reloaded = goodStore.loadCoreState()
+		assertEquals(setOf("config.addon:demo"), reloaded.enabledModules)
+		assertEquals(setOf("config.addon"), reloaded.enabledAddons)
+	}
+
+	@Test
 	fun badJsonLoadsDefaultState(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
 		val store = ConfigStore(platform.configDir, platform.jsonCodec)
@@ -119,6 +146,24 @@ class ConfigManagerTest {
 		@Suppress("UNCHECKED_CAST")
 		val settings = persisted["settings"] as Map<String, Any?>
 		assertEquals(true, settings["enabled"])
+	}
+
+	@Test
+	fun addonConfigWithoutSchemaVersionKeepsExistingSettingsEnvelope(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val path = store.addonsDir.resolve("config.addon.json")
+		Files.createDirectories(path.parent)
+		Files.writeString(path, platform.jsonCodec.encode(mapOf("settings" to mapOf("enabled" to true))))
+
+		assertEquals(mutableMapOf("enabled" to true), store.loadAddonSettings(AddonId("config.addon")))
+
+		val persisted = decodedMap(platform, path)
+		assertEquals(1.0, persisted["schemaVersion"])
+		@Suppress("UNCHECKED_CAST")
+		val settings = persisted["settings"] as Map<String, Any?>
+		assertEquals(true, settings["enabled"])
+		assertFalse(settings.containsKey("settings"))
 	}
 
 	@Test

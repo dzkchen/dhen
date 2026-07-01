@@ -151,8 +151,7 @@ class DhenRuntime(
 			desiredEnabled.remove(record.id.value)
 			if (record.state == LifecycleState.ENABLED || record.state == LifecycleState.REGISTERED) lifecycle.disable(record)
 		}
-		persistEnabledState()
-		persistEnabledAddonState()
+		store.saveEnabledState(desiredEnabled.toSet(), desiredEnabledAddons.toSet())
 		return true
 	}
 
