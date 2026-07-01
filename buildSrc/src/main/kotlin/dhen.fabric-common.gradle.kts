@@ -4,7 +4,6 @@ plugins {
 
 repositories {
 	maven("https://maven.terraformersmc.com/releases/") { name = "Terraformers" }
-	maven("https://api.modrinth.com/maven") { name = "Modrinth" }
 }
 
 java {

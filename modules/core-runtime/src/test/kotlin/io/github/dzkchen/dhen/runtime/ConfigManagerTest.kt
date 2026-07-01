@@ -248,6 +248,16 @@ class ConfigManagerTest {
 				),
 			),
 		)
+		store.savePanelLayout(
+			mapOf(
+				"DUNGEONS" to PanelLayoutState(
+					x = 56,
+					y = 78,
+					collapsed = true,
+					unknownFields = mapOf("width" to "wide"),
+				),
+			),
+		)
 		store.saveKeybinds(mapOf("config.addon:demo/greet" to 71))
 		store.saveConflictPreferences(mapOf("config.addon:demo" to "config.addon:other"))
 
@@ -286,6 +296,15 @@ class ConfigManagerTest {
 				unknownFields = mapOf("anchor" to "top-left"),
 			),
 			reloaded.hudLayout["config.addon:demo"],
+		)
+		assertEquals(
+			PanelLayoutState(
+				x = 56,
+				y = 78,
+				collapsed = true,
+				unknownFields = mapOf("width" to "wide"),
+			),
+			reloaded.panelLayout["DUNGEONS"],
 		)
 		assertEquals(mapOf("config.addon:demo/greet" to 71), reloaded.keybinds)
 		assertEquals(mapOf("config.addon:demo" to "config.addon:other"), reloaded.conflictPreferences)

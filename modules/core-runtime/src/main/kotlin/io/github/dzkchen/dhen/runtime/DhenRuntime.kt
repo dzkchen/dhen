@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.api.ApiVersion
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.api.DhenEvent
 import io.github.dzkchen.dhen.api.DhenModule
+import io.github.dzkchen.dhen.api.ModuleCategory
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.VersionRange
 
@@ -195,6 +196,12 @@ class DhenRuntime(
 		store.saveHudLayout(layout)
 	}
 
+	fun panelLayout(): Map<String, PanelLayoutState> = store.loadCoreState().panelLayout
+
+	fun savePanelLayout(layout: Map<String, PanelLayoutState>) {
+		store.savePanelLayout(layout)
+	}
+
 	fun keybinds(): Map<String, Int> = store.loadCoreState().keybinds
 
 	fun saveKeybinds(keybinds: Map<String, Int>) {
@@ -208,6 +215,13 @@ class DhenRuntime(
 	}
 
 	fun modules(): List<ModuleRecord> = registry.all()
+
+	fun modulesByCategory(): Map<ModuleCategory, List<ModuleRecord>> {
+		val grouped = registry.all().groupBy { it.module.metadata.category }
+		return ModuleCategory.entries.mapNotNull { category ->
+			grouped[category]?.let { category to it }
+		}.toMap(LinkedHashMap())
+	}
 
 	fun addonIds(): List<String> = registry.addons().map { it.id.value }
 

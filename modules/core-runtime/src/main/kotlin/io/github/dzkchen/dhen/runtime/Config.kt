@@ -55,6 +55,13 @@ data class HudLayoutState(
 	val unknownFields: Map<String, Any?> = emptyMap(),
 )
 
+data class PanelLayoutState(
+	val x: Int = 0,
+	val y: Int = 0,
+	val collapsed: Boolean = false,
+	val unknownFields: Map<String, Any?> = emptyMap(),
+)
+
 data class CoreConfigState(
 	val schemaVersion: Int = CONFIG_SCHEMA_VERSION,
 	val enabledModules: Set<String> = emptySet(),
@@ -62,6 +69,7 @@ data class CoreConfigState(
 	val installedAddons: Map<String, InstalledAddonState> = emptyMap(),
 	val pendingRestartAddons: Map<String, PendingRestartAddonState> = emptyMap(),
 	val hudLayout: Map<String, HudLayoutState> = emptyMap(),
+	val panelLayout: Map<String, PanelLayoutState> = emptyMap(),
 	val keybinds: Map<String, Int> = emptyMap(),
 	val conflictPreferences: Map<String, String> = emptyMap(),
 	val unknownFields: Map<String, Any?> = emptyMap(),
@@ -143,6 +151,10 @@ class ConfigStore(
 
 	fun saveHudLayout(layout: Map<String, HudLayoutState>) {
 		updateCoreState { it.copy(hudLayout = layout.toSortedMap()) }
+	}
+
+	fun savePanelLayout(layout: Map<String, PanelLayoutState>) {
+		updateCoreState { it.copy(panelLayout = layout.toSortedMap()) }
 	}
 
 	fun saveKeybinds(keybinds: Map<String, Int>) {
@@ -355,6 +367,7 @@ class ConfigStore(
 		installedAddons = stateMap(map["installedAddons"], ::installedAddonFromMap),
 		pendingRestartAddons = stateMap(map["pendingRestartAddons"], ::pendingRestartAddonFromMap),
 		hudLayout = stateMap(map["hudLayout"], ::hudLayoutFromMap),
+		panelLayout = stateMap(map["panelLayout"], ::panelLayoutFromMap),
 		keybinds = intMap(map["keybinds"]),
 		conflictPreferences = stringMap(map["conflictPreferences"]),
 		unknownFields = map.filterKeys { it !in CORE_FIELDS },
@@ -392,6 +405,13 @@ class ConfigStore(
 		unknownFields = map.filterKeys { it !in HUD_LAYOUT_FIELDS },
 	)
 
+	private fun panelLayoutFromMap(id: String, map: Map<String, Any?>): PanelLayoutState = PanelLayoutState(
+		x = map["x"].asIntOrNull() ?: 0,
+		y = map["y"].asIntOrNull() ?: 0,
+		collapsed = map["collapsed"] as? Boolean ?: false,
+		unknownFields = map.filterKeys { it !in PANEL_LAYOUT_FIELDS },
+	)
+
 	private fun <T> stateMap(value: Any?, parser: (String, Map<String, Any?>) -> T): Map<String, T> {
 		val map = value as? Map<*, *> ?: return emptyMap()
 		val out = LinkedHashMap<String, T>()
@@ -426,6 +446,7 @@ class ConfigStore(
 		out["installedAddons"] = installedAddons.toSortedMap().mapValues { it.value.toJsonMap() }
 		out["pendingRestartAddons"] = pendingRestartAddons.toSortedMap().mapValues { it.value.toJsonMap() }
 		out["hudLayout"] = hudLayout.toSortedMap().mapValues { it.value.toJsonMap() }
+		out["panelLayout"] = panelLayout.toSortedMap().mapValues { it.value.toJsonMap() }
 		out["keybinds"] = keybinds.toSortedMap()
 		out["conflictPreferences"] = conflictPreferences.toSortedMap()
 		return out
@@ -467,6 +488,14 @@ class ConfigStore(
 		return out
 	}
 
+	private fun PanelLayoutState.toJsonMap(): Map<String, Any?> {
+		val out = LinkedHashMap<String, Any?>(unknownFields)
+		out["x"] = x
+		out["y"] = y
+		out["collapsed"] = collapsed
+		return out
+	}
+
 	private companion object {
 		val CORE_MIGRATIONS = listOf(
 			ConfigMigration(1) { migrated ->
@@ -475,6 +504,7 @@ class ConfigStore(
 				migrated.putIfAbsent("installedAddons", emptyMap<String, Any?>())
 				migrated.putIfAbsent("pendingRestartAddons", emptyMap<String, Any?>())
 				migrated.putIfAbsent("hudLayout", emptyMap<String, Any?>())
+				migrated.putIfAbsent("panelLayout", emptyMap<String, Any?>())
 				migrated.putIfAbsent("keybinds", emptyMap<String, Any?>())
 				migrated.putIfAbsent("conflictPreferences", emptyMap<String, Any?>())
 			},
@@ -498,6 +528,7 @@ class ConfigStore(
 			"installedAddons",
 			"pendingRestartAddons",
 			"hudLayout",
+			"panelLayout",
 			"keybinds",
 			"conflictPreferences",
 		)
@@ -513,6 +544,7 @@ class ConfigStore(
 		)
 		val PENDING_RESTART_FIELDS = setOf("addonId", "operation", "version", "artifactPath")
 		val HUD_LAYOUT_FIELDS = setOf("x", "y", "enabled")
+		val PANEL_LAYOUT_FIELDS = setOf("x", "y", "collapsed")
 	}
 }
 

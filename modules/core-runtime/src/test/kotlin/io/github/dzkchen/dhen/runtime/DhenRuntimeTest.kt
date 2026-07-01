@@ -25,6 +25,11 @@ private val MODULE_ID = ModuleId("sample.addon:demo")
 private val SHOW_HUD_SETTING_ID = SettingId("show_hud")
 private val GREET_KEYBIND_ID = KeybindId("greet")
 
+private fun categoryModule(id: String, category: ModuleCategory): DhenModule = object : DhenModule {
+	override val metadata = ModuleMetadata(id = ModuleId(id), name = id.substringAfter(':'), category = category)
+	override fun onEnable(context: ModuleEnableContext) {}
+}
+
 private class SampleAddon : DhenAddon {
 	override val metadata = AddonMetadata(AddonId("sample.addon"), "Sample", "1.0.0")
 
@@ -171,6 +176,27 @@ class DhenRuntimeTest {
 		assertEquals(2, snapshot.totalActiveHandles)
 		assertTrue(snapshot.failedModules.isEmpty())
 		assertEquals(LifecycleState.ENABLED, snapshot.modules.single().state)
+	}
+
+	@Test
+	fun modulesByCategoryGroupsNonEmptyCategoriesInEnumOrder(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(SampleAddon())
+		runtime.registerAddon(object : DhenAddon {
+			override val metadata = AddonMetadata(AddonId("other.addon"), "Other", "1.0.0")
+			override fun register(context: AddonContext) {
+				context.registerModule(categoryModule("other.addon:chat", ModuleCategory.CHAT))
+				context.registerModule(categoryModule("other.addon:dungeon", ModuleCategory.DUNGEONS))
+			}
+		})
+		runtime.start()
+
+		val byCategory = runtime.modulesByCategory()
+		assertEquals(
+			listOf(ModuleCategory.DUNGEONS, ModuleCategory.HUD_OVERLAYS, ModuleCategory.CHAT),
+			byCategory.keys.toList(),
+		)
+		assertEquals(MODULE_ID, byCategory.getValue(ModuleCategory.HUD_OVERLAYS).single().id)
 	}
 
 	@Test
