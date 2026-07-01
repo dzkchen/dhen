@@ -34,6 +34,10 @@ bin/
 
 run/
 
+# scratch
+
+scratch_cmds/
+
 # java
 
 hs_err_*.log

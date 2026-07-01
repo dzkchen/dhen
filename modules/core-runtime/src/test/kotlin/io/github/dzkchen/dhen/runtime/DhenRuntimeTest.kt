@@ -188,6 +188,27 @@ class DhenRuntimeTest {
 	}
 
 	@Test
+	fun addonIdsExposeDiscoveredAddonsForCommandSuggestions(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(SampleAddon())
+		runtime.start()
+
+		assertEquals(listOf("sample.addon"), runtime.addonIds())
+	}
+
+	@Test
+	fun markAddonPendingRestartPersistsRestartRequiredIntent(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(SampleAddon())
+		runtime.start()
+
+		runtime.markAddonPendingRestart(AddonId("sample.addon"), "add")
+
+		val pending = DhenRuntime(FakePlatformServices(tmp)).pendingRestartAddons()
+		assertEquals("add", pending.getValue("sample.addon").operation)
+	}
+
+	@Test
 	fun keybindHandlerOnlyFiresWhileEnabled(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
 		val runtime = DhenRuntime(platform)

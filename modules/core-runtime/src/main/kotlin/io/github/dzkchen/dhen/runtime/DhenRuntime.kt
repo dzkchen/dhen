@@ -61,8 +61,6 @@ class DhenRuntime(
 		}
 	}
 
-	// Physical keybinds for every module that registered successfully. The platform polls them and
-	// invokes whichever handler the runtime has bound (none while the owning module is disabled).
 	fun collectKeybinds(): List<PlatformKeybind> {
 		val overrides = store.loadCoreState().keybinds
 		return registry.all()
@@ -91,8 +89,6 @@ class DhenRuntime(
 		log.info("Dhen runtime started: ${registry.addons().size} addon(s), ${registry.all().size} module(s)")
 	}
 
-	// DISCOVERED -> RESOLVED when the owning addon's required dependencies are present and in range,
-	// otherwise DISCOVERED -> FAILED so the module is excluded from the rest of startup.
 	private fun resolveModules() {
 		for (addon in registry.addons()) {
 			val reason = unmetDependency(addon.metadata)
@@ -107,7 +103,6 @@ class DhenRuntime(
 		}
 	}
 
-	// RESOLVED -> REGISTERED and materialize config defaults from each module's schema.
 	private fun registerResolvedModules() {
 		for (record in registry.all()) {
 			if (record.state == LifecycleState.RESOLVED) record.transitionTo(LifecycleState.REGISTERED, "registered")
@@ -188,6 +183,12 @@ class DhenRuntime(
 		store.savePendingRestartAddons(addons)
 	}
 
+	fun markAddonPendingRestart(id: AddonId, operation: String) {
+		val updated = LinkedHashMap(store.loadCoreState().pendingRestartAddons)
+		updated[id.value] = PendingRestartAddonState(addonId = id.value, operation = operation)
+		store.savePendingRestartAddons(updated)
+	}
+
 	fun hudLayout(): Map<String, HudLayoutState> = store.loadCoreState().hudLayout
 
 	fun saveHudLayout(layout: Map<String, HudLayoutState>) {
@@ -208,8 +209,8 @@ class DhenRuntime(
 
 	fun modules(): List<ModuleRecord> = registry.all()
 
-	// Called by the platform adapter layer to translate a platform hook into a core event. Reaches
-	// only the handlers of currently enabled modules (subscriptions are disposed on disable).
+	fun addonIds(): List<String> = registry.addons().map { it.id.value }
+
 	fun dispatch(event: DhenEvent) = eventBus.dispatch(event)
 
 	fun diagnostics(): DiagnosticsSnapshot {
@@ -251,8 +252,6 @@ class DhenRuntime(
 		return DiagnosticsSnapshot(addons, modules)
 	}
 
-	// Enables a registered module after re-checking its dependencies and explicit module conflicts.
-	// Returns false (leaving the module unenabled) when blocked instead of forcing it active.
 	private fun tryEnable(record: ModuleRecord): Boolean {
 		if (record.state == LifecycleState.ENABLED) return true
 		if (record.addonId.value !in desiredEnabledAddons) {
@@ -275,7 +274,6 @@ class DhenRuntime(
 		return record.state == LifecycleState.ENABLED
 	}
 
-	// The first enabled module that this module declares a conflict with, or that declares one with it.
 	private fun activeConflict(record: ModuleRecord): ModuleId? {
 		val declared = record.module.metadata.conflicts
 		return registry.all().firstOrNull { other ->
@@ -285,7 +283,6 @@ class DhenRuntime(
 		}?.id
 	}
 
-	// The first required addon dependency that is absent or whose version is out of range, else null.
 	private fun unmetDependency(addon: AddonMetadata): String? {
 		for (dep in addon.depends) {
 			val present = registry.addon(dep.id) ?: return "missing required addon '${dep.id.value}'"
