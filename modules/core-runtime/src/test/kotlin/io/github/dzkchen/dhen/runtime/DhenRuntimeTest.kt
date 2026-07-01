@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.api.ModuleEnableContext
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.ModuleMetadata
 import io.github.dzkchen.dhen.api.SettingId
+import io.github.dzkchen.dhen.api.WidgetId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -224,5 +225,22 @@ class DhenRuntimeTest {
 
 		runtime.disableModule(MODULE_ID)
 		assertFalse(platform.keybindHandlers.containsKey(keybindId))
+	}
+
+	@Test
+	fun hudWidgetRendersWhileEnabledAndDisappearsWhenDisabled(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val runtime = DhenRuntime(platform)
+		runtime.registerAddon(SampleAddon())
+		runtime.start()
+
+		val widgetId = platformWidgetId(MODULE_ID, WidgetId("hud"))
+		assertFalse(platform.hudWidgets.containsKey(widgetId))
+
+		runtime.enableModule(MODULE_ID)
+		assertEquals("hi", platform.hudWidgets.getValue(widgetId).invoke())
+
+		runtime.disableModule(MODULE_ID)
+		assertFalse(platform.hudWidgets.containsKey(widgetId))
 	}
 }
