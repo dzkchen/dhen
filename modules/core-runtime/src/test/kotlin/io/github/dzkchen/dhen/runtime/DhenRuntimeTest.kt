@@ -159,7 +159,7 @@ class DhenRuntimeTest {
 		runtime.start()
 
 		assertEquals(LifecycleState.ENABLED, runtime.modules().single().state)
-		assertEquals(65, platform.registeredKeybinds.single().spec.defaultKey)
+		assertEquals(65, platform.registeredKeybinds.single { it.id == "${MODULE_ID.value}/greet" }.spec.defaultKey)
 		assertEquals(mapOf("${MODULE_ID.value}/greet" to 65), runtime.keybinds())
 	}
 
@@ -251,6 +251,23 @@ class DhenRuntimeTest {
 
 		runtime.disableModule(MODULE_ID)
 		assertFalse(platform.keybindHandlers.containsKey(keybindId))
+	}
+
+	@Test
+	fun openGuiKeybindRegistersWithDefaultAndSavedOverride(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val runtime = DhenRuntime(platform)
+		runtime.start()
+
+		val registered = platform.registeredKeybinds.single { it.id == DhenRuntime.OPEN_GUI_KEYBIND_ID }
+		assertEquals(344, registered.spec.defaultKey)
+
+		runtime.saveKeybinds(mapOf(DhenRuntime.OPEN_GUI_KEYBIND_ID to 342))
+
+		val restartedPlatform = FakePlatformServices(tmp)
+		DhenRuntime(restartedPlatform).start()
+		val rebound = restartedPlatform.registeredKeybinds.single { it.id == DhenRuntime.OPEN_GUI_KEYBIND_ID }
+		assertEquals(342, rebound.spec.defaultKey)
 	}
 
 	@Test

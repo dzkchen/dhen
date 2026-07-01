@@ -7,6 +7,8 @@ import io.github.dzkchen.dhen.api.ApiVersion
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.api.DhenEvent
 import io.github.dzkchen.dhen.api.DhenModule
+import io.github.dzkchen.dhen.api.KeybindId
+import io.github.dzkchen.dhen.api.KeybindSpec
 import io.github.dzkchen.dhen.api.ModuleCategory
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.VersionRange
@@ -74,6 +76,14 @@ class DhenRuntime(
 			}
 	}
 
+	private fun openGuiKeybind(): PlatformKeybind {
+		val override = store.loadCoreState().keybinds[OPEN_GUI_KEYBIND_ID]
+		return PlatformKeybind(
+			OPEN_GUI_KEYBIND_ID,
+			KeybindSpec(KeybindId("open_gui"), "Open Dhen GUI", override ?: DEFAULT_OPEN_GUI_KEY),
+		)
+	}
+
 	fun start() {
 		if (started) return
 		started = true
@@ -84,7 +94,7 @@ class DhenRuntime(
 		restoreAddonEnabledState(previousCatalog)
 		resolveModules()
 		registerResolvedModules()
-		platform.registerKeybinds(collectKeybinds())
+		platform.registerKeybinds(collectKeybinds() + openGuiKeybind())
 		restoreEnabledState()
 
 		log.info("Dhen runtime started: ${registry.addons().size} addon(s), ${registry.all().size} module(s)")
@@ -351,5 +361,10 @@ class DhenRuntime(
 			}
 			current.copy(installedAddons = installed.toSortedMap())
 		}
+	}
+
+	companion object {
+		const val OPEN_GUI_KEYBIND_ID: String = "dhen:open_gui"
+		private const val DEFAULT_OPEN_GUI_KEY: Int = 344 // GLFW right shift
 	}
 }

@@ -17,6 +17,7 @@ class ClickGuiScreen(private val parent: Screen?, private val runtime: DhenRunti
 		var x = 0
 		var y = 0
 		var collapsed = false
+		var unknownFields: Map<String, Any?> = emptyMap()
 		val bodyHeight get() = modules.size * ROW_HEIGHT
 	}
 
@@ -34,21 +35,26 @@ class ClickGuiScreen(private val parent: Screen?, private val runtime: DhenRunti
 		val saved = runtime.panelLayout()
 		var cursorX = MARGIN
 		var cursorY = MARGIN
+		var rowHeight = 0
 		for ((category, modules) in runtime.modulesByCategory()) {
 			val panel = Panel(category, modules)
 			val state = saved[category.name]
 			if (state != null) {
-				panel.x = state.x
-				panel.y = state.y
+				// Clamp like drag/nudge do: a layout saved on a larger window must stay reachable.
+				panel.x = state.x.coerceIn(0, maxOf(0, width - PANEL_WIDTH))
+				panel.y = state.y.coerceIn(0, maxOf(0, height - TITLE_HEIGHT))
 				panel.collapsed = state.collapsed
+				panel.unknownFields = state.unknownFields
 			} else {
 				if (cursorX + PANEL_WIDTH > width - MARGIN) {
 					cursorX = MARGIN
-					cursorY += DEFAULT_COLUMN_HEIGHT
+					cursorY += rowHeight + GUTTER
+					rowHeight = 0
 				}
 				panel.x = cursorX
 				panel.y = cursorY
 				cursorX += PANEL_WIDTH + GUTTER
+				rowHeight = maxOf(rowHeight, TITLE_HEIGHT + panel.bodyHeight)
 			}
 			panels += panel
 		}
@@ -195,7 +201,9 @@ class ClickGuiScreen(private val parent: Screen?, private val runtime: DhenRunti
 	}
 
 	private fun persistLayout() {
-		runtime.savePanelLayout(panels.associate { it.category.name to PanelLayoutState(it.x, it.y, it.collapsed) })
+		runtime.savePanelLayout(
+			panels.associate { it.category.name to PanelLayoutState(it.x, it.y, it.collapsed, it.unknownFields) },
+		)
 	}
 
 	override fun onClose() {
@@ -217,7 +225,6 @@ class ClickGuiScreen(private val parent: Screen?, private val runtime: DhenRunti
 		const val ROW_HEIGHT = 12
 		const val COLLAPSE_HIT = 18
 		const val NUDGE_STEP = 5
-		const val DEFAULT_COLUMN_HEIGHT = 120
 
 		const val DIM_BACKGROUND = 0x88101018.toInt()
 		const val TITLE_BACKGROUND = 0xFF2B2B33.toInt()

@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen
 
 import io.github.dzkchen.dhen.api.DhenAddon
+import io.github.dzkchen.dhen.platform.ClickGuiScreen
 import io.github.dzkchen.dhen.platform.CommandBridge
 import io.github.dzkchen.dhen.platform.FabricEventAdapters
 import io.github.dzkchen.dhen.platform.FabricPlatformServices
@@ -10,6 +11,7 @@ import io.github.dzkchen.dhen.runtime.DhenRuntime
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.ModContainer
+import net.minecraft.client.Minecraft
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 
@@ -37,6 +39,11 @@ object Dhen : ClientModInitializer {
 		CommandBridge.register(runtime)
 		FabricEventAdapters.register(runtime)
 
+		platform.bindKeybindHandler(DhenRuntime.OPEN_GUI_KEYBIND_ID) {
+			val client = Minecraft.getInstance()
+			client.setScreenAndShow(ClickGuiScreen(null, runtime))
+		}
+
 		val diagnostics = runtime.diagnostics()
 		LOGGER.info(
 			"Dhen ready: {} addon(s), {} module(s), {} active handle(s)",
@@ -49,8 +56,6 @@ object Dhen : ClientModInitializer {
 		}
 	}
 
-	// Reads native addon JAR entrypoints already loaded by Fabric and hands instances to the runtime,
-	// tagging each with the loaded-JAR source so diagnostics can show where it came from.
 	private fun registerDiscoveredAddons() {
 		val containers = FabricLoader.getInstance().getEntrypointContainers(ADDON_ENTRYPOINT, DhenAddon::class.java)
 		for (container in containers) {
@@ -66,8 +71,6 @@ object Dhen : ClientModInitializer {
 		}
 	}
 
-	// The on-disk paths Fabric loaded the addon from, falling back to the mod id when the origin
-	// is not a plain path (for example a nested jar) or is otherwise unavailable.
 	private fun sourceLocation(provider: ModContainer, modId: String): String =
 		try {
 			provider.origin.paths.joinToString(", ") { it.fileName.toString() }.ifBlank { modId }
