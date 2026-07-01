@@ -14,7 +14,7 @@ object FabricEventAdapters {
 	fun register(runtime: DhenRuntime) {
 		ClientTickEvents.END_CLIENT_TICK.register(ClientTickEvents.EndTick { runtime.dispatch(ClientTickEvent) })
 		ClientPlayConnectionEvents.JOIN.register(
-			ClientPlayConnectionEvents.Join { _, _, _ -> Minecraft.getInstance().execute { runtime.dispatch(ServerJoinEvent) } },
+			ClientPlayConnectionEvents.Join { _, _, _ -> runtime.dispatch(ServerJoinEvent) },
 		)
 		ClientPlayConnectionEvents.DISCONNECT.register(
 			ClientPlayConnectionEvents.Disconnect { _, _ -> Minecraft.getInstance().execute { runtime.dispatch(ServerLeaveEvent) } },
