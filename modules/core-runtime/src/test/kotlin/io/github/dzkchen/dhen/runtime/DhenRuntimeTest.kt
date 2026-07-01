@@ -113,6 +113,51 @@ class DhenRuntimeTest {
 	}
 
 	@Test
+	fun disabledAddonBlocksModuleRestoreUntilAddonIsReenabled(@TempDir tmp: Path) {
+		DhenRuntime(FakePlatformServices(tmp)).apply {
+			registerAddon(SampleAddon())
+			start()
+			assertTrue(enableModule(MODULE_ID))
+			assertTrue(disableAddon(AddonId("sample.addon")))
+		}
+
+		val restarted = DhenRuntime(FakePlatformServices(tmp))
+		restarted.registerAddon(SampleAddon())
+		restarted.start()
+
+		assertEquals(emptySet<String>(), restarted.enabledAddons())
+		assertEquals(LifecycleState.DISABLED, restarted.modules().single().state)
+		assertFalse(restarted.enableModule(MODULE_ID))
+
+		assertTrue(restarted.enableAddon(AddonId("sample.addon")))
+		assertEquals(LifecycleState.DISABLED, restarted.modules().single().state)
+		assertTrue(restarted.enableModule(MODULE_ID))
+		assertEquals(LifecycleState.ENABLED, restarted.modules().single().state)
+	}
+
+	@Test
+	fun runtimeAliasesEnabledModulesAndKeybindOverridesOnStartup(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		ConfigStore(platform.configDir, platform.jsonCodec).saveCoreState(
+			CoreConfigState(
+				enabledModules = setOf("old.addon:demo"),
+				keybinds = mapOf("old.addon:demo/greet" to 65),
+			),
+		)
+
+		val runtime = DhenRuntime(
+			platform,
+			ConfigAliases(moduleAliases = mapOf("old.addon:demo" to MODULE_ID.value)),
+		)
+		runtime.registerAddon(SampleAddon())
+		runtime.start()
+
+		assertEquals(LifecycleState.ENABLED, runtime.modules().single().state)
+		assertEquals(65, platform.registeredKeybinds.single().spec.defaultKey)
+		assertEquals(mapOf("${MODULE_ID.value}/greet" to 65), runtime.keybinds())
+	}
+
+	@Test
 	fun diagnosticsReportStateAndHandles(@TempDir tmp: Path) {
 		val runtime = DhenRuntime(FakePlatformServices(tmp))
 		runtime.registerAddon(SampleAddon())

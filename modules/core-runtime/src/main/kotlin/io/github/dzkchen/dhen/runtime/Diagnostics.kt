@@ -15,6 +15,7 @@ data class AddonDiagnostics(
 	val addonId: String,
 	val name: String,
 	val version: String,
+	val enabled: Boolean,
 	val moduleCount: Int,
 	val artifactType: String,
 	val authors: List<String>,

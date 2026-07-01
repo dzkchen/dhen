@@ -9,14 +9,18 @@ import io.github.dzkchen.dhen.api.DhenModule
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.VersionRange
 
-class DhenRuntime(private val platform: PlatformServices) {
+class DhenRuntime(
+	private val platform: PlatformServices,
+	aliases: ConfigAliases = ConfigAliases(),
+) {
 	private val registry = ModuleRegistry()
-	private val store = ConfigStore(platform.configDir, platform.jsonCodec)
+	private val store = ConfigStore(platform.configDir, platform.jsonCodec, aliases)
 	private val config = ConfigManager(store)
 	private val log = platform.logger("dhen-runtime")
 	private val lifecycle = LifecycleManager(platform, config, log)
 
 	private val desiredEnabled = LinkedHashSet<String>()
+	private val desiredEnabledAddons = LinkedHashSet<String>()
 
 	private var started = false
 
@@ -57,16 +61,26 @@ class DhenRuntime(private val platform: PlatformServices) {
 
 	// Physical keybinds for every module that registered successfully. The platform polls them and
 	// invokes whichever handler the runtime has bound (none while the owning module is disabled).
-	fun collectKeybinds(): List<PlatformKeybind> = registry.all()
-		.filter { it.state != LifecycleState.FAILED }
-		.flatMap { record ->
-			record.module.metadata.keybinds.map { spec -> PlatformKeybind(platformKeybindId(record.id, spec.id), spec) }
-		}
+	fun collectKeybinds(): List<PlatformKeybind> {
+		val overrides = store.loadCoreState().keybinds
+		return registry.all()
+			.filter { it.state != LifecycleState.FAILED }
+			.flatMap { record ->
+				record.module.metadata.keybinds.map { spec ->
+					val id = platformKeybindId(record.id, spec.id)
+					PlatformKeybind(id, spec.copy(defaultKey = overrides[id] ?: spec.defaultKey))
+				}
+			}
+	}
 
 	fun start() {
 		if (started) return
 		started = true
 
+		val previousCatalog = store.loadCoreState().installedAddons.keys
+		store.ensureLayout(registry.addons().map { it.id })
+		refreshInstalledAddonCatalogState()
+		restoreAddonEnabledState(previousCatalog)
 		resolveModules()
 		registerResolvedModules()
 		platform.registerKeybinds(collectKeybinds())
@@ -110,12 +124,36 @@ class DhenRuntime(private val platform: PlatformServices) {
 		desiredEnabled.addAll(store.loadEnabledModules())
 		for (record in registry.all()) {
 			if (record.state != LifecycleState.REGISTERED) continue
-			if (record.id.value in desiredEnabled) {
+			if (record.addonId.value !in desiredEnabledAddons) {
+				record.transitionTo(LifecycleState.DISABLED, "addon-disabled")
+			} else if (record.id.value in desiredEnabled) {
 				tryEnable(record)
 			} else {
 				record.transitionTo(LifecycleState.DISABLED, "disabled")
 			}
 		}
+	}
+
+	fun enableAddon(id: AddonId): Boolean {
+		if (registry.addon(id) == null) return false
+		desiredEnabledAddons.add(id.value)
+		persistEnabledAddonState()
+		for (record in registry.byAddon(id)) {
+			if (record.state == LifecycleState.DISABLED && record.id.value in desiredEnabled) tryEnable(record)
+		}
+		return true
+	}
+
+	fun disableAddon(id: AddonId): Boolean {
+		if (registry.addon(id) == null) return false
+		desiredEnabledAddons.remove(id.value)
+		for (record in registry.byAddon(id)) {
+			desiredEnabled.remove(record.id.value)
+			if (record.state == LifecycleState.ENABLED || record.state == LifecycleState.REGISTERED) lifecycle.disable(record)
+		}
+		persistEnabledState()
+		persistEnabledAddonState()
+		return true
 	}
 
 	fun enableModule(id: ModuleId): Boolean {
@@ -137,6 +175,34 @@ class DhenRuntime(private val platform: PlatformServices) {
 	fun toggleModule(id: ModuleId): Boolean {
 		val record = registry.get(id) ?: return false
 		return if (record.state == LifecycleState.ENABLED) !disableModule(id) else enableModule(id)
+	}
+
+	fun enabledAddons(): Set<String> = store.loadCoreState().enabledAddons
+
+	fun installedAddons(): Map<String, InstalledAddonState> = store.loadCoreState().installedAddons
+
+	fun pendingRestartAddons(): Map<String, PendingRestartAddonState> = store.loadCoreState().pendingRestartAddons
+
+	fun savePendingRestartAddons(addons: Map<String, PendingRestartAddonState>) {
+		store.savePendingRestartAddons(addons)
+	}
+
+	fun hudLayout(): Map<String, HudLayoutState> = store.loadCoreState().hudLayout
+
+	fun saveHudLayout(layout: Map<String, HudLayoutState>) {
+		store.saveHudLayout(layout)
+	}
+
+	fun keybinds(): Map<String, Int> = store.loadCoreState().keybinds
+
+	fun saveKeybinds(keybinds: Map<String, Int>) {
+		store.saveKeybinds(keybinds)
+	}
+
+	fun conflictPreferences(): Map<String, String> = store.loadCoreState().conflictPreferences
+
+	fun saveConflictPreferences(preferences: Map<String, String>) {
+		store.saveConflictPreferences(preferences)
 	}
 
 	fun modules(): List<ModuleRecord> = registry.all()
@@ -161,6 +227,7 @@ class DhenRuntime(private val platform: PlatformServices) {
 				addonId = md.id.value,
 				name = md.name,
 				version = md.version,
+				enabled = md.id.value in desiredEnabledAddons,
 				moduleCount = registry.byAddon(md.id).size,
 				artifactType = md.artifactType.displayName,
 				authors = md.authors,
@@ -183,6 +250,11 @@ class DhenRuntime(private val platform: PlatformServices) {
 	// Returns false (leaving the module unenabled) when blocked instead of forcing it active.
 	private fun tryEnable(record: ModuleRecord): Boolean {
 		if (record.state == LifecycleState.ENABLED) return true
+		if (record.addonId.value !in desiredEnabledAddons) {
+			log.warn("Cannot enable ${record.id}: addon ${record.addonId.value} is disabled")
+			if (record.state == LifecycleState.REGISTERED) record.transitionTo(LifecycleState.DISABLED, "addon-disabled")
+			return false
+		}
 		val depReason = registry.addon(record.addonId)?.let(::unmetDependency)
 		if (depReason != null) {
 			log.warn("Cannot enable ${record.id}: $depReason")
@@ -226,5 +298,42 @@ class DhenRuntime(private val platform: PlatformServices) {
 
 	private fun persistEnabledState() {
 		store.saveEnabledModules(desiredEnabled.toSet())
+	}
+
+	private fun persistEnabledAddonState() {
+		store.saveEnabledAddons(desiredEnabledAddons.toSet())
+	}
+
+	private fun restoreAddonEnabledState(previousCatalog: Set<String>) {
+		val currentIds = registry.addons().map { it.id.value }.toSet()
+		val current = store.loadCoreState()
+		desiredEnabledAddons.clear()
+		desiredEnabledAddons.addAll(current.enabledAddons.filter { it in currentIds })
+		desiredEnabledAddons.addAll(current.enabledModules.map { it.substringBefore(':') }.filter { it in currentIds })
+		for (id in currentIds) {
+			if (id !in previousCatalog) desiredEnabledAddons.add(id)
+		}
+		persistEnabledAddonState()
+	}
+
+	private fun refreshInstalledAddonCatalogState() {
+		store.updateCoreState { current ->
+			val installed = LinkedHashMap<String, InstalledAddonState>()
+			for (record in registry.addons()) {
+				val existing = current.installedAddons[record.id.value]
+				val metadata = record.metadata
+				installed[record.id.value] = InstalledAddonState(
+					addonId = metadata.id.value,
+					version = metadata.version,
+					artifactType = metadata.artifactType.displayName,
+					source = record.source.location ?: record.source.type.displayName,
+					checksum = existing?.checksum.orEmpty(),
+					signatureStatus = existing?.signatureStatus.orEmpty(),
+					installedAtEpochMillis = existing?.installedAtEpochMillis,
+					unknownFields = existing?.unknownFields.orEmpty(),
+				)
+			}
+			current.copy(installedAddons = installed.toSortedMap())
+		}
 	}
 }
