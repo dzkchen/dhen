@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.api.AddonId
 import io.github.dzkchen.dhen.api.AddonMetadata
 import io.github.dzkchen.dhen.api.ApiVersion
 import io.github.dzkchen.dhen.api.DhenAddon
+import io.github.dzkchen.dhen.api.DhenEvent
 import io.github.dzkchen.dhen.api.DhenModule
 import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.VersionRange
@@ -17,7 +18,8 @@ class DhenRuntime(
 	private val store = ConfigStore(platform.configDir, platform.jsonCodec, aliases, platform.logger("dhen-config"))
 	private val config = ConfigManager(store)
 	private val log = platform.logger("dhen-runtime")
-	private val lifecycle = LifecycleManager(platform, config, log)
+	private val eventBus = EventBus(platform.logger("dhen-events"))
+	private val lifecycle = LifecycleManager(platform, config, eventBus, log)
 
 	private val desiredEnabled = LinkedHashSet<String>()
 	private val desiredEnabledAddons = LinkedHashSet<String>()
@@ -205,6 +207,10 @@ class DhenRuntime(
 	}
 
 	fun modules(): List<ModuleRecord> = registry.all()
+
+	// Called by the platform adapter layer to translate a platform hook into a core event. Reaches
+	// only the handlers of currently enabled modules (subscriptions are disposed on disable).
+	fun dispatch(event: DhenEvent) = eventBus.dispatch(event)
 
 	fun diagnostics(): DiagnosticsSnapshot {
 		val modules = registry.all().map { record ->

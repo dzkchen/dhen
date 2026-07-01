@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.runtime
 import io.github.dzkchen.dhen.api.AddonLogger
 import io.github.dzkchen.dhen.api.ChatContext
 import io.github.dzkchen.dhen.api.ClientContext
+import io.github.dzkchen.dhen.api.DhenEvent
 import io.github.dzkchen.dhen.api.HudRenderContext
 import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.ModuleDisableContext
@@ -11,19 +12,26 @@ import io.github.dzkchen.dhen.api.ModuleId
 import io.github.dzkchen.dhen.api.RegistrationHandle
 import io.github.dzkchen.dhen.api.SettingId
 import io.github.dzkchen.dhen.api.WidgetId
+import kotlin.reflect.KClass
 
-// Builds the keybind id the platform registers for a module's keybind. Both the physical
-// registration and the per-enable handler binding must agree on this format.
 internal fun platformKeybindId(moduleId: ModuleId, keybindId: KeybindId): String = "${moduleId.value}/${keybindId.value}"
 
 internal fun platformKeybindId(moduleId: ModuleId, keybindId: String): String = platformKeybindId(moduleId, KeybindId(keybindId))
 
 internal fun platformWidgetId(moduleId: ModuleId, widgetId: WidgetId): String = "${moduleId.value}/${widgetId.value}"
 
+private class EventSubscriptionHandle(
+	override val id: String,
+	private val subscription: EventBus.Subscription,
+) : RegistrationHandle {
+	override fun dispose() = subscription.cancel()
+}
+
 private class EnableContextImpl(
 	private val record: ModuleRecord,
 	private val platform: PlatformServices,
 	private val config: ConfigManager,
+	private val eventBus: EventBus,
 	override val logger: AddonLogger,
 ) : ModuleEnableContext {
 	override val moduleId: ModuleId get() = record.id
@@ -44,6 +52,11 @@ private class EnableContextImpl(
 	override fun addHudText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle =
 		hudRender.addText(widgetId, provider)
 
+	override fun <T : DhenEvent> onEvent(type: KClass<T>, handler: (T) -> Unit): RegistrationHandle {
+		val subscription = eventBus.subscribe(type, handler)
+		return track(EventSubscriptionHandle("event:${record.id.value}:${type.simpleName}", subscription))
+	}
+
 	private fun track(handle: RegistrationHandle): RegistrationHandle {
 		record.handles.addLast(handle)
 		return handle
@@ -62,17 +75,15 @@ private class DisableContextImpl(
 	}
 }
 
-// Drives a module between ENABLED and DISABLED. Enable rolls back any registrations it created if
-// onEnable throws. Disable runs onDisable only for a module that actually enabled, and always
-// disposes its tracked handles (in reverse order) even if onDisable throws.
 class LifecycleManager(
 	private val platform: PlatformServices,
 	private val config: ConfigManager,
+	private val eventBus: EventBus,
 	private val logger: AddonLogger,
 ) {
 	fun enable(record: ModuleRecord) {
 		if (!record.state.canTransitionTo(LifecycleState.ENABLED)) return
-		val context = EnableContextImpl(record, platform, config, logger)
+		val context = EnableContextImpl(record, platform, config, eventBus, logger)
 		try {
 			record.module.onEnable(context)
 			record.transitionTo(LifecycleState.ENABLED, "enabled")
@@ -96,7 +107,6 @@ class LifecycleManager(
 		record.transitionTo(LifecycleState.DISABLED, "disabled")
 	}
 
-	// Disposes handles in reverse registration order. A throwing handle does not stop the rest.
 	private fun disposeHandles(record: ModuleRecord) {
 		while (record.handles.isNotEmpty()) {
 			val handle = record.handles.removeLast()

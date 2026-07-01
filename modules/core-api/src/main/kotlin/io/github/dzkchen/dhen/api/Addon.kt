@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.api
 
+import kotlin.reflect.KClass
+
 // Every runtime side effect returns a handle so the lifecycle manager can dispose it.
 interface RegistrationHandle {
 	val id: String
@@ -98,12 +100,17 @@ interface ModuleEnableContext {
 
 	fun onKeybind(keybindId: String, handler: () -> Unit): RegistrationHandle = onKeybind(KeybindId(keybindId), handler)
 
+	fun <T : DhenEvent> onEvent(type: KClass<T>, handler: (T) -> Unit): RegistrationHandle
+
 	fun addHudText(widgetId: WidgetId, provider: () -> String?): RegistrationHandle
 
 	fun addHudText(widgetId: String, provider: () -> String?): RegistrationHandle = addHudText(WidgetId(widgetId), provider)
 
 	fun sendChat(message: String) = chat.sendSystemMessage(message)
 }
+
+inline fun <reified T : DhenEvent> ModuleEnableContext.onEvent(noinline handler: (T) -> Unit): RegistrationHandle =
+	onEvent(T::class, handler)
 
 interface ModuleDisableContext {
 	val moduleId: ModuleId

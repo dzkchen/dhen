@@ -51,7 +51,7 @@ private class TestAddon(
 private fun addon(id: String, depends: List<AddonDependency> = emptyList()) =
 	AddonMetadata(id = AddonId(id), name = id, version = "1.0.0", depends = depends)
 
-class Phase3LifecycleTest {
+class LifecycleTest {
 	// The state machine accepts the linear lifecycle and rejects skips/back-steps.
 	@Test
 	fun stateMachineRejectsInvalidTransitions() {
@@ -330,7 +330,7 @@ class Phase3LifecycleTest {
 	@Test
 	fun disableOnResolvedRecordIsNoOp(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
-		val lifecycle = LifecycleManager(platform, ConfigManager(ConfigStore(platform.configDir, platform.jsonCodec)), platform.logger("test"))
+		val lifecycle = LifecycleManager(platform, ConfigManager(ConfigStore(platform.configDir, platform.jsonCodec)), EventBus(platform.logger("events")), platform.logger("test"))
 		val record = ModuleRecord(TestModule(ModuleId("r.addon:m")), AddonId("r.addon"))
 		record.transitionTo(LifecycleState.RESOLVED, "resolved")
 
@@ -342,7 +342,7 @@ class Phase3LifecycleTest {
 	@Test
 	fun enableOnDiscoveredRecordIsNoOp(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
-		val lifecycle = LifecycleManager(platform, ConfigManager(ConfigStore(platform.configDir, platform.jsonCodec)), platform.logger("test"))
+		val lifecycle = LifecycleManager(platform, ConfigManager(ConfigStore(platform.configDir, platform.jsonCodec)), EventBus(platform.logger("events")), platform.logger("test"))
 		var enableCalled = false
 		val record = ModuleRecord(TestModule(ModuleId("d.addon:m"), enableBlock = { enableCalled = true }), AddonId("d.addon"))
 

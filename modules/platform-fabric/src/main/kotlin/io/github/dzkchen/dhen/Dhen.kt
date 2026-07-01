@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen
 
 import io.github.dzkchen.dhen.api.DhenAddon
 import io.github.dzkchen.dhen.platform.CommandBridge
+import io.github.dzkchen.dhen.platform.FabricEventAdapters
 import io.github.dzkchen.dhen.platform.FabricPlatformServices
 import io.github.dzkchen.dhen.runtime.AddonSource
 import io.github.dzkchen.dhen.runtime.AddonSourceType
@@ -34,6 +35,7 @@ object Dhen : ClientModInitializer {
 
 		runtime.start()
 		CommandBridge.register(runtime)
+		FabricEventAdapters.register(runtime)
 
 		val diagnostics = runtime.diagnostics()
 		LOGGER.info(
@@ -42,6 +44,9 @@ object Dhen : ClientModInitializer {
 			diagnostics.modules.size,
 			diagnostics.totalActiveHandles,
 		)
+		for (module in diagnostics.modules) {
+			LOGGER.info("  module {} [{}] state={}", module.moduleId, module.addonId, module.state)
+		}
 	}
 
 	// Reads native addon JAR entrypoints already loaded by Fabric and hands instances to the runtime,
