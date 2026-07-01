@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonId
+import io.github.dzkchen.dhen.api.AddonLogger
 import io.github.dzkchen.dhen.api.BooleanSetting
 import io.github.dzkchen.dhen.api.BooleanValueSchema
 import io.github.dzkchen.dhen.api.ColorSetting
@@ -81,6 +82,7 @@ class ConfigStore(
 	private val configDir: Path,
 	private val codec: JsonCodec,
 	private val aliases: ConfigAliases = ConfigAliases(),
+	private val logger: AddonLogger? = null,
 ) {
 	val root: Path = configDir.resolve("dhen")
 	val coreFile: Path = root.resolve("core.json")
@@ -317,7 +319,19 @@ class ConfigStore(
 		return try {
 			codec.decode(Files.readString(path))
 		} catch (t: Throwable) {
+			logger?.warn("Failed to read config ${path.fileName}; falling back to defaults: ${t.message ?: t.javaClass.simpleName}")
+			preserveCorruptFile(path)
 			null
+		}
+	}
+
+	private fun preserveCorruptFile(path: Path) {
+		val backup = path.resolveSibling("${path.fileName}.corrupt")
+		try {
+			Files.copy(path, backup, StandardCopyOption.REPLACE_EXISTING)
+			logger?.warn("Preserved unreadable config as ${backup.fileName}")
+		} catch (t: Throwable) {
+			logger?.warn("Could not back up unreadable config ${path.fileName}: ${t.message ?: t.javaClass.simpleName}")
 		}
 	}
 

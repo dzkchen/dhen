@@ -111,6 +111,21 @@ class ConfigManagerTest {
 	}
 
 	@Test
+	fun corruptAddonConfigIsWarnedAndPreserved(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec, logger = platform.logger("dhen-config"))
+		val addonFile = store.addonsDir.resolve("config.addon.json")
+		Files.createDirectories(addonFile.parent)
+		Files.writeString(addonFile, "{ not json")
+
+		val settings = store.loadAddonSettings(AddonId("config.addon"))
+
+		assertEquals(emptyMap<String, Any?>(), settings)
+		assertTrue(Files.exists(addonFile.resolveSibling("config.addon.json.corrupt")))
+		assertTrue(platform.warnings.any { it.contains("Failed to read config") })
+	}
+
+	@Test
 	fun legacyCoreConfigMigratesToVersionedEnvelope(@TempDir tmp: Path) {
 		val platform = FakePlatformServices(tmp)
 		val store = ConfigStore(platform.configDir, platform.jsonCodec)

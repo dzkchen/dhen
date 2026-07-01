@@ -14,7 +14,7 @@ class DhenRuntime(
 	aliases: ConfigAliases = ConfigAliases(),
 ) {
 	private val registry = ModuleRegistry()
-	private val store = ConfigStore(platform.configDir, platform.jsonCodec, aliases)
+	private val store = ConfigStore(platform.configDir, platform.jsonCodec, aliases, platform.logger("dhen-config"))
 	private val config = ConfigManager(store)
 	private val log = platform.logger("dhen-runtime")
 	private val lifecycle = LifecycleManager(platform, config, log)
