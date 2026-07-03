@@ -569,6 +569,26 @@ class ConfigManager(private val store: ConfigStore) {
 			ConfigValidator.validate(addonId, current, uniqueSchemas)
 	}
 
+	fun get(addonId: AddonId, settingId: SettingId): Any? {
+		val values = valuesByAddon[addonId]
+		if (values != null && values.containsKey(settingId.value)) return values[settingId.value]
+		return schemasByAddon[addonId]?.get(settingId)?.let(::defaultOf)
+	}
+
+	// The public write-back path for GUI edits: validates against the schema, applies the value to
+	// the live in-memory settings (enabled modules read lazily, so the change takes effect
+	// immediately), and persists atomically. Returns validation errors; empty means accepted.
+	fun set(addonId: AddonId, settingId: SettingId, value: Any?): List<String> {
+		val schema = schemasByAddon[addonId]?.get(settingId)
+			?: return listOf("${addonId.value}.${settingId.value}: unknown setting")
+		val errors = ConfigValidator.validate(addonId, mapOf(settingId.value to value), listOf(schema))
+		if (errors.isNotEmpty()) return errors
+		val values = valuesByAddon.getOrPut(addonId) { store.loadAddonSettings(addonId) }
+		values[settingId.value] = value
+		store.saveAddonSettings(addonId, values)
+		return emptyList()
+	}
+
 	fun getBoolean(addonId: AddonId, settingId: SettingId): Boolean {
 		val v = valuesByAddon[addonId]?.get(settingId.value)
 		return when (v) {

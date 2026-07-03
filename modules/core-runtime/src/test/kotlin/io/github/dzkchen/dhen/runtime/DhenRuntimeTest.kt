@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.runtime
 
 import io.github.dzkchen.dhen.api.AddonContext
+import io.github.dzkchen.dhen.api.AddonDependency
 import io.github.dzkchen.dhen.api.AddonId
 import io.github.dzkchen.dhen.api.AddonMetadata
 import io.github.dzkchen.dhen.api.BooleanSetting
@@ -16,6 +17,7 @@ import io.github.dzkchen.dhen.api.SettingId
 import io.github.dzkchen.dhen.api.WidgetId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -25,9 +27,37 @@ private val MODULE_ID = ModuleId("sample.addon:demo")
 private val SHOW_HUD_SETTING_ID = SettingId("show_hud")
 private val GREET_KEYBIND_ID = KeybindId("greet")
 
-private fun categoryModule(id: String, category: ModuleCategory): DhenModule = object : DhenModule {
-	override val metadata = ModuleMetadata(id = ModuleId(id), name = id.substringAfter(':'), category = category)
-	override fun onEnable(context: ModuleEnableContext) {}
+private fun categoryModule(id: String, category: ModuleCategory, conflicts: List<String> = emptyList()): DhenModule =
+	object : DhenModule {
+		override val metadata = ModuleMetadata(
+			id = ModuleId(id),
+			name = id.substringAfter(':'),
+			category = category,
+			conflicts = conflicts.map(::ModuleId),
+		)
+		override fun onEnable(context: ModuleEnableContext) {}
+	}
+
+private fun conflictPairAddon(): DhenAddon = object : DhenAddon {
+	override val metadata = AddonMetadata(AddonId("conflict.addon"), "Conflict", "1.0.0")
+
+	override fun register(context: AddonContext) {
+		context.registerModule(categoryModule("conflict.addon:a", ModuleCategory.CHAT, conflicts = listOf("conflict.addon:b")))
+		context.registerModule(categoryModule("conflict.addon:b", ModuleCategory.CHAT))
+	}
+}
+
+private fun brokenDependencyAddon(): DhenAddon = object : DhenAddon {
+	override val metadata = AddonMetadata(
+		AddonId("dep.addon"),
+		"Dep",
+		"1.0.0",
+		depends = listOf(AddonDependency(AddonId("absent.addon"))),
+	)
+
+	override fun register(context: AddonContext) {
+		context.registerModule(categoryModule("dep.addon:mod", ModuleCategory.MINING))
+	}
 }
 
 private class SampleAddon : DhenAddon {
@@ -268,6 +298,105 @@ class DhenRuntimeTest {
 		DhenRuntime(restartedPlatform).start()
 		val rebound = restartedPlatform.registeredKeybinds.single { it.id == DhenRuntime.OPEN_GUI_KEYBIND_ID }
 		assertEquals(342, rebound.spec.defaultKey)
+	}
+
+	@Test
+	fun updateSettingAppliesLiveToEnabledModuleAndSurvivesRestart(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val runtime = DhenRuntime(platform)
+		runtime.registerAddon(SampleAddon())
+		runtime.start()
+		runtime.enableModule(MODULE_ID)
+
+		val addonId = AddonId("sample.addon")
+		val widgetId = platformWidgetId(MODULE_ID, WidgetId("hud"))
+		assertEquals("hi", platform.hudWidgets.getValue(widgetId).invoke())
+
+		assertTrue(runtime.updateSetting(addonId, SHOW_HUD_SETTING_ID, false).isEmpty())
+		assertNull(platform.hudWidgets.getValue(widgetId).invoke())
+		assertEquals(false, runtime.settingValue(addonId, SHOW_HUD_SETTING_ID))
+
+		assertEquals(
+			listOf("sample.addon.show_hud: expected boolean"),
+			runtime.updateSetting(addonId, SHOW_HUD_SETTING_ID, "nope"),
+		)
+		assertEquals(false, runtime.settingValue(addonId, SHOW_HUD_SETTING_ID))
+
+		val restarted = DhenRuntime(FakePlatformServices(tmp))
+		restarted.registerAddon(SampleAddon())
+		restarted.start()
+		assertEquals(false, restarted.settingValue(addonId, SHOW_HUD_SETTING_ID))
+	}
+
+	@Test
+	fun moduleIssuesReportActiveConflictAndMissingDependency(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(conflictPairAddon())
+		runtime.registerAddon(brokenDependencyAddon())
+		runtime.start()
+		assertTrue(runtime.enableModule(ModuleId("conflict.addon:a")))
+
+		val conflicted = runtime.moduleIssues(ModuleId("conflict.addon:b"))
+		assertEquals(ModuleId("conflict.addon:a"), conflicted.conflictWith)
+		assertNull(conflicted.missingDependency)
+		assertFalse(runtime.enableModule(ModuleId("conflict.addon:b")))
+
+		val broken = runtime.moduleIssues(ModuleId("dep.addon:mod"))
+		assertNull(broken.conflictWith)
+		assertEquals("missing required addon 'absent.addon'", broken.missingDependency)
+	}
+
+	@Test
+	fun searchModulesMatchesModuleAndAddonFields(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(SampleAddon())
+		runtime.registerAddon(object : DhenAddon {
+			override val metadata = AddonMetadata(AddonId("other.addon"), "Other", "1.0.0")
+			override fun register(context: AddonContext) {
+				context.registerModule(categoryModule("other.addon:chat", ModuleCategory.CHAT))
+			}
+		})
+		runtime.start()
+
+		fun ids(query: String) = runtime.searchModules(query).map { it.id.value }
+
+		assertEquals(listOf(MODULE_ID.value), ids("Demo")) // module name
+		assertEquals(listOf(MODULE_ID.value), ids("addon:demo")) // stable id
+		assertEquals(listOf(MODULE_ID.value), ids("Overlays")) // category
+		assertEquals(listOf(MODULE_ID.value), ids("Sample")) // addon name
+		assertEquals(listOf("other.addon:chat"), ids("other.addon")) // addon id
+		assertEquals(listOf(MODULE_ID.value, "other.addon:chat"), ids(""))
+		assertEquals(emptyList<String>(), ids("zzz"))
+	}
+
+	@Test
+	fun searchFiltersReflectLiveRuntimeState(@TempDir tmp: Path) {
+		val runtime = DhenRuntime(FakePlatformServices(tmp))
+		runtime.registerAddon(SampleAddon())
+		runtime.registerAddon(conflictPairAddon())
+		runtime.registerAddon(brokenDependencyAddon())
+		runtime.start()
+
+		fun ids(vararg filters: ModuleFilter) = runtime.searchModules(filters = filters.toSet()).map { it.id.value }
+
+		assertEquals(emptyList<String>(), ids(ModuleFilter.ENABLED))
+		runtime.enableModule(MODULE_ID)
+		runtime.enableModule(ModuleId("conflict.addon:a"))
+		assertEquals(listOf(MODULE_ID.value, "conflict.addon:a"), ids(ModuleFilter.ENABLED))
+		assertEquals(listOf("conflict.addon:b"), ids(ModuleFilter.DISABLED, ModuleFilter.HAS_CONFLICT))
+		assertEquals(listOf("dep.addon:mod"), ids(ModuleFilter.FAILED))
+		assertEquals(listOf("dep.addon:mod"), ids(ModuleFilter.MISSING_DEPENDENCY))
+		assertEquals(emptyList<String>(), ids(ModuleFilter.AVAILABLE_ADDON))
+
+		val installed = ids(ModuleFilter.INSTALLED_ADDON)
+		assertTrue(MODULE_ID.value in installed && "conflict.addon:a" in installed)
+
+		assertEquals(emptyList<String>(), ids(ModuleFilter.PENDING_RESTART))
+		runtime.markAddonPendingRestart(AddonId("sample.addon"), "remove")
+		assertEquals(listOf(MODULE_ID.value), ids(ModuleFilter.PENDING_RESTART))
+
+		runtime.disableModule(MODULE_ID)
+		assertEquals(listOf("conflict.addon:a"), ids(ModuleFilter.ENABLED))
 	}
 
 	@Test

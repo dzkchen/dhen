@@ -11,7 +11,25 @@ import io.github.dzkchen.dhen.api.KeybindId
 import io.github.dzkchen.dhen.api.KeybindSpec
 import io.github.dzkchen.dhen.api.ModuleCategory
 import io.github.dzkchen.dhen.api.ModuleId
+import io.github.dzkchen.dhen.api.SettingId
 import io.github.dzkchen.dhen.api.VersionRange
+
+// Why a module is blocked or degraded, for row badges and the resolution UI.
+data class ModuleIssues(
+	val conflictWith: ModuleId? = null,
+	val missingDependency: String? = null,
+)
+
+enum class ModuleFilter {
+	INSTALLED_ADDON,
+	AVAILABLE_ADDON,
+	PENDING_RESTART,
+	ENABLED,
+	DISABLED,
+	FAILED,
+	HAS_CONFLICT,
+	MISSING_DEPENDENCY,
+}
 
 class DhenRuntime(
 	private val platform: PlatformServices,
@@ -235,6 +253,57 @@ class DhenRuntime(
 
 	fun addonIds(): List<String> = registry.addons().map { it.id.value }
 
+	fun settingValue(addonId: AddonId, settingId: SettingId): Any? = config.get(addonId, settingId)
+
+	fun updateSetting(addonId: AddonId, settingId: SettingId, value: Any?): List<String> {
+		val errors = config.set(addonId, settingId, value)
+		for (error in errors) log.warn("Rejected config value: $error")
+		return errors
+	}
+
+	fun moduleIssues(id: ModuleId): ModuleIssues {
+		val record = registry.get(id) ?: return ModuleIssues()
+		return ModuleIssues(
+			conflictWith = activeConflict(record),
+			missingDependency = registry.addon(record.addonId)?.let(::unmetDependency),
+		)
+	}
+
+	fun searchModules(query: String = "", filters: Set<ModuleFilter> = emptySet()): List<ModuleRecord> {
+		val needle = query.trim()
+		val core = if (filters.any { it in CORE_STATE_FILTERS }) store.loadCoreState() else null
+		return registry.all().filter { record ->
+			matchesQuery(record, needle) && filters.all { matchesFilter(record, it, core) }
+		}
+	}
+
+	private fun matchesQuery(record: ModuleRecord, needle: String): Boolean {
+		if (needle.isEmpty()) return true
+		val md = record.module.metadata
+		val fields = sequenceOf(
+			md.id.value,
+			md.name,
+			md.description,
+			md.category.name,
+			md.category.displayName,
+			record.addonId.value,
+			registry.addon(record.addonId)?.name.orEmpty(),
+		)
+		return fields.any { it.contains(needle, ignoreCase = true) }
+	}
+
+	private fun matchesFilter(record: ModuleRecord, filter: ModuleFilter, core: CoreConfigState?): Boolean = when (filter) {
+		ModuleFilter.INSTALLED_ADDON -> core?.installedAddons?.containsKey(record.addonId.value) == true
+		// No catalog data until the Phase 7 resolver exists, so nothing is "available".
+		ModuleFilter.AVAILABLE_ADDON -> false
+		ModuleFilter.PENDING_RESTART -> core?.pendingRestartAddons?.containsKey(record.addonId.value) == true
+		ModuleFilter.ENABLED -> record.state == LifecycleState.ENABLED
+		ModuleFilter.DISABLED -> record.state == LifecycleState.DISABLED
+		ModuleFilter.FAILED -> record.state == LifecycleState.FAILED
+		ModuleFilter.HAS_CONFLICT -> activeConflict(record) != null
+		ModuleFilter.MISSING_DEPENDENCY -> registry.addon(record.addonId)?.let(::unmetDependency) != null
+	}
+
 	fun dispatch(event: DhenEvent) = eventBus.dispatch(event)
 
 	fun diagnostics(): DiagnosticsSnapshot {
@@ -366,5 +435,7 @@ class DhenRuntime(
 	companion object {
 		const val OPEN_GUI_KEYBIND_ID: String = "dhen:open_gui"
 		private const val DEFAULT_OPEN_GUI_KEY: Int = 344 // GLFW right shift
+		private val CORE_STATE_FILTERS =
+			setOf(ModuleFilter.INSTALLED_ADDON, ModuleFilter.PENDING_RESTART)
 	}
 }

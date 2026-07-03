@@ -22,6 +22,7 @@ import io.github.dzkchen.dhen.api.StringSetting
 import io.github.dzkchen.dhen.api.StringValueSchema
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -713,6 +714,68 @@ class ConfigManagerTest {
 
 		assertEquals(listOf("config.addon.enabled: duplicate setting id"), errors)
 		assertFalse(store.loadAddonSettings(addonId).containsKey("enabled"))
+	}
+
+	@Test
+	fun setValidatesAppliesLiveAndPersists(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val manager = ConfigManager(store)
+		val addonId = AddonId("config.addon")
+		manager.materializeDefaults(
+			addonId,
+			listOf(
+				IntRangeSetting(SettingId("count"), "Count", min = 1, max = 3, default = 1),
+				StringSetting(SettingId("name"), "Name", default = null),
+			),
+		)
+
+		assertEquals(
+			listOf("config.addon.count: expected integer in range 1..3"),
+			manager.set(addonId, SettingId("count"), 99),
+		)
+		assertEquals(listOf("config.addon.missing: unknown setting"), manager.set(addonId, SettingId("missing"), 1))
+		assertEquals(1, manager.get(addonId, SettingId("count")))
+		assertNull(manager.get(addonId, SettingId("name")))
+
+		assertTrue(manager.set(addonId, SettingId("count"), 2).isEmpty())
+		assertTrue(manager.set(addonId, SettingId("name"), "demo").isEmpty())
+		assertEquals(2, manager.get(addonId, SettingId("count")))
+		assertEquals("demo", manager.get(addonId, SettingId("name")))
+
+		@Suppress("UNCHECKED_CAST")
+		val persisted = decodedMap(platform, store.addonsDir.resolve("config.addon.json"))["settings"] as Map<String, Any?>
+		assertEquals(2.0, persisted["count"])
+		assertEquals("demo", persisted["name"])
+	}
+
+	@Test
+	fun setValidatesCompositeValuesRecursively(@TempDir tmp: Path) {
+		val platform = FakePlatformServices(tmp)
+		val store = ConfigStore(platform.configDir, platform.jsonCodec)
+		val manager = ConfigManager(store)
+		val addonId = AddonId("config.addon")
+		manager.materializeDefaults(
+			addonId,
+			listOf(
+				ListSetting(SettingId("names"), "Names", StringValueSchema()),
+				ObjectSetting(SettingId("group"), "Group", fields = listOf(StringSetting(SettingId("label"), "Label"))),
+			),
+		)
+
+		assertEquals(
+			listOf("config.addon.names[1]: expected string"),
+			manager.set(addonId, SettingId("names"), listOf("ok", 7)),
+		)
+		assertEquals(
+			listOf("config.addon.group.label: expected string"),
+			manager.set(addonId, SettingId("group"), mapOf("label" to 7)),
+		)
+
+		assertTrue(manager.set(addonId, SettingId("names"), listOf("a", "b")).isEmpty())
+		assertTrue(manager.set(addonId, SettingId("group"), mapOf("label" to "ok")).isEmpty())
+		assertEquals(listOf("a", "b"), manager.get(addonId, SettingId("names")))
+		assertEquals(mapOf("label" to "ok"), manager.get(addonId, SettingId("group")))
 	}
 
 	@Test
