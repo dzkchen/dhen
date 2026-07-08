@@ -15,3 +15,9 @@ pluginManagement {
 
 // Should match your modid
 rootProject.name = "dhen"
+
+file("addons")
+	.takeIf { it.isDirectory }
+	?.listFiles { file -> file.isDirectory && file.resolve("build.gradle.kts").isFile }
+	?.sortedBy { it.name }
+	?.forEach { include(":addons:${it.name}") }
