@@ -1,20 +1,16 @@
 package io.github.dzkchen.dhen
 
-import net.fabricmc.api.ModInitializer
+import net.fabricmc.api.ClientModInitializer
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 
-object Dhen : ModInitializer {
+object Dhen : ClientModInitializer {
 	const val MOD_ID: String = "dhen"
 
 	private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
-	override fun onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
-
-		LOGGER.info("Hello Fabric world!")
+	override fun onInitializeClient() {
+		LOGGER.info("Dhen initialized")
 	}
 
 	fun id(path: String): Identifier

@@ -3,7 +3,7 @@
 	"id": "dhen",
 	"version": "${version}",
 	"name": "Dhen",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "A modular Hypixel SkyBlock client mod for Minecraft.",
 	"authors": [
 		"dzkchen"
 	],
@@ -13,9 +13,9 @@
 	},
 	"license": "MIT",
 	"icon": "assets/dhen/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
+		"client": [
 			{
 				"value": "io.github.dzkchen.dhen.Dhen",
 				"adapter": "kotlin"
