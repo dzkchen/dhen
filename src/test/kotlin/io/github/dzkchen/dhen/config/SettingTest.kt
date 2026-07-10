@@ -4,10 +4,12 @@ import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.util.Color
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.lwjgl.glfw.GLFW
 
 class SettingTest {
 	@Test
@@ -100,10 +102,60 @@ class SettingTest {
 	}
 
 	@Test
+	fun `color delegate reads and writes`() {
+		val module = SampleModule()
+
+		assertEquals(Color.rgba(255, 0, 0), module.color)
+		module.color = Color.rgba(0, 255, 0)
+		assertEquals(Color.rgba(0, 255, 0), module.color)
+	}
+
+	@Test
+	fun `color setting forces opaque when alpha disallowed`() {
+		val setting = ColorSetting("c", Color.rgba(10, 20, 30, alpha = 64))
+		assertEquals(255, setting.default.alpha)
+
+		setting.value = Color.rgba(1, 2, 3, alpha = 0)
+		assertEquals(255, setting.value.alpha)
+	}
+
+	@Test
+	fun `color setting keeps alpha when allowed`() {
+		val setting = ColorSetting("c", Color.rgba(10, 20, 30, alpha = 64), allowAlpha = true)
+		assertEquals(64, setting.default.alpha)
+
+		setting.value = Color.rgba(1, 2, 3, alpha = 128)
+		assertEquals(128, setting.value.alpha)
+	}
+
+	@Test
+	fun `keybind defaults to unbound and reads and writes through the module`() {
+		val module = SampleModule()
+
+		assertEquals(GLFW.GLFW_KEY_UNKNOWN, module.key)
+		assertFalse(module.keySetting.isBound)
+
+		module.key = GLFW.GLFW_KEY_G
+		assertEquals(GLFW.GLFW_KEY_G, module.key)
+		assertTrue(module.keySetting.isBound)
+	}
+
+	@Test
+	fun `action delegate exposes the callback`() {
+		val module = SampleModule()
+
+		module.run()
+		assertEquals(1, module.runs)
+	}
+
+	@Test
 	fun `settings enumerate in declaration order`() {
 		val module = SampleModule()
 
-		assertEquals(listOf("Flag", "Label", "Speed", "Mode", "Gated"), module.settings.map { it.name })
+		assertEquals(
+			listOf("Flag", "Label", "Speed", "Mode", "Gated", "Color", "Key", "Run"),
+			module.settings.map { it.name }
+		)
 	}
 
 	@Test
@@ -138,6 +190,16 @@ class SettingTest {
 
 		val gatedSetting = StringSetting("Gated", "x").withDependency { flag }
 		var gated by gatedSetting
+
+		val colorSetting = ColorSetting("Color", Color.rgba(255, 0, 0))
+		var color by colorSetting
+
+		val keySetting = KeybindSetting("Key")
+		var key by keySetting
+
+		var runs = 0
+		val runSetting = ActionSetting("Run", default = { runs++ })
+		val run by runSetting
 	}
 
 	private object AutoSprintFixture : Module(
