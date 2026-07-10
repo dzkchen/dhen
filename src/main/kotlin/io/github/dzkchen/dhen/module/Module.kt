@@ -2,7 +2,15 @@ package io.github.dzkchen.dhen.module
 
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import kotlin.coroutines.CoroutineContext
 
 abstract class Module(
 	val name: String,
@@ -23,25 +31,43 @@ abstract class Module(
 	private var clock: () -> Long = System::currentTimeMillis
 	private var windowStart = 0L
 	private var warned = false
+	private var scopeContext: CoroutineContext = Dispatchers.Unconfined
+	@Volatile
+	private var moduleScope: CoroutineScope? = null
+	private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+		onHandlerError(throwable)
+	}
 
 	protected inline fun <reified T : Event> on(priority: Int = 0, noinline handler: (T) -> Unit) {
 		register(T::class.java, priority, handler)
 	}
 
+	// Launches on the current enable's scope; a no-op returning null while disabled.
+	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
+		moduleScope?.launch(block = block)
+
 	internal fun setEnabled(enabled: Boolean) {
+		if (this.enabled == enabled) return
 		this.enabled = enabled
-		if (enabled) resetErrorState()
+		if (enabled) {
+			resetErrorState()
+			moduleScope = CoroutineScope(SupervisorJob() + scopeContext + coroutineExceptionHandler)
+		} else {
+			moduleScope?.cancel()
+			moduleScope = null
+		}
 	}
 
 	internal fun toggle() {
 		setEnabled(!enabled)
 	}
 
-	internal fun bind(eventBus: EventBus, notifier: ModuleNotifier, clock: () -> Long) {
+	internal fun bind(eventBus: EventBus, notifier: ModuleNotifier, clock: () -> Long, clientDispatcher: CoroutineContext) {
 		requireUnbound()
 		bound = true
 		this.notifier = notifier
 		this.clock = clock
+		this.scopeContext = clientDispatcher
 		for (registration in registrations) registration.bind(eventBus, this)
 	}
 

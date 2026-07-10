@@ -1,12 +1,14 @@
 package io.github.dzkchen.dhen.module
 
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.util.ClientThreadDispatcher
 import java.util.Locale
 
 class ModuleManager(
 	val eventBus: EventBus = EventBus(),
 	private val notifier: ModuleNotifier = ModuleNotifier.LogBacked,
-	private val clock: () -> Long = System::currentTimeMillis
+	private val clock: () -> Long = System::currentTimeMillis,
+	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher()
 ) {
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
@@ -74,7 +76,7 @@ class ModuleManager(
 	}
 
 	private fun addValidated(module: Module, key: String) {
-		module.bind(eventBus, notifier, clock)
+		module.bind(eventBus, notifier, clock, clientDispatcher)
 		modulesByName[key] = module
 		modulesByCategory.getOrPut(module.category) { mutableListOf() }.add(module)
 	}
