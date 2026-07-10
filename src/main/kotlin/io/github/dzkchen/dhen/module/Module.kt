@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -11,6 +12,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import kotlin.coroutines.CoroutineContext
+import kotlin.properties.ReadWriteProperty
 
 abstract class Module(
 	val name: String,
@@ -26,6 +28,10 @@ abstract class Module(
 		private set
 
 	private val registrations = mutableListOf<Registration<out Event>>()
+	private val settingList = mutableListOf<Setting<*>>()
+
+	val settings: List<Setting<*>>
+		get() = settingList.toList()
 	private var bound = false
 	private var notifier: ModuleNotifier = ModuleNotifier.LogBacked
 	private var clock: () -> Long = System::currentTimeMillis
@@ -73,6 +79,11 @@ abstract class Module(
 
 	internal fun requireUnbound() {
 		require(!bound) { "Module '$name' is already bound to an event bus." }
+	}
+
+	internal fun <T> registerSetting(setting: Setting<T>): ReadWriteProperty<Module, T> {
+		settingList += setting
+		return setting
 	}
 
 	@PublishedApi
