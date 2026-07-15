@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen
 
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
+import io.github.dzkchen.dhen.gui.FlatPrimitivesDemoScreen
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.PlaceholderModule
@@ -44,7 +45,7 @@ object Dhen : ClientModInitializer {
 			modules.clientDispatcher.drainQueue()
 			inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) {
-				LOGGER.info("Dhen GUI requested; the screen is not available yet")
+				client.gui.setScreen(FlatPrimitivesDemoScreen())
 			}
 		}
 		LOGGER.info("Dhen initialized")
