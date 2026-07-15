@@ -2,6 +2,10 @@ package io.github.dzkchen.dhen.command
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
+import io.github.dzkchen.dhen.config.KeybindSetting
+import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.event.Event
+import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -12,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
 	private fun registry(): CommandRegistry<Any> =
@@ -67,6 +72,18 @@ class CommandRegistryTest {
 		registry.install(dispatcher)
 		assertNull(dispatcher.root.getChild("solo"))
 		assertNotNull(dispatcher.root.getChild("dhen"))
+	}
+
+	@Test
+	fun `two argument constructor accepts positional feedback for compatibility`() {
+		val feedback: (Any, String) -> Unit = { _, message -> captured += message }
+		val registry = CommandRegistry(ModuleManager(), feedback)
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen", Any())
+
+		assertTrue(captured.single().contains("Dhen commands"))
 	}
 
 	@Test
@@ -129,9 +146,62 @@ class CommandRegistryTest {
 		assertEquals("No module named 'Nope'.", captured.last())
 	}
 
+	@Test
+	fun `debug reports live module counters and handler timing`() {
+		val times = ArrayDeque(listOf(10L, 60L))
+		val bus = EventBus { times.removeFirst() }
+		val manager = ModuleManager(bus)
+		val module = manager.register(DebugModule())
+		manager.enable(module)
+		bus.type<DebugEvent>().dispatch(DebugEvent())
+		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug", Any())
+
+		assertEquals("Dhen debug: deep profiling off", captured[0])
+		assertEquals(
+			"Debug Module: subscriptions=1, keybinds=1, errors=1, config=modules:v${ModulePersistence.version}",
+			captured[1]
+		)
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[2])
+	}
+
+	@Test
+	fun `debug command controls deep profiling explicitly`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug deep on", Any())
+		assertTrue(manager.eventBus.profiler.deepMode)
+		assertEquals("Deep profiling enabled.", captured.last())
+
+		dispatcher.execute("dh debug deep off", Any())
+		assertFalse(manager.eventBus.profiler.deepMode)
+		assertEquals("Deep profiling disabled.", captured.last())
+	}
+
 	private class TestModule : Module(
 		name = "Test Module",
 		category = Category.DEV,
 		description = "Toggle target for command tests."
 	)
+
+	private class DebugEvent : Event
+
+	private class DebugModule : Module(
+		name = "Debug Module",
+		category = Category.DEV,
+		description = "Debug fixture."
+	) {
+		@Suppress("unused")
+		private val keybind by KeybindSetting("Action", GLFW.GLFW_KEY_K)
+
+		init {
+			on<DebugEvent> { error("count this failure") }
+		}
+	}
 }

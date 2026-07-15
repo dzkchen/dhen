@@ -2,10 +2,13 @@ package io.github.dzkchen.dhen.event
 
 import java.util.concurrent.ConcurrentHashMap
 
-class EventBus {
+class EventBus(
+	nanoClock: NanoClock = NanoClock.SYSTEM
+) {
 	private val lock = Any()
 	private val types = ConcurrentHashMap<Class<out Event>, EventType<out Event>>()
 	private var nextOrder = 0L
+	val profiler = EventProfiler(nanoClock)
 
 	inline fun <reified T : Event> type(): EventType<T> =
 		type(T::class.java)
@@ -19,7 +22,7 @@ class EventBus {
 			@Suppress("UNCHECKED_CAST")
 			val lockedExisting = types[type] as EventType<T>?
 			if (lockedExisting != null) lockedExisting else {
-				val created = EventType<T>(this)
+				val created = EventType<T>(this, DeepProfiledEvent::class.java.isAssignableFrom(type))
 				types[type] = created
 				created
 			}
@@ -32,14 +35,32 @@ class EventBus {
 	fun <T : Event> subscribe(type: EventType<T>, priority: Int = 0, handler: (T) -> Unit): Handle =
 		type.subscribe(priority, handler)
 
-	class EventType<T : Event> internal constructor(private val bus: EventBus) {
+	class EventType<T : Event> internal constructor(
+		private val bus: EventBus,
+		private val deepOnly: Boolean
+	) {
 		@Volatile
 		private var listeners = noListeners
 
-		fun subscribe(priority: Int = 0, handler: (T) -> Unit): Handle {
+		fun subscribe(priority: Int = 0, handler: (T) -> Unit): Handle =
+			subscribe(priority, null, null, handler)
+
+		internal fun subscribeProfiled(
+			priority: Int,
+			timing: HandlerTiming,
+			active: HandlerGate,
+			handler: (T) -> Unit
+		): Handle = subscribe(priority, timing, active, handler)
+
+		private fun subscribe(
+			priority: Int,
+			timing: HandlerTiming?,
+			active: HandlerGate?,
+			handler: (T) -> Unit
+		): Handle {
 			val listener = synchronized(bus.lock) {
 				@Suppress("UNCHECKED_CAST")
-				val listener = Listener(priority, bus.nextOrder++, handler as (Event) -> Unit)
+				val listener = Listener(priority, bus.nextOrder++, timing, active, handler as (Event) -> Unit)
 				val current = listeners
 				val next = Array(current.size + 1) { index ->
 					if (index < current.size) current[index] else listener
@@ -64,7 +85,7 @@ class EventBus {
 			var index = 0
 			while (index < listeners.size) {
 				val listener = listeners[index]
-				if (listener.subscribed) listener.handler(event)
+				if (listener.subscribed && (listener.active?.isActive() != false)) dispatch(listener, event)
 				index++
 			}
 		}
@@ -75,8 +96,23 @@ class EventBus {
 			while (index < listeners.size) {
 				if (cancellable.cancelled) return
 				val listener = listeners[index]
-				if (listener.subscribed) listener.handler(event)
+				if (listener.subscribed && (listener.active?.isActive() != false)) dispatch(listener, event)
 				index++
+			}
+		}
+
+		private fun dispatch(listener: Listener, event: Event) {
+			val timing = listener.timing
+			if (timing == null || (deepOnly && !bus.profiler.deepMode)) {
+				listener.handler(event)
+				return
+			}
+
+			val started = bus.profiler.clock.nanoTime()
+			try {
+				listener.handler(event)
+			} finally {
+				timing.record(bus.profiler.clock.nanoTime() - started)
 			}
 		}
 
@@ -99,6 +135,8 @@ class EventBus {
 	private class Listener(
 		val priority: Int,
 		val order: Long,
+		val timing: HandlerTiming?,
+		val active: HandlerGate?,
 		val handler: (Event) -> Unit
 	) {
 		@Volatile

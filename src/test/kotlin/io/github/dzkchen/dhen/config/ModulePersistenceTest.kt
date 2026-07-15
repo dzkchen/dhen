@@ -33,16 +33,25 @@ class ModulePersistenceTest {
 		before.keySetting.value = GLFW.GLFW_KEY_G
 		before.run()
 
-		ConfigStore(path, CoroutineScope(Dispatchers.IO), debounce = {})
+		ConfigStore(
+			path,
+			CoroutineScope(Dispatchers.IO),
+			migrations = ModulePersistence.migrations,
+			debounce = {}
+		)
 			.save(ModulePersistence.snapshot(saved)).join()
 
-		val fileSettings = JsonParser.parseString(Files.readString(path)).asJsonObject
-			.getAsJsonObject("modules").getAsJsonObject("Sample").getAsJsonObject("settings")
+		val file = JsonParser.parseString(Files.readString(path)).asJsonObject
+		assertEquals(ModulePersistence.version, file.get("version").asInt)
+		val fileSettings = file.getAsJsonObject("modules").getAsJsonObject("Sample").getAsJsonObject("settings")
 		assertFalse(fileSettings.has("Run"))
 
 		val restored = ModuleManager()
 		val after = SampleModule().also { restored.register(it) }
-		ModulePersistence.apply(restored, ConfigStore(path, CoroutineScope(Dispatchers.IO)).load())
+		ModulePersistence.apply(
+			restored,
+			ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations).load()
+		)
 
 		assertTrue(after.enabled)
 		assertFalse(after.boolSetting.value)

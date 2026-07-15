@@ -6,14 +6,19 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import com.mojang.brigadier.builder.RequiredArgumentBuilder.argument
+import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.module.ModuleManager
 import java.util.Locale
 
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
+	private val diagnostics: Diagnostics,
 	private val feedback: (S, String) -> Unit
 ) {
+	constructor(manager: ModuleManager, feedback: (S, String) -> Unit) :
+		this(manager, Diagnostics(manager), feedback)
+
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
 
 	val commands: List<RegisteredCommand<S>>
@@ -49,7 +54,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				feedback(context.source, "Dhen commands: /$name module <name> toggle")
+				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug")
 				Command.SINGLE_SUCCESS
 			}
 			.then(
@@ -77,6 +82,26 @@ class CommandRegistry<S>(
 						)
 				)
 			)
+			.then(debugCommand())
+
+	private fun debugCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("debug")
+			.executes { context ->
+				for (line in diagnostics.lines()) feedback(context.source, line)
+				Command.SINGLE_SUCCESS
+			}
+			.then(
+				literal<S>("deep")
+					.then(deepMode("on", true))
+					.then(deepMode("off", false))
+			)
+
+	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
+		literal<S>(name).executes { context ->
+			diagnostics.deepMode = enabled
+			feedback(context.source, "Deep profiling ${if (enabled) "enabled" else "disabled"}.")
+			Command.SINGLE_SUCCESS
+		}
 
 	private companion object {
 		private val RESERVED = setOf("dhen", "dh")

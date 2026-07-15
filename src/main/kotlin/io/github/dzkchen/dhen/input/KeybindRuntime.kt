@@ -26,6 +26,14 @@ internal class KeybindRuntime(eventBus: EventBus) {
 		}
 	}
 
+	fun count(module: Module): Int {
+		var count = 0
+		for (binding in bindings) {
+			if (binding.module === module) count++
+		}
+		return count
+	}
+
 	private fun activateKey(key: Int) {
 		val bindings = bindings
 		var index = 0

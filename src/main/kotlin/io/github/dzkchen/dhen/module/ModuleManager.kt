@@ -63,6 +63,9 @@ class ModuleManager(
 		requireRegistered(module).toggle()
 	}
 
+	internal fun keybindCount(module: Module): Int =
+		keybindRuntime.count(module)
+
 	private fun requireModule(name: String): Module =
 		this[name] ?: throw NoSuchElementException("No module named '$name' is registered.")
 

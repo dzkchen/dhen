@@ -12,6 +12,10 @@ import org.slf4j.LoggerFactory
 // ActionSetting (a callback) is never serialized. Unknown modules/settings are
 // skipped on load; the merge base keeps them in the file.
 object ModulePersistence {
+	internal val migrations: List<(JsonObject) -> Unit> = emptyList()
+	internal val version: Int
+		get() = migrations.size
+
 	private val log = LoggerFactory.getLogger(ModulePersistence::class.java)
 
 	fun snapshot(manager: ModuleManager): JsonObject {

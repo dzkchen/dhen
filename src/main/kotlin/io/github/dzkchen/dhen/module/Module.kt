@@ -4,6 +4,8 @@ import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.HandlerGate
+import io.github.dzkchen.dhen.event.HandlerTiming
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +35,10 @@ abstract class Module(
 
 	val settings: List<Setting<*>>
 		get() = settingList.toList()
+	val handlerTimings: List<HandlerTiming>
+		get() = registrations.map { it.timing }
+	val subscriptionCount: Int
+		get() = registrations.size
 	private var bound = false
 	private var notifier: ModuleNotifier = ModuleNotifier.LogBacked
 	private var clock: () -> Long = System::currentTimeMillis
@@ -78,7 +84,12 @@ abstract class Module(
 		}
 	}
 
-	internal fun bind(eventBus: EventBus, notifier: ModuleNotifier, clock: () -> Long, clientDispatcher: CoroutineContext) {
+	internal fun bind(
+		eventBus: EventBus,
+		notifier: ModuleNotifier,
+		clock: () -> Long,
+		clientDispatcher: CoroutineContext
+	) {
 		requireUnbound()
 		bound = true
 		this.notifier = notifier
@@ -143,14 +154,14 @@ abstract class Module(
 		private val priority: Int,
 		private val handler: (T) -> Unit
 	) {
+		val timing = HandlerTiming(type.simpleName.ifEmpty { type.name })
+
 		fun bind(eventBus: EventBus, module: Module) {
-			eventBus.type(type).subscribe(priority) { event ->
-				if (module.enabled) {
-					try {
-						handler(event)
-					} catch (throwable: Throwable) {
-						module.onHandlerError(throwable)
-					}
+			eventBus.type(type).subscribeProfiled(priority, timing, HandlerGate { module.enabled }) { event ->
+				try {
+					handler(event)
+				} catch (throwable: Throwable) {
+					module.onHandlerError(throwable)
 				}
 			}
 		}

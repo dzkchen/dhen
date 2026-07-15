@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.module
 
 import io.github.dzkchen.dhen.config.KeybindSetting
+import io.github.dzkchen.dhen.event.KeyInputEvent
 import org.lwjgl.glfw.GLFW
 
 // Temporary verification aid: gives runClient a toggleable module until native
@@ -10,6 +11,12 @@ class PlaceholderModule : Module(
 	category = Category.DEV,
 	description = "Placeholder module for verifying core controls."
 ) {
+	private var inputEvents = 0
+
+	init {
+		on<KeyInputEvent> { inputEvents++ }
+	}
+
 	@Suppress("unused")
 	private val keybind by KeybindSetting(
 		name = "Keybind",
