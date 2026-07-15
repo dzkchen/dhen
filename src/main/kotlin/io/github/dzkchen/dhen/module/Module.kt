@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
@@ -66,6 +67,15 @@ abstract class Module(
 
 	internal fun toggle() {
 		setEnabled(!enabled)
+	}
+
+	internal fun activateKeybind(setting: KeybindSetting) {
+		if (!enabled) return
+		try {
+			setting.activate()
+		} catch (throwable: Throwable) {
+			onHandlerError(throwable)
+		}
 	}
 
 	internal fun bind(eventBus: EventBus, notifier: ModuleNotifier, clock: () -> Long, clientDispatcher: CoroutineContext) {

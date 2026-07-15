@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.module
 
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.input.KeybindRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
 import java.util.Locale
 
@@ -10,6 +11,7 @@ class ModuleManager(
 	private val clock: () -> Long = System::currentTimeMillis,
 	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher()
 ) {
+	private val keybindRuntime = KeybindRuntime(eventBus)
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
 
@@ -77,6 +79,7 @@ class ModuleManager(
 
 	private fun addValidated(module: Module, key: String) {
 		module.bind(eventBus, notifier, clock, clientDispatcher)
+		keybindRuntime.register(module)
 		modulesByName[key] = module
 		modulesByCategory.getOrPut(module.category) { mutableListOf() }.add(module)
 	}
