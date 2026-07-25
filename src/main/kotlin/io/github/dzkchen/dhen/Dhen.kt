@@ -2,15 +2,23 @@ package io.github.dzkchen.dhen
 
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
-import io.github.dzkchen.dhen.gui.FlatPrimitivesDemoScreen
+import io.github.dzkchen.dhen.config.ConfigStore
+import io.github.dzkchen.dhen.gui.ClickGuiLayout
+import io.github.dzkchen.dhen.gui.ClickGuiScreen
+import io.github.dzkchen.dhen.gui.PanelState
 import io.github.dzkchen.dhen.input.InputRuntime
+import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.PlaceholderModule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
@@ -29,7 +37,13 @@ object Dhen : ClientModInitializer {
 		source.sendFeedback(Component.literal(message))
 	}
 
+	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private lateinit var coreStore: ConfigStore
+	private lateinit var panelLayout: MutableMap<String, PanelState>
+
 	override fun onInitializeClient() {
+		coreStore = ConfigStore(FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"), configScope)
+		panelLayout = ClickGuiLayout.read(coreStore.load())
 		modules.register(PlaceholderModule())
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
 
@@ -45,7 +59,9 @@ object Dhen : ClientModInitializer {
 			modules.clientDispatcher.drainQueue()
 			inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) {
-				client.gui.setScreen(FlatPrimitivesDemoScreen())
+				client.gui.setScreen(ClickGuiScreen(Category.entries.toList(), panelLayout) {
+					coreStore.save(ClickGuiLayout.write(panelLayout))
+				})
 			}
 		}
 		LOGGER.info("Dhen initialized")
