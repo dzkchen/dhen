@@ -59,7 +59,7 @@ object Dhen : ClientModInitializer {
 			modules.clientDispatcher.drainQueue()
 			inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) {
-				client.gui.setScreen(ClickGuiScreen(Category.entries.toList(), panelLayout) {
+				client.gui.setScreen(ClickGuiScreen(Category.entries.toList(), modules, panelLayout) {
 					coreStore.save(ClickGuiLayout.write(panelLayout))
 				})
 			}
