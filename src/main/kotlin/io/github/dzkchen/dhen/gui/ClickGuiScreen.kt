@@ -9,13 +9,15 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
+import java.util.function.IntUnaryOperator
 import kotlin.math.roundToInt
 
 internal class ClickGuiScreen(
 	private val categories: List<Category>,
 	private val manager: ModuleManager,
 	private val layout: MutableMap<String, PanelState>,
-	private val persist: () -> Unit
+	private val persistLayout: () -> Unit,
+	private val persistModules: () -> Unit
 ) : Screen(Component.literal("Dhen")) {
 	private val panels = mutableListOf<Panel>()
 	private val expanded = mutableSetOf<String>()
@@ -23,6 +25,7 @@ internal class ClickGuiScreen(
 	private var dragOffsetX = 0
 	private var dragOffsetY = 0
 	private var dragMoved = false
+	private var controlDrag: Panel? = null
 	private var scrollOffset = 0
 
 	override fun init() {
@@ -82,29 +85,47 @@ internal class ClickGuiScreen(
 		if (module != null) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 				manager.toggle(module)
+				persistModules()
 			} else {
 				if (!expanded.remove(module.name)) expanded.add(module.name)
 				scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+			}
+			return true
+		}
+		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+			when (panel.pressControl(x, cy)) {
+				ControlPress.TRACK -> controlDrag = panel
+				ControlPress.CHANGED -> {
+					scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+					persistModules()
+				}
+				ControlPress.NONE -> Unit
 			}
 		}
 		return true
 	}
 
 	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-		val panel = dragging ?: return super.mouseDragged(event, dragX, dragY)
-		val newX = (event.x().toInt() - dragOffsetX).coerceIn(0, maxOf(0, width - PANEL_WIDTH))
-		val screenY = (event.y().toInt() - dragOffsetY).coerceIn(0, maxOf(0, height - panel.height))
-		val newY = screenY + scrollOffset
-		if (newX != panel.state.x || newY != panel.state.y) {
-			panel.state.x = newX
-			panel.state.y = newY
-			dragMoved = true
+		dragging?.let { panel ->
+			val newX = (event.x().toInt() - dragOffsetX).coerceIn(0, maxOf(0, width - PANEL_WIDTH))
+			val screenY = (event.y().toInt() - dragOffsetY).coerceIn(0, maxOf(0, height - panel.height))
+			val newY = screenY + scrollOffset
+			if (newX != panel.state.x || newY != panel.state.y) {
+				panel.state.x = newX
+				panel.state.y = newY
+				dragMoved = true
+			}
+			return true
 		}
-		return true
+		controlDrag?.let { panel ->
+			panel.dragControl(event.x().toInt())
+			return true
+		}
+		return super.mouseDragged(event, dragX, dragY)
 	}
 
 	override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
-		if (dragging != null) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		if (dragging != null || controlDrag != null) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		val max = maxScroll()
 		if (max <= 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		scrollOffset = ClickGuiScroll.clampOffset(scrollOffset - (scrollY * SCROLL_STEP).roundToInt(), max)
@@ -112,15 +133,23 @@ internal class ClickGuiScreen(
 	}
 
 	override fun mouseReleased(event: MouseButtonEvent): Boolean {
-		val panel = dragging ?: return super.mouseReleased(event)
-		dragging = null
-		if (dragMoved) store(panel)
-		return true
+		dragging?.let { panel ->
+			dragging = null
+			if (dragMoved) store(panel)
+			return true
+		}
+		if (controlDrag != null) {
+			controlDrag = null
+			scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+			persistModules()
+			return true
+		}
+		return super.mouseReleased(event)
 	}
 
 	private fun store(panel: Panel) {
 		layout[panel.category.name] = panel.state.copy()
-		persist()
+		persistLayout()
 	}
 
 	private fun clampToField(panel: Panel) {
@@ -185,19 +214,29 @@ internal class ClickGuiScreen(
 	}
 
 	private inner class Panel(val category: Category, val state: PanelState, val modules: List<Module>) {
-		private val expandedAt = { index: Int -> modules[index].name in expanded }
+		private val controls: List<List<SettingControl?>> = modules.map { module -> module.settings.map(::controlFor) }
+		private val settingsHeightAt = IntUnaryOperator { index -> settingsHeight(index) }
+		private var activeControl: SettingControl? = null
+		private var activeLeft = 0
+		private var activeWidth = 0
 
 		val height: Int
-			get() = HEADER_HEIGHT + if (state.collapsed) 0 else bodyHeight()
+			get() = HEADER_HEIGHT + if (state.collapsed) 0 else ClickGuiRows.bodyHeight(modules.size, ROW_HEIGHT, settingsHeightAt)
 		val toggleLeft: Int
 			get() = state.x + PANEL_WIDTH - TOGGLE_WIDTH
 
-		private fun bodyHeight(): Int =
-			ClickGuiRows.bodyHeight(modules.size, expandedCount(), ROW_HEIGHT, SETTINGS_HEIGHT)
+		private fun settingsHeight(index: Int): Int {
+			if (state.collapsed || modules[index].name !in expanded) return 0
+			return 2 * SETTINGS_PAD + renderableCount(index) * CONTROL_HEIGHT
+		}
 
-		private fun expandedCount(): Int {
+		private fun renderableCount(index: Int): Int {
+			val list = controls[index]
 			var count = 0
-			for (i in modules.indices) if (modules[i].name in expanded) count++
+			for (i in list.indices) {
+				val control = list[i]
+				if (control != null && control.setting.isVisible) count++
+			}
 			return count
 		}
 
@@ -210,9 +249,53 @@ internal class ClickGuiScreen(
 		fun rowAt(px: Int, py: Int): Module? {
 			if (state.collapsed) return null
 			if (px < state.x || px >= state.x + PANEL_WIDTH) return null
-			val index = ClickGuiRows.rowAt(py - (state.y + HEADER_HEIGHT), modules.size, ROW_HEIGHT, SETTINGS_HEIGHT, expandedAt)
+			val index = ClickGuiRows.rowAt(py - (state.y + HEADER_HEIGHT), modules.size, ROW_HEIGHT, settingsHeightAt)
 				?: return null
 			return modules[index]
+		}
+
+		fun pressControl(px: Int, py: Int): ControlPress {
+			val control = controlAt(px, py) ?: return ControlPress.NONE
+			val left = state.x + CONTENT_PAD
+			val width = PANEL_WIDTH - 2 * CONTENT_PAD
+			if (!control.press(px - left, width)) return ControlPress.CHANGED
+			activeControl = control
+			activeLeft = left
+			activeWidth = width
+			return ControlPress.TRACK
+		}
+
+		fun dragControl(px: Int) {
+			activeControl?.drag(px - activeLeft, activeWidth)
+		}
+
+		private fun controlAt(px: Int, py: Int): SettingControl? {
+			if (state.collapsed) return null
+			if (px < state.x + CONTENT_PAD || px >= state.x + PANEL_WIDTH - CONTENT_PAD) return null
+			var top = state.y + HEADER_HEIGHT
+			for (i in modules.indices) {
+				top += ROW_HEIGHT
+				val areaHeight = settingsHeight(i)
+				if (areaHeight > 0) {
+					if (py >= top && py < top + areaHeight) return renderableAt(i, py - (top + SETTINGS_PAD))
+					top += areaHeight
+				}
+			}
+			return null
+		}
+
+		private fun renderableAt(index: Int, localY: Int): SettingControl? {
+			if (localY < 0) return null
+			val target = localY / CONTROL_HEIGHT
+			val list = controls[index]
+			var seen = 0
+			for (i in list.indices) {
+				val control = list[i]
+				if (control == null || !control.setting.isVisible) continue
+				if (seen == target) return control
+				seen++
+			}
+			return null
 		}
 
 		fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {
@@ -229,12 +312,12 @@ internal class ClickGuiScreen(
 			if (!state.collapsed) {
 				var rowTop = headerBottom
 				for (i in modules.indices) {
-					val module = modules[i]
-					drawRow(graphics, font, module, left, right, rowTop, mouseX, mouseY)
+					drawRow(graphics, font, modules[i], left, right, rowTop, mouseX, mouseY)
 					rowTop += ROW_HEIGHT
-					if (module.name in expanded) {
-						drawSettings(graphics, left, right, rowTop)
-						rowTop += SETTINGS_HEIGHT
+					val areaHeight = settingsHeight(i)
+					if (areaHeight > 0) {
+						drawSettings(graphics, font, i, left, right, rowTop, areaHeight, mouseX, mouseY)
+						rowTop += areaHeight
 					}
 				}
 			}
@@ -279,9 +362,30 @@ internal class ClickGuiScreen(
 			}
 		}
 
-		private fun drawSettings(graphics: GuiGraphicsExtractor, left: Int, right: Int, top: Int) {
-			FlatGui.fill(graphics, left + 1, top, right - 1, top + SETTINGS_HEIGHT, DhenPalette.CANVAS)
+		private fun drawSettings(
+			graphics: GuiGraphicsExtractor,
+			font: Font,
+			index: Int,
+			left: Int,
+			right: Int,
+			top: Int,
+			areaHeight: Int,
+			mouseX: Int,
+			mouseY: Int
+		) {
+			FlatGui.fill(graphics, left + 1, top, right - 1, top + areaHeight, DhenPalette.CANVAS)
 			FlatGui.fill(graphics, left + 1, top, right - 1, top + 1, DhenPalette.BORDER)
+			val contentLeft = left + CONTENT_PAD
+			val contentWidth = PANEL_WIDTH - 2 * CONTENT_PAD
+			var y = top + SETTINGS_PAD
+			val list = controls[index]
+			for (i in list.indices) {
+				val control = list[i]
+				if (control == null || !control.setting.isVisible) continue
+				val hovered = mouseX in contentLeft until contentLeft + contentWidth && mouseY in y until y + CONTROL_HEIGHT
+				control.draw(graphics, font, contentLeft, y, contentWidth, CONTROL_HEIGHT, hovered)
+				y += CONTROL_HEIGHT
+			}
 		}
 	}
 
@@ -291,7 +395,8 @@ internal class ClickGuiScreen(
 		const val PANEL_HEIGHT = HEADER_HEIGHT + 40
 		const val ROW_HEIGHT = 13
 		const val ROW_TEXT_OFFSET = 3
-		const val SETTINGS_HEIGHT = 22
+		const val CONTROL_HEIGHT = 12
+		const val SETTINGS_PAD = 3
 		const val INDICATOR_SIZE = 8
 		const val MARGIN = 8
 		const val COLUMN_GAP = 8
@@ -306,3 +411,5 @@ internal class ClickGuiScreen(
 		const val SCROLLBAR_MIN_THUMB = 16
 	}
 }
+
+private enum class ControlPress { NONE, CHANGED, TRACK }

@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
+import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiLayout
 import io.github.dzkchen.dhen.gui.ClickGuiScreen
 import io.github.dzkchen.dhen.gui.PanelState
@@ -39,12 +40,19 @@ object Dhen : ClientModInitializer {
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private lateinit var coreStore: ConfigStore
+	private lateinit var moduleStore: ConfigStore
 	private lateinit var panelLayout: MutableMap<String, PanelState>
 
 	override fun onInitializeClient() {
 		coreStore = ConfigStore(FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"), configScope)
+		moduleStore = ConfigStore(
+			FabricLoader.getInstance().configDir.resolve("$MOD_ID/modules.json"),
+			configScope,
+			ModulePersistence.migrations
+		)
 		panelLayout = ClickGuiLayout.read(coreStore.load())
 		modules.register(PlaceholderModule())
+		ModulePersistence.apply(modules, moduleStore.load())
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
 
 		val openGuiKey = KeyMappingHelper.registerKeyMapping(
@@ -59,9 +67,15 @@ object Dhen : ClientModInitializer {
 			modules.clientDispatcher.drainQueue()
 			inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) {
-				client.gui.setScreen(ClickGuiScreen(Category.entries.toList(), modules, panelLayout) {
-					coreStore.save(ClickGuiLayout.write(panelLayout))
-				})
+				client.gui.setScreen(
+					ClickGuiScreen(
+						Category.entries.toList(),
+						modules,
+						panelLayout,
+						persistLayout = { coreStore.save(ClickGuiLayout.write(panelLayout)) },
+						persistModules = { moduleStore.save(ModulePersistence.snapshot(modules)) }
+					)
+				)
 			}
 		}
 		LOGGER.info("Dhen initialized")

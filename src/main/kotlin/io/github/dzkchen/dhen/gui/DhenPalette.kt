@@ -7,6 +7,7 @@ internal object DhenPalette {
 	val SURFACE_INTERACTIVE = 0xFF24333Bu.toInt()
 	val BORDER = 0xFF33474Eu.toInt()
 	val ACCENT = 0xFF55D6C2u.toInt()
+	val ACCENT_MUTED = 0xFF2F6F64u.toInt()
 
 	val TEXT_PRIMARY = 0xFFF4F8F7u.toInt()
 	val TEXT_SECONDARY = 0xFFA9B8B5u.toInt()
