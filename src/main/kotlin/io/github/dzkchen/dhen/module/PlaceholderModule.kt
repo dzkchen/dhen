@@ -15,11 +15,12 @@ import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class PlaceholderModule : Module(
-	name = "Test Module",
-	category = Category.DEV,
-	description = "Placeholder module for verifying core controls."
-) {
+class PlaceholderModule(
+	name: String = "Test Module",
+	category: Category = Category.DEV,
+	description: String = "Placeholder module for verifying core controls.",
+	private val toggleKey: Int = GLFW.GLFW_KEY_K
+) : Module(name, category, description) {
 	private var inputEvents = 0
 
 	init {
@@ -79,7 +80,7 @@ class PlaceholderModule : Module(
 	@Suppress("unused")
 	private val keybind by KeybindSetting(
 		name = "Keybind",
-		default = GLFW.GLFW_KEY_K,
+		default = toggleKey,
 		description = "Disables the test module while it is enabled."
 	).onPress(::toggle)
 

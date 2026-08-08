@@ -25,9 +25,9 @@ private const val CARET_WIDTH = 1
 private const val SWATCH_GAP = 3
 private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
-private const val PRINTABLE_MIN = 32
-private const val PRINTABLE_MAX = 0xFFFF
-private const val DELETE_CODE = 127
+internal const val PRINTABLE_MIN = 32
+internal const val PRINTABLE_MAX = 0xFFFF
+internal const val DELETE_CODE = 127
 
 private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
 

@@ -51,7 +51,21 @@ object Dhen : ClientModInitializer {
 			ModulePersistence.migrations
 		)
 		panelLayout = ClickGuiLayout.read(coreStore.load())
-		modules.register(PlaceholderModule())
+		modules.registerAll(
+			PlaceholderModule(),
+			PlaceholderModule(
+				name = "Test Overlay",
+				category = Category.VISUAL,
+				description = "Second placeholder for search and keyboard navigation.",
+				toggleKey = GLFW.GLFW_KEY_UNKNOWN
+			),
+			PlaceholderModule(
+				name = "Sample Timer",
+				category = Category.COMBAT,
+				description = "Third placeholder; matches a search on its description only.",
+				toggleKey = GLFW.GLFW_KEY_UNKNOWN
+			)
+		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
 

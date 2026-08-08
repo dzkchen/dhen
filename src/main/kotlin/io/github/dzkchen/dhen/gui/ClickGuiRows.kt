@@ -3,10 +3,13 @@ package io.github.dzkchen.dhen.gui
 import java.util.function.IntUnaryOperator
 
 internal object ClickGuiRows {
-	fun bodyHeight(rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int {
-		var total = 0
-		for (i in 0 until rowCount) total += rowHeight + settingsHeightAt.applyAsInt(i)
-		return total
+	fun bodyHeight(rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
+		rowTop(rowCount, rowHeight, settingsHeightAt)
+
+	fun rowTop(rowIndex: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int {
+		var offset = 0
+		for (i in 0 until rowIndex) offset += rowHeight + settingsHeightAt.applyAsInt(i)
+		return offset
 	}
 
 	fun rowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int? {

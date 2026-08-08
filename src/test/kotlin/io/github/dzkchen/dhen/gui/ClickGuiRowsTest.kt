@@ -14,6 +14,14 @@ class ClickGuiRowsTest {
 	}
 
 	@Test
+	fun `row top offsets each row past the settings areas above it`() {
+		val heights = intArrayOf(30, 0, 42)
+		assertEquals(0, ClickGuiRows.rowTop(0, rowHeight = 13) { heights[it] })
+		assertEquals(43, ClickGuiRows.rowTop(1, rowHeight = 13) { heights[it] })
+		assertEquals(56, ClickGuiRows.rowTop(2, rowHeight = 13) { heights[it] })
+	}
+
+	@Test
 	fun `row hit test resolves each collapsed row`() {
 		assertEquals(0, ClickGuiRows.rowAt(0, 3, 13) { 0 })
 		assertEquals(0, ClickGuiRows.rowAt(12, 3, 13) { 0 })
