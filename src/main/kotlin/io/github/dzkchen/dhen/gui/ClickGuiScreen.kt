@@ -6,6 +6,8 @@ import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
@@ -26,9 +28,11 @@ internal class ClickGuiScreen(
 	private var dragOffsetY = 0
 	private var dragMoved = false
 	private var controlDrag: Panel? = null
+	private var focusPanel: Panel? = null
 	private var scrollOffset = 0
 
 	override fun init() {
+		blurFocus()
 		panels.clear()
 		val byCategory = manager.categories
 		val perRow = maxOf(1, (width - 2 * MARGIN + COLUMN_GAP) / (PANEL_WIDTH + COLUMN_GAP))
@@ -60,9 +64,18 @@ internal class ClickGuiScreen(
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
 		val button = event.button()
+		focusPanel?.let { armed ->
+			val result = armed.captureMouse(button)
+			if (result != ControlKey.IGNORED) {
+				focusPanel = null
+				if (result == ControlKey.COMMITTED) persistModules()
+				return true
+			}
+		}
 		if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
 			return super.mouseClicked(event, doubleClick)
 		}
+		blurFocus()
 		val x = event.x().toInt()
 		val sy = event.y().toInt()
 		val cy = sy + scrollOffset
@@ -99,10 +112,39 @@ internal class ClickGuiScreen(
 					scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
 					persistModules()
 				}
+				ControlPress.FOCUS -> focusPanel = panel
+				ControlPress.INVOKED -> Unit
 				ControlPress.NONE -> Unit
 			}
 		}
 		return true
+	}
+
+	override fun keyPressed(event: KeyEvent): Boolean {
+		focusPanel?.let { panel ->
+			when (panel.keyInput(event.key(), event.modifiers())) {
+				ControlKey.COMMITTED -> {
+					focusPanel = null
+					persistModules()
+					return true
+				}
+				ControlKey.CANCELLED -> {
+					focusPanel = null
+					return true
+				}
+				ControlKey.CONSUMED -> return true
+				ControlKey.IGNORED -> Unit
+			}
+		}
+		return super.keyPressed(event)
+	}
+
+	override fun charTyped(event: CharacterEvent): Boolean =
+		focusPanel?.charInput(event.codepoint()) == true || super.charTyped(event)
+
+	override fun removed() {
+		blurFocus()
+		super.removed()
 	}
 
 	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
@@ -150,6 +192,11 @@ internal class ClickGuiScreen(
 	private fun store(panel: Panel) {
 		layout[panel.category.name] = panel.state.copy()
 		persistLayout()
+	}
+
+	private fun blurFocus() {
+		focusPanel?.let { if (it.blur()) persistModules() }
+		focusPanel = null
 	}
 
 	private fun clampToField(panel: Panel) {
@@ -219,6 +266,7 @@ internal class ClickGuiScreen(
 		private var activeControl: SettingControl? = null
 		private var activeLeft = 0
 		private var activeWidth = 0
+		private var focusedControl: SettingControl? = null
 
 		val height: Int
 			get() = HEADER_HEIGHT + if (state.collapsed) 0 else ClickGuiRows.bodyHeight(modules.size, ROW_HEIGHT, settingsHeightAt)
@@ -258,15 +306,41 @@ internal class ClickGuiScreen(
 			val control = controlAt(px, py) ?: return ControlPress.NONE
 			val left = state.x + CONTENT_PAD
 			val width = PANEL_WIDTH - 2 * CONTENT_PAD
-			if (!control.press(px - left, width)) return ControlPress.CHANGED
-			activeControl = control
-			activeLeft = left
-			activeWidth = width
-			return ControlPress.TRACK
+			val result = control.press(px - left, width)
+			when (result) {
+				ControlPress.TRACK -> {
+					activeControl = control
+					activeLeft = left
+					activeWidth = width
+				}
+				ControlPress.FOCUS -> focusedControl = control
+				else -> Unit
+			}
+			return result
 		}
 
 		fun dragControl(px: Int) {
 			activeControl?.drag(px - activeLeft, activeWidth)
+		}
+
+		fun keyInput(key: Int, modifiers: Int): ControlKey {
+			val result = focusedControl?.keyPressed(key, modifiers) ?: ControlKey.IGNORED
+			if (result == ControlKey.COMMITTED || result == ControlKey.CANCELLED) focusedControl = null
+			return result
+		}
+
+		fun charInput(codepoint: Int): Boolean = focusedControl?.charTyped(codepoint) ?: false
+
+		fun captureMouse(button: Int): ControlKey {
+			val result = focusedControl?.captureMouse(button) ?: ControlKey.IGNORED
+			if (result == ControlKey.COMMITTED || result == ControlKey.CANCELLED) focusedControl = null
+			return result
+		}
+
+		fun blur(): Boolean {
+			val changed = focusedControl?.blur() ?: false
+			focusedControl = null
+			return changed
 		}
 
 		private fun controlAt(px: Int, py: Int): SettingControl? {
@@ -411,5 +485,3 @@ internal class ClickGuiScreen(
 		const val SCROLLBAR_MIN_THUMB = 16
 	}
 }
-
-private enum class ControlPress { NONE, CHANGED, TRACK }

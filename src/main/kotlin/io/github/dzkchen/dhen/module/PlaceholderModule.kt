@@ -1,12 +1,19 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
+import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.event.KeyInputEvent
+import io.github.dzkchen.dhen.util.Color
 import org.lwjgl.glfw.GLFW
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 class PlaceholderModule : Module(
 	name = "Test Module",
@@ -54,9 +61,36 @@ class PlaceholderModule : Module(
 	)
 
 	@Suppress("unused")
+	private val label by StringSetting(
+		name = "Label",
+		default = "dhen",
+		maxLength = 16,
+		description = "Example text field."
+	)
+
+	@Suppress("unused")
+	private val tint by ColorSetting(
+		name = "Color",
+		default = Color.rgba(255, 128, 0),
+		allowAlpha = true,
+		description = "Example color picker."
+	)
+
+	@Suppress("unused")
 	private val keybind by KeybindSetting(
 		name = "Keybind",
 		default = GLFW.GLFW_KEY_K,
 		description = "Disables the test module while it is enabled."
 	).onPress(::toggle)
+
+	@Suppress("unused")
+	private val ping by ActionSetting(
+		name = "Ping",
+		default = { LOG.info("Test Module ping") },
+		description = "Logs a line when clicked."
+	)
+
+	private companion object {
+		val LOG: Logger = LoggerFactory.getLogger(Dhen.MOD_ID)
+	}
 }

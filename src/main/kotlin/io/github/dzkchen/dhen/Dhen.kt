@@ -65,7 +65,7 @@ object Dhen : ClientModInitializer {
 		)
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			modules.clientDispatcher.drainQueue()
-			inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
+			if (client.gui.screen() !is ClickGuiScreen) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) {
 				client.gui.setScreen(
 					ClickGuiScreen(
