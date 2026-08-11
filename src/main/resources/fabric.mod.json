@@ -20,6 +20,12 @@
 				"value": "io.github.dzkchen.dhen.Dhen",
 				"adapter": "kotlin"
 			}
+		],
+		"modmenu": [
+			{
+				"value": "io.github.dzkchen.dhen.gui.ModMenuEntry",
+				"adapter": "kotlin"
+			}
 		]
 	},
 	"mixins": [
@@ -31,5 +37,8 @@
 		"java": ">=25",
 		"fabric-api": "*",
 		"fabric-language-kotlin": "*"
+	},
+	"breaks": {
+		"modmenu": "<20.0.0-alpha.1"
 	}
 }

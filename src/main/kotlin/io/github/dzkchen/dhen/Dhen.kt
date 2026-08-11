@@ -21,6 +21,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import org.lwjgl.glfw.GLFW
@@ -80,20 +81,18 @@ object Dhen : ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			modules.clientDispatcher.drainQueue()
 			if (client.gui.screen() !is ClickGuiScreen) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
-			if (openGuiKey.consumeClick()) {
-				client.gui.setScreen(
-					ClickGuiScreen(
-						Category.entries.toList(),
-						modules,
-						panelLayout,
-						persistLayout = { coreStore.save(ClickGuiLayout.write(panelLayout)) },
-						persistModules = { moduleStore.save(ModulePersistence.snapshot(modules)) }
-					)
-				)
-			}
+			if (openGuiKey.consumeClick()) client.gui.setScreen(clickGuiScreen())
 		}
 		LOGGER.info("Dhen initialized")
 	}
+
+	internal fun clickGuiScreen(): Screen = ClickGuiScreen(
+		Category.entries.toList(),
+		modules,
+		panelLayout,
+		persistLayout = { coreStore.save(ClickGuiLayout.write(panelLayout)) },
+		persistModules = { moduleStore.save(ModulePersistence.snapshot(modules)) }
+	)
 
 	fun id(path: String): Identifier
 		= Identifier.fromNamespaceAndPath(MOD_ID, path)

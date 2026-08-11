@@ -13,6 +13,13 @@ repositories {
 	// Loom adds the Minecraft/Fabric mavens automatically; Maven Central covers
 	// the JUnit test framework.
 	mavenCentral()
+	maven {
+		name = "Terraformers"
+		url = uri("https://maven.terraformersmc.com/releases/")
+		content {
+			includeGroup("com.terraformersmc")
+		}
+	}
 }
 
 dependencies {
@@ -23,6 +30,10 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
     implementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
+
+	val modMenu = "com.terraformersmc:modmenu:${providers.gradleProperty("modmenu_version").get()}"
+	compileOnly(modMenu)
+	localRuntime(modMenu)
 
 	testImplementation(platform("org.junit:junit-bom:5.11.4"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
