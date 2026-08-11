@@ -11,6 +11,8 @@ import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.PlaceholderModule
+import io.github.dzkchen.dhen.ui.hud.HudAnchor
+import io.github.dzkchen.dhen.ui.hud.HudRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,11 +21,18 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement as FabricHudElement
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 
@@ -34,6 +43,7 @@ object Dhen : ClientModInitializer {
 
 	val modules: ModuleManager = ModuleManager()
 	private val inputRuntime = InputRuntime(modules.eventBus)
+	private val hudRuntime = HudRuntime(modules)
 
 	private val commands = CommandRegistry<FabricClientCommandSource>(modules) { source, message ->
 		source.sendFeedback(Component.literal(message))
@@ -58,17 +68,28 @@ object Dhen : ClientModInitializer {
 				name = "Test Overlay",
 				category = Category.VISUAL,
 				description = "Second placeholder for search and keyboard navigation.",
-				toggleKey = GLFW.GLFW_KEY_UNKNOWN
+				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
+				hudAnchor = HudAnchor.TOP_RIGHT
 			),
 			PlaceholderModule(
 				name = "Sample Timer",
 				category = Category.COMBAT,
 				description = "Third placeholder; matches a search on its description only.",
-				toggleKey = GLFW.GLFW_KEY_UNKNOWN
+				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
+				hudAnchor = HudAnchor.BOTTOM_RIGHT
 			)
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
+		HudElementRegistry.attachElementAfter(
+			VanillaHudElements.SUBTITLES,
+			id("hud"),
+			FabricHudElement { graphics, _ -> hudRuntime.render(graphics, Minecraft.getInstance().font) }
+		)
+		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+			id("hud_measurements"),
+			ResourceManagerReloadListener { hudRuntime.invalidateMeasurements() }
+		)
 
 		val openGuiKey = KeyMappingHelper.registerKeyMapping(
 			KeyMapping(

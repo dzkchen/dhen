@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.module.ModuleManager
+import io.github.dzkchen.dhen.ui.hud.HudPersistence
 import io.github.dzkchen.dhen.util.Color
 import org.slf4j.LoggerFactory
 
@@ -12,6 +13,8 @@ import org.slf4j.LoggerFactory
 // ActionSetting (a callback) is never serialized. Unknown modules/settings are
 // skipped on load; the merge base keeps them in the file.
 object ModulePersistence {
+	private const val HUD = "hud"
+
 	internal val migrations: List<(JsonObject) -> Unit> = emptyList()
 	internal val version: Int
 		get() = migrations.size
@@ -26,6 +29,7 @@ object ModulePersistence {
 			val settings = JsonObject()
 			for (setting in module.settings) serialize(setting)?.let { settings.add(setting.name, it) }
 			entry.add("settings", settings)
+			if (module.hudElements.isNotEmpty()) entry.add(HUD, HudPersistence.snapshot(module.hudElements))
 			modules.add(module.name, entry)
 		}
 		return JsonObject().apply { add("modules", modules) }
@@ -38,6 +42,13 @@ object ModulePersistence {
 			val entry = element as? JsonObject ?: continue
 			(entry.get("enabled") as? JsonPrimitive)?.let {
 				if (it.asBoolean) manager.enable(name) else manager.disable(name)
+			}
+			(entry.get(HUD) as? JsonObject)?.let {
+				try {
+					HudPersistence.apply(module.hudElements, it)
+				} catch (e: Exception) {
+					log.warn("Skipping bad HUD layout in module '{}'", name, e)
+				}
 			}
 			val settings = entry.get("settings") as? JsonObject ?: continue
 			for (setting in module.settings) {

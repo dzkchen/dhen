@@ -18,8 +18,8 @@ class Diagnostics(
 		for (module in manager.modules) {
 			add(
 				"${module.name}: subscriptions=${module.subscriptionCount}, " +
-					"keybinds=${manager.keybindCount(module)}, errors=${module.errorCount}, " +
-					"config=modules:v${configVersion()}"
+					"keybinds=${manager.keybindCount(module)}, hud=${module.hudElements.size}, " +
+					"errors=${module.errorCount}, config=modules:v${configVersion()}"
 			)
 			for (timing in module.handlerTimings) {
 				val snapshot = timing.snapshot()

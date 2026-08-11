@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.HandlerGate
 import io.github.dzkchen.dhen.event.HandlerTiming
+import io.github.dzkchen.dhen.ui.hud.HudElement
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import java.util.Collections
 import kotlin.coroutines.CoroutineContext
 import kotlin.properties.ReadWriteProperty
 
@@ -32,9 +34,11 @@ abstract class Module(
 
 	private val registrations = mutableListOf<Registration<out Event>>()
 	private val settingList = mutableListOf<Setting<*>>()
+	private val hudList = mutableListOf<HudElement>()
 
 	val settings: List<Setting<*>>
 		get() = settingList.toList()
+	val hudElements: List<HudElement> = Collections.unmodifiableList(hudList)
 	val handlerTimings: List<HandlerTiming>
 		get() = registrations.map { it.timing }
 	val subscriptionCount: Int
@@ -55,6 +59,15 @@ abstract class Module(
 		register(T::class.java, priority, handler)
 	}
 
+	protected fun <T : HudElement> hud(element: T): T {
+		require(!bound) { "Module '$name' HUD elements must be registered before manager registration." }
+		require(hudList.none { it.name == element.name }) {
+			"Module '$name' already owns a HUD element named '${element.name}'."
+		}
+		hudList += element
+		return element
+	}
+
 	// Launches on the current enable's scope; a no-op returning null while disabled.
 	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
 		moduleScope?.launch(block = block)
@@ -73,6 +86,10 @@ abstract class Module(
 
 	internal fun toggle() {
 		setEnabled(!enabled)
+	}
+
+	internal fun reportError(throwable: Throwable) {
+		onHandlerError(throwable)
 	}
 
 	internal fun activateKeybind(setting: KeybindSetting) {

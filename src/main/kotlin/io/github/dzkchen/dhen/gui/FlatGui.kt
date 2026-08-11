@@ -64,9 +64,10 @@ internal object FlatGui {
 		text: String,
 		x: Int,
 		y: Int,
-		color: Int
+		color: Int,
+		shadow: Boolean = false
 	) {
-		graphics.text(font, text, x, y, color, false)
+		graphics.text(font, text, x, y, color, shadow)
 	}
 
 	internal fun roundedInset(radius: Int, row: Int): Int {

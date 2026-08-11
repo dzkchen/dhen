@@ -162,7 +162,8 @@ class CommandRegistryTest {
 
 		assertEquals("Dhen debug: deep profiling off", captured[0])
 		assertEquals(
-			"Debug Module: subscriptions=1, keybinds=1, errors=1, config=modules:v${ModulePersistence.version}",
+			"Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1, " +
+				"config=modules:v${ModulePersistence.version}",
 			captured[1]
 		)
 		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[2])

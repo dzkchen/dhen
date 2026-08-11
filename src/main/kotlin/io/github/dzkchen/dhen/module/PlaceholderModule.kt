@@ -10,6 +10,8 @@ import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.event.KeyInputEvent
+import io.github.dzkchen.dhen.ui.hud.HudAnchor
+import io.github.dzkchen.dhen.ui.hud.HudTextElement
 import io.github.dzkchen.dhen.util.Color
 import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
@@ -19,7 +21,8 @@ class PlaceholderModule(
 	name: String = "Test Module",
 	category: Category = Category.DEV,
 	description: String = "Placeholder module for verifying core controls.",
-	private val toggleKey: Int = GLFW.GLFW_KEY_K
+	private val toggleKey: Int = GLFW.GLFW_KEY_K,
+	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT
 ) : Module(name, category, description) {
 	private var inputEvents = 0
 
@@ -91,7 +94,25 @@ class PlaceholderModule(
 		description = "Logs a line when clicked."
 	)
 
+	val statusOverlay = hud(
+		HudTextElement(
+			name = "Status",
+			text = "$name HUD",
+			anchor = hudAnchor,
+			offsetX = margin(hudAnchor.horizontal),
+			offsetY = margin(hudAnchor.vertical)
+		)
+	)
+
 	private companion object {
+		const val HUD_MARGIN = 4
+
+		fun margin(fraction: Float): Int = when (fraction) {
+			0.0f -> HUD_MARGIN
+			1.0f -> -HUD_MARGIN
+			else -> 0
+		}
+
 		val LOG: Logger = LoggerFactory.getLogger(Dhen.MOD_ID)
 	}
 }

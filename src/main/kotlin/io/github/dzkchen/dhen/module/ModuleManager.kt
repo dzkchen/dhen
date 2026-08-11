@@ -14,9 +14,13 @@ class ModuleManager(
 	private val keybindRuntime = KeybindRuntime(eventBus)
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
+	private val registrationOrder = mutableListOf<Module>()
 
 	val modules: Collection<Module>
 		get() = modulesByName.values.toList()
+
+	internal val ordered: List<Module>
+		get() = registrationOrder
 
 	val categories: Map<Category, List<Module>>
 		get() = modulesByCategory.mapValues { (_, modules) -> modules.toList() }
@@ -85,6 +89,7 @@ class ModuleManager(
 		keybindRuntime.register(module)
 		modulesByName[key] = module
 		modulesByCategory.getOrPut(module.category) { mutableListOf() }.add(module)
+		registrationOrder += module
 	}
 
 	private fun key(name: String): String =
