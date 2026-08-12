@@ -54,6 +54,15 @@ class GlassGuiTest {
 	}
 
 	@Test
+	fun `a tween eases from where it was to where it is going and then holds`() {
+		assertEquals(0.25f, GlassGui.tween(0.25f, 1f, 0L, TWEEN_MILLIS))
+		assertEquals(0.875f, GlassGui.tween(0f, 1f, TWEEN_MILLIS / 2, TWEEN_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, TWEEN_MILLIS, TWEEN_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, TWEEN_MILLIS * 10, TWEEN_MILLIS))
+		assertEquals(0f, GlassGui.tween(1f, 0f, TWEEN_MILLIS, TWEEN_MILLIS))
+	}
+
+	@Test
 	fun `easing decelerates so the entry settles rather than snapping`() {
 		assertEquals(0f, GlassGui.ease(0f))
 		assertEquals(GlassGui.SETTLED, GlassGui.ease(1f))
@@ -83,5 +92,9 @@ class GlassGuiTest {
 		assertEquals(0x00336699, GlassGui.withAlpha(color, 0f))
 		assertEquals(0xFF336699u.toInt(), GlassGui.withAlpha(color, 4f))
 		assertEquals(0x00336699, GlassGui.withAlpha(color, -1f))
+	}
+
+	private companion object {
+		const val TWEEN_MILLIS = 100L
 	}
 }

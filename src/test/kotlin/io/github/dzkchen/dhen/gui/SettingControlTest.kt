@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW
 class SettingControlTest {
 	@Test
 	fun `controlFor maps every setting type to its control`() {
-		assertInstanceOf(CheckboxControl::class.java, controlFor(BooleanSetting("b")))
+		assertInstanceOf(ToggleControl::class.java, controlFor(BooleanSetting("b")))
 		assertInstanceOf(SliderControl::class.java, controlFor(NumberSetting("n", 0.0, 0.0, 10.0)))
 		assertInstanceOf(DropdownControl::class.java, controlFor(SelectorSetting("s", "A", listOf("A", "B"))))
 		assertInstanceOf(TextControl::class.java, controlFor(StringSetting("s")))
@@ -28,9 +28,9 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `checkbox press toggles the boolean and reports a change`() {
+	fun `toggle press flips the boolean and reports a change`() {
 		val setting = BooleanSetting("b", default = false)
-		val control = CheckboxControl(setting)
+		val control = ToggleControl(setting)
 		assertEquals(ControlPress.CHANGED, control.press(0, 100))
 		assertTrue(setting.value)
 		control.press(0, 100)
@@ -221,5 +221,25 @@ class SettingControlTest {
 		val setting = ActionSetting("a", default = { throw RuntimeException("boom") })
 		val control = ActionControl(setting)
 		assertEquals(ControlPress.INVOKED, control.press(0, 100))
+	}
+
+	@Test
+	fun `the toggle knob slides over a tenth of a second`() {
+		assertEquals(0f, GlassGui.tween(0f, 1f, 0L, TOGGLE_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, TOGGLE_MILLIS, TOGGLE_MILLIS))
+	}
+
+	@Test
+	fun `a value pill hugs its content, keeps a minimum width, and never leaves its control`() {
+		assertEquals(100 - 50 - 2 * PILL_PAD, pillLeft(x = 0, width = 100, contentWidth = 50))
+		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 4))
+		assertEquals(0, pillLeft(x = 0, width = 100, contentWidth = 120))
+		assertEquals(20, pillLeft(x = 20, width = 4, contentWidth = 0))
+	}
+
+	@Test
+	fun `pill padding clears the rounded cap so text cannot touch the curve`() {
+		assertTrue(PILL_PAD > PILL_CAP)
+		assertTrue(PILL_MIN_WIDTH >= 2 * PILL_PAD)
 	}
 }

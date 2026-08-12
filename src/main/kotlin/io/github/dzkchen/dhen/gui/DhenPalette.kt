@@ -35,6 +35,8 @@ internal object DhenPalette {
 
 	val textOnAccent: Int get() = if (luminance(accent) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
 
+	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
+
 	fun luminance(color: Int): Int {
 		val red = color ushr 16 and 0xFF
 		val green = color ushr 8 and 0xFF

@@ -21,6 +21,9 @@ internal object RoundedGui {
 
 	private val UNTRANSFORMED_POSE: Matrix3x2fc = Matrix3x2f()
 
+	const val HAIRLINE = 1f
+	private const val OPAQUE = 0xFF
+
 	fun fill(
 		graphics: GuiGraphicsExtractor,
 		left: Int,
@@ -45,8 +48,32 @@ internal object RoundedGui {
 		draw(graphics, left, top, right, bottom, radius, thickness, color)
 	}
 
+	fun frame(
+		graphics: GuiGraphicsExtractor,
+		left: Int,
+		top: Int,
+		right: Int,
+		bottom: Int,
+		radius: Float,
+		fillColor: Int,
+		borderColor: Int
+	) {
+		fill(graphics, left, top, right, bottom, radius, fillColor)
+		border(graphics, left, top, right, bottom, radius, HAIRLINE, borderColor)
+	}
+
 	fun pill(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, color: Int) =
 		fill(graphics, left, top, right, bottom, RoundedQuad.FULL, color)
+
+	fun pillFrame(
+		graphics: GuiGraphicsExtractor,
+		left: Int,
+		top: Int,
+		right: Int,
+		bottom: Int,
+		fillColor: Int,
+		borderColor: Int
+	) = frame(graphics, left, top, right, bottom, RoundedQuad.FULL, fillColor, borderColor)
 
 	fun pillBorder(
 		graphics: GuiGraphicsExtractor,
@@ -87,9 +114,11 @@ internal object RoundedGui {
 		progress: Float,
 		trackColor: Int,
 		fillColor: Int
-	) {
-		pill(graphics, left, top, right, bottom, trackColor)
-		pill(graphics, left, top, RoundedQuad.trackEdge(left, right, progress), bottom, fillColor)
+	): Int {
+		val edge = RoundedQuad.trackEdge(left, right, progress)
+		if (edge < right || fillColor ushr 24 != OPAQUE) pill(graphics, left, top, right, bottom, trackColor)
+		pill(graphics, left, top, edge, bottom, fillColor)
+		return edge
 	}
 
 	private fun draw(

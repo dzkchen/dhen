@@ -20,6 +20,8 @@ internal object GlassGui {
 	fun interactive(): Int =
 		if (Effects.reduced) DhenPalette.SURFACE_INTERACTIVE else DhenPalette.GLASS_SURFACE_INTERACTIVE
 
+	fun raised(hovered: Boolean): Int = if (hovered) interactive() else raised()
+
 	fun shadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int) {
 		if (Effects.reduced) return
 		for (layer in SHADOW_LAYERS downTo 1) {
@@ -54,8 +56,7 @@ internal object GlassGui {
 		border: Int
 	) {
 		roundedShadow(graphics, left, top, right, bottom, radius)
-		RoundedGui.fill(graphics, left, top, right, bottom, radius, fill)
-		RoundedGui.border(graphics, left, top, right, bottom, radius, 1f, border)
+		RoundedGui.frame(graphics, left, top, right, bottom, radius, fill, border)
 		roundedSheen(graphics, left, top, right, bottom, radius)
 	}
 
@@ -63,7 +64,7 @@ internal object GlassGui {
 		if (Effects.reduced) return
 		for (layer in SHADOW_LAYERS downTo 1) {
 			val color = withAlpha(DhenPalette.GLASS_SHADOW, 1f / layer)
-			RoundedGui.border(graphics, left - layer, top - layer, right + layer, bottom + layer, radius + layer, 1f, color)
+			RoundedGui.border(graphics, left - layer, top - layer, right + layer, bottom + layer, radius + layer, RoundedGui.HAIRLINE, color)
 		}
 	}
 
@@ -97,11 +98,16 @@ internal object GlassGui {
 
 	fun rise(progress: Float): Float = (SETTLED - progress) * ENTRY_RISE
 
-	fun progress(elapsed: Long): Float = when {
-		elapsed <= 0L -> 0f
-		elapsed >= ENTRY_MILLIS -> SETTLED
-		else -> ease(elapsed.toFloat() / ENTRY_MILLIS)
+	fun progress(elapsed: Long): Float = tween(0f, SETTLED, elapsed, ENTRY_MILLIS)
+
+	fun tween(from: Float, target: Float, elapsed: Long, millis: Long): Float = when {
+		elapsed <= 0L -> from
+		elapsed >= millis -> target
+		else -> from + (target - from) * ease(elapsed.toFloat() / millis)
 	}
+
+	fun tweenSince(from: Float, target: Float, startedAt: Long, millis: Long): Float =
+		if (Effects.reduced) target else tween(from, target, Util.getMillis() - startedAt, millis)
 
 	fun ease(fraction: Float): Float {
 		val remaining = SETTLED - fraction

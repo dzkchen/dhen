@@ -181,7 +181,7 @@ internal class ClickGuiShellScreen(
 		}
 		val control = column.controlAt(contentX, y)
 		if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-			pressControl(control, column.contentLeft + CONTENT_PAD, contentX)
+			pressControl(column, control, contentX)
 		}
 		return true
 	}
@@ -264,13 +264,17 @@ internal class ClickGuiShellScreen(
 		chevronWidth = maxOf(DhenType.width(font, CHEVRON_COLLAPSED), DhenType.width(font, CHEVRON_EXPANDED))
 	}
 
-	private fun pressControl(control: SettingControl, controlsLeft: Int, contentX: Int) {
+	private fun pressControl(column: Column, control: SettingControl, contentX: Int) {
+		val controlsLeft = column.contentLeft + CONTENT_PAD
 		when (control.press(contentX - controlsLeft, CONTROLS_WIDTH)) {
 			ControlPress.TRACK -> {
 				dragged = control
 				dragLeft = controlsLeft
 			}
-			ControlPress.CHANGED -> persistModules()
+			ControlPress.CHANGED -> {
+				column.reclamp()
+				persistModules()
+			}
 			ControlPress.FOCUS -> focused = control
 			else -> Unit
 		}
@@ -511,7 +515,7 @@ internal class ClickGuiShellScreen(
 				val nextTop = rowTop + ROW_HEIGHT + areaHeight
 				if (nextTop > BODY_TOP) {
 					drawRow(graphics, font, modules[index], left, rowTop, pointerY)
-					if (areaHeight > 0) drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, mouseX, pointerY)
+					if (areaHeight > 0) drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, bottom, mouseX, pointerY)
 				}
 				rowTop = nextTop
 			}
@@ -572,6 +576,7 @@ internal class ClickGuiShellScreen(
 			left: Int,
 			top: Int,
 			areaHeight: Int,
+			bottom: Int,
 			mouseX: Int,
 			pointerY: Int
 		) {
@@ -583,15 +588,18 @@ internal class ClickGuiShellScreen(
 			for (i in list.indices) {
 				val control = list[i]
 				if (!control.setting.isVisible) continue
-				val hovered = overControls && pointerY in y until y + CONTROL_HEIGHT
-				control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, CONTROL_HEIGHT, hovered)
-				y += CONTROL_HEIGHT
+				if (y >= bottom) break
+				if (y + CONTROL_ROW_HEIGHT > BODY_TOP) {
+					val hovered = overControls && pointerY in y until y + CONTROL_ROW_HEIGHT
+					control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, CONTROL_ROW_HEIGHT, hovered)
+				}
+				y += CONTROL_ROW_HEIGHT
 			}
 		}
 
 		private fun renderableAt(index: Int, localY: Int): SettingControl? {
 			if (localY < 0) return null
-			val target = localY / CONTROL_HEIGHT
+			val target = localY / CONTROL_ROW_HEIGHT
 			val list = controls[index]
 			var seen = 0
 			for (i in list.indices) {
@@ -605,7 +613,7 @@ internal class ClickGuiShellScreen(
 
 		private fun settingsHeight(index: Int): Int {
 			if (modules[index].name !in expanded) return 0
-			return 2 * SETTINGS_PAD + renderableCount(index) * CONTROL_HEIGHT
+			return 2 * SETTINGS_PAD + renderableCount(index) * CONTROL_ROW_HEIGHT
 		}
 
 		private fun renderableCount(index: Int): Int {
@@ -630,7 +638,6 @@ internal class ClickGuiShellScreen(
 		const val ROW_HEIGHT = 13
 		const val ROW_RAIL_WIDTH = 2
 		const val CHEVRON_HIT_SLOP = 4
-		const val CONTROL_HEIGHT = 12
 		const val SCROLLBAR_WIDTH = 2
 		const val SCROLLBAR_INSET = 3
 		const val SCROLLBAR_MIN_THUMB = 12
