@@ -147,6 +147,20 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `edit opens the HUD editor through both roots`() {
+		var opened = 0
+		val registry = CommandRegistry<Any>(ModuleManager(), { opened++ }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen edit", Any())
+		dispatcher.execute("dh edit", Any())
+
+		assertEquals(2, opened)
+		assertEquals("Opening the HUD editor.", captured.last())
+	}
+
+	@Test
 	fun `debug reports live module counters and handler timing`() {
 		val times = ArrayDeque(listOf(10L, 60L))
 		val bus = EventBus { times.removeFirst() }

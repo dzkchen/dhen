@@ -14,10 +14,14 @@ import java.util.Locale
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
 	private val diagnostics: Diagnostics,
+	private val openHudEditor: () -> Unit,
 	private val feedback: (S, String) -> Unit
 ) {
 	constructor(manager: ModuleManager, feedback: (S, String) -> Unit) :
-		this(manager, Diagnostics(manager), feedback)
+		this(manager, Diagnostics(manager), {}, feedback)
+
+	constructor(manager: ModuleManager, openHudEditor: () -> Unit, feedback: (S, String) -> Unit) :
+		this(manager, Diagnostics(manager), openHudEditor, feedback)
 
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
 
@@ -54,7 +58,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug")
+				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug | edit")
 				Command.SINGLE_SUCCESS
 			}
 			.then(
@@ -81,6 +85,13 @@ class CommandRegistry<S>(
 							}
 						)
 				)
+			)
+			.then(
+				literal<S>("edit").executes { context ->
+					openHudEditor()
+					feedback(context.source, "Opening the HUD editor.")
+					Command.SINGLE_SUCCESS
+				}
 			)
 			.then(debugCommand())
 

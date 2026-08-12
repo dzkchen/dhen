@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.PlaceholderModule
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
+import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +46,7 @@ object Dhen : ClientModInitializer {
 	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 
-	private val commands = CommandRegistry<FabricClientCommandSource>(modules) { source, message ->
+	private val commands = CommandRegistry<FabricClientCommandSource>(modules, ::openHudEditor) { source, message ->
 		source.sendFeedback(Component.literal(message))
 	}
 
@@ -53,6 +54,7 @@ object Dhen : ClientModInitializer {
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
 	private lateinit var panelLayout: MutableMap<String, PanelState>
+	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
 		coreStore = ConfigStore(FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"), configScope)
@@ -101,10 +103,25 @@ object Dhen : ClientModInitializer {
 		)
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			modules.clientDispatcher.drainQueue()
-			if (client.gui.screen() !is ClickGuiScreen) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
+			if (!ownsKeyboard(client.gui.screen())) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick()) client.gui.setScreen(clickGuiScreen())
+			if (hudEditorRequested) {
+				hudEditorRequested = false
+				client.gui.setScreen(HudEditorScreen(modules, ::persistModules))
+			}
 		}
 		LOGGER.info("Dhen initialized")
+	}
+
+	private fun ownsKeyboard(screen: Screen?): Boolean =
+		screen is ClickGuiScreen || screen is HudEditorScreen
+
+	private fun openHudEditor() {
+		hudEditorRequested = true
+	}
+
+	private fun persistModules() {
+		moduleStore.save(ModulePersistence.snapshot(modules))
 	}
 
 	internal fun clickGuiScreen(): Screen = ClickGuiScreen(
@@ -112,7 +129,7 @@ object Dhen : ClientModInitializer {
 		modules,
 		panelLayout,
 		persistLayout = { coreStore.save(ClickGuiLayout.write(panelLayout)) },
-		persistModules = { moduleStore.save(ModulePersistence.snapshot(modules)) }
+		persistModules = ::persistModules
 	)
 
 	fun id(path: String): Identifier

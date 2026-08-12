@@ -82,6 +82,16 @@ class HudLayoutTest {
 	}
 
 	@Test
+	fun `the offset for a position reproduces that position at every anchor`() {
+		for (anchor in HudAnchor.entries) {
+			for (position in intArrayOf(0, 37, SMALL_WIDTH - ELEMENT_WIDTH)) {
+				val offset = HudLayout.offsetFor(anchor.horizontal, SMALL_WIDTH, ELEMENT_WIDTH, position)
+				assertEquals(position, HudLayout.place(anchor.horizontal, SMALL_WIDTH, ELEMENT_WIDTH, offset))
+			}
+		}
+	}
+
+	@Test
 	fun `an element wider than the screen clamps to the origin`() {
 		assertEquals(0, HudLayout.clamp(40, 2 * SMALL_WIDTH, SMALL_WIDTH))
 	}

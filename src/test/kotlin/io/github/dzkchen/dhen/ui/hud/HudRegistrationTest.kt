@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -85,6 +86,35 @@ class HudRegistrationTest {
 		element.scale = Float.NaN
 
 		assertEquals(HudElement.DEFAULT_SCALE, element.scale)
+	}
+
+	@Test
+	fun `resetting the layout restores the declared anchor, offset and scale`() {
+		val element = FixedHudElement("Moved", anchor = HudAnchor.BOTTOM_RIGHT, offsetX = -4, offsetY = -4)
+
+		element.anchor = HudAnchor.MIDDLE_CENTER
+		element.offsetX = 120
+		element.offsetY = 80
+		element.scale = 2.5f
+		element.visible = false
+
+		assertTrue(element.resetLayout())
+		assertEquals(HudAnchor.BOTTOM_RIGHT, element.anchor)
+		assertEquals(-4, element.offsetX)
+		assertEquals(-4, element.offsetY)
+		assertEquals(HudElement.DEFAULT_SCALE, element.scale)
+		assertFalse(element.visible)
+		assertFalse(element.resetLayout())
+	}
+
+	@Test
+	fun `a declared scale out of range is clamped before it becomes the reset target`() {
+		val element = FixedHudElement("Loud", scale = 99.0f)
+
+		element.scale = 1.0f
+		element.resetLayout()
+
+		assertEquals(HudElement.MAX_SCALE, element.scale)
 	}
 
 	@Test

@@ -21,11 +21,32 @@ abstract class HudElement(
 			field = clampScale(value)
 		}
 
+	private val declaredAnchor = this.anchor
+	private val declaredOffsetX = this.offsetX
+	private val declaredOffsetY = this.offsetY
+	private val declaredScale = this.scale
+
 	var failed: Boolean = false
 		private set
 
 	val isActive: Boolean
 		get() = visible && !failed
+
+	fun resetLayout(): Boolean {
+		if (
+			anchor == declaredAnchor &&
+			offsetX == declaredOffsetX &&
+			offsetY == declaredOffsetY &&
+			scale == declaredScale
+		) {
+			return false
+		}
+		anchor = declaredAnchor
+		offsetX = declaredOffsetX
+		offsetY = declaredOffsetY
+		scale = declaredScale
+		return true
+	}
 
 	abstract fun width(font: Font): Int
 
