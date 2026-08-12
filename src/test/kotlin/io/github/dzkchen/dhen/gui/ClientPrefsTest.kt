@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.util.Color
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -64,6 +65,18 @@ class ClientPrefsTest {
 
 		assertEquals(TEAL, DhenPalette.accent)
 		assertEquals(DhenPalette.TEXT_ON_ACCENT, DhenPalette.textOnAccent)
+	}
+
+	@Test
+	fun `committing a preference that is not the accent keeps the resolved theme`() {
+		ClientPrefs.accent.value = Color(TEAL)
+		ClientPrefs.sync()
+		val resolved = DhenTheme.active
+
+		ClientPrefs.splash.value = false
+		ClientPrefs.sync()
+
+		assertSame(resolved, DhenTheme.active)
 	}
 
 	@Test

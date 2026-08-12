@@ -3,48 +3,35 @@ package io.github.dzkchen.dhen.gui
 import kotlin.math.roundToInt
 
 internal object DhenPalette {
-	val DEFAULT_ACCENT: Int = 0xFFF5A9C6u.toInt()
+	val DEFAULT_ACCENT: Int get() = DhenTheme.DEFAULT.accent
 
-	private const val MUTED_BLEND = 0.55f
-	private const val CONTRAST_PIVOT = 140
-	private val ALPHA_MASK = 0xFF000000u.toInt()
+	val CANVAS: Int get() = DhenTheme.active.canvas
+	val SURFACE: Int get() = DhenTheme.active.surface
+	val SURFACE_RAISED: Int get() = DhenTheme.active.surfaceRaised
+	val SURFACE_INTERACTIVE: Int get() = DhenTheme.active.surfaceInteractive
+	val BORDER: Int get() = DhenTheme.active.border
 
-	val CANVAS = 0xFF08080Au.toInt()
-	val SURFACE = 0xFF0D0D10u.toInt()
-	val SURFACE_RAISED = 0xFF141418u.toInt()
-	val SURFACE_INTERACTIVE = 0xFF1D1D23u.toInt()
-	val BORDER = 0xFF2B2B33u.toInt()
+	val TEXT_PRIMARY: Int get() = DhenTheme.active.textPrimary
+	val TEXT_SECONDARY: Int get() = DhenTheme.active.textSecondary
+	val TEXT_DISABLED: Int get() = DhenTheme.active.textDisabled
+	val TEXT_ON_ACCENT: Int get() = DhenTheme.active.textOnAccent
 
-	val TEXT_PRIMARY = 0xFFF6F4F6u.toInt()
-	val TEXT_SECONDARY = 0xFFA9A6AEu.toInt()
-	val TEXT_DISABLED = 0xFF6B6872u.toInt()
-	val TEXT_ON_ACCENT = 0xFF17070Eu.toInt()
+	val SPLASH_CANVAS: Int get() = DhenTheme.active.splashCanvas
+	val SPLASH_TRACK: Int get() = DhenTheme.active.splashTrack
+	val SPLASH_INK: Int get() = DhenTheme.active.splashInk
 
-	val SPLASH_CANVAS = 0xFFF8D7E3u.toInt()
-	val SPLASH_TRACK = 0xFFEBB4CBu.toInt()
-	val SPLASH_INK = 0xFF2A0E18u.toInt()
+	val GLASS_CANVAS: Int get() = DhenTheme.active.glassCanvas
+	val GLASS_SURFACE: Int get() = DhenTheme.active.glassSurface
+	val GLASS_SURFACE_RAISED: Int get() = DhenTheme.active.glassSurfaceRaised
+	val GLASS_SURFACE_INTERACTIVE: Int get() = DhenTheme.active.glassSurfaceInteractive
+	val GLASS_SCRIM: Int get() = DhenTheme.active.glassScrim
+	val GLASS_SHADOW: Int get() = DhenTheme.active.glassShadow
+	val GLASS_SHEEN: Int get() = DhenTheme.active.glassSheen
+	val GLASS_VEIL: Int get() = DhenTheme.active.glassVeil
 
-	val GLASS_CANVAS = 0xA608080Au.toInt()
-	val GLASS_SURFACE = 0xC20D0D10u.toInt()
-	val GLASS_SURFACE_RAISED = 0xD4141418u.toInt()
-	val GLASS_SURFACE_INTERACTIVE = 0xE01D1D23u.toInt()
-	val GLASS_SCRIM = 0x8C08080Au.toInt()
-	val GLASS_SHADOW = 0x73000000u.toInt()
-	val GLASS_SHEEN = 0x24FFFFFFu.toInt()
-	val GLASS_VEIL = 0xE608080Au.toInt()
-
-	var accent: Int = DEFAULT_ACCENT
-		set(value) {
-			field = value
-			accentMuted = muted(value)
-			textOnAccent = contrasting(value)
-		}
-
-	var accentMuted: Int = muted(DEFAULT_ACCENT)
-		private set
-
-	var textOnAccent: Int = contrasting(DEFAULT_ACCENT)
-		private set
+	val accent: Int get() = DhenTheme.active.accent
+	val accentMuted: Int get() = DhenTheme.active.accentMuted
+	val textOnAccent: Int get() = DhenTheme.active.accentForeground
 
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
@@ -68,14 +55,5 @@ internal object DhenPalette {
 		val green = color ushr 8 and 0xFF
 		val blue = color and 0xFF
 		return (red * 299 + green * 587 + blue * 114) / 1000
-	}
-
-	private fun contrasting(color: Int): Int = if (luminance(color) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
-
-	private fun muted(color: Int): Int {
-		val red = channelBetween(color, SURFACE, 16, MUTED_BLEND)
-		val green = channelBetween(color, SURFACE, 8, MUTED_BLEND)
-		val blue = channelBetween(color, SURFACE, 0, MUTED_BLEND)
-		return (color and ALPHA_MASK) or (red shl 16) or (green shl 8) or blue
 	}
 }

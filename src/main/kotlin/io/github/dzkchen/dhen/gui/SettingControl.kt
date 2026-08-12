@@ -21,7 +21,7 @@ import kotlin.math.roundToLong
 
 internal const val CONTROL_TEXT_INSET = 2
 internal const val PILL_MIN_WIDTH = 26
-internal const val TOGGLE_MILLIS = 100L
+internal val TOGGLE_MILLIS: Long get() = DhenTheme.active.toggleMillis
 private const val WIDGET_HEIGHT = 14
 private const val WIDGET_PAD = 3
 internal const val CONTROL_ROW_HEIGHT = WIDGET_HEIGHT + 2 * WIDGET_PAD

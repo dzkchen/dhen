@@ -97,17 +97,10 @@ class DhenTypeTest {
 
 	@Test
 	fun `no dhen surface draws or measures text outside the seam`() {
-		val scanned = SOURCE_ROOT.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+		val scanned = SourceScan.files(SOURCE_ROOT, SOURCES)
 		assertTrue(scanned.any { it.name == SEAM }) { "scan missed the sources at ${SOURCE_ROOT.absolutePath}" }
 
-		val offenders = scanned.asSequence()
-			.filter { it.name != SEAM }
-			.flatMap { file ->
-				file.readLines().asSequence().mapIndexedNotNull { index, line ->
-					if (RAW_TEXT.containsMatchIn(line)) "${file.path}:${index + 1}: ${line.trim()}" else null
-				}
-			}
-			.toList()
+		val offenders = SourceScan.offenders(scanned, SEAM, RAW_TEXT)
 
 		assertTrue(offenders.isEmpty()) {
 			"Dhen text must go through $SEAM, but these bypass it:\n${offenders.joinToString("\n")}"
@@ -166,6 +159,7 @@ class DhenTypeTest {
 		const val MINIMUM_FACE_BYTES = 1024
 		val TRUETYPE_TAG = byteArrayOf(0x00, 0x01, 0x00, 0x00)
 		val SOURCE_ROOT = File("src/main/kotlin")
+		val SOURCES = setOf("kt")
 		val RAW_TEXT = Regex("""graphics\.text\(|font\.width\(|font\.lineHeight""")
 	}
 }

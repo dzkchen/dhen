@@ -33,7 +33,7 @@ internal object ClientPrefs {
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }
 
 	fun sync() {
-		DhenPalette.accent = accent.value.argb
+		DhenTheme.active = DhenTheme.active.withAccent(accent.value.argb)
 	}
 
 	fun read(doc: JsonObject) {
