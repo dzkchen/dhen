@@ -8,6 +8,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import com.mojang.brigadier.builder.RequiredArgumentBuilder.argument
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.ModuleManager
 import java.util.Locale
 
@@ -15,13 +16,21 @@ class CommandRegistry<S>(
 	private val manager: ModuleManager,
 	private val diagnostics: Diagnostics,
 	private val openHudEditor: () -> Unit,
-	private val feedback: (S, String) -> Unit
+	private val feedback: (S, String) -> Unit,
+	private val persistEffects: () -> Unit = {}
 ) {
 	constructor(manager: ModuleManager, feedback: (S, String) -> Unit) :
 		this(manager, Diagnostics(manager), {}, feedback)
 
 	constructor(manager: ModuleManager, openHudEditor: () -> Unit, feedback: (S, String) -> Unit) :
 		this(manager, Diagnostics(manager), openHudEditor, feedback)
+
+	constructor(
+		manager: ModuleManager,
+		openHudEditor: () -> Unit,
+		persistEffects: () -> Unit,
+		feedback: (S, String) -> Unit
+	) : this(manager, Diagnostics(manager), openHudEditor, feedback, persistEffects)
 
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
 
@@ -58,7 +67,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug | edit")
+				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug | edit | effects")
 				Command.SINGLE_SUCCESS
 			}
 			.then(
@@ -93,7 +102,21 @@ class CommandRegistry<S>(
 					Command.SINGLE_SUCCESS
 				}
 			)
+			.then(effectsCommand())
 			.then(debugCommand())
+
+	private fun effectsCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("effects")
+			.executes { context -> applyEffects(context.source, !Effects.reduced) }
+			.then(literal<S>("on").executes { context -> applyEffects(context.source, reduced = false) })
+			.then(literal<S>("off").executes { context -> applyEffects(context.source, reduced = true) })
+
+	private fun applyEffects(source: S, reduced: Boolean): Int {
+		Effects.reduced = reduced
+		persistEffects()
+		feedback(source, "Glass effects ${if (reduced) "disabled" else "enabled"}.")
+		return Command.SINGLE_SUCCESS
+	}
 
 	private fun debugCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("debug")

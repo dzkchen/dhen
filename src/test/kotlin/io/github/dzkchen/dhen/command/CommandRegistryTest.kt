@@ -6,15 +6,18 @@ import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
 
@@ -23,6 +26,12 @@ class CommandRegistryTest {
 		CommandRegistry(ModuleManager()) { _, message -> captured += message }
 
 	private val captured = mutableListOf<String>()
+
+	@BeforeEach
+	@AfterEach
+	fun restoreEffectsDefault() {
+		Effects.reduced = false
+	}
 
 	@Test
 	fun `duplicate name is rejected`() {
@@ -158,6 +167,29 @@ class CommandRegistryTest {
 
 		assertEquals(2, opened)
 		assertEquals("Opening the HUD editor.", captured.last())
+	}
+
+	@Test
+	fun `effects toggles the glass tier and persists every change`() {
+		var persisted = 0
+		val registry = CommandRegistry<Any>(ModuleManager(), {}, { persisted++ }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen effects", Any())
+		assertTrue(Effects.reduced)
+		assertEquals("Glass effects disabled.", captured.last())
+
+		dispatcher.execute("dh effects", Any())
+		assertFalse(Effects.reduced)
+		assertEquals("Glass effects enabled.", captured.last())
+
+		dispatcher.execute("dhen effects off", Any())
+		assertTrue(Effects.reduced)
+
+		dispatcher.execute("dh effects on", Any())
+		assertFalse(Effects.reduced)
+		assertEquals(4, persisted)
 	}
 
 	@Test

@@ -10,6 +10,7 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
+import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 import java.util.function.IntUnaryOperator
 import kotlin.math.roundToInt
@@ -18,9 +19,12 @@ internal class ClickGuiScreen(
 	private val categories: List<Category>,
 	private val manager: ModuleManager,
 	private val layout: MutableMap<String, PanelState>,
-	private val persistLayout: () -> Unit,
-	private val persistModules: () -> Unit
+	private val persistCore: () -> Unit,
+	private val persistModules: () -> Unit,
+	private val parent: Screen? = null
 ) : Screen(Component.literal("Dhen")) {
+	private val openedAt = Util.getMillis()
+	private var chipWidth = 0
 	private val panels = mutableListOf<Panel>()
 	private val navigation = mutableListOf<Panel>()
 	private val expanded = mutableSetOf<String>()
@@ -39,6 +43,7 @@ internal class ClickGuiScreen(
 
 	override fun init() {
 		blurFocus()
+		chipWidth = 2 * CONTENT_PAD + font.width(EFFECTS_LABEL) + CHIP_GAP + INDICATOR_SIZE
 		panels.clear()
 		navigation.clear()
 		val byCategory = manager.categories
@@ -58,9 +63,37 @@ internal class ClickGuiScreen(
 		applySearch()
 	}
 
-	override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) = Unit
+	override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+		val outsideWorld = minecraft.level == null
+		if (outsideWorld) extractPanorama(graphics, a)
+		if (Effects.reduced) {
+			if (outsideWorld) extractMenuBackground(graphics)
+			return
+		}
+		extractBlurredBackground(graphics)
+		GlassGui.scrim(graphics, width, height)
+	}
+
+	override fun onClose() {
+		val previous = parent
+		if (previous == null) super.onClose() else minecraft.gui.setScreen(previous)
+	}
 
 	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+		val entry = GlassGui.entryProgress(openedAt)
+		if (entry >= GlassGui.SETTLED) {
+			drawContent(graphics, mouseX, mouseY)
+			return
+		}
+		val pose = graphics.pose()
+		pose.pushMatrix()
+		pose.translate(0f, GlassGui.rise(entry))
+		drawContent(graphics, mouseX, mouseY)
+		pose.popMatrix()
+		GlassGui.veil(graphics, width, height, entry)
+	}
+
+	private fun drawContent(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		val contentMouseY = mouseY + scrollOffset
 		val pose = graphics.pose()
 		pose.pushMatrix()
@@ -72,7 +105,8 @@ internal class ClickGuiScreen(
 		pose.popMatrix()
 		drawScrollbar(graphics)
 		drawSearch(graphics)
-		if (!searchContains(mouseX, mouseY)) {
+		drawChip(graphics)
+		if (!searchContains(mouseX, mouseY) && !chipContains(mouseX, mouseY)) {
 			hoveredModule(mouseX, contentMouseY)?.let { drawTooltip(graphics, it, mouseX, mouseY) }
 		}
 	}
@@ -93,6 +127,13 @@ internal class ClickGuiScreen(
 		blurFocus()
 		val x = event.x().toInt()
 		val sy = event.y().toInt()
+		if (chipContains(x, sy)) {
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+				Effects.reduced = !Effects.reduced
+				persistCore()
+			}
+			return true
+		}
 		if (searchContains(x, sy)) return true
 		val cy = sy + scrollOffset
 		val panel = panelAt(x, cy) ?: return super.mouseClicked(event, doubleClick)
@@ -235,7 +276,7 @@ internal class ClickGuiScreen(
 
 	private fun store(panel: Panel) {
 		layout[panel.category.name] = panel.state.copy()
-		persistLayout()
+		persistCore()
 	}
 
 	private fun backspaceSearch(): Boolean {
@@ -402,13 +443,34 @@ internal class ClickGuiScreen(
 	private fun searchContains(x: Int, y: Int): Boolean =
 		x >= MARGIN && x < MARGIN + SEARCH_WIDTH && y >= MARGIN && y < MARGIN + SEARCH_HEIGHT
 
+	private fun chipLeft(): Int = MARGIN + SEARCH_WIDTH + COLUMN_GAP
+
+	private fun chipContains(x: Int, y: Int): Boolean =
+		x >= chipLeft() && x < chipLeft() + chipWidth && y >= MARGIN && y < MARGIN + SEARCH_HEIGHT
+
+	private fun drawChip(graphics: GuiGraphicsExtractor) {
+		val left = chipLeft()
+		val top = MARGIN
+		val right = left + chipWidth
+		val bottom = top + SEARCH_HEIGHT
+		GlassGui.frame(graphics, left, top, right, bottom, GlassGui.raised(), DhenPalette.BORDER)
+		val labelColor = if (Effects.reduced) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_PRIMARY
+		FlatGui.text(graphics, font, EFFECTS_LABEL, left + CONTENT_PAD, top + (SEARCH_HEIGHT - font.lineHeight) / 2, labelColor)
+		val boxRight = right - CONTENT_PAD
+		val boxLeft = boxRight - INDICATOR_SIZE
+		val boxTop = top + (SEARCH_HEIGHT - INDICATOR_SIZE) / 2
+		val boxBottom = boxTop + INDICATOR_SIZE
+		if (Effects.reduced) FlatGui.border(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.BORDER)
+		else FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.ACCENT)
+	}
+
 	private fun drawSearch(graphics: GuiGraphicsExtractor) {
 		val left = MARGIN
 		val top = MARGIN
 		val right = left + SEARCH_WIDTH
 		val bottom = top + SEARCH_HEIGHT
-		FlatGui.fill(graphics, left, top, right, bottom, DhenPalette.SURFACE_RAISED)
-		FlatGui.border(graphics, left, top, right, bottom, if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.ACCENT)
+		val outline = if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.ACCENT
+		GlassGui.frame(graphics, left, top, right, bottom, GlassGui.raised(), outline)
 		val textLeft = left + CONTENT_PAD
 		val textTop = top + (SEARCH_HEIGHT - font.lineHeight) / 2
 		if (query.isEmpty()) {
@@ -421,7 +483,7 @@ internal class ClickGuiScreen(
 			FlatGui.fill(graphics, caretX, textTop, caretX + 1, textTop + font.lineHeight, DhenPalette.TEXT_PRIMARY)
 		}
 		if (matchCount == 0) {
-			FlatGui.text(graphics, font, NO_MATCH_LABEL, right + CONTENT_PAD, textTop, DhenPalette.TEXT_SECONDARY)
+			FlatGui.text(graphics, font, NO_MATCH_LABEL, chipLeft() + chipWidth + CONTENT_PAD, textTop, DhenPalette.TEXT_SECONDARY)
 		}
 	}
 
@@ -436,8 +498,7 @@ internal class ClickGuiScreen(
 		val boxHeight = lineCount * font.lineHeight + 2 * TOOLTIP_PAD
 		val left = (mouseX + TOOLTIP_OFFSET).coerceIn(0, maxOf(0, width - boxWidth))
 		val top = (mouseY + TOOLTIP_OFFSET).coerceIn(0, maxOf(0, height - boxHeight))
-		FlatGui.fill(graphics, left, top, left + boxWidth, top + boxHeight, DhenPalette.SURFACE_RAISED)
-		FlatGui.border(graphics, left, top, left + boxWidth, top + boxHeight, DhenPalette.BORDER)
+		GlassGui.frame(graphics, left, top, left + boxWidth, top + boxHeight, GlassGui.raised(), DhenPalette.BORDER)
 		FlatGui.text(graphics, font, module.name, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_PRIMARY)
 		if (hasDescription) {
 			FlatGui.text(graphics, font, module.description, left + TOOLTIP_PAD, top + TOOLTIP_PAD + font.lineHeight, DhenPalette.TEXT_SECONDARY)
@@ -621,8 +682,9 @@ internal class ClickGuiScreen(
 			val headerBottom = top + HEADER_HEIGHT
 			val bottom = top + height
 
-			FlatGui.fill(graphics, left, top, right, bottom, DhenPalette.SURFACE)
-			val headerColor = if (headerContains(mouseX, mouseY)) DhenPalette.SURFACE_INTERACTIVE else DhenPalette.SURFACE_RAISED
+			GlassGui.shadow(graphics, left, top, right, bottom)
+			FlatGui.fill(graphics, left, top, right, bottom, GlassGui.surface())
+			val headerColor = if (headerContains(mouseX, mouseY)) GlassGui.interactive() else GlassGui.raised()
 			FlatGui.fill(graphics, left, top, right, headerBottom, headerColor)
 
 			if (!state.collapsed) {
@@ -640,6 +702,7 @@ internal class ClickGuiScreen(
 			}
 
 			FlatGui.border(graphics, left, top, right, bottom, DhenPalette.BORDER)
+			GlassGui.sheen(graphics, left, top, right)
 
 			FlatGui.text(graphics, font, category.displayName, left + CONTENT_PAD, top + TEXT_OFFSET, DhenPalette.TEXT_PRIMARY)
 			val glyph = if (state.collapsed) "+" else "-"
@@ -691,7 +754,7 @@ internal class ClickGuiScreen(
 			mouseX: Int,
 			mouseY: Int
 		) {
-			FlatGui.fill(graphics, left + 1, top, right - 1, top + areaHeight, DhenPalette.CANVAS)
+			FlatGui.fill(graphics, left + 1, top, right - 1, top + areaHeight, GlassGui.canvas())
 			FlatGui.fill(graphics, left + 1, top, right - 1, top + 1, DhenPalette.BORDER)
 			val contentLeft = left + CONTENT_PAD
 			val contentWidth = PANEL_WIDTH - 2 * CONTENT_PAD
@@ -724,6 +787,8 @@ internal class ClickGuiScreen(
 		const val FIELD_TOP = MARGIN + SEARCH_HEIGHT + COLUMN_GAP
 		const val SEARCH_PLACEHOLDER = "Type to search"
 		const val NO_MATCH_LABEL = "No matches"
+		const val EFFECTS_LABEL = "Effects"
+		const val CHIP_GAP = 4
 		const val CONTENT_PAD = 6
 		const val TEXT_OFFSET = 4
 		const val TOGGLE_WIDTH = 14

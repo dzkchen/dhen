@@ -1,0 +1,78 @@
+package io.github.dzkchen.dhen.gui
+
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+
+class GlassGuiTest {
+	@BeforeEach
+	@AfterEach
+	fun restoreDefault() {
+		Effects.reduced = false
+	}
+
+	@Test
+	fun `reduced effects resolve every surface to its opaque flat color`() {
+		Effects.reduced = true
+
+		assertEquals(DhenPalette.CANVAS, GlassGui.canvas())
+		assertEquals(DhenPalette.SURFACE, GlassGui.surface())
+		assertEquals(DhenPalette.SURFACE_RAISED, GlassGui.raised())
+		assertEquals(DhenPalette.SURFACE_INTERACTIVE, GlassGui.interactive())
+	}
+
+	@Test
+	fun `the glass tier resolves the same surfaces to translucent colors`() {
+		val glass = intArrayOf(GlassGui.canvas(), GlassGui.surface(), GlassGui.raised(), GlassGui.interactive())
+
+		assertTrue(glass.all { it ushr 24 in 1..0xFE }, "glass surfaces must be translucent, not opaque or invisible")
+		assertEquals(glass.size, glass.distinct().size)
+	}
+
+	@Test
+	fun `entry progress settles immediately when effects are reduced`() {
+		Effects.reduced = true
+
+		assertEquals(GlassGui.SETTLED, GlassGui.entryProgress(Long.MIN_VALUE))
+	}
+
+	@Test
+	fun `progress runs from zero to settled over the entry window`() {
+		assertEquals(0f, GlassGui.progress(0L))
+		assertEquals(0f, GlassGui.progress(-50L))
+		assertEquals(GlassGui.SETTLED, GlassGui.progress(GlassGui.ENTRY_MILLIS))
+		assertEquals(GlassGui.SETTLED, GlassGui.progress(GlassGui.ENTRY_MILLIS * 4))
+
+		var previous = 0f
+		for (elapsed in 0..GlassGui.ENTRY_MILLIS) {
+			val current = GlassGui.progress(elapsed)
+			assertTrue(current >= previous, "progress must not move backwards at $elapsed ms")
+			previous = current
+		}
+	}
+
+	@Test
+	fun `easing decelerates so the entry settles rather than snapping`() {
+		assertEquals(0f, GlassGui.ease(0f))
+		assertEquals(GlassGui.SETTLED, GlassGui.ease(1f))
+		assertTrue(GlassGui.ease(0.5f) > 0.5f)
+	}
+
+	@Test
+	fun `the entry rise collapses to nothing once settled`() {
+		assertEquals(GlassGui.ENTRY_RISE, GlassGui.rise(0f))
+		assertEquals(0f, GlassGui.rise(GlassGui.SETTLED))
+	}
+
+	@Test
+	fun `alpha scaling keeps the color channels and clamps the alpha`() {
+		val color = 0x80336699u.toInt()
+
+		assertEquals(0x40336699u.toInt(), GlassGui.withAlpha(color, 0.5f))
+		assertEquals(0x00336699, GlassGui.withAlpha(color, 0f))
+		assertEquals(0xFF336699u.toInt(), GlassGui.withAlpha(color, 4f))
+		assertEquals(0x00336699, GlassGui.withAlpha(color, -1f))
+	}
+}

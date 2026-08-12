@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.ui.hud
 
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.FlatGui
+import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -133,7 +134,8 @@ internal class HudEditorScreen(
 			pose.pushMatrix()
 			pose.translate(target.x.toFloat(), target.y.toFloat())
 			pose.scale(target.element.scale, target.element.scale)
-			FlatGui.fill(graphics, 0, 0, target.contentWidth, target.contentHeight, DhenPalette.SURFACE)
+			GlassGui.shadow(graphics, 0, 0, target.contentWidth, target.contentHeight)
+			FlatGui.fill(graphics, 0, 0, target.contentWidth, target.contentHeight, GlassGui.surface())
 			FlatGui.text(
 				graphics,
 				font,
@@ -156,8 +158,8 @@ internal class HudEditorScreen(
 	private fun drawBanner(graphics: GuiGraphicsExtractor, text: String, top: Int) {
 		val boxWidth = font.width(text) + 2 * BANNER_PAD
 		val left = (width - boxWidth) / 2
-		FlatGui.fill(graphics, left, top, left + boxWidth, top + bannerHeight(), DhenPalette.SURFACE)
-		FlatGui.border(graphics, left, top, left + boxWidth, top + bannerHeight(), DhenPalette.BORDER)
+		val bottom = top + bannerHeight()
+		GlassGui.frame(graphics, left, top, left + boxWidth, bottom, GlassGui.surface(), DhenPalette.BORDER)
 		FlatGui.text(graphics, font, text, left + BANNER_PAD, top + BANNER_PAD, DhenPalette.TEXT_PRIMARY, shadow = true)
 	}
 

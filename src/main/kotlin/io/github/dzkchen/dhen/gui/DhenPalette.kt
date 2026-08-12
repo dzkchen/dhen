@@ -13,4 +13,13 @@ internal object DhenPalette {
 	val TEXT_SECONDARY = 0xFFA9B8B5u.toInt()
 	val TEXT_DISABLED = 0xFF6E7E7Bu.toInt()
 	val TEXT_ON_ACCENT = 0xFF071310u.toInt()
+
+	val GLASS_CANVAS = 0xA60B1116u.toInt()
+	val GLASS_SURFACE = 0xB8121B22u.toInt()
+	val GLASS_SURFACE_RAISED = 0xCC1A262Eu.toInt()
+	val GLASS_SURFACE_INTERACTIVE = 0xDC24333Bu.toInt()
+	val GLASS_SCRIM = 0x730B1116u.toInt()
+	val GLASS_SHADOW = 0x66040709u.toInt()
+	val GLASS_SHEEN = 0x24F4F8F7u.toInt()
+	val GLASS_VEIL = 0xD90B1116u.toInt()
 }

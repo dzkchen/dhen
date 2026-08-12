@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiLayout
 import io.github.dzkchen.dhen.gui.ClickGuiScreen
+import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.gui.PanelState
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
@@ -46,7 +47,7 @@ object Dhen : ClientModInitializer {
 	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 
-	private val commands = CommandRegistry<FabricClientCommandSource>(modules, ::openHudEditor) { source, message ->
+	private val commands = CommandRegistry<FabricClientCommandSource>(modules, ::openHudEditor, ::persistCore) { source, message ->
 		source.sendFeedback(Component.literal(message))
 	}
 
@@ -63,7 +64,9 @@ object Dhen : ClientModInitializer {
 			configScope,
 			ModulePersistence.migrations
 		)
-		panelLayout = ClickGuiLayout.read(coreStore.load())
+		val core = coreStore.load()
+		panelLayout = ClickGuiLayout.read(core)
+		Effects.read(core)
 		modules.registerAll(
 			PlaceholderModule(),
 			PlaceholderModule(
@@ -124,12 +127,17 @@ object Dhen : ClientModInitializer {
 		moduleStore.save(ModulePersistence.snapshot(modules))
 	}
 
-	internal fun clickGuiScreen(): Screen = ClickGuiScreen(
+	private fun persistCore() {
+		coreStore.save(Effects.writeInto(ClickGuiLayout.write(panelLayout)))
+	}
+
+	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiScreen(
 		Category.entries.toList(),
 		modules,
 		panelLayout,
-		persistLayout = { coreStore.save(ClickGuiLayout.write(panelLayout)) },
-		persistModules = ::persistModules
+		persistCore = ::persistCore,
+		persistModules = ::persistModules,
+		parent = parent
 	)
 
 	fun id(path: String): Identifier
