@@ -16,6 +16,7 @@ class ClientPrefsTest {
 	@AfterEach
 	fun restoreDefaults() {
 		Effects.reduced = false
+		ClientPrefs.splash.value = true
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		ClientPrefs.sync()
 	}
@@ -24,14 +25,17 @@ class ClientPrefsTest {
 	fun `every setting the tab shows survives a write and read round trip`() {
 		ClientPrefs.accent.value = Color(TEAL)
 		Effects.reduced = true
+		ClientPrefs.splash.value = false
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		Effects.reduced = false
+		ClientPrefs.splash.value = true
 
 		ClientPrefs.read(written)
 
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
 		assertTrue(Effects.reduced)
+		assertFalse(ClientPrefs.splash.value)
 	}
 
 	@Test
@@ -48,7 +52,10 @@ class ClientPrefsTest {
 
 		assertFalse(names.contains("Layout"))
 		assertFalse(names.contains("Arrow keys"))
-		assertTrue(ClientPrefs.sections.single { it.title == "Client" }.settings.isEmpty())
+		assertEquals(
+			listOf(ClientPrefs.splash),
+			ClientPrefs.sections.single { it.title == "Client" }.settings
+		)
 	}
 
 	@Test
@@ -66,6 +73,8 @@ class ClientPrefsTest {
 		assertEquals(DhenPalette.DEFAULT_ACCENT, ClientPrefs.accent.value.argb)
 		assertEquals(DhenPalette.DEFAULT_ACCENT, DhenPalette.accent)
 		assertFalse(Effects.reduced)
+		assertTrue(ClientPrefs.splash.default)
+		assertTrue(ClientPrefs.splash.value)
 	}
 
 	@Test

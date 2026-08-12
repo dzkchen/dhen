@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
+import net.minecraft.util.ARGB
 
 internal object DhenType {
 	const val CACHE_LIMIT = 512
@@ -14,6 +15,8 @@ internal object DhenType {
 	private const val FONT_NAME = "inter"
 	private const val UNMEASURED = -1
 	private const val LOAD_FACTOR = 0.75f
+	private const val SHADOW_PIXELS = 1f
+	private const val SHADOW_DIM = 0.25f
 
 	val fontId: Identifier = Identifier.fromNamespaceAndPath(Dhen.MOD_ID, FONT_NAME)
 
@@ -39,6 +42,26 @@ internal object DhenType {
 		shadow: Boolean = false
 	) {
 		graphics.text(font, styled(text), x, y, color, shadow)
+	}
+
+	fun shadowOffset(scale: Float): Float =
+		if (scale.isNaN() || scale <= 0f) SHADOW_PIXELS else SHADOW_PIXELS / scale
+
+	fun shadowed(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		text: String,
+		x: Int,
+		y: Int,
+		color: Int,
+		scale: Float
+	) {
+		val pose = graphics.pose()
+		val offset = shadowOffset(scale)
+		pose.translate(offset, offset)
+		text(graphics, font, text, x, y, ARGB.scaleRGB(color, SHADOW_DIM))
+		pose.translate(-offset, -offset)
+		text(graphics, font, text, x, y, color)
 	}
 
 	fun width(font: Font, text: String): Int {

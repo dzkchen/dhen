@@ -20,6 +20,10 @@ internal object DhenPalette {
 	val TEXT_DISABLED = 0xFF6B6872u.toInt()
 	val TEXT_ON_ACCENT = 0xFF17070Eu.toInt()
 
+	val SPLASH_CANVAS = 0xFFF8D7E3u.toInt()
+	val SPLASH_TRACK = 0xFFEBB4CBu.toInt()
+	val SPLASH_INK = 0xFF2A0E18u.toInt()
+
 	val GLASS_CANVAS = 0xA608080Au.toInt()
 	val GLASS_SURFACE = 0xC20D0D10u.toInt()
 	val GLASS_SURFACE_RAISED = 0xD4141418u.toInt()

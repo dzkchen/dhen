@@ -21,6 +21,6 @@ class HudTextElement(
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		DhenType.text(graphics, font, text, 0, 0, color, shadow = true)
+		DhenType.shadowed(graphics, font, text, 0, 0, color, scale)
 	}
 }

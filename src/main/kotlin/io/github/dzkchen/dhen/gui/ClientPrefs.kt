@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.SettingCodec
@@ -17,10 +18,16 @@ internal object ClientPrefs {
 		description = "Highlight color for every Dhen surface."
 	)
 
+	val splash = BooleanSetting(
+		"Splash screen",
+		true,
+		description = "Show Dhen's loading screen while the game starts and reloads resources."
+	)
+
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(accent)),
-		PrefSection("Client", emptyList())
+		PrefSection("Client", listOf(splash))
 	)
 
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }

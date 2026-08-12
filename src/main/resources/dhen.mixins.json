@@ -3,6 +3,9 @@
 	"package": "io.github.dzkchen.dhen.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [],
+	"client": [
+		"LoadingOverlayMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	},
