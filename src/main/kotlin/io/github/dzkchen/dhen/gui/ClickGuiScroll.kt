@@ -9,6 +9,18 @@ internal object ClickGuiScroll {
 	fun clampOffset(offset: Int, maxScroll: Int): Int =
 		offset.coerceIn(0, maxOf(0, maxScroll))
 
+	fun thumbHeight(trackHeight: Int, viewportHeight: Int, maxScroll: Int, minimum: Int): Int {
+		if (trackHeight <= 0 || maxScroll <= TOP) return trackHeight
+		val proportional = trackHeight.toLong() * viewportHeight / (viewportHeight + maxScroll)
+		return proportional.toInt().coerceIn(minOf(minimum, trackHeight), trackHeight)
+	}
+
+	fun thumbTop(trackTop: Int, trackHeight: Int, thumbHeight: Int, offset: Int, maxScroll: Int): Int {
+		if (maxScroll <= TOP) return trackTop
+		val travel = maxOf(0, trackHeight - thumbHeight)
+		return trackTop + (travel.toLong() * clampOffset(offset, maxScroll) / maxScroll).toInt()
+	}
+
 	fun stash(offset: Int, stashed: Int, maxScroll: Int): Int =
 		when {
 			// An existing stash outranks the live offset: once the content collapses the

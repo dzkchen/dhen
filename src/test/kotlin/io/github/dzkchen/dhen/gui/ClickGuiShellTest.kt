@@ -59,6 +59,47 @@ class ClickGuiShellTest {
 	}
 
 	@Test
+	fun `a column taller than the viewport is cut to what the viewport can show`() {
+		assertEquals(200, ClickGuiShell.clampedColumnHeight(naturalHeight = 200, headerHeight = 18, available = 260))
+		assertEquals(260, ClickGuiShell.clampedColumnHeight(naturalHeight = 400, headerHeight = 18, available = 260))
+	}
+
+	@Test
+	fun `a viewport too short for even the header keeps the header`() {
+		assertEquals(18, ClickGuiShell.clampedColumnHeight(naturalHeight = 400, headerHeight = 18, available = 4))
+		assertEquals(18, ClickGuiShell.clampedColumnHeight(naturalHeight = 400, headerHeight = 18, available = -20))
+	}
+
+	@Test
+	fun `a tooltip sits beside its column while there is room to the right`() {
+		assertEquals(132, tooltipLeft(columnLeft = 8, tooltipWidth = 120))
+		assertEquals(346, tooltipLeft(columnLeft = 222, tooltipWidth = 120))
+	}
+
+	@Test
+	fun `a tooltip with no room to the right flips to the other side of its column`() {
+		assertEquals(230, tooltipLeft(columnLeft = 356, tooltipWidth = 120))
+	}
+
+	@Test
+	fun `a tooltip that fits on neither side is pinned inside the viewport`() {
+		assertEquals(72, tooltipLeft(columnLeft = 8, tooltipWidth = 400))
+		assertEquals(8, tooltipLeft(columnLeft = 8, tooltipWidth = 600))
+	}
+
+	@Test
+	fun `a tooltip sits level with its row until the bottom edge pushes it up`() {
+		assertEquals(120, ClickGuiShell.tooltipTop(rowTop = 120, tooltipHeight = 20, viewportHeight = 260, margin = MARGIN))
+		assertEquals(232, ClickGuiShell.tooltipTop(rowTop = 250, tooltipHeight = 20, viewportHeight = 260, margin = MARGIN))
+		assertEquals(8, ClickGuiShell.tooltipTop(rowTop = -40, tooltipHeight = 20, viewportHeight = 260, margin = MARGIN))
+	}
+
+	@Test
+	fun `a tooltip taller than the viewport still starts inside it`() {
+		assertEquals(8, ClickGuiShell.tooltipTop(rowTop = 120, tooltipHeight = 400, viewportHeight = 260, margin = MARGIN))
+	}
+
+	@Test
 	fun `segments lay out left to right with one gap between them`() {
 		assertEquals(0, ClickGuiShell.segmentsWidth(IntArray(0), SEGMENT_GAP))
 		assertEquals(60, ClickGuiShell.segmentsWidth(intArrayOf(60), SEGMENT_GAP))
@@ -89,6 +130,9 @@ class ClickGuiShellTest {
 		assertEquals(-8, ClickGuiShell.rightAlignedLeft(viewportWidth = 80, width = 80, margin = MARGIN))
 	}
 
+	private fun tooltipLeft(columnLeft: Int, tooltipWidth: Int): Int =
+		ClickGuiShell.tooltipLeft(columnLeft, COLUMN_WIDTH, tooltipWidth, VIEWPORT_WIDTH, TOOLTIP_GAP, MARGIN)
+
 	private fun columnHeight(collapsed: Boolean, rowCount: Int, settingsHeightAt: IntUnaryOperator): Int =
 		ClickGuiShell.columnHeight(collapsed, headerHeight = 18, bodyPad = 4, rowCount = rowCount, rowHeight = 13, settingsHeightAt = settingsHeightAt)
 
@@ -98,6 +142,8 @@ class ClickGuiShellTest {
 		const val MARGIN = 8
 		const val CATEGORIES = 17
 		const val SEGMENT_GAP = 2
+		const val TOOLTIP_GAP = 6
+		const val VIEWPORT_WIDTH = 480
 		val TABS = intArrayOf(60, 40)
 	}
 }

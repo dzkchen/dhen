@@ -29,6 +29,27 @@ internal object ClickGuiShell {
 		return headerHeight + bodyPad + ClickGuiRows.bodyHeight(rowCount, rowHeight, settingsHeightAt)
 	}
 
+	fun clampedColumnHeight(naturalHeight: Int, headerHeight: Int, available: Int): Int =
+		minOf(naturalHeight, maxOf(headerHeight, available))
+
+	fun tooltipLeft(
+		columnLeft: Int,
+		columnWidth: Int,
+		tooltipWidth: Int,
+		viewportWidth: Int,
+		gap: Int,
+		margin: Int
+	): Int {
+		val beside = columnLeft + columnWidth + gap
+		if (beside + tooltipWidth + margin <= viewportWidth) return beside
+		val before = columnLeft - gap - tooltipWidth
+		if (before >= margin) return before
+		return maxOf(margin, rightAlignedLeft(viewportWidth, tooltipWidth, margin))
+	}
+
+	fun tooltipTop(rowTop: Int, tooltipHeight: Int, viewportHeight: Int, margin: Int): Int =
+		rowTop.coerceIn(margin, maxOf(margin, viewportHeight - margin - tooltipHeight))
+
 	fun segmentsWidth(widths: IntArray, gap: Int): Int {
 		if (widths.isEmpty()) return 0
 		var total = (widths.size - 1) * gap

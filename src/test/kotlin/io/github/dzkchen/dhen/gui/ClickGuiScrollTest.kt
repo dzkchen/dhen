@@ -27,6 +27,31 @@ class ClickGuiScrollTest {
 	}
 
 	@Test
+	fun `a thumb covers as much of its track as the viewport covers the content`() {
+		assertEquals(50, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 100, minimum = 12))
+		assertEquals(25, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 300, minimum = 12))
+	}
+
+	@Test
+	fun `a thumb never shrinks past its minimum, nor past the track itself`() {
+		assertEquals(12, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 3900, minimum = 12))
+		assertEquals(8, ClickGuiScroll.thumbHeight(trackHeight = 8, viewportHeight = 100, maxScroll = 3900, minimum = 12))
+	}
+
+	@Test
+	fun `a thumb travels the leftover track in step with the offset`() {
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 0, maxScroll = 120))
+		assertEquals(50, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 60, maxScroll = 120))
+		assertEquals(80, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 120, maxScroll = 120))
+	}
+
+	@Test
+	fun `a thumb with nowhere to travel stays at the top of its track`() {
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 60, maxScroll = 0))
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 40, thumbHeight = 40, offset = 60, maxScroll = 120))
+	}
+
+	@Test
 	fun `offset collapses to zero when nothing scrolls`() {
 		assertEquals(0, ClickGuiScroll.clampOffset(70, maxScroll = 0))
 	}
