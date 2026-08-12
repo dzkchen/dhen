@@ -13,18 +13,36 @@ import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 internal const val CONTROL_TEXT_INSET = 2
-internal const val CONTROL_INDICATOR = 8
+internal const val PILL_MIN_WIDTH = 26
+internal const val TOGGLE_MILLIS = 100L
+private const val WIDGET_HEIGHT = 14
+private const val WIDGET_PAD = 3
+internal const val CONTROL_ROW_HEIGHT = WIDGET_HEIGHT + 2 * WIDGET_PAD
+internal const val PILL_CAP = WIDGET_HEIGHT / 2
+internal const val PILL_PAD = PILL_CAP + 1
+private const val PILL_GAP = 4
+private const val OPAQUE_ALPHA = 0xFF
 private const val CARET_WIDTH = 1
-private const val SWATCH_GAP = 3
+private const val SWATCH_SIZE = 8
+private const val SWATCH_RADIUS = 2f
+private const val SWATCH_GAP = 4
+private const val TOGGLE_WIDTH = 24
+private const val TOGGLE_KNOB_RADIUS = 5
+private const val TOGGLE_KNOB_INSET = WIDGET_HEIGHT / 2
+private const val SLIDER_LABEL_INSET = 1
+private const val SLIDER_TRACK_INSET = 3
+private const val SLIDER_TRACK_HEIGHT = 3
+private const val SLIDER_KNOB_RADIUS = 3
 private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
+private const val DROPDOWN_GLYPH = "⌄"
 internal const val PRINTABLE_MIN = 32
 internal const val PRINTABLE_MAX = 0xFFFF
 internal const val DELETE_CODE = 127
@@ -50,25 +68,50 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 
 	open fun blur(): Boolean = false
 
-	protected fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenType.lineHeight(font)) / 2
 }
 
-internal class CheckboxControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
+internal class ToggleControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
+	private var slide = if (boolean.value) GlassGui.SETTLED else 0f
+	private var slideTarget = slide
+	private var slideFrom = slide
+	private var slideAt = 0L
+
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
-		val color = if (boolean.value) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
-		DhenType.text(graphics, font, boolean.name, x + CONTROL_TEXT_INSET, textTop(font, y, height), color)
-		val boxRight = x + width
-		val boxLeft = boxRight - CONTROL_INDICATOR
-		val boxTop = y + (height - CONTROL_INDICATOR) / 2
-		val boxBottom = boxTop + CONTROL_INDICATOR
-		if (boolean.value) FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.ACCENT)
-		else FlatGui.border(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.BORDER)
+		val on = boolean.value
+		val progress = slide()
+		DhenType.text(graphics, font, boolean.name, x + CONTROL_TEXT_INSET, textTop(font, y, height), DhenPalette.label(on || hovered))
+		val right = x + width
+		val left = right - TOGGLE_WIDTH
+		val top = widgetTop(y, height)
+		val bottom = top + WIDGET_HEIGHT
+		val lit = GlassGui.withAlpha(DhenPalette.accent, progress)
+		if (lit ushr 24 != OPAQUE_ALPHA) RoundedGui.pill(graphics, left, top, right, bottom, GlassGui.raised(hovered))
+		RoundedGui.pill(graphics, left, top, right, bottom, lit)
+		RoundedGui.pillBorder(graphics, left, top, right, bottom, RoundedGui.HAIRLINE, DhenPalette.BORDER)
+		RoundedGui.circle(
+			graphics,
+			RoundedQuad.between(left + TOGGLE_KNOB_INSET, right - TOGGLE_KNOB_INSET, progress),
+			top + WIDGET_HEIGHT / 2,
+			TOGGLE_KNOB_RADIUS,
+			DhenPalette.label(on)
+		)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
 		boolean.value = !boolean.value
 		return ControlPress.CHANGED
+	}
+
+	private fun slide(): Float {
+		val target = if (boolean.value) GlassGui.SETTLED else 0f
+		if (target != slideTarget) {
+			slideTarget = target
+			slideFrom = slide
+			slideAt = Util.getMillis()
+		}
+		if (slide == target) return slide
+		slide = GlassGui.tweenSince(slideFrom, target, slideAt, TOGGLE_MILLIS)
+		return slide
 	}
 }
 
@@ -77,14 +120,16 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	private var cachedText = ""
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_RAISED)
-		val fillWidth = (fraction() * width).roundToInt()
-		FlatGui.fill(graphics, x, y, x + fillWidth, y + height, DhenPalette.ACCENT_MUTED)
-		if (hovered) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
-		val top = textTop(font, y, height)
-		DhenType.text(graphics, font, number.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_PRIMARY)
+		val labelTop = y + SLIDER_LABEL_INSET
+		DhenType.text(graphics, font, number.name, x + CONTROL_TEXT_INSET, labelTop, DhenPalette.label(hovered))
 		val value = displayValue()
-		DhenType.text(graphics, font, value, x + width - DhenType.width(font, value) - CONTROL_TEXT_INSET, top, DhenPalette.TEXT_PRIMARY)
+		DhenType.text(graphics, font, value, x + width - DhenType.width(font, value) - CONTROL_TEXT_INSET, labelTop, DhenPalette.TEXT_PRIMARY)
+		val right = x + width
+		val bottom = y + height - SLIDER_TRACK_INSET
+		val top = bottom - SLIDER_TRACK_HEIGHT
+		val edge = RoundedGui.capsuleTrack(graphics, x, top, right, bottom, fraction().toFloat(), GlassGui.raised(hovered), DhenPalette.accent)
+		val knobX = edge.coerceAtMost(right - SLIDER_KNOB_RADIUS).coerceAtLeast(x + SLIDER_KNOB_RADIUS)
+		RoundedGui.circle(graphics, knobX, (top + bottom) / 2, SLIDER_KNOB_RADIUS, DhenPalette.TEXT_PRIMARY)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
@@ -119,11 +164,14 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 
 internal class DropdownControl(private val selector: SelectorSetting) : SettingControl(selector) {
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
-		val top = textTop(font, y, height)
-		DhenType.text(graphics, font, selector.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_SECONDARY)
 		val value = selector.value
-		DhenType.text(graphics, font, value, x + width - DhenType.width(font, value) - CONTROL_TEXT_INSET, top, DhenPalette.TEXT_PRIMARY)
+		val valueWidth = DhenType.width(font, value)
+		val glyphWidth = DhenType.width(font, DROPDOWN_GLYPH)
+		val contentRight = pillRow(graphics, font, selector.name, x, y, width, height, valueWidth + PILL_GAP + glyphWidth, hovered, false)
+		val baseline = textTop(font, y, height)
+		val glyphLeft = contentRight - glyphWidth
+		DhenType.text(graphics, font, value, glyphLeft - PILL_GAP - valueWidth, baseline, DhenPalette.TEXT_PRIMARY)
+		DhenType.text(graphics, font, DROPDOWN_GLYPH, glyphLeft, baseline, DhenPalette.TEXT_SECONDARY)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
@@ -184,13 +232,10 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 
 	protected fun editText(): String = if (editing) draft else committedText()
 
-	protected fun drawCaret(graphics: GuiGraphicsExtractor, font: Font, afterX: Int, top: Int) {
-		if (editing) FlatGui.fill(graphics, afterX, top, afterX + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
-	}
+	protected fun caretReserve(): Int = if (editing) CARET_WIDTH else 0
 
-	protected fun drawFocusFrame(graphics: GuiGraphicsExtractor, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (editing) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
-		else if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
+	protected fun drawCaret(graphics: GuiGraphicsExtractor, font: Font, afterX: Int, top: Int) {
+		if (editing) caret(graphics, font, afterX, top)
 	}
 }
 
@@ -199,7 +244,7 @@ internal class TextControl(private val string: StringSetting) : EditableControl(
 
 	override fun committedText(): String = string.value
 
-	override fun accepts(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
+	override fun accepts(codepoint: Int): Boolean = isPrintable(codepoint)
 
 	override fun commit(text: String): Boolean {
 		if (text == string.value) return false
@@ -208,15 +253,14 @@ internal class TextControl(private val string: StringSetting) : EditableControl(
 	}
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		drawFocusFrame(graphics, x, y, width, height, hovered)
-		val top = textTop(font, y, height)
-		DhenType.text(graphics, font, string.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_SECONDARY)
 		val shown = editText()
 		val shownWidth = DhenType.width(font, shown)
-		val caretReserve = if (editing) CARET_WIDTH else 0
-		val valueX = x + width - shownWidth - CONTROL_TEXT_INSET - caretReserve
-		DhenType.text(graphics, font, shown, valueX, top, DhenPalette.TEXT_PRIMARY)
-		drawCaret(graphics, font, valueX + shownWidth, top)
+		val reserve = caretReserve()
+		val contentRight = pillRow(graphics, font, string.name, x, y, width, height, shownWidth + reserve, hovered, editing)
+		val baseline = textTop(font, y, height)
+		val valueX = contentRight - shownWidth - reserve
+		DhenType.text(graphics, font, shown, valueX, baseline, DhenPalette.TEXT_PRIMARY)
+		drawCaret(graphics, font, valueX + shownWidth, baseline)
 	}
 }
 
@@ -249,21 +293,18 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	}
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		drawFocusFrame(graphics, x, y, width, height, hovered)
-		val top = textTop(font, y, height)
-		DhenType.text(graphics, font, color.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_SECONDARY)
-		val swatchRight = x + width - CONTROL_TEXT_INSET
-		val swatchLeft = swatchRight - CONTROL_INDICATOR
-		val swatchTop = y + (height - CONTROL_INDICATOR) / 2
-		val swatchBottom = swatchTop + CONTROL_INDICATOR
-		FlatGui.fill(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom, color.value.argb)
-		FlatGui.border(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom, DhenPalette.BORDER)
 		val shown = editText()
 		val shownWidth = DhenType.width(font, shown)
-		val caretReserve = if (editing) CARET_WIDTH else 0
-		val valueX = swatchLeft - SWATCH_GAP - shownWidth - caretReserve
-		DhenType.text(graphics, font, shown, valueX, top, DhenPalette.TEXT_PRIMARY)
-		drawCaret(graphics, font, valueX + shownWidth, top)
+		val reserve = caretReserve()
+		val content = shownWidth + reserve + SWATCH_GAP + SWATCH_SIZE
+		val swatchRight = pillRow(graphics, font, color.name, x, y, width, height, content, hovered, editing)
+		val swatchLeft = swatchRight - SWATCH_SIZE
+		val swatchTop = widgetTop(y, height) + (WIDGET_HEIGHT - SWATCH_SIZE) / 2
+		RoundedGui.frame(graphics, swatchLeft, swatchTop, swatchRight, swatchTop + SWATCH_SIZE, SWATCH_RADIUS, color.value.argb, DhenPalette.BORDER)
+		val baseline = textTop(font, y, height)
+		val valueX = swatchLeft - SWATCH_GAP - shownWidth - reserve
+		DhenType.text(graphics, font, shown, valueX, baseline, DhenPalette.TEXT_PRIMARY)
+		drawCaret(graphics, font, valueX + shownWidth, baseline)
 	}
 }
 
@@ -273,12 +314,11 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 	private var cachedLabel = ""
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (armed) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
-		else if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
-		val top = textTop(font, y, height)
-		DhenType.text(graphics, font, keybind.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_SECONDARY)
 		val shown = if (armed) CAPTURE_PROMPT else keyLabel()
-		DhenType.text(graphics, font, shown, x + width - DhenType.width(font, shown) - CONTROL_TEXT_INSET, top, DhenPalette.TEXT_PRIMARY)
+		val shownWidth = DhenType.width(font, shown)
+		val contentRight = pillRow(graphics, font, keybind.name, x, y, width, height, shownWidth, hovered, armed)
+		val valueColor = if (armed) DhenPalette.accent else DhenPalette.TEXT_PRIMARY
+		DhenType.text(graphics, font, shown, contentRight - shownWidth, textTop(font, y, height), valueColor)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
@@ -327,11 +367,11 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 
 internal class ActionControl(private val action: ActionSetting) : SettingControl(action) {
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		val background = if (hovered) DhenPalette.ACCENT_MUTED else DhenPalette.SURFACE_RAISED
-		FlatGui.fill(graphics, x, y, x + width, y + height, background)
-		FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.BORDER)
+		val top = widgetTop(y, height)
+		RoundedGui.pill(graphics, x, top, x + width, top + WIDGET_HEIGHT, if (hovered) DhenPalette.accent else DhenPalette.accentMuted)
 		val label = action.name
-		DhenType.text(graphics, font, label, x + (width - DhenType.width(font, label)) / 2, textTop(font, y, height), DhenPalette.TEXT_PRIMARY)
+		val labelTint = if (hovered) DhenPalette.textOnAccent else DhenPalette.TEXT_PRIMARY
+		DhenType.text(graphics, font, label, x + (width - DhenType.width(font, label)) / 2, textTop(font, y, height), labelTint)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
@@ -344,8 +384,48 @@ internal class ActionControl(private val action: ActionSetting) : SettingControl
 	}
 }
 
+internal fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenType.lineHeight(font)) / 2
+
+private fun widgetTop(y: Int, height: Int): Int = y + (height - WIDGET_HEIGHT) / 2
+
+internal fun pillLeft(x: Int, width: Int, contentWidth: Int): Int =
+	(x + width - contentWidth - 2 * PILL_PAD).coerceIn(x, maxOf(x, x + width - PILL_MIN_WIDTH))
+
+private fun pillRow(
+	graphics: GuiGraphicsExtractor,
+	font: Font,
+	name: String,
+	x: Int,
+	y: Int,
+	width: Int,
+	height: Int,
+	contentWidth: Int,
+	hovered: Boolean,
+	active: Boolean
+): Int {
+	val right = x + width
+	val top = widgetTop(y, height)
+	RoundedGui.pillFrame(
+		graphics,
+		pillLeft(x, width, contentWidth),
+		top,
+		right,
+		top + WIDGET_HEIGHT,
+		GlassGui.raised(hovered),
+		if (active) DhenPalette.accent else DhenPalette.BORDER
+	)
+	DhenType.text(graphics, font, name, x + CONTROL_TEXT_INSET, textTop(font, y, height), DhenPalette.label(hovered))
+	return right - PILL_PAD
+}
+
+internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int) {
+	FlatGui.fill(graphics, x, top, x + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
+}
+
+internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
+
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
-	is BooleanSetting -> CheckboxControl(setting)
+	is BooleanSetting -> ToggleControl(setting)
 	is NumberSetting -> SliderControl(setting)
 	is SelectorSetting -> DropdownControl(setting)
 	is StringSetting -> TextControl(setting)

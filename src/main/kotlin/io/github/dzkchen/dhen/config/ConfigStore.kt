@@ -14,15 +14,13 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import kotlin.time.Duration.Companion.seconds
 
-// Owns one JSON file: versioned load with ordered migrations, and a debounced,
-// coalesced, atomic off-thread save that preserves fields the current code does
-// not model (via a retained merge base).
 class ConfigStore(
 	private val path: Path,
 	private val scope: CoroutineScope,
 	private val migrations: List<(JsonObject) -> Unit> = emptyList(),
-	private val debounce: suspend () -> Unit = { delay(DEFAULT_DEBOUNCE_MS) },
+	private val debounce: suspend () -> Unit = { delay(DEFAULT_DEBOUNCE) },
 	private val gson: Gson = DEFAULT_GSON
 ) {
 	private val version: Int get() = migrations.size
@@ -114,7 +112,7 @@ class ConfigStore(
 
 	private companion object {
 		private val log = LoggerFactory.getLogger(ConfigStore::class.java)
-		private const val DEFAULT_DEBOUNCE_MS = 1_000L
+		private val DEFAULT_DEBOUNCE = 1.seconds
 		private val DEFAULT_GSON: Gson = GsonBuilder().setPrettyPrinting().create()
 	}
 }

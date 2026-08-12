@@ -9,10 +9,20 @@ internal object ClickGuiScroll {
 	fun clampOffset(offset: Int, maxScroll: Int): Int =
 		offset.coerceIn(0, maxOf(0, maxScroll))
 
+	fun thumbHeight(trackHeight: Int, viewportHeight: Int, maxScroll: Int, minimum: Int): Int {
+		if (trackHeight <= 0 || maxScroll <= TOP) return trackHeight
+		val proportional = trackHeight.toLong() * viewportHeight / (viewportHeight + maxScroll)
+		return proportional.toInt().coerceIn(minOf(minimum, trackHeight), trackHeight)
+	}
+
+	fun thumbTop(trackTop: Int, trackHeight: Int, thumbHeight: Int, offset: Int, maxScroll: Int): Int {
+		if (maxScroll <= TOP) return trackTop
+		val travel = maxOf(0, trackHeight - thumbHeight)
+		return trackTop + (travel.toLong() * clampOffset(offset, maxScroll) / maxScroll).toInt()
+	}
+
 	fun stash(offset: Int, stashed: Int, maxScroll: Int): Int =
 		when {
-			// An existing stash outranks the live offset: once the content collapses the
-			// offset is already truncated, so adopting it would degrade what we remember.
 			maxScroll <= TOP -> if (stashed > TOP) stashed else offset
 			stashed > maxScroll -> stashed
 			else -> TOP
@@ -20,14 +30,17 @@ internal object ClickGuiScroll {
 
 	fun restore(offset: Int, stashed: Int, maxScroll: Int): Int =
 		clampOffset(if (stashed > TOP) stashed else offset, maxScroll)
+
+	fun reveal(offset: Int, spanStart: Int, extent: Int, window: Int, maxScroll: Int): Int {
+		val target = when {
+			spanStart < offset -> spanStart
+			spanStart + extent > offset + window -> minOf(spanStart, spanStart + extent - window)
+			else -> offset
+		}
+		return clampOffset(target, maxScroll)
+	}
 }
 
-/**
- * A scroll position plus the offset the search is holding for it. The two belong to one object
- * because the invariant runs between them: the stash only tracks content a query is suppressing,
- * so every reposition except [refilter] and [settle] has to drop it. Spread across two fields on
- * the screen that rule was a comment; here it is the API.
- */
 internal class ScrollState {
 	var offset = ClickGuiScroll.TOP
 		private set
@@ -48,23 +61,13 @@ internal class ScrollState {
 		stashed = ClickGuiScroll.TOP
 	}
 
-	/**
-	 * Pulls a row into view without disturbing the stash. This runs *after* [refilter] on the
-	 * search path, so dropping the stash here would throw away the position a widening query is
-	 * still owed.
-	 */
-	fun settle(target: Int, maxScroll: Int) {
-		offset = ClickGuiScroll.clampOffset(target, maxScroll)
+	fun reveal(spanStart: Int, extent: Int, window: Int, maxScroll: Int) {
+		offset = ClickGuiScroll.reveal(offset, spanStart, extent, window, maxScroll)
 	}
 
 	/** The content extent moved under a direct user action, so re-clamp and drop the stash. */
 	fun reclamp(maxScroll: Int) {
 		offset = ClickGuiScroll.clampOffset(offset, maxScroll)
-		stashed = ClickGuiScroll.TOP
-	}
-
-	/** A direct user action repositioned focus without changing the extent. */
-	fun dropStash() {
 		stashed = ClickGuiScroll.TOP
 	}
 }

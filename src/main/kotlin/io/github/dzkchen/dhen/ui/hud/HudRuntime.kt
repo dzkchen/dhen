@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.ui.hud
 
+import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.Font
@@ -19,18 +21,20 @@ class HudRuntime(private val manager: ModuleManager) {
 				val scale = element.scale
 				val width = HudLayout.scaled(element.width(font), scale)
 				val height = HudLayout.scaled(element.height(font), scale)
-				pose.translate(
-					HudLayout.clamp(
-						HudLayout.place(element.anchor.horizontal, screenWidth, width, element.offsetX),
-						width,
-						screenWidth
-					).toFloat(),
-					HudLayout.clamp(
-						HudLayout.place(element.anchor.vertical, screenHeight, height, element.offsetY),
-						height,
-						screenHeight
-					).toFloat()
+				val x = HudLayout.clamp(
+					HudLayout.place(element.anchor.horizontal, screenWidth, width, element.offsetX),
+					width,
+					screenWidth
 				)
+				val y = HudLayout.clamp(
+					HudLayout.place(element.anchor.vertical, screenHeight, height, element.offsetY),
+					height,
+					screenHeight
+				)
+				if (element.background) {
+					drawPlate(graphics, x, y, width, height, scale, screenWidth, screenHeight)
+				}
+				pose.translate(x.toFloat(), y.toFloat())
 				pose.scale(scale, scale)
 				element.render(graphics, font)
 			} catch (throwable: Throwable) {
@@ -40,6 +44,28 @@ class HudRuntime(private val manager: ModuleManager) {
 				pose.set(restorePoint)
 			}
 		}
+	}
+
+	private fun drawPlate(
+		graphics: GuiGraphicsExtractor,
+		x: Int,
+		y: Int,
+		width: Int,
+		height: Int,
+		scale: Float,
+		screenWidth: Int,
+		screenHeight: Int
+	) {
+		val pad = HudLayout.platePad(scale)
+		RoundedGui.fill(
+			graphics,
+			maxOf(0, x - pad),
+			maxOf(0, y - pad),
+			minOf(screenWidth, x + width + pad),
+			minOf(screenHeight, y + height + pad),
+			HudLayout.plateRadius(scale),
+			GlassGui.surface()
+		)
 	}
 
 	fun resetLayouts(): Int {

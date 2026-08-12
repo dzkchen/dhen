@@ -4,7 +4,6 @@ import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.event.HandlerGate
 import io.github.dzkchen.dhen.event.HandlerTiming
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -100,7 +99,7 @@ abstract class Module(
 	}
 
 	internal fun activateKeybind(setting: KeybindSetting) {
-		if (!enabled) return
+		if (!enabled && !setting.firesWhileDisabled) return
 		try {
 			setting.activate()
 		} catch (throwable: Throwable) {
@@ -166,9 +165,6 @@ abstract class Module(
 
 		if (firstSinceEnable) notifyQuietly("Module '$name' encountered an error.")
 
-		// Past the threshold every further error is still over it, so the notice hangs off the
-		// transition rather than the count — otherwise an error burst reports the same disable
-		// once per throw.
 		if (overThreshold && setEnabled(false)) {
 			notifyQuietly("Module '$name' auto-disabled after repeated errors.")
 		}
@@ -198,7 +194,7 @@ abstract class Module(
 		val timing = HandlerTiming(type.simpleName.ifEmpty { type.name })
 
 		fun bind(eventBus: EventBus, module: Module) {
-			eventBus.type(type).subscribeProfiled(priority, timing, HandlerGate { module.enabled }) { event ->
+			eventBus.type(type).subscribeProfiled(priority, timing, active = { module.enabled }) { event ->
 				try {
 					handler(event)
 				} catch (throwable: Throwable) {

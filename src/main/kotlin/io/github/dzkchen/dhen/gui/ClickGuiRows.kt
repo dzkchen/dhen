@@ -12,6 +12,24 @@ internal object ClickGuiRows {
 		return offset
 	}
 
+	fun settingsTop(rowIndex: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
+		rowTop(rowIndex, rowHeight, settingsHeightAt) + rowHeight
+
+	fun settingsRowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int? {
+		if (localY < 0) return null
+		var offset = 0
+		for (i in 0 until rowCount) {
+			if (localY < offset + rowHeight) return null
+			offset += rowHeight
+			val settingsHeight = settingsHeightAt.applyAsInt(i)
+			if (settingsHeight > 0) {
+				if (localY < offset + settingsHeight) return i
+				offset += settingsHeight
+			}
+		}
+		return null
+	}
+
 	fun rowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int? {
 		if (localY < 0) return null
 		var offset = 0

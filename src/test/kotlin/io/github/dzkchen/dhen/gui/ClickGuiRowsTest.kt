@@ -46,6 +46,28 @@ class ClickGuiRowsTest {
 	}
 
 	@Test
+	fun `a settings area resolves to the row that owns it, and a row does not`() {
+		val heights = intArrayOf(30, 0, 42)
+
+		assertNull(ClickGuiRows.settingsRowAt(-1, 3, 13) { heights[it] })
+		assertNull(ClickGuiRows.settingsRowAt(12, 3, 13) { heights[it] })
+		assertEquals(0, ClickGuiRows.settingsRowAt(13, 3, 13) { heights[it] })
+		assertEquals(0, ClickGuiRows.settingsRowAt(42, 3, 13) { heights[it] })
+		assertNull(ClickGuiRows.settingsRowAt(43, 3, 13) { heights[it] })
+		assertNull(ClickGuiRows.settingsRowAt(56, 3, 13) { heights[it] })
+		assertEquals(2, ClickGuiRows.settingsRowAt(69, 3, 13) { heights[it] })
+		assertNull(ClickGuiRows.settingsRowAt(111, 3, 13) { heights[it] })
+	}
+
+	@Test
+	fun `a settings area starts directly under the row it belongs to`() {
+		val heights = intArrayOf(30, 0, 42)
+
+		assertEquals(13, ClickGuiRows.settingsTop(0, rowHeight = 13) { heights[it] })
+		assertEquals(69, ClickGuiRows.settingsTop(2, rowHeight = 13) { heights[it] })
+	}
+
+	@Test
 	fun `out of range returns no row`() {
 		assertNull(ClickGuiRows.rowAt(-1, 2, 13) { 0 })
 		assertNull(ClickGuiRows.rowAt(26, 2, 13) { 0 })

@@ -3,12 +3,11 @@ package io.github.dzkchen.dhen
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
+import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
-import io.github.dzkchen.dhen.gui.ClickGuiLayout
-import io.github.dzkchen.dhen.gui.ClickGuiScreen
+import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
+import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.gui.Effects
-import io.github.dzkchen.dhen.gui.PanelState
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -24,7 +23,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement as FabricHudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader
@@ -59,19 +57,21 @@ object Dhen : ClientModInitializer {
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
-	private lateinit var panelLayout: MutableMap<String, PanelState>
+	private lateinit var clickGuiView: ClickGuiState
 	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
-		coreStore = ConfigStore(FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"), configScope)
+		coreStore = ConfigStore(
+			FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"),
+			configScope,
+			CorePersistence.migrations
+		)
 		moduleStore = ConfigStore(
 			FabricLoader.getInstance().configDir.resolve("$MOD_ID/modules.json"),
 			configScope,
 			ModulePersistence.migrations
 		)
-		val core = coreStore.load()
-		panelLayout = ClickGuiLayout.read(core)
-		Effects.read(core)
+		clickGuiView = CorePersistence.apply(coreStore.load())
 		modules.registerAll(
 			PlaceholderModule(),
 			PlaceholderModule(
@@ -79,7 +79,8 @@ object Dhen : ClientModInitializer {
 				category = Category.VISUAL,
 				description = "Second placeholder for search and keyboard navigation.",
 				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
-				hudAnchor = HudAnchor.TOP_RIGHT
+				hudAnchor = HudAnchor.TOP_RIGHT,
+				hudBackground = true
 			),
 			PlaceholderModule(
 				name = "Sample Timer",
@@ -92,11 +93,9 @@ object Dhen : ClientModInitializer {
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
-		HudElementRegistry.attachElementAfter(
-			VanillaHudElements.SUBTITLES,
-			id("hud"),
-			FabricHudElement { graphics, _ -> hudRuntime.render(graphics, Minecraft.getInstance().font) }
-		)
+		HudElementRegistry.attachElementAfter(VanillaHudElements.SUBTITLES, id("hud")) { graphics, _ ->
+			hudRuntime.render(graphics, Minecraft.getInstance().font)
+		}
 		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
 			id("text_measurements"),
 			ResourceManagerReloadListener { invalidateTextMeasurements() }
@@ -127,7 +126,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun ownsKeyboard(screen: Screen?): Boolean =
-		screen is ClickGuiScreen || screen is HudEditorScreen
+		screen is ClickGuiShellScreen || screen is HudEditorScreen
 
 	private fun openHudEditor() {
 		hudEditorRequested = true
@@ -149,13 +148,13 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun persistCore() {
-		coreStore.save(Effects.writeInto(ClickGuiLayout.write(panelLayout)))
+		coreStore.save(CorePersistence.snapshot(clickGuiView))
 	}
 
-	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiScreen(
+	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiShellScreen(
 		Category.entries.toList(),
 		modules,
-		panelLayout,
+		clickGuiView,
 		persistCore = ::persistCore,
 		persistModules = ::persistModules,
 		parent = parent

@@ -1,22 +1,19 @@
 package io.github.dzkchen.dhen.gui
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.config.BooleanSetting
 
 internal object Effects {
-	private const val EFFECTS = "effects"
-	private const val REDUCED = "reduced"
+	const val REDUCED = "Reduced effects"
 
-	var reduced = false
+	val reducedSetting = BooleanSetting(
+		REDUCED,
+		false,
+		"Drop translucency, blur, shadows, and motion for the flat tier."
+	)
 
-	fun read(doc: JsonObject) {
-		val effects = doc.get(EFFECTS) as? JsonObject
-		val stored = effects?.get(REDUCED) as? JsonPrimitive
-		reduced = stored?.takeIf { it.isBoolean }?.asBoolean ?: false
-	}
-
-	fun writeInto(doc: JsonObject): JsonObject {
-		doc.add(EFFECTS, JsonObject().apply { addProperty(REDUCED, reduced) })
-		return doc
-	}
+	var reduced: Boolean
+		get() = reducedSetting.value
+		set(value) {
+			reducedSetting.value = value
+		}
 }

@@ -14,6 +14,8 @@ class GlassGuiTest {
 	}
 
 	@Test
+	// The palette constant is the expectation; the inspection misreads the property read as the actual.
+	@Suppress("KotlinMisorderedAssertEqualsArguments")
 	fun `reduced effects resolve every surface to its opaque flat color`() {
 		Effects.reduced = true
 
@@ -40,17 +42,29 @@ class GlassGuiTest {
 
 	@Test
 	fun `progress runs from zero to settled over the entry window`() {
-		assertEquals(0f, GlassGui.progress(0L))
-		assertEquals(0f, GlassGui.progress(-50L))
-		assertEquals(GlassGui.SETTLED, GlassGui.progress(GlassGui.ENTRY_MILLIS))
-		assertEquals(GlassGui.SETTLED, GlassGui.progress(GlassGui.ENTRY_MILLIS * 4))
+		assertEquals(0f, entryTween(0L))
+		assertEquals(0f, entryTween(-50L))
+		assertEquals(GlassGui.SETTLED, entryTween(GlassGui.ENTRY_MILLIS))
+		assertEquals(GlassGui.SETTLED, entryTween(GlassGui.ENTRY_MILLIS * 4))
 
 		var previous = 0f
 		for (elapsed in 0..GlassGui.ENTRY_MILLIS) {
-			val current = GlassGui.progress(elapsed)
+			val current = entryTween(elapsed)
 			assertTrue(current >= previous, "progress must not move backwards at $elapsed ms")
 			previous = current
 		}
+	}
+
+	private fun entryTween(elapsed: Long): Float =
+		GlassGui.tween(0f, GlassGui.SETTLED, elapsed, GlassGui.ENTRY_MILLIS)
+
+	@Test
+	fun `a tween eases from where it was to where it is going and then holds`() {
+		assertEquals(0.25f, GlassGui.tween(0.25f, 1f, 0L, TWEEN_MILLIS))
+		assertEquals(0.875f, GlassGui.tween(0f, 1f, TWEEN_MILLIS / 2, TWEEN_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, TWEEN_MILLIS, TWEEN_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, TWEEN_MILLIS * 10, TWEEN_MILLIS))
+		assertEquals(0f, GlassGui.tween(1f, 0f, TWEEN_MILLIS, TWEEN_MILLIS))
 	}
 
 	@Test
@@ -61,9 +75,38 @@ class GlassGuiTest {
 	}
 
 	@Test
-	fun `the entry rise collapses to nothing once settled`() {
-		assertEquals(GlassGui.ENTRY_RISE, GlassGui.rise(0f))
-		assertEquals(0f, GlassGui.rise(GlassGui.SETTLED))
+	fun `an offset collapses to nothing once settled, whatever distance it covers`() {
+		assertEquals(GlassGui.ENTRY_RISE, GlassGui.offset(0f, GlassGui.ENTRY_RISE))
+		assertEquals(GlassGui.TAB_SLIDE, GlassGui.offset(0f, GlassGui.TAB_SLIDE))
+		assertEquals(-GlassGui.TAB_SLIDE, GlassGui.offset(0f, -GlassGui.TAB_SLIDE))
+		assertEquals(0f, GlassGui.offset(GlassGui.SETTLED, GlassGui.ENTRY_RISE), EXACT)
+		assertEquals(0f, GlassGui.offset(GlassGui.SETTLED, GlassGui.TAB_SLIDE), EXACT)
+		assertEquals(0f, GlassGui.offset(GlassGui.SETTLED, -GlassGui.TAB_SLIDE), EXACT)
+	}
+
+	@Test
+	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
+	fun `the tab transition is quicker than the entry`() {
+		assertTrue(GlassGui.TAB_MILLIS < GlassGui.ENTRY_MILLIS)
+	}
+
+	@Test
+	fun `both transitions settle instantly and without motion when effects are reduced`() {
+		Effects.reduced = true
+
+		assertEquals(GlassGui.SETTLED, GlassGui.tabProgress(Long.MAX_VALUE))
+		assertEquals(GlassGui.SETTLED, GlassGui.entryProgress(Long.MAX_VALUE))
+		assertEquals(0f, GlassGui.offset(GlassGui.tabProgress(Long.MAX_VALUE), GlassGui.TAB_SLIDE), EXACT)
+		assertEquals(0f, GlassGui.offset(GlassGui.entryProgress(Long.MAX_VALUE), GlassGui.ENTRY_RISE), EXACT)
+	}
+
+	@Test
+	fun `the sheen clears the corners it is given and survives the pill sentinel`() {
+		assertEquals(0, GlassGui.sheenInset(width = 240, height = 22, radius = 0f))
+		assertEquals(3, GlassGui.sheenInset(width = 240, height = 22, radius = 6f))
+		assertEquals(5, GlassGui.sheenInset(width = 240, height = 22, radius = RoundedQuad.FULL))
+		assertEquals(0, GlassGui.sheenInset(width = 0, height = 0, radius = RoundedQuad.FULL))
+		assertEquals(0, GlassGui.sheenInset(width = -20, height = -20, radius = RoundedQuad.FULL))
 	}
 
 	@Test
@@ -74,5 +117,10 @@ class GlassGuiTest {
 		assertEquals(0x00336699, GlassGui.withAlpha(color, 0f))
 		assertEquals(0xFF336699u.toInt(), GlassGui.withAlpha(color, 4f))
 		assertEquals(0x00336699, GlassGui.withAlpha(color, -1f))
+	}
+
+	private companion object {
+		const val TWEEN_MILLIS = 100L
+		const val EXACT = 0f
 	}
 }

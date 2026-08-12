@@ -19,10 +19,10 @@ class ClientThreadDispatcherTest {
 		val threads = mutableListOf<Thread>()
 
 		repeat(3) { index ->
-			dispatcher.dispatch(EmptyCoroutineContext, Runnable {
+			dispatcher.dispatch(EmptyCoroutineContext) {
 				order += index
 				threads += Thread.currentThread()
-			})
+			}
 		}
 
 		assertTrue(order.isEmpty())
@@ -38,9 +38,9 @@ class ClientThreadDispatcherTest {
 		val dispatcher = ClientThreadDispatcher()
 		val ran = mutableListOf<Int>()
 
-		dispatcher.dispatch(EmptyCoroutineContext, Runnable { ran += 0 })
-		dispatcher.dispatch(EmptyCoroutineContext, Runnable { throw RuntimeException("boom") })
-		dispatcher.dispatch(EmptyCoroutineContext, Runnable { ran += 2 })
+		dispatcher.dispatch(EmptyCoroutineContext) { ran += 0 }
+		dispatcher.dispatch(EmptyCoroutineContext) { throw RuntimeException("boom") }
+		dispatcher.dispatch(EmptyCoroutineContext) { ran += 2 }
 
 		dispatcher.drainQueue()
 
@@ -58,7 +58,7 @@ class ClientThreadDispatcherTest {
 		val ranOn = AtomicReference<Thread>()
 
 		val producer = Thread {
-			dispatcher.dispatch(EmptyCoroutineContext, Runnable { ranOn.set(Thread.currentThread()) })
+			dispatcher.dispatch(EmptyCoroutineContext) { ranOn.set(Thread.currentThread()) }
 		}
 		producer.start()
 		producer.join()
@@ -75,10 +75,10 @@ class ClientThreadDispatcherTest {
 		val dispatcher = ClientThreadDispatcher()
 		val ran = mutableListOf<Int>()
 
-		dispatcher.dispatch(EmptyCoroutineContext, Runnable {
+		dispatcher.dispatch(EmptyCoroutineContext) {
 			ran += 0
-			dispatcher.dispatch(EmptyCoroutineContext, Runnable { ran += 1 })
-		})
+			dispatcher.dispatch(EmptyCoroutineContext) { ran += 1 }
+		}
 
 		dispatcher.drainQueue()
 		assertEquals(listOf(0), ran)

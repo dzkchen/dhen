@@ -13,8 +13,9 @@ class HudTextElement(
 	offsetX: Int = 0,
 	offsetY: Int = 0,
 	scale: Float = DEFAULT_SCALE,
-	visible: Boolean = true
-) : HudElement(name, anchor, offsetX, offsetY, scale, visible) {
+	visible: Boolean = true,
+	background: Boolean = false
+) : HudElement(name, anchor, offsetX, offsetY, scale, visible, background) {
 	override fun width(font: Font): Int = DhenType.width(font, text)
 
 	override fun height(font: Font): Int = DhenType.lineHeight(font)

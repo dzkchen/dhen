@@ -1,25 +1,77 @@
 package io.github.dzkchen.dhen.gui
 
+import kotlin.math.roundToInt
+
 internal object DhenPalette {
-	val CANVAS = 0xFF0B1116u.toInt()
-	val SURFACE = 0xFF121B22u.toInt()
-	val SURFACE_RAISED = 0xFF1A262Eu.toInt()
-	val SURFACE_INTERACTIVE = 0xFF24333Bu.toInt()
-	val BORDER = 0xFF33474Eu.toInt()
-	val ACCENT = 0xFF55D6C2u.toInt()
-	val ACCENT_MUTED = 0xFF2F6F64u.toInt()
+	val DEFAULT_ACCENT: Int = 0xFFF5A9C6u.toInt()
 
-	val TEXT_PRIMARY = 0xFFF4F8F7u.toInt()
-	val TEXT_SECONDARY = 0xFFA9B8B5u.toInt()
-	val TEXT_DISABLED = 0xFF6E7E7Bu.toInt()
-	val TEXT_ON_ACCENT = 0xFF071310u.toInt()
+	private const val MUTED_BLEND = 0.55f
+	private const val CONTRAST_PIVOT = 140
+	private val ALPHA_MASK = 0xFF000000u.toInt()
 
-	val GLASS_CANVAS = 0xA60B1116u.toInt()
-	val GLASS_SURFACE = 0xB8121B22u.toInt()
-	val GLASS_SURFACE_RAISED = 0xCC1A262Eu.toInt()
-	val GLASS_SURFACE_INTERACTIVE = 0xDC24333Bu.toInt()
-	val GLASS_SCRIM = 0x730B1116u.toInt()
-	val GLASS_SHADOW = 0x66040709u.toInt()
-	val GLASS_SHEEN = 0x24F4F8F7u.toInt()
-	val GLASS_VEIL = 0xD90B1116u.toInt()
+	val CANVAS = 0xFF08080Au.toInt()
+	val SURFACE = 0xFF0D0D10u.toInt()
+	val SURFACE_RAISED = 0xFF141418u.toInt()
+	val SURFACE_INTERACTIVE = 0xFF1D1D23u.toInt()
+	val BORDER = 0xFF2B2B33u.toInt()
+
+	val TEXT_PRIMARY = 0xFFF6F4F6u.toInt()
+	val TEXT_SECONDARY = 0xFFA9A6AEu.toInt()
+	val TEXT_DISABLED = 0xFF6B6872u.toInt()
+	val TEXT_ON_ACCENT = 0xFF17070Eu.toInt()
+
+	val GLASS_CANVAS = 0xA608080Au.toInt()
+	val GLASS_SURFACE = 0xC20D0D10u.toInt()
+	val GLASS_SURFACE_RAISED = 0xD4141418u.toInt()
+	val GLASS_SURFACE_INTERACTIVE = 0xE01D1D23u.toInt()
+	val GLASS_SCRIM = 0x8C08080Au.toInt()
+	val GLASS_SHADOW = 0x73000000u.toInt()
+	val GLASS_SHEEN = 0x24FFFFFFu.toInt()
+	val GLASS_VEIL = 0xE608080Au.toInt()
+
+	var accent: Int = DEFAULT_ACCENT
+		set(value) {
+			field = value
+			accentMuted = muted(value)
+			textOnAccent = contrasting(value)
+		}
+
+	var accentMuted: Int = muted(DEFAULT_ACCENT)
+		private set
+
+	var textOnAccent: Int = contrasting(DEFAULT_ACCENT)
+		private set
+
+	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
+
+	fun mix(from: Int, to: Int, fraction: Float): Int {
+		if (from == to || fraction >= 1f) return to
+		if (fraction <= 0f) return from
+		return (channelBetween(from, to, 24, fraction) shl 24) or
+			(channelBetween(from, to, 16, fraction) shl 16) or
+			(channelBetween(from, to, 8, fraction) shl 8) or
+			channelBetween(from, to, 0, fraction)
+	}
+
+	private fun channelBetween(from: Int, to: Int, shift: Int, fraction: Float): Int =
+		blend(from ushr shift and 0xFF, to ushr shift and 0xFF, fraction)
+
+	private fun blend(from: Int, to: Int, fraction: Float): Int =
+		(from + (to - from) * fraction).roundToInt().coerceIn(0, 0xFF)
+
+	fun luminance(color: Int): Int {
+		val red = color ushr 16 and 0xFF
+		val green = color ushr 8 and 0xFF
+		val blue = color and 0xFF
+		return (red * 299 + green * 587 + blue * 114) / 1000
+	}
+
+	private fun contrasting(color: Int): Int = if (luminance(color) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
+
+	private fun muted(color: Int): Int {
+		val red = channelBetween(color, SURFACE, 16, MUTED_BLEND)
+		val green = channelBetween(color, SURFACE, 8, MUTED_BLEND)
+		val blue = channelBetween(color, SURFACE, 0, MUTED_BLEND)
+		return (color and ALPHA_MASK) or (red shl 16) or (green shl 8) or blue
+	}
 }

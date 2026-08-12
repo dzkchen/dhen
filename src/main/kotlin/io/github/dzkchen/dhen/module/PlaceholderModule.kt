@@ -21,8 +21,9 @@ class PlaceholderModule(
 	name: String = "Test Module",
 	category: Category = Category.DEV,
 	description: String = "Placeholder module for verifying core controls.",
-	private val toggleKey: Int = GLFW.GLFW_KEY_K,
-	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT
+	toggleKey: Int = GLFW.GLFW_KEY_K,
+	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT,
+	hudBackground: Boolean = false
 ) : Module(name, category, description) {
 	private var inputEvents = 0
 
@@ -84,8 +85,8 @@ class PlaceholderModule(
 	private val keybind by KeybindSetting(
 		name = "Keybind",
 		default = toggleKey,
-		description = "Disables the test module while it is enabled."
-	).onPress(::toggle)
+		description = "Toggles the test module on and off."
+	).onPress(::toggle).evenWhileDisabled()
 
 	@Suppress("unused")
 	private val ping by ActionSetting(
@@ -94,15 +95,18 @@ class PlaceholderModule(
 		description = "Logs a line when clicked."
 	)
 
-	val statusOverlay = hud(
-		HudTextElement(
-			name = "Status",
-			text = "$name HUD",
-			anchor = hudAnchor,
-			offsetX = margin(hudAnchor.horizontal),
-			offsetY = margin(hudAnchor.vertical)
+	init {
+		hud(
+			HudTextElement(
+				name = "Status",
+				text = "$name HUD",
+				anchor = hudAnchor,
+				offsetX = margin(hudAnchor.horizontal),
+				offsetY = margin(hudAnchor.vertical),
+				background = hudBackground
+			)
 		)
-	)
+	}
 
 	private companion object {
 		const val HUD_MARGIN = 4

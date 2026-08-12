@@ -3,7 +3,14 @@ package io.github.dzkchen.dhen.ui.hud
 import kotlin.math.roundToInt
 
 object HudLayout {
+	const val PLATE_PAD = 3
+	const val PLATE_RADIUS = 4f
+
 	fun scaled(size: Int, scale: Float): Int = (size * scale).roundToInt()
+
+	fun platePad(scale: Float): Int = maxOf(1, scaled(PLATE_PAD, scale))
+
+	fun plateRadius(scale: Float): Float = PLATE_RADIUS * scale
 
 	fun place(fraction: Float, screen: Int, size: Int, offset: Int): Int =
 		((screen - size) * fraction).roundToInt() + offset

@@ -27,6 +27,31 @@ class ClickGuiScrollTest {
 	}
 
 	@Test
+	fun `a thumb covers as much of its track as the viewport covers the content`() {
+		assertEquals(50, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 100, minimum = 12))
+		assertEquals(25, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 300, minimum = 12))
+	}
+
+	@Test
+	fun `a thumb never shrinks past its minimum, nor past the track itself`() {
+		assertEquals(12, ClickGuiScroll.thumbHeight(trackHeight = 100, viewportHeight = 100, maxScroll = 3900, minimum = 12))
+		assertEquals(8, ClickGuiScroll.thumbHeight(trackHeight = 8, viewportHeight = 100, maxScroll = 3900, minimum = 12))
+	}
+
+	@Test
+	fun `a thumb travels the leftover track in step with the offset`() {
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 0, maxScroll = 120))
+		assertEquals(50, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 60, maxScroll = 120))
+		assertEquals(80, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 120, maxScroll = 120))
+	}
+
+	@Test
+	fun `a thumb with nowhere to travel stays at the top of its track`() {
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 100, thumbHeight = 40, offset = 60, maxScroll = 0))
+		assertEquals(20, ClickGuiScroll.thumbTop(trackTop = 20, trackHeight = 40, thumbHeight = 40, offset = 60, maxScroll = 120))
+	}
+
+	@Test
 	fun `offset collapses to zero when nothing scrolls`() {
 		assertEquals(0, ClickGuiScroll.clampOffset(70, maxScroll = 0))
 	}
@@ -132,17 +157,39 @@ class ClickGuiScrollTest {
 	}
 
 	@Test
+	fun `a row already inside the window is not scrolled to`() {
+		assertEquals(PARKED, reveal(spanStart = 60, extent = 13))
+		assertEquals(PARKED, reveal(spanStart = 40, extent = 13))
+		assertEquals(PARKED, reveal(spanStart = 127, extent = 13))
+	}
+
+	@Test
+	fun `a row above the window scrolls its top flush with the window`() {
+		assertEquals(20, reveal(spanStart = 20, extent = 13))
+		assertEquals(0, reveal(spanStart = 0, extent = 13))
+	}
+
+	@Test
+	fun `a row below the window scrolls just far enough to show its bottom`() {
+		assertEquals(41, reveal(spanStart = 128, extent = 13))
+		assertEquals(148, reveal(spanStart = 400, extent = 13))
+	}
+
+	@Test
+	fun `a row taller than the window is shown from its top`() {
+		assertEquals(60, reveal(spanStart = 60, extent = 200))
+	}
+
+	@Test
 	fun `focusing a row after a restore keeps the row on screen`() {
 		val field = scrolledTo(120)
 
 		field.refilter(maxScroll = 0)
-		// The order ClickGuiScreen.applySearch runs in: refilter, then focus the matched row.
+		// The order a search pass runs in: refilter, then focus the matched row.
 		field.refilter(maxScroll = 148)
-		field.settle(target = 12, maxScroll = 148)
+		field.reveal(spanStart = 12, extent = 13, window = 100, maxScroll = 148)
 
 		assertEquals(12, field.offset)
-		// The offset alone would pass for any stash/restore pair, since settling overwrites it.
-		// The consumed stash is what proves the restore ran and did not re-stash the 120.
 		assertEquals(ClickGuiScroll.TOP, field.stashed)
 	}
 
@@ -160,4 +207,12 @@ class ClickGuiScrollTest {
 
 	/** A state already parked at [offset], as a user scroll through that much content would leave it. */
 	private fun scrolledTo(offset: Int) = ScrollState().apply { scrollTo(offset, maxScroll = offset) }
+
+	/** A reveal against a 100px window already scrolled to [PARKED], so the window spans 40..139. */
+	private fun reveal(spanStart: Int, extent: Int): Int =
+		ClickGuiScroll.reveal(PARKED, spanStart, extent, window = 100, maxScroll = 148)
+
+	private companion object {
+		const val PARKED = 40
+	}
 }

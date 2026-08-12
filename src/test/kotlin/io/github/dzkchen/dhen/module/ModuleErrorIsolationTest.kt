@@ -149,8 +149,6 @@ class ModuleErrorIsolationTest {
 			pool.shutdownNow()
 		}
 
-		// Two notices total, however many threads pile past the threshold: one "encountered an
-		// error" and one "auto-disabled", because only one thread can win the disable transition.
 		assertEquals(THREADS * ERRORS_PER_THREAD, module.errorCount)
 		assertEquals(2, notices.get())
 	}

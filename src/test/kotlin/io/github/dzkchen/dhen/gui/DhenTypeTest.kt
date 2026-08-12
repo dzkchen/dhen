@@ -101,7 +101,7 @@ class DhenTypeTest {
 
 	@Test
 	fun `the font definition sits where the font id resolves it`() {
-		assertEquals("assets/${DhenType.fontId.namespace}/font/${DhenType.fontId.path}.json", DEFINITION)
+		assertEquals(DEFINITION, "assets/${DhenType.fontId.namespace}/font/${DhenType.fontId.path}.json")
 	}
 
 	@Test
