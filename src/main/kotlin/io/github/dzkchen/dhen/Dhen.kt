@@ -3,12 +3,10 @@ package io.github.dzkchen.dhen
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
+import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
-import io.github.dzkchen.dhen.gui.ClickGuiLayout
-import io.github.dzkchen.dhen.gui.ClickGuiScreen
+import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.gui.Effects
-import io.github.dzkchen.dhen.gui.PanelState
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -59,19 +57,21 @@ object Dhen : ClientModInitializer {
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
-	private lateinit var panelLayout: MutableMap<String, PanelState>
+	private lateinit var collapsedCategories: MutableSet<String>
 	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
-		coreStore = ConfigStore(FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"), configScope)
+		coreStore = ConfigStore(
+			FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"),
+			configScope,
+			CorePersistence.migrations
+		)
 		moduleStore = ConfigStore(
 			FabricLoader.getInstance().configDir.resolve("$MOD_ID/modules.json"),
 			configScope,
 			ModulePersistence.migrations
 		)
-		val core = coreStore.load()
-		panelLayout = ClickGuiLayout.read(core)
-		Effects.read(core)
+		collapsedCategories = CorePersistence.apply(coreStore.load())
 		modules.registerAll(
 			PlaceholderModule(),
 			PlaceholderModule(
@@ -127,7 +127,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun ownsKeyboard(screen: Screen?): Boolean =
-		screen is ClickGuiScreen || screen is HudEditorScreen
+		screen is ClickGuiShellScreen || screen is HudEditorScreen
 
 	private fun openHudEditor() {
 		hudEditorRequested = true
@@ -149,13 +149,13 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun persistCore() {
-		coreStore.save(Effects.writeInto(ClickGuiLayout.write(panelLayout)))
+		coreStore.save(CorePersistence.snapshot(collapsedCategories))
 	}
 
-	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiScreen(
+	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiShellScreen(
 		Category.entries.toList(),
 		modules,
-		panelLayout,
+		collapsedCategories,
 		persistCore = ::persistCore,
 		persistModules = ::persistModules,
 		parent = parent

@@ -59,7 +59,7 @@ internal object GlassGui {
 		roundedSheen(graphics, left, top, right, bottom, radius)
 	}
 
-	fun roundedShadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
+	private fun roundedShadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
 		if (Effects.reduced) return
 		for (layer in SHADOW_LAYERS downTo 1) {
 			val color = withAlpha(DhenPalette.GLASS_SHADOW, 1f / layer)
@@ -67,7 +67,7 @@ internal object GlassGui {
 		}
 	}
 
-	fun roundedSheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
+	private fun roundedSheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
 		if (Effects.reduced) return
 		val inset = sheenInset(right - left, bottom - top, radius)
 		RoundedGui.pill(graphics, left + inset, top + 1, right - inset, top + 2, DhenPalette.GLASS_SHEEN)
@@ -76,7 +76,7 @@ internal object GlassGui {
 	fun sheenInset(width: Int, height: Int, radius: Float): Int =
 		(RoundedQuad.clamped(width * 0.5f, height * 0.5f, radius) * SHEEN_CORNER_CLEARANCE).toInt()
 
-	fun sheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int) {
+	private fun sheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int) {
 		if (Effects.reduced) return
 		FlatGui.fill(graphics, left + 1, top + 1, right - 1, top + 2, DhenPalette.GLASS_SHEEN)
 	}

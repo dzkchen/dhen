@@ -136,7 +136,7 @@ class ClickGuiScrollTest {
 		val field = scrolledTo(120)
 
 		field.refilter(maxScroll = 0)
-		// The order ClickGuiScreen.applySearch runs in: refilter, then focus the matched row.
+		// The order a search pass runs in: refilter, then focus the matched row.
 		field.refilter(maxScroll = 148)
 		field.settle(target = 12, maxScroll = 148)
 

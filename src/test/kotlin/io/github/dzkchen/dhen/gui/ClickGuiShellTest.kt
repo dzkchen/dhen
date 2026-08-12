@@ -83,6 +83,12 @@ class ClickGuiShellTest {
 		assertEquals(-20, ClickGuiShell.centeredLeft(viewportWidth = 200, width = 240))
 	}
 
+	@Test
+	fun `right aligned chrome keeps its margin off the right edge`() {
+		assertEquals(392, ClickGuiShell.rightAlignedLeft(viewportWidth = 480, width = 80, margin = MARGIN))
+		assertEquals(-8, ClickGuiShell.rightAlignedLeft(viewportWidth = 80, width = 80, margin = MARGIN))
+	}
+
 	private fun columnHeight(collapsed: Boolean, rowCount: Int, settingsHeightAt: IntUnaryOperator): Int =
 		ClickGuiShell.columnHeight(collapsed, headerHeight = 18, bodyPad = 4, rowCount = rowCount, rowHeight = 13, settingsHeightAt = settingsHeightAt)
 

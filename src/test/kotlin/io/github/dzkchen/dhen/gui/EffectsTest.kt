@@ -46,13 +46,12 @@ class EffectsTest {
 	}
 
 	@Test
-	fun `the core document keeps panel layout and the effects flag side by side`() {
+	fun `the core document keeps the collapsed columns and the effects flag side by side`() {
 		Effects.reduced = true
-		val layout = mutableMapOf("Dev" to PanelState(x = 12, y = 34, collapsed = true))
 
-		val core = Effects.writeInto(ClickGuiLayout.write(layout))
+		val core = Effects.writeInto(ClickGuiView.writeInto(JsonObject(), setOf("DEV")))
 
-		assertEquals(12, core.getAsJsonObject("panels").getAsJsonObject("Dev").get("x").asInt)
+		assertEquals("DEV", core.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
 		assertTrue(core.getAsJsonObject("effects").get("reduced").asBoolean)
 	}
 

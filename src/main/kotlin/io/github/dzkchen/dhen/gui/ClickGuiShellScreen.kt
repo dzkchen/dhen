@@ -33,6 +33,7 @@ internal class ClickGuiShellScreen(
 	private var activeTab = CLICK_GUI_TAB
 	private var settled = false
 	private var barWidth = 0
+	private var chipWidth = 0
 	private var glyphWidth = 0
 	private var dragged: SettingControl? = null
 	private var dragLeft = 0
@@ -90,6 +91,7 @@ internal class ClickGuiShellScreen(
 
 	private fun drawContent(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		drawTabs(graphics)
+		drawChip(graphics, mouseX, mouseY)
 		drawSearch(graphics)
 		if (activeTab != CLICK_GUI_TAB) {
 			DhenType.text(
@@ -126,6 +128,13 @@ internal class ClickGuiShellScreen(
 		blurFocus()
 		val x = event.x().toInt()
 		val y = event.y().toInt()
+		if (chipContains(x, y)) {
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+				Effects.reduced = !Effects.reduced
+				persistCore()
+			}
+			return true
+		}
 		val tab = tabAt(x, y)
 		if (tab != ClickGuiShell.NONE) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) activeTab = tab
@@ -220,6 +229,7 @@ internal class ClickGuiShellScreen(
 	private fun measureChrome() {
 		for (i in TAB_LABELS.indices) tabWidths[i] = DhenType.width(font, TAB_LABELS[i]) + 2 * TAB_PAD
 		barWidth = 2 * BAR_PAD + ClickGuiShell.segmentsWidth(tabWidths, TAB_GAP)
+		chipWidth = 2 * CHIP_PAD + DhenType.width(font, EFFECTS_LABEL) + CHIP_GAP + 2 * INDICATOR_RADIUS
 		glyphWidth = maxOf(DhenType.width(font, EXPAND_GLYPH), DhenType.width(font, COLLAPSE_GLYPH))
 	}
 
@@ -304,6 +314,13 @@ internal class ClickGuiShellScreen(
 		return ClickGuiShell.segmentAt(x - (barLeft() + BAR_PAD), tabWidths, TAB_GAP)
 	}
 
+	private fun chipLeft(): Int = ClickGuiShell.rightAlignedLeft(width, chipWidth, MARGIN)
+
+	private fun chipContains(x: Int, y: Int): Boolean {
+		val left = chipLeft()
+		return x >= left && x < left + chipWidth && y >= TAB_TOP && y < TAB_TOP + BAR_HEIGHT
+	}
+
 	private fun searchContains(x: Int, y: Int): Boolean =
 		x >= searchLeft() && x < searchLeft() + SEARCH_WIDTH && y >= SEARCH_TOP && y < SEARCH_TOP + SEARCH_HEIGHT
 
@@ -321,6 +338,20 @@ internal class ClickGuiShellScreen(
 			DhenType.text(graphics, font, TAB_LABELS[i], left + TAB_PAD, top, color)
 			left = right + TAB_GAP
 		}
+	}
+
+	private fun drawChip(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+		val left = chipLeft()
+		val right = left + chipWidth
+		val bottom = TAB_TOP + BAR_HEIGHT
+		val fill = if (chipContains(mouseX, mouseY)) GlassGui.interactive() else GlassGui.raised()
+		GlassGui.roundedFrame(graphics, left, TAB_TOP, right, bottom, RoundedQuad.FULL, fill, DhenPalette.BORDER)
+		val labelColor = if (Effects.reduced) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_PRIMARY
+		DhenType.text(graphics, font, EFFECTS_LABEL, left + CHIP_PAD, textTop(font, TAB_TOP, BAR_HEIGHT), labelColor)
+		val dotX = right - CHIP_PAD - INDICATOR_RADIUS
+		val dotY = TAB_TOP + BAR_HEIGHT / 2
+		if (Effects.reduced) RoundedGui.circleBorder(graphics, dotX, dotY, INDICATOR_RADIUS, 1f, DhenPalette.BORDER)
+		else RoundedGui.circle(graphics, dotX, dotY, INDICATOR_RADIUS, DhenPalette.accent)
 	}
 
 	private fun drawSearch(graphics: GuiGraphicsExtractor) {
@@ -524,6 +555,9 @@ internal class ClickGuiShellScreen(
 		const val BAR_PAD = 3
 		const val TAB_PAD = 10
 		const val TAB_GAP = 2
+		const val CHIP_PAD = 10
+		const val CHIP_GAP = 6
+		const val INDICATOR_RADIUS = 3
 		const val SEARCH_TOP = TAB_TOP + BAR_HEIGHT + 8
 		const val SEARCH_WIDTH = 240
 		const val SEARCH_HEIGHT = 22
@@ -534,6 +568,7 @@ internal class ClickGuiShellScreen(
 		const val SEARCH_PLACEHOLDER = "Search"
 		const val NO_MATCH_LABEL = "No matches"
 		const val SETTINGS_STUB = "Nothing here yet"
+		const val EFFECTS_LABEL = "Effects"
 		const val EXPAND_GLYPH = "+"
 		const val COLLAPSE_GLYPH = "-"
 		val TAB_LABELS = arrayOf("ClickGUI", "Settings")

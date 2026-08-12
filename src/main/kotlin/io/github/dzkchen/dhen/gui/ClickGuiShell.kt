@@ -48,4 +48,6 @@ internal object ClickGuiShell {
 	}
 
 	fun centeredLeft(viewportWidth: Int, width: Int): Int = (viewportWidth - width) / 2
+
+	fun rightAlignedLeft(viewportWidth: Int, width: Int, margin: Int): Int = viewportWidth - margin - width
 }
