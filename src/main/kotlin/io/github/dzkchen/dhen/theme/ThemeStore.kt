@@ -1,0 +1,92 @@
+package io.github.dzkchen.dhen.theme
+
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.gui.DhenTheme
+import org.slf4j.LoggerFactory
+import java.nio.file.Files
+import java.nio.file.Path
+
+internal object ThemeStore {
+	const val DIRECTORY = "themes"
+	const val DEFAULT_ID = "Default"
+	const val MAX_THEMES = 64
+
+	private const val MAX_MANIFEST_BYTES = 64L * 1024L
+
+	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
+
+	val builtIn: List<ThemeEntry> = listOf(
+		ThemeEntry(DEFAULT_ID, "Dhen", "", emptyList(), DhenTheme.DEFAULT, null)
+	)
+
+	@Volatile
+	var themes: List<ThemeEntry> = builtIn
+		private set
+
+	fun refresh(configRoot: Path): List<ThemeEntry> = (builtIn + discover(configRoot.resolve(DIRECTORY))).also { themes = it }
+
+	fun find(id: String): ThemeEntry? = themes.firstOrNull { it.id.equals(id, ignoreCase = true) }
+
+	private fun discover(root: Path): List<ThemeEntry> {
+		if (!Files.isDirectory(root)) return emptyList()
+		val found = ArrayList<ThemeEntry>()
+		for (folder in folders(root)) {
+			if (found.size >= MAX_THEMES) {
+				log.warn("Ignoring the theme folders past the first {} in {}", MAX_THEMES, root)
+				break
+			}
+			val id = folder.fileName.toString()
+			if (claimed(found, id)) {
+				log.warn("Ignoring the theme folder '{}': another theme already answers to that name", id)
+				continue
+			}
+			read(folder, id)?.let { found += it }
+		}
+		return found
+	}
+
+	private fun folders(root: Path): List<Path> {
+		val paths = ArrayList<Path>()
+		try {
+			Files.newDirectoryStream(root).use { stream ->
+				for (entry in stream) {
+					if (Files.isDirectory(entry)) paths.add(entry)
+				}
+			}
+		} catch (e: Exception) {
+			log.warn("Could not read the theme directory {}", root, e)
+		}
+		paths.sortBy { it.fileName.toString().lowercase() }
+		return paths
+	}
+
+	private fun claimed(found: List<ThemeEntry>, id: String): Boolean =
+		builtIn.any { it.id.equals(id, ignoreCase = true) } || found.any { it.id.equals(id, ignoreCase = true) }
+
+	private fun read(folder: Path, id: String): ThemeEntry? {
+		val manifest = folder.resolve(ThemeFormat.MANIFEST)
+		if (!Files.isRegularFile(manifest)) {
+			log.warn("Ignoring the theme folder '{}': it holds no {}", id, ThemeFormat.MANIFEST)
+			return null
+		}
+		val document = document(manifest, id) ?: return null
+		return ThemeFormat.parse(id, document)
+	}
+
+	private fun document(manifest: Path, id: String): JsonObject? {
+		try {
+			if (Files.size(manifest) > MAX_MANIFEST_BYTES) {
+				log.warn("Ignoring the theme '{}': its {} is too large to be a manifest", id, ThemeFormat.MANIFEST)
+				return null
+			}
+			val document = JsonParser.parseString(Files.readString(manifest)) as? JsonObject
+			if (document == null) log.warn("Ignoring the theme '{}': its {} is not a JSON object", id, ThemeFormat.MANIFEST)
+			return document
+		} catch (e: Exception) {
+			log.warn("Ignoring the theme '{}': its {} could not be read", id, ThemeFormat.MANIFEST, e)
+			return null
+		}
+	}
+}
