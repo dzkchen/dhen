@@ -12,8 +12,6 @@ class ClientThreadDispatcher : CoroutineDispatcher() {
 		queue.add(block)
 	}
 
-	// Bounded to the tasks pending at entry so a self-re-dispatching coroutine
-	// (e.g. a yield loop) resumes next tick instead of spinning this one forever.
 	fun drainQueue() {
 		var remaining = queue.size
 		while (remaining-- > 0) {

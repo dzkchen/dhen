@@ -12,11 +12,6 @@ import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.ModuleManager
 import java.util.Locale
 
-/**
- * `feedback` is last so a call site can pass it as a trailing lambda and default every callback it
- * does not use; `diagnostics` sits after the callbacks for the same reason, since only a test ever
- * substitutes it. Adding a callback here is a new defaulted parameter, not a new overload.
- */
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
 	private val openHudEditor: () -> Unit = {},
