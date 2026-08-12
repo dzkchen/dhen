@@ -161,7 +161,7 @@ internal object RoundedGui {
 
 		override fun scissorArea(): ScreenRectangle? = scissor
 
-		override fun bounds(): ScreenRectangle? = area
+		override fun bounds(): ScreenRectangle = area
 
 		private fun vertex(consumer: VertexConsumer, x: Float, y: Float, offsetX: Float, offsetY: Float) {
 			consumer.addVertexWith2DPose(pose, x, y)
@@ -171,7 +171,7 @@ internal object RoundedGui {
 				.setColor(color)
 		}
 
-		private fun paddedBounds(left: Int, top: Int, right: Int, bottom: Int): ScreenRectangle? {
+		private fun paddedBounds(left: Int, top: Int, right: Int, bottom: Int): ScreenRectangle {
 			val padded = ScreenRectangle(
 				left - RoundedQuad.PADDING,
 				top - RoundedQuad.PADDING,

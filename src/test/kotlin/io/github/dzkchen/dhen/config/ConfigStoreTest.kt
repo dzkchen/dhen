@@ -39,7 +39,8 @@ class ConfigStoreTest {
 		val path = dir.resolve("core.json")
 		Files.writeString(path, """{"version":"garbage","known":1}""")
 		val ran = mutableListOf<String>()
-		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), migrations = listOf({ ran += "m" }))
+		val migration: (JsonObject) -> Unit = { ran += "m" }
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), migrations = listOf(migration))
 
 		val doc = store.load()
 

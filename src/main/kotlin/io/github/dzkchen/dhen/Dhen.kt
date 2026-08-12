@@ -23,7 +23,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement as FabricHudElement
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader
@@ -94,11 +93,9 @@ object Dhen : ClientModInitializer {
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
-		HudElementRegistry.attachElementAfter(
-			VanillaHudElements.SUBTITLES,
-			id("hud"),
-			FabricHudElement { graphics, _ -> hudRuntime.render(graphics, Minecraft.getInstance().font) }
-		)
+		HudElementRegistry.attachElementAfter(VanillaHudElements.SUBTITLES, id("hud")) { graphics, _ ->
+			hudRuntime.render(graphics, Minecraft.getInstance().font)
+		}
 		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
 			id("text_measurements"),
 			ResourceManagerReloadListener { invalidateTextMeasurements() }

@@ -63,6 +63,8 @@ class ModulePersistenceTest {
 		assertEquals(0, after.ran)
 	}
 
+	// The `by` properties are never read; declaring them is what registers each setting on the module.
+	@Suppress("unused")
 	private class SampleModule : Module(
 		name = "Sample",
 		category = Category.QOL,

@@ -158,26 +158,26 @@ class ClickGuiScrollTest {
 
 	@Test
 	fun `a row already inside the window is not scrolled to`() {
-		assertEquals(40, reveal(offset = 40, spanStart = 60, extent = 13))
-		assertEquals(40, reveal(offset = 40, spanStart = 40, extent = 13))
-		assertEquals(40, reveal(offset = 40, spanStart = 127, extent = 13))
+		assertEquals(PARKED, reveal(spanStart = 60, extent = 13))
+		assertEquals(PARKED, reveal(spanStart = 40, extent = 13))
+		assertEquals(PARKED, reveal(spanStart = 127, extent = 13))
 	}
 
 	@Test
 	fun `a row above the window scrolls its top flush with the window`() {
-		assertEquals(20, reveal(offset = 40, spanStart = 20, extent = 13))
-		assertEquals(0, reveal(offset = 40, spanStart = 0, extent = 13))
+		assertEquals(20, reveal(spanStart = 20, extent = 13))
+		assertEquals(0, reveal(spanStart = 0, extent = 13))
 	}
 
 	@Test
 	fun `a row below the window scrolls just far enough to show its bottom`() {
-		assertEquals(41, reveal(offset = 40, spanStart = 128, extent = 13))
-		assertEquals(148, reveal(offset = 40, spanStart = 400, extent = 13))
+		assertEquals(41, reveal(spanStart = 128, extent = 13))
+		assertEquals(148, reveal(spanStart = 400, extent = 13))
 	}
 
 	@Test
 	fun `a row taller than the window is shown from its top`() {
-		assertEquals(60, reveal(offset = 40, spanStart = 60, extent = 200))
+		assertEquals(60, reveal(spanStart = 60, extent = 200))
 	}
 
 	@Test
@@ -190,8 +190,6 @@ class ClickGuiScrollTest {
 		field.reveal(spanStart = 12, extent = 13, window = 100, maxScroll = 148)
 
 		assertEquals(12, field.offset)
-		// The offset alone would pass for any stash/restore pair, since settling overwrites it.
-		// The consumed stash is what proves the restore ran and did not re-stash the 120.
 		assertEquals(ClickGuiScroll.TOP, field.stashed)
 	}
 
@@ -210,6 +208,11 @@ class ClickGuiScrollTest {
 	/** A state already parked at [offset], as a user scroll through that much content would leave it. */
 	private fun scrolledTo(offset: Int) = ScrollState().apply { scrollTo(offset, maxScroll = offset) }
 
-	private fun reveal(offset: Int, spanStart: Int, extent: Int): Int =
-		ClickGuiScroll.reveal(offset, spanStart, extent, window = 100, maxScroll = 148)
+	/** A reveal against a 100px window already scrolled to [PARKED], so the window spans 40..139. */
+	private fun reveal(spanStart: Int, extent: Int): Int =
+		ClickGuiScroll.reveal(PARKED, spanStart, extent, window = 100, maxScroll = 148)
+
+	private companion object {
+		const val PARKED = 40
+	}
 }

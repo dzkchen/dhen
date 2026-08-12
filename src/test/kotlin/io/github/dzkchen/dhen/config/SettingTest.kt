@@ -189,6 +189,8 @@ class SettingTest {
 		var mode by modeSetting
 
 		val gatedSetting = StringSetting("Gated", "x").withDependency { flag }
+
+		@Suppress("unused")
 		var gated by gatedSetting
 
 		val colorSetting = ColorSetting("Color", Color.rgba(255, 0, 0))
@@ -202,6 +204,8 @@ class SettingTest {
 		val run by runSetting
 	}
 
+	// The `by` properties are never read; declaring them is what registers each setting on the module.
+	@Suppress("unused")
 	private object AutoSprintFixture : Module(
 		name = "Auto Sprint",
 		category = Category.QOL,

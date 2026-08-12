@@ -5,19 +5,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 
 abstract class HudElement(
 	val name: String,
-	anchor: HudAnchor = HudAnchor.TOP_LEFT,
-	offsetX: Int = 0,
-	offsetY: Int = 0,
+	var anchor: HudAnchor = HudAnchor.TOP_LEFT,
+	var offsetX: Int = 0,
+	var offsetY: Int = 0,
 	scale: Float = DEFAULT_SCALE,
-	visible: Boolean = true,
-	background: Boolean = false
+	var visible: Boolean = true,
+	var background: Boolean = false
 ) {
-	var anchor: HudAnchor = anchor
-	var offsetX: Int = offsetX
-	var offsetY: Int = offsetY
-	var visible: Boolean = visible
-	var background: Boolean = background
-
 	var scale: Float = clampScale(scale)
 		set(value) {
 			field = clampScale(value)
@@ -36,11 +30,6 @@ abstract class HudElement(
 	val isActive: Boolean
 		get() = visible && !failed
 
-	/**
-	 * Restores everything the module declared and lifts the [failed] quarantine, so a reset is the
-	 * in-session recovery path for an element that threw once — without it the only cure is a
-	 * restart, and the reset would report success on an element that still cannot draw.
-	 */
 	fun resetToDeclared(): Boolean {
 		if (
 			anchor == declaredAnchor &&

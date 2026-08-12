@@ -23,8 +23,6 @@ internal object ClickGuiScroll {
 
 	fun stash(offset: Int, stashed: Int, maxScroll: Int): Int =
 		when {
-			// An existing stash outranks the live offset: once the content collapses the
-			// offset is already truncated, so adopting it would degrade what we remember.
 			maxScroll <= TOP -> if (stashed > TOP) stashed else offset
 			stashed > maxScroll -> stashed
 			else -> TOP
@@ -43,12 +41,6 @@ internal object ClickGuiScroll {
 	}
 }
 
-/**
- * A scroll position plus the offset the search is holding for it. The two belong to one object
- * because the invariant runs between them: the stash only tracks content a query is suppressing,
- * so every reposition except [refilter] and [settle] has to drop it. Spread across two fields on
- * the screen that rule was a comment; here it is the API.
- */
 internal class ScrollState {
 	var offset = ClickGuiScroll.TOP
 		private set
@@ -69,12 +61,6 @@ internal class ScrollState {
 		stashed = ClickGuiScroll.TOP
 	}
 
-	/**
-	 * Pulls an entry into view without disturbing the stash: navigating inside a filtered list is
-	 * not the same gesture as scrolling, so a widening query is still owed the position it stashed.
-	 * Each caller supplies its own window, because a trailing gutter outside the viewport and a
-	 * trailing pad inside the content scroll alike but frame differently.
-	 */
 	fun reveal(spanStart: Int, extent: Int, window: Int, maxScroll: Int) {
 		offset = ClickGuiScroll.reveal(offset, spanStart, extent, window, maxScroll)
 	}

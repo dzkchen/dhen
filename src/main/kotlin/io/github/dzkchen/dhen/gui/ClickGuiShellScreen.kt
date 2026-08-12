@@ -30,8 +30,8 @@ internal class ClickGuiShellScreen(
 	private val tabWidths = IntArray(TAB_LABELS.size)
 	private val prefCards: List<PrefCard> = ClientPrefs.sections.map(::PrefCard)
 	private val tabLefts = IntArray(TAB_LABELS.size)
-	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, { width }, IntUnaryOperator { COLUMN_WIDTH })
-	private val prefs = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { prefCards.size }, { height }, IntUnaryOperator { index -> prefCards[index].height })
+	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, { width }, { COLUMN_WIDTH })
+	private val prefs = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { prefCards.size }, { height }, { index -> prefCards[index].height })
 	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
 	private var navFocus: Module? = null
 	private var query = ""
@@ -317,8 +317,7 @@ internal class ClickGuiShellScreen(
 		val delta = ((scrollY + scrollX) * SCROLL_STEP).roundToInt()
 		if (delta == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		if (activeTab != FEATURES_TAB) {
-			if (prefs.scrollBy(delta)) return true
-			return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+			return prefs.scrollBy(delta) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		}
 		val x = mouseX.toInt()
 		val y = mouseY.toInt()
@@ -385,7 +384,7 @@ internal class ClickGuiShellScreen(
 	private fun prefControlAt(x: Int, y: Int): SettingControl? {
 		val controlsLeft = panelLeft() + CONTENT_PAD
 		if (x < controlsLeft || x >= controlsLeft + PANEL_CONTROLS_WIDTH) return null
-		if (y < FIELD_TOP || y >= fieldBottom) return null
+		if (y !in FIELD_TOP..<fieldBottom) return null
 		val index = prefs.slotAt(y)
 		if (index == ClickGuiShell.NONE) return null
 		val card = prefCards[index]
@@ -543,7 +542,7 @@ internal class ClickGuiShellScreen(
 		get() = fieldBottom - FIELD_TOP
 
 	private fun columnSlotAt(x: Int, y: Int): Int {
-		if (y < FIELD_TOP || y >= fieldBottom) return ClickGuiShell.NONE
+		if (y !in FIELD_TOP..<fieldBottom) return ClickGuiShell.NONE
 		val slot = columnField.slotAt(x)
 		if (slot == ClickGuiShell.NONE) return ClickGuiShell.NONE
 		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE

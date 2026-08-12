@@ -6,10 +6,6 @@ import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.ui.hud.HudPersistence
 import org.slf4j.LoggerFactory
 
-// Bridges a ModuleManager to the JSON document ConfigStore persists: enabled
-// state plus persistable settings, dispatched on concrete Setting subtype.
-// ActionSetting (a callback) is never serialized. Unknown modules/settings are
-// skipped on load; the merge base keeps them in the file.
 object ModulePersistence {
 	private const val HUD = "hud"
 

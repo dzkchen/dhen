@@ -14,7 +14,7 @@ internal object RoundedQuad {
 
 	private const val FIXED_LIMIT = 32767
 
-	val LARGEST_EXTENT = FIXED_LIMIT / SUBPIXEL
+	const val LARGEST_EXTENT = FIXED_LIMIT / SUBPIXEL
 
 	val FORMAT: VertexFormat = VertexFormat.builder(0)
 		.addAttribute("Position", GpuFormat.RGB32_FLOAT)

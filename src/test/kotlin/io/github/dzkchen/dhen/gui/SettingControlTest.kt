@@ -238,6 +238,7 @@ class SettingControlTest {
 	}
 
 	@Test
+	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
 	fun `pill padding clears the rounded cap so text cannot touch the curve`() {
 		assertTrue(PILL_PAD > PILL_CAP)
 		assertTrue(PILL_MIN_WIDTH >= 2 * PILL_PAD)

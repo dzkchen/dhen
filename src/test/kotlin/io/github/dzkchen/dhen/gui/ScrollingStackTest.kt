@@ -109,7 +109,7 @@ class ScrollingStackTest {
 			MARGIN,
 			{ 3 },
 			{ VIEWPORT },
-			IntUnaryOperator { index -> if (index == 1) 400 else HEADER_HEIGHT }
+			{ index -> if (index == 1) 400 else HEADER_HEIGHT }
 		)
 
 		stack.reveal(1)
@@ -151,7 +151,7 @@ class ScrollingStackTest {
 	}
 
 	private fun field(count: Int, viewport: Int = 384): ScrollingStack =
-		ScrollingStack(MARGIN, GAP, MARGIN, { count }, { viewport }, IntUnaryOperator { COLUMN_WIDTH })
+		ScrollingStack(MARGIN, GAP, MARGIN, { count }, { viewport }, { COLUMN_WIDTH })
 
 	private fun varyingStack(viewport: Int = VIEWPORT): ScrollingStack {
 		stackCount = CATEGORIES

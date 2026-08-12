@@ -2,7 +2,6 @@ package io.github.dzkchen.dhen.gui
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
-import kotlin.math.roundToInt
 
 internal object GlassGui {
 	const val ENTRY_MILLIS = 200L
@@ -64,21 +63,13 @@ internal object GlassGui {
 
 	fun veil(graphics: GuiGraphicsExtractor, width: Int, height: Int, progress: Float) {
 		if (Effects.reduced) return
-		tint(graphics, 0, 0, width, height, DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
+		tint(graphics, width, height, DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
 	}
 
-	private fun tint(
-		graphics: GuiGraphicsExtractor,
-		left: Int,
-		top: Int,
-		right: Int,
-		bottom: Int,
-		color: Int,
-		factor: Float
-	) {
+	private fun tint(graphics: GuiGraphicsExtractor, width: Int, height: Int, color: Int, factor: Float) {
 		val tinted = withAlpha(color, factor)
 		if (tinted ushr 24 == 0) return
-		FlatGui.fill(graphics, left, top, right, bottom, tinted)
+		FlatGui.fill(graphics, 0, 0, width, height, tinted)
 	}
 
 	fun entryProgress(openedAt: Long): Float = tweenSince(0f, SETTLED, openedAt, ENTRY_MILLIS)

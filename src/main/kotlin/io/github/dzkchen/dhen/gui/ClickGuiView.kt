@@ -19,7 +19,7 @@ internal object ClickGuiView {
 
 	fun read(doc: JsonObject): ClickGuiState {
 		val block = doc.get(CLICK_GUI) as? JsonObject ?: return ClickGuiState()
-		return ClickGuiState(namesIn(block, COLLAPSED))
+		return ClickGuiState(collapsedIn(block))
 	}
 
 	fun writeInto(doc: JsonObject, state: ClickGuiState): JsonObject {
@@ -28,9 +28,9 @@ internal object ClickGuiView {
 		return doc
 	}
 
-	private fun namesIn(block: JsonObject, key: String): MutableSet<String> {
+	private fun collapsedIn(block: JsonObject): MutableSet<String> {
 		val names = linkedSetOf<String>()
-		val stored = block.get(key) as? JsonArray ?: return names
+		val stored = block.get(COLLAPSED) as? JsonArray ?: return names
 		for (element in stored) {
 			val name = (element as? JsonPrimitive)?.takeIf { it.isString }?.asString ?: continue
 			names += name

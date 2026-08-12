@@ -14,6 +14,8 @@ class GlassGuiTest {
 	}
 
 	@Test
+	// The palette constant is the expectation; the inspection misreads the property read as the actual.
+	@Suppress("KotlinMisorderedAssertEqualsArguments")
 	fun `reduced effects resolve every surface to its opaque flat color`() {
 		Effects.reduced = true
 
@@ -83,6 +85,7 @@ class GlassGuiTest {
 	}
 
 	@Test
+	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
 	fun `the tab transition is quicker than the entry`() {
 		assertTrue(GlassGui.TAB_MILLIS < GlassGui.ENTRY_MILLIS)
 	}

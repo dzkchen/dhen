@@ -75,7 +75,7 @@ class EventBus(
 
 		fun dispatch(event: T) {
 			val listeners = listeners
-			if (listeners.size == 0) return
+			if (listeners.isEmpty()) return
 
 			if (event is Cancellable) {
 				dispatchCancellable(event, listeners)

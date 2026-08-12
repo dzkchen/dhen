@@ -21,7 +21,7 @@ class PlaceholderModule(
 	name: String = "Test Module",
 	category: Category = Category.DEV,
 	description: String = "Placeholder module for verifying core controls.",
-	private val toggleKey: Int = GLFW.GLFW_KEY_K,
+	toggleKey: Int = GLFW.GLFW_KEY_K,
 	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT,
 	hudBackground: Boolean = false
 ) : Module(name, category, description) {
@@ -95,16 +95,18 @@ class PlaceholderModule(
 		description = "Logs a line when clicked."
 	)
 
-	val statusOverlay = hud(
-		HudTextElement(
-			name = "Status",
-			text = "$name HUD",
-			anchor = hudAnchor,
-			offsetX = margin(hudAnchor.horizontal),
-			offsetY = margin(hudAnchor.vertical),
-			background = hudBackground
+	init {
+		hud(
+			HudTextElement(
+				name = "Status",
+				text = "$name HUD",
+				anchor = hudAnchor,
+				offsetX = margin(hudAnchor.horizontal),
+				offsetY = margin(hudAnchor.vertical),
+				background = hudBackground
+			)
 		)
-	)
+	}
 
 	private companion object {
 		const val HUD_MARGIN = 4
