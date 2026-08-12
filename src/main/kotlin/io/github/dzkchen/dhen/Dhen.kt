@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiLayout
 import io.github.dzkchen.dhen.gui.ClickGuiScreen
+import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.gui.PanelState
 import io.github.dzkchen.dhen.input.InputRuntime
@@ -31,7 +32,6 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
@@ -53,7 +53,7 @@ object Dhen : ClientModInitializer {
 		::persistCore,
 		::resetHudLayout
 	) { source, message ->
-		source.sendFeedback(Component.literal(message))
+		source.sendFeedback(DhenType.component(message))
 	}
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -98,8 +98,8 @@ object Dhen : ClientModInitializer {
 			FabricHudElement { graphics, _ -> hudRuntime.render(graphics, Minecraft.getInstance().font) }
 		)
 		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
-			id("hud_measurements"),
-			ResourceManagerReloadListener { hudRuntime.invalidateMeasurements() }
+			id("text_measurements"),
+			ResourceManagerReloadListener { invalidateTextMeasurements() }
 		)
 
 		val openGuiKey = KeyMappingHelper.registerKeyMapping(
@@ -112,6 +112,10 @@ object Dhen : ClientModInitializer {
 		)
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			modules.clientDispatcher.drainQueue()
+			val options = client.options
+			if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
+				invalidateTextMeasurements()
+			}
 			if (!ownsKeyboard(client.gui.screen())) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
 			if (openGuiKey.consumeClick() && client.level != null) client.gui.setScreen(clickGuiScreen())
 			if (hudEditorRequested) {
@@ -127,6 +131,11 @@ object Dhen : ClientModInitializer {
 
 	private fun openHudEditor() {
 		hudEditorRequested = true
+	}
+
+	private fun invalidateTextMeasurements() {
+		DhenType.invalidateMeasurements()
+		hudRuntime.invalidateMeasurements()
 	}
 
 	private fun resetHudLayout(): Int {

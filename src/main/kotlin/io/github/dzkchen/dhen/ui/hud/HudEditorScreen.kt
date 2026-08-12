@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.ui.hud
 
 import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.FlatGui
 import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -94,8 +95,8 @@ internal class HudEditorScreen(
 	private fun measure(target: HudTarget) {
 		if (target.rendering && measureElement(target)) return
 		target.placeholder = true
-		target.contentWidth = font.width(target.element.name) + 2 * PLACEHOLDER_PAD
-		target.contentHeight = font.lineHeight + 2 * PLACEHOLDER_PAD
+		target.contentWidth = DhenType.width(font, target.element.name) + 2 * PLACEHOLDER_PAD
+		target.contentHeight = DhenType.lineHeight(font) + 2 * PLACEHOLDER_PAD
 	}
 
 	private fun measureElement(target: HudTarget): Boolean {
@@ -138,7 +139,7 @@ internal class HudEditorScreen(
 			pose.scale(target.element.scale, target.element.scale)
 			GlassGui.shadow(graphics, 0, 0, target.contentWidth, target.contentHeight)
 			FlatGui.fill(graphics, 0, 0, target.contentWidth, target.contentHeight, GlassGui.surface())
-			FlatGui.text(
+			DhenType.text(
 				graphics,
 				font,
 				target.element.name,
@@ -158,14 +159,14 @@ internal class HudEditorScreen(
 	}
 
 	private fun drawBanner(graphics: GuiGraphicsExtractor, text: String, top: Int) {
-		val boxWidth = font.width(text) + 2 * BANNER_PAD
+		val boxWidth = DhenType.width(font, text) + 2 * BANNER_PAD
 		val left = (width - boxWidth) / 2
 		val bottom = top + bannerHeight()
 		GlassGui.frame(graphics, left, top, left + boxWidth, bottom, GlassGui.surface(), DhenPalette.BORDER)
-		FlatGui.text(graphics, font, text, left + BANNER_PAD, top + BANNER_PAD, DhenPalette.TEXT_PRIMARY, shadow = true)
+		DhenType.text(graphics, font, text, left + BANNER_PAD, top + BANNER_PAD, DhenPalette.TEXT_PRIMARY, shadow = true)
 	}
 
-	private fun bannerHeight(): Int = font.lineHeight + 2 * BANNER_PAD
+	private fun bannerHeight(): Int = DhenType.lineHeight(font) + 2 * BANNER_PAD
 
 	private fun label(): String {
 		val target = editor.selected ?: return ""

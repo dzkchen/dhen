@@ -24,7 +24,6 @@ internal class ClickGuiScreen(
 	private val parent: Screen? = null
 ) : Screen(Component.literal("Dhen")) {
 	private val openedAt = Util.getMillis()
-	private var chipWidth = 0
 	private val panels = mutableListOf<Panel>()
 	private val navigation = mutableListOf<Panel>()
 	private val expanded = mutableSetOf<String>()
@@ -43,7 +42,6 @@ internal class ClickGuiScreen(
 
 	override fun init() {
 		blurFocus()
-		chipWidth = 2 * CONTENT_PAD + font.width(EFFECTS_LABEL) + CHIP_GAP + INDICATOR_SIZE
 		panels.clear()
 		navigation.clear()
 		val byCategory = manager.categories
@@ -453,17 +451,19 @@ internal class ClickGuiScreen(
 
 	private fun chipLeft(): Int = MARGIN + SEARCH_WIDTH + COLUMN_GAP
 
+	private fun chipWidth(): Int = 2 * CONTENT_PAD + DhenType.width(font, EFFECTS_LABEL) + CHIP_GAP + INDICATOR_SIZE
+
 	private fun chipContains(x: Int, y: Int): Boolean =
-		x >= chipLeft() && x < chipLeft() + chipWidth && y >= MARGIN && y < MARGIN + SEARCH_HEIGHT
+		chipLeft().let { left -> x >= left && x < left + chipWidth() } && y >= MARGIN && y < MARGIN + SEARCH_HEIGHT
 
 	private fun drawChip(graphics: GuiGraphicsExtractor) {
 		val left = chipLeft()
 		val top = MARGIN
-		val right = left + chipWidth
+		val right = left + chipWidth()
 		val bottom = top + SEARCH_HEIGHT
 		GlassGui.frame(graphics, left, top, right, bottom, GlassGui.raised(), DhenPalette.BORDER)
 		val labelColor = if (Effects.reduced) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_PRIMARY
-		FlatGui.text(graphics, font, EFFECTS_LABEL, left + CONTENT_PAD, top + (SEARCH_HEIGHT - font.lineHeight) / 2, labelColor)
+		DhenType.text(graphics, font, EFFECTS_LABEL, left + CONTENT_PAD, top + (SEARCH_HEIGHT - DhenType.lineHeight(font)) / 2, labelColor)
 		val boxRight = right - CONTENT_PAD
 		val boxLeft = boxRight - INDICATOR_SIZE
 		val boxTop = top + (SEARCH_HEIGHT - INDICATOR_SIZE) / 2
@@ -480,18 +480,18 @@ internal class ClickGuiScreen(
 		val outline = if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.ACCENT
 		GlassGui.frame(graphics, left, top, right, bottom, GlassGui.raised(), outline)
 		val textLeft = left + CONTENT_PAD
-		val textTop = top + (SEARCH_HEIGHT - font.lineHeight) / 2
+		val textTop = top + (SEARCH_HEIGHT - DhenType.lineHeight(font)) / 2
 		if (query.isEmpty()) {
-			FlatGui.text(graphics, font, SEARCH_PLACEHOLDER, textLeft, textTop, DhenPalette.TEXT_DISABLED)
+			DhenType.text(graphics, font, SEARCH_PLACEHOLDER, textLeft, textTop, DhenPalette.TEXT_DISABLED)
 			return
 		}
-		FlatGui.text(graphics, font, query, textLeft, textTop, DhenPalette.TEXT_PRIMARY)
+		DhenType.text(graphics, font, query, textLeft, textTop, DhenPalette.TEXT_PRIMARY)
 		if (focusPanel == null) {
-			val caretX = textLeft + font.width(query)
-			FlatGui.fill(graphics, caretX, textTop, caretX + 1, textTop + font.lineHeight, DhenPalette.TEXT_PRIMARY)
+			val caretX = textLeft + DhenType.width(font, query)
+			FlatGui.fill(graphics, caretX, textTop, caretX + 1, textTop + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
 		}
 		if (matchCount == 0) {
-			FlatGui.text(graphics, font, NO_MATCH_LABEL, chipLeft() + chipWidth + CONTENT_PAD, textTop, DhenPalette.TEXT_SECONDARY)
+			DhenType.text(graphics, font, NO_MATCH_LABEL, chipLeft() + chipWidth() + CONTENT_PAD, textTop, DhenPalette.TEXT_SECONDARY)
 		}
 	}
 
@@ -500,16 +500,17 @@ internal class ClickGuiScreen(
 
 	private fun drawTooltip(graphics: GuiGraphicsExtractor, module: Module, mouseX: Int, mouseY: Int) {
 		val hasDescription = module.description.isNotBlank()
-		val textWidth = if (hasDescription) maxOf(font.width(module.name), font.width(module.description)) else font.width(module.name)
+		val nameWidth = DhenType.width(font, module.name)
+		val textWidth = if (hasDescription) maxOf(nameWidth, DhenType.width(font, module.description)) else nameWidth
 		val lineCount = if (hasDescription) 2 else 1
 		val boxWidth = textWidth + 2 * TOOLTIP_PAD
-		val boxHeight = lineCount * font.lineHeight + 2 * TOOLTIP_PAD
+		val boxHeight = lineCount * DhenType.lineHeight(font) + 2 * TOOLTIP_PAD
 		val left = (mouseX + TOOLTIP_OFFSET).coerceIn(0, maxOf(0, width - boxWidth))
 		val top = (mouseY + TOOLTIP_OFFSET).coerceIn(0, maxOf(0, height - boxHeight))
 		GlassGui.frame(graphics, left, top, left + boxWidth, top + boxHeight, GlassGui.raised(), DhenPalette.BORDER)
-		FlatGui.text(graphics, font, module.name, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_PRIMARY)
+		DhenType.text(graphics, font, module.name, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_PRIMARY)
 		if (hasDescription) {
-			FlatGui.text(graphics, font, module.description, left + TOOLTIP_PAD, top + TOOLTIP_PAD + font.lineHeight, DhenPalette.TEXT_SECONDARY)
+			DhenType.text(graphics, font, module.description, left + TOOLTIP_PAD, top + TOOLTIP_PAD + DhenType.lineHeight(font), DhenPalette.TEXT_SECONDARY)
 		}
 	}
 
@@ -712,9 +713,9 @@ internal class ClickGuiScreen(
 			FlatGui.border(graphics, left, top, right, bottom, DhenPalette.BORDER)
 			GlassGui.sheen(graphics, left, top, right)
 
-			FlatGui.text(graphics, font, category.displayName, left + CONTENT_PAD, top + TEXT_OFFSET, DhenPalette.TEXT_PRIMARY)
+			DhenType.text(graphics, font, category.displayName, left + CONTENT_PAD, top + TEXT_OFFSET, DhenPalette.TEXT_PRIMARY)
 			val glyph = if (state.collapsed) "+" else "-"
-			FlatGui.text(graphics, font, glyph, right - TOGGLE_WIDTH + TOGGLE_GLYPH_INSET, top + TEXT_OFFSET, DhenPalette.TEXT_SECONDARY)
+			DhenType.text(graphics, font, glyph, right - TOGGLE_WIDTH + TOGGLE_GLYPH_INSET, top + TEXT_OFFSET, DhenPalette.TEXT_SECONDARY)
 		}
 
 		private fun drawRow(
@@ -738,7 +739,7 @@ internal class ClickGuiScreen(
 			if (module === focusedModule) FlatGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, DhenPalette.ACCENT)
 
 			val nameColor = if (module.enabled) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
-			FlatGui.text(graphics, font, module.name, left + CONTENT_PAD, rowTop + ROW_TEXT_OFFSET, nameColor)
+			DhenType.text(graphics, font, module.name, left + CONTENT_PAD, rowTop + ROW_TEXT_OFFSET, nameColor)
 
 			val boxRight = right - CONTENT_PAD
 			val boxLeft = boxRight - INDICATOR_SIZE

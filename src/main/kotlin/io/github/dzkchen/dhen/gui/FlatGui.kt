@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.gui
 
-import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 internal object FlatGui {
@@ -56,18 +55,6 @@ internal object FlatGui {
 			graphics.fill(left + inset, bottom - row - 1, right - inset, bottom - row, color)
 		}
 		graphics.fill(left, top + actualRadius, right, bottom - actualRadius, color)
-	}
-
-	fun text(
-		graphics: GuiGraphicsExtractor,
-		font: Font,
-		text: String,
-		x: Int,
-		y: Int,
-		color: Int,
-		shadow: Boolean = false
-	) {
-		graphics.text(font, text, x, y, color, shadow)
 	}
 
 	internal fun roundedInset(radius: Int, row: Int): Int {
