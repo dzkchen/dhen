@@ -21,6 +21,21 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `the text shadow stays one screen pixel however far the hud is scaled up`() {
+		assertEquals(1f, DhenType.shadowOffset(1f))
+		assertEquals(0.5f, DhenType.shadowOffset(2f))
+		assertEquals(0.25f, DhenType.shadowOffset(4f))
+		assertEquals(4f, DhenType.shadowOffset(0.25f))
+	}
+
+	@Test
+	fun `a degenerate scale falls back to a single pixel instead of dividing by zero`() {
+		assertEquals(1f, DhenType.shadowOffset(0f))
+		assertEquals(1f, DhenType.shadowOffset(-2f))
+		assertEquals(1f, DhenType.shadowOffset(Float.NaN))
+	}
+
+	@Test
 	fun `styled text carries the bundled font`() {
 		val font = DhenType.styled("Combat").style.font
 		assertEquals(FontDescription.Resource(DhenType.fontId), font)
