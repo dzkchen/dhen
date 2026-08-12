@@ -30,10 +30,17 @@ internal object DhenPalette {
 	val GLASS_VEIL = 0xE608080Au.toInt()
 
 	var accent: Int = DEFAULT_ACCENT
+		set(value) {
+			field = value
+			accentMuted = muted(value)
+			textOnAccent = contrasting(value)
+		}
 
-	val accentMuted: Int get() = muted(accent)
+	var accentMuted: Int = muted(DEFAULT_ACCENT)
+		private set
 
-	val textOnAccent: Int get() = if (luminance(accent) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
+	var textOnAccent: Int = contrasting(DEFAULT_ACCENT)
+		private set
 
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
@@ -43,6 +50,8 @@ internal object DhenPalette {
 		val blue = color and 0xFF
 		return (red * 299 + green * 587 + blue * 114) / 1000
 	}
+
+	private fun contrasting(color: Int): Int = if (luminance(color) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
 
 	private fun muted(color: Int): Int {
 		val red = towardsSurface(color ushr 16 and 0xFF, SURFACE ushr 16 and 0xFF)

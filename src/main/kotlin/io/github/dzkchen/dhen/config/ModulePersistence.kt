@@ -1,11 +1,9 @@
 package io.github.dzkchen.dhen.config
 
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.ui.hud.HudPersistence
-import io.github.dzkchen.dhen.util.Color
 import org.slf4j.LoggerFactory
 
 // Bridges a ModuleManager to the JSON document ConfigStore persists: enabled
@@ -26,9 +24,7 @@ object ModulePersistence {
 		for (module in manager.modules) {
 			val entry = JsonObject()
 			entry.addProperty("enabled", module.enabled)
-			val settings = JsonObject()
-			for (setting in module.settings) serialize(setting)?.let { settings.add(setting.name, it) }
-			entry.add("settings", settings)
+			entry.add("settings", SettingCodec.writeInto(JsonObject(), module.settings))
 			if (module.hudElements.isNotEmpty()) entry.add(HUD, HudPersistence.snapshot(module.hudElements))
 			modules.add(module.name, entry)
 		}
@@ -50,38 +46,7 @@ object ModulePersistence {
 					log.warn("Skipping bad HUD layout in module '{}'", name, e)
 				}
 			}
-			val settings = entry.get("settings") as? JsonObject ?: continue
-			for (setting in module.settings) {
-				val value = settings.get(setting.name) ?: continue
-				try {
-					deserialize(setting, value)
-				} catch (e: Exception) {
-					log.warn("Skipping bad value for '{}' in module '{}'", setting.name, name, e)
-				}
-			}
-		}
-	}
-
-	private fun serialize(setting: Setting<*>): JsonElement? = when (setting) {
-		is BooleanSetting -> JsonPrimitive(setting.value)
-		is NumberSetting -> JsonPrimitive(setting.value)
-		is ColorSetting -> JsonPrimitive(setting.value.argb)
-		is KeybindSetting -> JsonPrimitive(setting.value)
-		is SelectorSetting -> JsonPrimitive(setting.value)
-		is StringSetting -> JsonPrimitive(setting.value)
-		else -> null
-	}
-
-	private fun deserialize(setting: Setting<*>, element: JsonElement) {
-		if (element !is JsonPrimitive) return
-		when (setting) {
-			is BooleanSetting -> setting.value = element.asBoolean
-			is NumberSetting -> setting.value = element.asDouble
-			is ColorSetting -> setting.value = Color(element.asInt)
-			is KeybindSetting -> setting.value = element.asInt
-			is SelectorSetting -> setting.value = element.asString
-			is StringSetting -> setting.value = element.asString
-			else -> {}
+			SettingCodec.readInto(entry.get("settings") as? JsonObject, module.settings, name)
 		}
 	}
 }

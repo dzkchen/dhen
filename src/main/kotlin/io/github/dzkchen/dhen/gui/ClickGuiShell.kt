@@ -32,6 +32,33 @@ internal object ClickGuiShell {
 	fun clampedColumnHeight(naturalHeight: Int, headerHeight: Int, available: Int): Int =
 		minOf(naturalHeight, maxOf(headerHeight, available))
 
+	fun spanStart(index: Int, extentAt: IntUnaryOperator, gap: Int): Int {
+		var offset = 0
+		for (i in 0 until index) offset += extentAt.applyAsInt(i) + gap
+		return offset
+	}
+
+	fun spanTotal(count: Int, extentAt: IntUnaryOperator, gap: Int): Int =
+		if (count <= 0) 0 else spanStart(count, extentAt, gap) - gap
+
+	fun spanAt(local: Int, count: Int, extentAt: IntUnaryOperator, gap: Int): Int {
+		if (local < 0) return NONE
+		var offset = 0
+		for (i in 0 until count) {
+			offset += extentAt.applyAsInt(i)
+			if (local < offset) return i
+			offset += gap
+			if (local < offset) return NONE
+		}
+		return NONE
+	}
+
+	fun sectionRowAt(localY: Int, bodyTop: Int, rowCount: Int, rowHeight: Int): Int {
+		if (localY < bodyTop) return NONE
+		val row = (localY - bodyTop) / rowHeight
+		return if (row < rowCount) row else NONE
+	}
+
 	fun tooltipLeft(
 		columnLeft: Int,
 		columnWidth: Int,
@@ -50,23 +77,11 @@ internal object ClickGuiShell {
 	fun tooltipTop(rowTop: Int, tooltipHeight: Int, viewportHeight: Int, margin: Int): Int =
 		rowTop.coerceIn(margin, maxOf(margin, viewportHeight - margin - tooltipHeight))
 
-	fun segmentsWidth(widths: IntArray, gap: Int): Int {
-		if (widths.isEmpty()) return 0
-		var total = (widths.size - 1) * gap
-		for (i in widths.indices) total += widths[i]
-		return total
-	}
+	fun segmentsWidth(widths: IntArray, gap: Int): Int = spanTotal(widths.size, widthAt(widths), gap)
 
-	fun segmentAt(localX: Int, widths: IntArray, gap: Int): Int {
-		if (localX < 0) return NONE
-		var offset = 0
-		for (i in widths.indices) {
-			if (localX < offset + widths[i]) return i
-			offset += widths[i] + gap
-			if (localX < offset) return NONE
-		}
-		return NONE
-	}
+	fun segmentAt(localX: Int, widths: IntArray, gap: Int): Int = spanAt(localX, widths.size, widthAt(widths), gap)
+
+	private fun widthAt(widths: IntArray) = IntUnaryOperator { index -> widths[index] }
 
 	fun centeredLeft(viewportWidth: Int, width: Int): Int = (viewportWidth - width) / 2
 

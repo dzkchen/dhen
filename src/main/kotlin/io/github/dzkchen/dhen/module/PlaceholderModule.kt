@@ -84,8 +84,8 @@ class PlaceholderModule(
 	private val keybind by KeybindSetting(
 		name = "Keybind",
 		default = toggleKey,
-		description = "Disables the test module while it is enabled."
-	).onPress(::toggle)
+		description = "Toggles the test module on and off."
+	).onPress(::toggle).evenWhileDisabled()
 
 	@Suppress("unused")
 	private val ping by ActionSetting(

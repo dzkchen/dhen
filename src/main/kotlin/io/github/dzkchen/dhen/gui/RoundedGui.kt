@@ -88,23 +88,6 @@ internal object RoundedGui {
 	fun circle(graphics: GuiGraphicsExtractor, centerX: Int, centerY: Int, radius: Int, color: Int) =
 		fill(graphics, centerX - radius, centerY - radius, centerX + radius, centerY + radius, RoundedQuad.FULL, color)
 
-	fun circleBorder(
-		graphics: GuiGraphicsExtractor,
-		centerX: Int,
-		centerY: Int,
-		radius: Int,
-		thickness: Float,
-		color: Int
-	) = pillBorder(
-		graphics,
-		centerX - radius,
-		centerY - radius,
-		centerX + radius,
-		centerY + radius,
-		thickness,
-		color
-	)
-
 	fun capsuleTrack(
 		graphics: GuiGraphicsExtractor,
 		left: Int,

@@ -71,6 +71,47 @@ class ClickGuiShellTest {
 	}
 
 	@Test
+	fun `stacked sections sit under one another with one gap between them`() {
+		assertEquals(0, ClickGuiShell.spanStart(0, SECTIONS, SECTION_GAP))
+		assertEquals(52, ClickGuiShell.spanStart(1, SECTIONS, SECTION_GAP))
+		assertEquals(104, ClickGuiShell.spanStart(2, SECTIONS, SECTION_GAP))
+	}
+
+	@Test
+	fun `the stack is as tall as its sections plus the gaps between them`() {
+		assertEquals(0, ClickGuiShell.spanTotal(0, SECTIONS, SECTION_GAP))
+		assertEquals(46, ClickGuiShell.spanTotal(1, SECTIONS, SECTION_GAP))
+		assertEquals(143, ClickGuiShell.spanTotal(3, SECTIONS, SECTION_GAP))
+	}
+
+	@Test
+	fun `a hit lands on the section under it and never in a gap`() {
+		assertEquals(0, ClickGuiShell.spanAt(0, 3, SECTIONS, SECTION_GAP))
+		assertEquals(0, ClickGuiShell.spanAt(45, 3, SECTIONS, SECTION_GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(46, 3, SECTIONS, SECTION_GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(51, 3, SECTIONS, SECTION_GAP))
+		assertEquals(1, ClickGuiShell.spanAt(52, 3, SECTIONS, SECTION_GAP))
+		assertEquals(2, ClickGuiShell.spanAt(142, 3, SECTIONS, SECTION_GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(143, 3, SECTIONS, SECTION_GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(-1, 3, SECTIONS, SECTION_GAP))
+	}
+
+	@Test
+	fun `a section hit resolves to the control row it lands on`() {
+		assertEquals(0, ClickGuiShell.sectionRowAt(localY = 22, bodyTop = 22, rowCount = 2, rowHeight = 20))
+		assertEquals(0, ClickGuiShell.sectionRowAt(localY = 41, bodyTop = 22, rowCount = 2, rowHeight = 20))
+		assertEquals(1, ClickGuiShell.sectionRowAt(localY = 42, bodyTop = 22, rowCount = 2, rowHeight = 20))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 62, bodyTop = 22, rowCount = 2, rowHeight = 20))
+	}
+
+	@Test
+	fun `a hit on a section header or an empty section reaches no control`() {
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 0, bodyTop = 22, rowCount = 2, rowHeight = 20))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 21, bodyTop = 22, rowCount = 2, rowHeight = 20))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 30, bodyTop = 22, rowCount = 0, rowHeight = 20))
+	}
+
+	@Test
 	fun `a tooltip sits beside its column while there is room to the right`() {
 		assertEquals(132, tooltipLeft(columnLeft = 8, tooltipWidth = 120))
 		assertEquals(346, tooltipLeft(columnLeft = 222, tooltipWidth = 120))
@@ -142,8 +183,11 @@ class ClickGuiShellTest {
 		const val MARGIN = 8
 		const val CATEGORIES = 17
 		const val SEGMENT_GAP = 2
+		const val SECTION_GAP = 6
 		const val TOOLTIP_GAP = 6
 		const val VIEWPORT_WIDTH = 480
 		val TABS = intArrayOf(60, 40)
+		val SECTION_HEIGHTS = intArrayOf(46, 46, 39)
+		val SECTIONS = IntUnaryOperator { index -> SECTION_HEIGHTS[index] }
 	}
 }

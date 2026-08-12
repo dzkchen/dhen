@@ -11,11 +11,19 @@ class KeybindSetting(
 
 	override var value: Int = default
 
+	var firesWhileDisabled: Boolean = false
+		private set
+
 	val isBound: Boolean
 		get() = value != GLFW.GLFW_KEY_UNKNOWN
 
 	fun onPress(callback: () -> Unit): KeybindSetting {
 		onPress = callback
+		return this
+	}
+
+	fun evenWhileDisabled(): KeybindSetting {
+		firesWhileDisabled = true
 		return this
 	}
 

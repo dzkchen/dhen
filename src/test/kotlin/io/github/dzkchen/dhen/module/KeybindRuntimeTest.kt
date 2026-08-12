@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.MouseInputEvent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
 
@@ -46,7 +47,7 @@ class KeybindRuntimeTest {
 	}
 
 	@Test
-	fun `keybind callback can toggle its owner`() {
+	fun `a toggle keybind turns its owner back on after turning it off`() {
 		val bus = EventBus()
 		val manager = ModuleManager(bus)
 		val module = ToggleModule()
@@ -56,8 +57,25 @@ class KeybindRuntimeTest {
 		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_F8, InputAction.PRESS))
 
 		assertFalse(module.enabled)
+
 		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_F8, InputAction.PRESS))
-		assertFalse(module.enabled)
+
+		assertTrue(module.enabled)
+	}
+
+	@Test
+	fun `an ordinary keybind still stays silent while its owner is disabled`() {
+		val bus = EventBus()
+		val manager = ModuleManager(bus)
+		val module = KeybindModule()
+		manager.register(module)
+		manager.enable(module)
+		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+		manager.disable(module)
+
+		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+
+		assertEquals(1, module.activations)
 	}
 
 	@Test
@@ -100,7 +118,7 @@ class KeybindRuntimeTest {
 		description = "Tests module toggling."
 	) {
 		@Suppress("unused")
-		private val keybind by KeybindSetting("Toggle", GLFW.GLFW_KEY_F8).onPress(::toggle)
+		private val keybind by KeybindSetting("Toggle", GLFW.GLFW_KEY_F8).onPress(::toggle).evenWhileDisabled()
 	}
 
 	private class ThrowingKeybindModule : Module(

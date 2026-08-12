@@ -100,7 +100,7 @@ abstract class Module(
 	}
 
 	internal fun activateKeybind(setting: KeybindSetting) {
-		if (!enabled) return
+		if (!enabled && !setting.firesWhileDisabled) return
 		try {
 			setting.activate()
 		} catch (throwable: Throwable) {

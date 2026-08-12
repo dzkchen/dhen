@@ -30,10 +30,10 @@ class ClickGuiViewTest {
 
 	@Test
 	fun `writing leaves the blocks already in the document alone`() {
-		val doc = Effects.writeInto(JsonObject())
+		val doc = ClientPrefs.writeInto(JsonObject())
 		ClickGuiView.writeInto(doc, setOf("DEV"))
 
 		assertEquals("DEV", doc.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
-		assertTrue(doc.has("effects"))
+		assertTrue(doc.has("client"))
 	}
 }
