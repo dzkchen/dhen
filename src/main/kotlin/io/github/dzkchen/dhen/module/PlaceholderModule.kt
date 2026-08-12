@@ -22,7 +22,8 @@ class PlaceholderModule(
 	category: Category = Category.DEV,
 	description: String = "Placeholder module for verifying core controls.",
 	private val toggleKey: Int = GLFW.GLFW_KEY_K,
-	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT
+	hudAnchor: HudAnchor = HudAnchor.TOP_LEFT,
+	hudBackground: Boolean = false
 ) : Module(name, category, description) {
 	private var inputEvents = 0
 
@@ -100,7 +101,8 @@ class PlaceholderModule(
 			text = "$name HUD",
 			anchor = hudAnchor,
 			offsetX = margin(hudAnchor.horizontal),
-			offsetY = margin(hudAnchor.vertical)
+			offsetY = margin(hudAnchor.vertical),
+			background = hudBackground
 		)
 	)
 

@@ -49,22 +49,22 @@ class ScrollingStackTest {
 
 	@Test
 	fun `a scrolled stack draws each entry where a click on it resolves back`() {
-		val stack = accordion()
+		val stack = varyingStack()
 		stack.scrollBy(-90)
 
-		for (slot in intArrayOf(0, OPENED_SLOT, CATEGORIES - 1)) {
+		for (slot in intArrayOf(0, TALL_SLOT, CATEGORIES - 1)) {
 			assertEquals(slot, stack.slotAt(stack.originOf(slot)))
 		}
 	}
 
 	@Test
 	fun `an unscrolled stack starts at the top of the field`() {
-		assertEquals(FIELD_TOP, accordion().originOf(0))
+		assertEquals(FIELD_TOP, varyingStack().originOf(0))
 	}
 
 	@Test
 	fun `a stack that fits its viewport refuses to scroll`() {
-		val stack = accordion(viewport = 900)
+		val stack = varyingStack(viewport = 900)
 
 		assertEquals(0, stack.max())
 		assertFalse(stack.scrollBy(-90))
@@ -73,7 +73,7 @@ class ScrollingStackTest {
 
 	@Test
 	fun `an entry already on screen is not scrolled to`() {
-		val stack = accordion()
+		val stack = varyingStack()
 		stack.scrollBy(-90)
 
 		stack.reveal(3)
@@ -83,7 +83,7 @@ class ScrollingStackTest {
 
 	@Test
 	fun `revealing an entry above the window scrolls its top into view`() {
-		val stack = accordion()
+		val stack = varyingStack()
 		stack.scrollBy(-90)
 
 		stack.reveal(0)
@@ -93,7 +93,7 @@ class ScrollingStackTest {
 
 	@Test
 	fun `revealing an entry below the window scrolls exactly far enough`() {
-		val stack = accordion()
+		val stack = varyingStack()
 
 		stack.reveal(CATEGORIES - 1)
 
@@ -119,7 +119,7 @@ class ScrollingStackTest {
 
 	@Test
 	fun `a reveal keeps the offset the search is holding for a widening query`() {
-		val stack = accordion()
+		val stack = varyingStack()
 		stack.scrollBy(-90)
 		stack.refilterAt(1)
 		stack.refilterAt(6)
@@ -133,7 +133,7 @@ class ScrollingStackTest {
 
 	@Test
 	fun `a wheel scroll takes the field over from the search`() {
-		val stack = accordion()
+		val stack = varyingStack()
 		stack.scrollBy(-90)
 		stack.refilterAt(1)
 		stack.refilterAt(6)
@@ -145,16 +145,6 @@ class ScrollingStackTest {
 		assertEquals(0, stack.offset)
 	}
 
-	@Test
-	fun `rewinding parks the idle axis back at the top`() {
-		val stack = accordion()
-		stack.scrollBy(-90)
-
-		stack.rewind()
-
-		assertEquals(0, stack.offset)
-	}
-
 	private fun ScrollingStack.refilterAt(matches: Int) {
 		stackCount = matches
 		refilter()
@@ -163,9 +153,9 @@ class ScrollingStackTest {
 	private fun field(count: Int, viewport: Int = 384): ScrollingStack =
 		ScrollingStack(MARGIN, GAP, MARGIN, { count }, { viewport }, IntUnaryOperator { COLUMN_WIDTH })
 
-	private fun accordion(viewport: Int = VIEWPORT): ScrollingStack {
+	private fun varyingStack(viewport: Int = VIEWPORT): ScrollingStack {
 		stackCount = CATEGORIES
-		return ScrollingStack(FIELD_TOP, GAP, MARGIN, { stackCount }, { viewport }, ACCORDION)
+		return ScrollingStack(FIELD_TOP, GAP, MARGIN, { stackCount }, { viewport }, VARYING)
 	}
 
 	private companion object {
@@ -175,9 +165,9 @@ class ScrollingStackTest {
 		const val CATEGORIES = 17
 		const val HEADER_HEIGHT = 18
 		const val FIELD_TOP = 70
-		const val OPENED_SLOT = 2
-		const val OPENED_HEIGHT = 100
+		const val TALL_SLOT = 2
+		const val TALL_HEIGHT = 100
 		const val VIEWPORT = 240
-		val ACCORDION = IntUnaryOperator { index -> if (index == OPENED_SLOT) OPENED_HEIGHT else HEADER_HEIGHT }
+		val VARYING = IntUnaryOperator { index -> if (index == TALL_SLOT) TALL_HEIGHT else HEADER_HEIGHT }
 	}
 }

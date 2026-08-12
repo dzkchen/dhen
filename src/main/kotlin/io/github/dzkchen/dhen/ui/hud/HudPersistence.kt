@@ -11,6 +11,7 @@ object HudPersistence {
 	private const val OFFSET_Y = "y"
 	private const val SCALE = "scale"
 	private const val VISIBLE = "visible"
+	private const val BACKGROUND = "background"
 
 	private val log = LoggerFactory.getLogger(HudPersistence::class.java)
 
@@ -23,6 +24,7 @@ object HudPersistence {
 				addProperty(OFFSET_Y, element.offsetY)
 				addProperty(SCALE, element.scale)
 				addProperty(VISIBLE, element.visible)
+				addProperty(BACKGROUND, element.background)
 			})
 		}
 		return hud
@@ -36,6 +38,7 @@ object HudPersistence {
 			read(entry, OFFSET_Y, element.name, { it.asIntOrNull() }) { element.offsetY = it }
 			read(entry, SCALE, element.name, { it.asFloatOrNull() }) { element.scale = it }
 			read(entry, VISIBLE, element.name, { it.asBooleanOrNull() }) { element.visible = it }
+			read(entry, BACKGROUND, element.name, { it.asBooleanOrNull() }) { element.background = it }
 		}
 	}
 

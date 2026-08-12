@@ -72,22 +72,22 @@ class ClickGuiShellTest {
 	}
 
 	@Test
-	fun `an accordion stacks closed categories as bare headers and gives the opened one its rows`() {
-		assertEquals(0, ClickGuiShell.spanStart(0, ACCORDION, GAP))
-		assertEquals(52, ClickGuiShell.spanStart(2, ACCORDION, GAP))
-		assertEquals(160, ClickGuiShell.spanStart(3, ACCORDION, GAP))
-		assertEquals(516, ClickGuiShell.spanTotal(CATEGORIES, ACCORDION, GAP))
+	fun `a stack of varying extents starts each entry after the ones above it`() {
+		assertEquals(0, ClickGuiShell.spanStart(0, VARYING, GAP))
+		assertEquals(52, ClickGuiShell.spanStart(2, VARYING, GAP))
+		assertEquals(160, ClickGuiShell.spanStart(3, VARYING, GAP))
+		assertEquals(516, ClickGuiShell.spanTotal(CATEGORIES, VARYING, GAP))
 	}
 
 	@Test
-	fun `a hit in the accordion lands on the category under it and never between two`() {
-		assertEquals(0, ClickGuiShell.spanAt(17, CATEGORIES, ACCORDION, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(18, CATEGORIES, ACCORDION, GAP))
-		assertEquals(2, ClickGuiShell.spanAt(52, CATEGORIES, ACCORDION, GAP))
-		assertEquals(2, ClickGuiShell.spanAt(151, CATEGORIES, ACCORDION, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(152, CATEGORIES, ACCORDION, GAP))
-		assertEquals(3, ClickGuiShell.spanAt(160, CATEGORIES, ACCORDION, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(516, CATEGORIES, ACCORDION, GAP))
+	fun `a hit in a stack of varying extents lands on the entry under it and never between two`() {
+		assertEquals(0, ClickGuiShell.spanAt(17, CATEGORIES, VARYING, GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(18, CATEGORIES, VARYING, GAP))
+		assertEquals(2, ClickGuiShell.spanAt(52, CATEGORIES, VARYING, GAP))
+		assertEquals(2, ClickGuiShell.spanAt(151, CATEGORIES, VARYING, GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(152, CATEGORIES, VARYING, GAP))
+		assertEquals(3, ClickGuiShell.spanAt(160, CATEGORIES, VARYING, GAP))
+		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(516, CATEGORIES, VARYING, GAP))
 	}
 
 	@Test
@@ -138,6 +138,17 @@ class ClickGuiShellTest {
 	}
 
 	@Test
+	fun `a segment starts where a click on its first pixel resolves back to it`() {
+		assertEquals(0, ClickGuiShell.segmentStart(0, TABS, SEGMENT_GAP))
+		assertEquals(62, ClickGuiShell.segmentStart(1, TABS, SEGMENT_GAP))
+		assertEquals(ClickGuiShell.segmentsWidth(TABS, SEGMENT_GAP) + SEGMENT_GAP, ClickGuiShell.segmentStart(TABS.size, TABS, SEGMENT_GAP))
+
+		for (segment in TABS.indices) {
+			assertEquals(segment, ClickGuiShell.segmentAt(ClickGuiShell.segmentStart(segment, TABS, SEGMENT_GAP), TABS, SEGMENT_GAP))
+		}
+	}
+
+	@Test
 	fun `centered chrome keeps equal margins on both sides`() {
 		assertEquals(120, ClickGuiShell.centeredLeft(viewportWidth = 480, width = 240))
 		assertEquals(0, ClickGuiShell.centeredLeft(viewportWidth = 240, width = 240))
@@ -162,8 +173,8 @@ class ClickGuiShellTest {
 		const val MARGIN = 8
 		const val CATEGORIES = 17
 		const val HEADER_HEIGHT = 18
-		const val OPENED_SLOT = 2
-		const val OPENED_HEIGHT = 100
+		const val TALL_SLOT = 2
+		const val TALL_HEIGHT = 100
 		const val SEGMENT_GAP = 2
 		const val SECTION_GAP = 6
 		const val TOOLTIP_GAP = 6
@@ -171,6 +182,6 @@ class ClickGuiShellTest {
 		val TABS = intArrayOf(60, 40)
 		val SECTION_HEIGHTS = intArrayOf(46, 46, 39)
 		val SECTIONS = IntUnaryOperator { index -> SECTION_HEIGHTS[index] }
-		val ACCORDION = IntUnaryOperator { index -> if (index == OPENED_SLOT) OPENED_HEIGHT else HEADER_HEIGHT }
+		val VARYING = IntUnaryOperator { index -> if (index == TALL_SLOT) TALL_HEIGHT else HEADER_HEIGHT }
 	}
 }

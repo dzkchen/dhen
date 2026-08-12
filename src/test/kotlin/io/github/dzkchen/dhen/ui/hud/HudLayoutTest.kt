@@ -96,6 +96,20 @@ class HudLayoutTest {
 		assertEquals(0, HudLayout.clamp(40, 2 * SMALL_WIDTH, SMALL_WIDTH))
 	}
 
+	@Test
+	fun `the plate gutter grows with the element and never disappears`() {
+		assertEquals(HudLayout.PLATE_PAD, HudLayout.platePad(1.0f))
+		assertEquals(2 * HudLayout.PLATE_PAD, HudLayout.platePad(2.0f))
+		assertEquals(1, HudLayout.platePad(HudElement.MIN_SCALE))
+		assertEquals(1, HudLayout.platePad(0.0f))
+	}
+
+	@Test
+	fun `the plate corner grows with the element`() {
+		assertEquals(HudLayout.PLATE_RADIUS, HudLayout.plateRadius(1.0f))
+		assertEquals(2 * HudLayout.PLATE_RADIUS, HudLayout.plateRadius(2.0f))
+	}
+
 	private companion object {
 		const val SMALL_WIDTH = 854
 		const val SMALL_HEIGHT = 480

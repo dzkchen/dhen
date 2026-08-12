@@ -4,33 +4,27 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 
-internal class ClickGuiState(
-	val collapsed: MutableSet<String> = linkedSetOf(),
-	val opened: MutableSet<String> = linkedSetOf()
-) {
-	fun toggle(category: String, accordion: Boolean) {
-		val names = if (accordion) opened else collapsed
-		if (!names.remove(category)) names.add(category)
+internal class ClickGuiState(val collapsed: MutableSet<String> = linkedSetOf()) {
+	fun toggle(category: String) {
+		if (!collapsed.remove(category)) collapsed.add(category)
 	}
 
-	fun isBodyHidden(category: String, accordion: Boolean): Boolean =
-		if (accordion) category !in opened else category in collapsed
+	fun isBodyHidden(category: String): Boolean = category in collapsed
 }
 
 internal object ClickGuiView {
-	private const val CLICK_GUI = "clickgui"
+	const val CLICK_GUI = "clickgui"
+
 	private const val COLLAPSED = "collapsed"
-	private const val OPENED = "opened"
 
 	fun read(doc: JsonObject): ClickGuiState {
 		val block = doc.get(CLICK_GUI) as? JsonObject ?: return ClickGuiState()
-		return ClickGuiState(namesIn(block, COLLAPSED), namesIn(block, OPENED))
+		return ClickGuiState(namesIn(block, COLLAPSED))
 	}
 
 	fun writeInto(doc: JsonObject, state: ClickGuiState): JsonObject {
 		val block = doc.get(CLICK_GUI) as? JsonObject ?: JsonObject().also { doc.add(CLICK_GUI, it) }
 		block.add(COLLAPSED, namesOf(state.collapsed))
-		block.add(OPENED, namesOf(state.opened))
 		return doc
 	}
 

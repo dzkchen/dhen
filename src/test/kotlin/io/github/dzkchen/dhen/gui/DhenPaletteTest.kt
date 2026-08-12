@@ -88,4 +88,24 @@ class DhenPaletteTest {
 
 		assertEquals(0x80, DhenPalette.accentMuted ushr 24)
 	}
+
+	@Test
+	fun `a mix lands on each end and blends every channel in between`() {
+		val from = 0x00204060
+		val to = 0xFF60A0E0u.toInt()
+
+		assertEquals(from, DhenPalette.mix(from, to, 0f))
+		assertEquals(to, DhenPalette.mix(from, to, 1f))
+		assertEquals(0x804070A0u.toInt(), DhenPalette.mix(from, to, 0.5f))
+	}
+
+	@Test
+	fun `a mix clamps a progress that overshoots and never leaves the endpoints`() {
+		val from = DhenPalette.TEXT_SECONDARY
+		val to = DhenPalette.TEXT_PRIMARY
+
+		assertEquals(to, DhenPalette.mix(from, to, 4f))
+		assertEquals(from, DhenPalette.mix(from, to, -1f))
+		assertEquals(to, DhenPalette.mix(to, to, 0.5f))
+	}
 }

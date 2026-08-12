@@ -9,65 +9,55 @@ import org.junit.jupiter.api.Test
 
 class ClickGuiViewTest {
 	@Test
-	fun `write then read round-trips both sets in order`() {
-		val state = ClickGuiState(linkedSetOf("DUNGEONS", "DEV"), linkedSetOf("MISC"))
+	fun `write then read round-trips the collapsed names in order`() {
+		val state = ClickGuiState(linkedSetOf("DUNGEONS", "DEV"))
 
 		val loaded = ClickGuiView.read(ClickGuiView.writeInto(JsonObject(), state))
 
 		assertEquals(listOf("DUNGEONS", "DEV"), loaded.collapsed.toList())
-		assertEquals(listOf("MISC"), loaded.opened.toList())
 	}
 
 	@Test
-	fun `read returns empty sets when the block or its lists are absent`() {
+	fun `read returns an empty set when the block or its list is absent`() {
 		assertTrue(ClickGuiView.read(JsonObject()).collapsed.isEmpty())
-		assertTrue(ClickGuiView.read(JsonObject()).opened.isEmpty())
-		assertTrue(ClickGuiView.read(document("""{"clickgui":{}}""")).opened.isEmpty())
+		assertTrue(ClickGuiView.read(document("""{"clickgui":{}}""")).collapsed.isEmpty())
 		assertTrue(ClickGuiView.read(document("""{"clickgui":"garbage"}""")).collapsed.isEmpty())
 	}
 
 	@Test
 	fun `read keeps the names it understands and drops the rest`() {
-		val doc = document("""{"clickgui":{"collapsed":["DEV",7,{"a":1},"MISC","DEV"],"opened":["DEV",true]}}""")
+		val doc = document("""{"clickgui":{"collapsed":["DEV",7,{"a":1},"MISC","DEV"]}}""")
 
 		val loaded = ClickGuiView.read(doc)
 
 		assertEquals(listOf("DEV", "MISC"), loaded.collapsed.toList())
-		assertEquals(listOf("DEV"), loaded.opened.toList())
 	}
 
 	@Test
-	fun `a file written before accordion existed loads with nothing opened`() {
-		val loaded = ClickGuiView.read(document("""{"clickgui":{"collapsed":["DEV"]}}"""))
+	fun `a file the accordion left an opened list in reads its collapsed names anyway`() {
+		val loaded = ClickGuiView.read(document("""{"clickgui":{"collapsed":["DEV"],"opened":["MISC"]}}"""))
 
 		assertEquals(listOf("DEV"), loaded.collapsed.toList())
-		assertTrue(loaded.opened.isEmpty())
 	}
 
 	@Test
-	fun `each mode reads its own set, and an unlisted category shows in columns but not in the accordion`() {
-		val state = ClickGuiState(linkedSetOf("DEV"), linkedSetOf("MISC"))
+	fun `a category shows its rows until it is listed as collapsed`() {
+		val state = ClickGuiState(linkedSetOf("DEV"))
 
-		assertTrue(state.isBodyHidden("DEV", accordion = false))
-		assertTrue(state.isBodyHidden("DEV", accordion = true))
-		assertFalse(state.isBodyHidden("MISC", accordion = false))
-		assertFalse(state.isBodyHidden("MISC", accordion = true))
-		assertFalse(state.isBodyHidden("COMBAT", accordion = false))
-		assertTrue(state.isBodyHidden("COMBAT", accordion = true))
+		assertTrue(state.isBodyHidden("DEV"))
+		assertFalse(state.isBodyHidden("MISC"))
 	}
 
 	@Test
-	fun `toggling a header in one mode leaves the other mode alone`() {
+	fun `toggling a header collapses it and toggling again brings it back`() {
 		val state = ClickGuiState()
 
-		state.toggle("DEV", accordion = true)
+		state.toggle("DEV")
 
-		assertEquals(listOf("DEV"), state.opened.toList())
-		assertTrue(state.collapsed.isEmpty())
+		assertEquals(listOf("DEV"), state.collapsed.toList())
 
-		state.toggle("DEV", accordion = true)
+		state.toggle("DEV")
 
-		assertTrue(state.opened.isEmpty())
 		assertTrue(state.collapsed.isEmpty())
 	}
 

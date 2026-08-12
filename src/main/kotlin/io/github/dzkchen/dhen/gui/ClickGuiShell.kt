@@ -72,6 +72,8 @@ internal object ClickGuiShell {
 
 	fun segmentsWidth(widths: IntArray, gap: Int): Int = spanTotal(widths.size, widthAt(widths), gap)
 
+	fun segmentStart(index: Int, widths: IntArray, gap: Int): Int = spanStart(index, widthAt(widths), gap)
+
 	fun segmentAt(localX: Int, widths: IntArray, gap: Int): Int = spanAt(localX, widths.size, widthAt(widths), gap)
 
 	private fun widthAt(widths: IntArray) = IntUnaryOperator { index -> widths[index] }

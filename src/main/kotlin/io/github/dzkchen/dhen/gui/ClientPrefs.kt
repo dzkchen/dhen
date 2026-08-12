@@ -19,8 +19,8 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(ClickGuiLayout.setting, accent)),
-		PrefSection("Client", listOf(ClickGuiKeys.setting))
+		PrefSection("Appearance", listOf(accent)),
+		PrefSection("Client", emptyList())
 	)
 
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }

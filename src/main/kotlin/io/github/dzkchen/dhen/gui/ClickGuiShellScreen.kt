@@ -12,7 +12,6 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
-import java.util.function.IntSupplier
 import java.util.function.IntUnaryOperator
 import kotlin.math.roundToInt
 
@@ -30,14 +29,16 @@ internal class ClickGuiShellScreen(
 	private val expanded = mutableSetOf<String>()
 	private val tabWidths = IntArray(TAB_LABELS.size)
 	private val prefCards: List<PrefCard> = ClientPrefs.sections.map(::PrefCard)
-	private val visibleCount = IntSupplier { visible.size }
-	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, visibleCount, { width }, IntUnaryOperator { COLUMN_WIDTH })
-	private val stack = ScrollingStack(FIELD_TOP, COLUMN_GAP, MARGIN, visibleCount, { height }, IntUnaryOperator { index -> visible[index].height })
+	private val tabLefts = IntArray(TAB_LABELS.size)
+	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, { width }, IntUnaryOperator { COLUMN_WIDTH })
 	private val prefs = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { prefCards.size }, { height }, IntUnaryOperator { index -> prefCards[index].height })
 	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
 	private var navFocus: Module? = null
 	private var query = ""
-	private var activeTab = CLICK_GUI_TAB
+	private var activeTab = FEATURES_TAB
+	private var previousTab = FEATURES_TAB
+	private var tabSwitchedAt = 0L
+	private var tabSettled = true
 	private var settled = false
 	private var barWidth = 0
 	private var glyphWidth = 0
@@ -89,28 +90,46 @@ internal class ClickGuiShellScreen(
 			return
 		}
 		val entry = GlassGui.entryProgress(openedAt)
-		if (entry >= GlassGui.SETTLED) {
-			settled = true
-			drawContent(graphics, mouseX, mouseY)
+		settled = entry >= GlassGui.SETTLED
+		shifted(graphics, 0f, GlassGui.offset(entry, GlassGui.ENTRY_RISE)) { drawContent(graphics, mouseX, mouseY) }
+		if (!settled) GlassGui.veil(graphics, width, height, entry)
+	}
+
+	private fun drawContent(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+		if (tabSettled) {
+			drawTabs(graphics, GlassGui.SETTLED)
+			drawTabBody(graphics, mouseX, mouseY)
+			return
+		}
+		val switch = GlassGui.tabProgress(tabSwitchedAt)
+		tabSettled = switch >= GlassGui.SETTLED
+		drawTabs(graphics, switch)
+		shifted(graphics, GlassGui.offset(switch, tabTravel()), 0f) { drawTabBody(graphics, mouseX, mouseY) }
+	}
+
+	private fun tabTravel(): Float =
+		if (activeTab > previousTab) GlassGui.TAB_SLIDE else -GlassGui.TAB_SLIDE
+
+	private inline fun shifted(graphics: GuiGraphicsExtractor, dx: Float, dy: Float, body: () -> Unit) {
+		if (dx == 0f && dy == 0f) {
+			body()
 			return
 		}
 		val pose = graphics.pose()
 		pose.pushMatrix()
-		pose.translate(0f, GlassGui.rise(entry))
-		drawContent(graphics, mouseX, mouseY)
+		pose.translate(dx, dy)
+		body()
 		pose.popMatrix()
-		GlassGui.veil(graphics, width, height, entry)
 	}
 
-	private fun drawContent(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		drawTabs(graphics)
-		if (activeTab != CLICK_GUI_TAB) {
+	private fun drawTabBody(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+		if (activeTab != FEATURES_TAB) {
 			drawClientPrefs(graphics, mouseX, mouseY)
 			return
 		}
 		drawSearch(graphics)
 		tooltipText = null
-		if (accordion) drawStack(graphics, mouseX, mouseY) else drawColumns(graphics, mouseX, mouseY)
+		drawColumns(graphics, mouseX, mouseY)
 		drawTooltip(graphics)
 	}
 
@@ -119,29 +138,9 @@ internal class ClickGuiShellScreen(
 			val column = visible[i]
 			val left = column.contentLeft - columnField.offset
 			if (left + COLUMN_WIDTH > 0 && left < width) {
-				column.draw(graphics, font, left, FIELD_TOP, column.naturalHeight, mouseX, mouseY)
+				column.draw(graphics, font, left, mouseX, mouseY)
 			}
 		}
-	}
-
-	private fun drawStack(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		val max = stack.max()
-		val clipped = max > ClickGuiScroll.TOP
-		val bottom = fieldBottom
-		if (clipped) graphics.enableScissor(0, FIELD_TOP, width, bottom)
-		var top = FIELD_TOP - stack.offset
-		for (i in visible.indices) {
-			val column = visible[i]
-			if (top >= bottom) break
-			val extent = column.naturalHeight
-			if (top + extent > FIELD_TOP) {
-				column.draw(graphics, font, column.contentLeft, top, extent, mouseX, mouseY)
-			}
-			top += extent + COLUMN_GAP
-		}
-		if (!clipped) return
-		graphics.disableScissor()
-		drawScrollbar(graphics, MARGIN + COLUMN_WIDTH, FIELD_TOP, columnViewport, stack.offset, max)
 	}
 
 	private fun drawClientPrefs(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -214,34 +213,33 @@ internal class ClickGuiShellScreen(
 		val y = event.y().toInt()
 		val tab = tabAt(x, y)
 		if (tab != ClickGuiShell.NONE) {
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) activeTab = tab
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) switchTab(tab)
 			return true
 		}
-		if (activeTab == CLICK_GUI_TAB && searchContains(x, y)) return true
-		if (activeTab != CLICK_GUI_TAB) {
+		if (activeTab == FEATURES_TAB && searchContains(x, y)) return true
+		if (activeTab != FEATURES_TAB) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) pressPrefControl(x, y)
 			return true
 		}
 		val slot = columnSlotAt(x, y)
 		if (slot == ClickGuiShell.NONE) return true
 		val column = visible[slot]
-		val top = columnTop(slot)
-		if (y < top + HEADER_HEIGHT) {
+		if (y < FIELD_TOP + HEADER_HEIGHT) {
 			toggleHeader(column)
 			return true
 		}
 		val contentX = x + columnField.offset
-		val module = column.rowAt(top, y)
+		val module = column.rowAt(y)
 		if (module != null) {
 			navFocus = module
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !column.chevronContains(contentX)) manager.toggle(module)
 			else {
 				if (!expanded.remove(module.name)) expanded.add(module.name)
-				reflow(column)
+				column.reclamp()
 			}
 			return true
 		}
-		val control = column.controlAt(top, contentX, y)
+		val control = column.controlAt(contentX, y)
 		if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			pressRowControl(column, control, contentX)
 		}
@@ -262,7 +260,7 @@ internal class ClickGuiShellScreen(
 				return true
 			}
 		}
-		if (activeTab == CLICK_GUI_TAB && clickGuiKey(event.key())) return true
+		if (activeTab == FEATURES_TAB && clickGuiKey(event.key())) return true
 		return super.keyPressed(event)
 	}
 
@@ -271,15 +269,20 @@ internal class ClickGuiShellScreen(
 		GLFW.GLFW_KEY_ESCAPE -> collapseExpandedSettings()
 		GLFW.GLFW_KEY_UP -> moveFocus(-1)
 		GLFW.GLFW_KEY_DOWN -> moveFocus(1)
-		GLFW.GLFW_KEY_LEFT -> horizontalKey(-1)
-		GLFW.GLFW_KEY_RIGHT -> horizontalKey(1)
+		GLFW.GLFW_KEY_LEFT -> jumpColumn(-1)
+		GLFW.GLFW_KEY_RIGHT -> jumpColumn(1)
 		GLFW.GLFW_KEY_TAB -> toggleExpandFocus()
 		GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> toggleFocus()
 		else -> false
 	}
 
-	private fun horizontalKey(delta: Int): Boolean =
-		if (ClickGuiKeys.jumpColumns) jumpColumn(delta) else expandFocus(delta > 0)
+	private fun switchTab(tab: Int) {
+		if (tab == activeTab) return
+		previousTab = activeTab
+		activeTab = tab
+		tabSwitchedAt = Util.getMillis()
+		tabSettled = false
+	}
 
 	override fun keyReleased(event: KeyEvent): Boolean {
 		if (event.key() == swallowCharKey) swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
@@ -290,7 +293,7 @@ internal class ClickGuiShellScreen(
 		val codepoint = event.codepoint()
 		if (focused?.charTyped(codepoint) == true) return true
 		if (swallowCharKey != GLFW.GLFW_KEY_UNKNOWN) return true
-		if (activeTab != CLICK_GUI_TAB || !isPrintable(codepoint)) return super.charTyped(event)
+		if (activeTab != FEATURES_TAB || !isPrintable(codepoint)) return super.charTyped(event)
 		if (query.length < SEARCH_MAX_LENGTH) {
 			query += codepoint.toChar()
 			applySearch()
@@ -313,15 +316,15 @@ internal class ClickGuiShellScreen(
 		if (dragged != null) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		val delta = ((scrollY + scrollX) * SCROLL_STEP).roundToInt()
 		if (delta == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-		if (activeTab != CLICK_GUI_TAB) {
+		if (activeTab != FEATURES_TAB) {
 			if (prefs.scrollBy(delta)) return true
 			return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		}
 		val x = mouseX.toInt()
 		val y = mouseY.toInt()
 		val slot = columnSlotAt(x, y)
-		if (slot != ClickGuiShell.NONE && y >= columnTop(slot) + HEADER_HEIGHT && visible[slot].scrollBy(delta)) return true
-		if (fieldStack.scrollBy(delta)) return true
+		if (slot != ClickGuiShell.NONE && y >= FIELD_TOP + HEADER_HEIGHT && visible[slot].scrollBy(delta)) return true
+		if (columnField.scrollBy(delta)) return true
 		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 	}
 
@@ -334,6 +337,7 @@ internal class ClickGuiShellScreen(
 	private fun measureChrome() {
 		for (i in TAB_LABELS.indices) tabWidths[i] = DhenType.width(font, TAB_LABELS[i]) + 2 * TAB_PAD
 		barWidth = 2 * BAR_PAD + ClickGuiShell.segmentsWidth(tabWidths, TAB_GAP)
+		for (i in TAB_LABELS.indices) tabLefts[i] = BAR_PAD + ClickGuiShell.segmentStart(i, tabWidths, TAB_GAP)
 		glyphWidth = maxOf(DhenType.width(font, EXPAND_GLYPH), DhenType.width(font, COLLAPSE_GLYPH))
 		chevronWidth = maxOf(DhenType.width(font, CHEVRON_COLLAPSED), DhenType.width(font, CHEVRON_EXPANDED))
 	}
@@ -342,7 +346,7 @@ internal class ClickGuiShellScreen(
 		val controlsLeft = column.contentLeft + CONTENT_PAD
 		val press = pressControl(control, contentX - controlsLeft, controlsLeft - columnField.offset, CONTROLS_WIDTH, clientOwned = false)
 		if (press == ControlPress.CHANGED) {
-			reflow(column)
+			column.reclamp()
 			persistModules()
 		}
 	}
@@ -406,8 +410,8 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun toggleHeader(column: Column) {
-		view.toggle(column.category.name, accordion)
-		reflow(column)
+		view.toggle(column.category.name)
+		column.reclamp()
 		refreshFocus()
 		persistCore()
 	}
@@ -424,7 +428,6 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) {
 			if (columns[i].collapseSettings()) changed = true
 		}
-		if (changed) reclampStackedField()
 		return changed
 	}
 
@@ -432,7 +435,7 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) columns[i].applyFilter(query)
 		cancelDrag()
 		layout()
-		fieldStack.refilter()
+		columnField.refilter()
 		refreshFocus()
 	}
 
@@ -442,7 +445,7 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) {
 			val column = columns[i]
 			if (column.hidden) continue
-			column.contentLeft = if (accordion) MARGIN else left
+			column.contentLeft = left
 			left += COLUMN_WIDTH + COLUMN_GAP
 			visible += column
 		}
@@ -450,8 +453,7 @@ internal class ClickGuiShellScreen(
 
 	private fun relayout() {
 		layout()
-		idleStack.rewind()
-		reclampField()
+		columnField.reclamp()
 	}
 
 	private fun moveFocus(delta: Int): Boolean {
@@ -479,16 +481,11 @@ internal class ClickGuiShellScreen(
 
 	private fun toggleExpandFocus(): Boolean {
 		val module = navFocus ?: return false
-		return expandFocus(module.name !in expanded)
-	}
-
-	private fun expandFocus(open: Boolean): Boolean {
-		val module = navFocus ?: return false
 		val slot = focusSlot()
 		if (slot == ClickGuiShell.NONE) return false
 		val row = visible[slot].rowOf(module)
-		val changed = if (open) expanded.add(module.name) else expanded.remove(module.name)
-		if (changed) reflow(visible[slot])
+		if (!expanded.remove(module.name)) expanded.add(module.name)
+		visible[slot].reclamp()
 		revealFocus(slot, row)
 		return true
 	}
@@ -519,30 +516,13 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun revealFocus(slot: Int, row: Int) {
-		val column = visible[slot]
-		if (accordion) {
-			stack.revealSpan(stack.startOf(slot) + HEADER_HEIGHT + column.rowTop(row), column.rowExtent(row))
-			return
-		}
 		columnField.reveal(slot)
-		column.revealRow(row)
-	}
-
-	private fun reflow(column: Column) {
-		column.reclamp()
-		reclampStackedField()
+		visible[slot].revealRow(row)
 	}
 
 	private fun reflowAll() {
 		for (i in visible.indices) visible[i].reclamp()
-		reclampStackedField()
 	}
-
-	private fun reclampStackedField() {
-		if (accordion) reclampField()
-	}
-
-	private fun reclampField() = fieldStack.reclamp()
 
 	private fun cancelDrag() {
 		if (dragged == null) return
@@ -556,29 +536,14 @@ internal class ClickGuiShellScreen(
 		if (control.blur()) persistArmed()
 	}
 
-	private val accordion: Boolean
-		get() = ClickGuiLayout.accordion
-
-	private val fieldStack: ScrollingStack
-		get() = if (accordion) stack else columnField
-
-	private val idleStack: ScrollingStack
-		get() = if (accordion) columnField else stack
-
 	private val fieldBottom: Int
 		get() = height - MARGIN
 
 	private val columnViewport: Int
 		get() = fieldBottom - FIELD_TOP
 
-	private fun columnTop(slot: Int): Int = if (accordion) stack.originOf(slot) else FIELD_TOP
-
 	private fun columnSlotAt(x: Int, y: Int): Int {
 		if (y < FIELD_TOP || y >= fieldBottom) return ClickGuiShell.NONE
-		if (accordion) {
-			if (x < MARGIN || x >= MARGIN + COLUMN_WIDTH) return ClickGuiShell.NONE
-			return stack.slotAt(y)
-		}
 		val slot = columnField.slotAt(x)
 		if (slot == ClickGuiShell.NONE) return ClickGuiShell.NONE
 		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE
@@ -598,21 +563,22 @@ internal class ClickGuiShellScreen(
 	private fun searchContains(x: Int, y: Int): Boolean =
 		x >= searchLeft() && x < searchLeft() + SEARCH_WIDTH && y >= SEARCH_TOP && y < SEARCH_TOP + SEARCH_HEIGHT
 
-	private fun drawTabs(graphics: GuiGraphicsExtractor) {
+	private fun drawTabs(graphics: GuiGraphicsExtractor, switch: Float) {
 		val barLeft = barLeft()
 		val bottom = TAB_TOP + BAR_HEIGHT
 		GlassGui.roundedFrame(graphics, barLeft, TAB_TOP, barLeft + barWidth, bottom, RoundedQuad.FULL, GlassGui.raised(), DhenPalette.BORDER)
+		val pillLeft = barLeft + RoundedQuad.between(tabLefts[previousTab], tabLefts[activeTab], switch)
+		val pillWidth = RoundedQuad.between(tabWidths[previousTab], tabWidths[activeTab], switch)
+		RoundedGui.pill(graphics, pillLeft, TAB_TOP + BAR_PAD, pillLeft + pillWidth, bottom - BAR_PAD, DhenPalette.accent)
 		val top = textTop(font, TAB_TOP, BAR_HEIGHT)
-		var left = barLeft + BAR_PAD
 		for (i in TAB_LABELS.indices) {
-			val right = left + tabWidths[i]
-			val active = i == activeTab
-			if (active) RoundedGui.pill(graphics, left, TAB_TOP + BAR_PAD, right, bottom - BAR_PAD, DhenPalette.accent)
-			val color = if (active) DhenPalette.textOnAccent else DhenPalette.TEXT_SECONDARY
-			DhenType.text(graphics, font, TAB_LABELS[i], left + TAB_PAD, top, color)
-			left = right + TAB_GAP
+			val color = DhenPalette.mix(tabLabelColor(i, previousTab), tabLabelColor(i, activeTab), switch)
+			DhenType.text(graphics, font, TAB_LABELS[i], barLeft + tabLefts[i] + TAB_PAD, top, color)
 		}
 	}
+
+	private fun tabLabelColor(tab: Int, active: Int): Int =
+		if (tab == active) DhenPalette.textOnAccent else DhenPalette.TEXT_SECONDARY
 
 	private fun drawHeaderBand(graphics: GuiGraphicsExtractor, font: Font, left: Int, right: Int, top: Int, title: String, fill: Int) {
 		RoundedGui.fill(graphics, left, top, right, top + HEADER_HEIGHT, COLUMN_RADIUS, fill)
@@ -717,12 +683,12 @@ internal class ClickGuiShellScreen(
 			get() = ClickGuiShell.columnHeight(isCollapsed, HEADER_HEIGHT, BODY_PAD, visibleCount, ROW_HEIGHT, settingsHeightAt)
 
 		private val isCollapsed: Boolean
-			get() = view.isBodyHidden(category.name, accordion)
+			get() = view.isBodyHidden(category.name)
 		private val maxScroll: Int
 			get() = naturalHeight.let { it - shownHeight(it) }
 
 		private fun shownHeight(natural: Int): Int =
-			if (accordion) natural else ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, columnViewport)
+			ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, columnViewport)
 
 		fun applyFilter(query: String) {
 			var count = 0
@@ -755,14 +721,14 @@ internal class ClickGuiShellScreen(
 			return ClickGuiShell.NONE
 		}
 
-		fun rowTop(row: Int): Int = ClickGuiRows.rowTop(row, ROW_HEIGHT, settingsHeightAt)
+		private fun rowTop(row: Int): Int = ClickGuiRows.rowTop(row, ROW_HEIGHT, settingsHeightAt)
 
-		fun rowExtent(row: Int): Int = ROW_HEIGHT + settingsHeight(visibleRows[row])
+		private fun rowExtent(row: Int): Int = ROW_HEIGHT + settingsHeight(visibleRows[row])
 
 		fun revealRow(row: Int) = scroll.reveal(rowTop(row), rowExtent(row), height - HEADER_HEIGHT, maxScroll)
 
-		fun rowAt(top: Int, y: Int): Module? {
-			val localY = bodyLocal(top, y) ?: return null
+		fun rowAt(y: Int): Module? {
+			val localY = bodyLocal(y) ?: return null
 			val row = ClickGuiRows.rowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
 			return modules[visibleRows[row]]
 		}
@@ -770,9 +736,9 @@ internal class ClickGuiShellScreen(
 		fun chevronContains(contentX: Int): Boolean =
 			contentX >= contentLeft + COLUMN_WIDTH - CONTENT_PAD - chevronWidth - CHEVRON_HIT_SLOP
 
-		fun controlAt(top: Int, contentX: Int, y: Int): SettingControl? {
+		fun controlAt(contentX: Int, y: Int): SettingControl? {
 			if (contentX < contentLeft + CONTENT_PAD || contentX >= contentLeft + CONTENT_PAD + CONTROLS_WIDTH) return null
-			val localY = bodyLocal(top, y) ?: return null
+			val localY = bodyLocal(y) ?: return null
 			val row = ClickGuiRows.settingsRowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
 			val bandTop = ClickGuiRows.settingsTop(row, ROW_HEIGHT, settingsHeightAt)
 			return renderableAt(visibleRows[row], localY - bandTop - SETTINGS_PAD)
@@ -787,15 +753,17 @@ internal class ClickGuiShellScreen(
 			return changed
 		}
 
-		private fun bodyLocal(top: Int, y: Int): Int? {
-			val bodyTop = top + HEADER_HEIGHT
-			if (y < bodyTop || y >= top + height) return null
+		private fun bodyLocal(y: Int): Int? {
+			val bodyTop = FIELD_TOP + HEADER_HEIGHT
+			if (y < bodyTop || y >= FIELD_TOP + height) return null
 			return y - bodyTop + scroll.offset
 		}
 
-		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, natural: Int, mouseX: Int, mouseY: Int) {
+		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, mouseX: Int, mouseY: Int) {
 			val right = left + COLUMN_WIDTH
 			val collapsedNow = isCollapsed
+			val top = FIELD_TOP
+			val natural = naturalHeight
 			val shown = shownHeight(natural)
 			val bodyTop = top + HEADER_HEIGHT
 			val bottom = top + shown
@@ -931,7 +899,7 @@ internal class ClickGuiShellScreen(
 	}
 
 	private companion object {
-		const val CLICK_GUI_TAB = 0
+		const val FEATURES_TAB = 0
 		const val MARGIN = 8
 		const val COLUMN_WIDTH = 118
 		const val COLUMN_GAP = 8
@@ -958,7 +926,8 @@ internal class ClickGuiShellScreen(
 		const val BAR_PAD = 3
 		const val TAB_PAD = 10
 		const val TAB_GAP = 2
-		const val SEARCH_TOP = TAB_TOP + BAR_HEIGHT + 8
+		const val CHROME_BOTTOM = TAB_TOP + BAR_HEIGHT
+		const val SEARCH_TOP = CHROME_BOTTOM + 8
 		const val SEARCH_WIDTH = 240
 		const val SEARCH_HEIGHT = 22
 		const val SEARCH_PAD = 10
@@ -977,6 +946,6 @@ internal class ClickGuiShellScreen(
 		const val COLLAPSE_GLYPH = "-"
 		const val CHEVRON_COLLAPSED = "›"
 		const val CHEVRON_EXPANDED = "⌄"
-		val TAB_LABELS = arrayOf("ClickGUI", "Settings")
+		val TAB_LABELS = arrayOf("Features", "Settings")
 	}
 }

@@ -11,10 +11,14 @@ internal object CorePersistence {
 	private const val DRAGGABLE_PANELS = "panels"
 	private const val EFFECTS_BLOCK = "effects"
 	private const val REDUCED_KEY = "reduced"
+	private const val ACCORDION_OPENED = "opened"
+
+	private val RETIRED_CLIENT_KEYS = arrayOf("Layout", "Arrow keys")
 
 	val migrations: List<(JsonObject) -> Unit> = listOf(
 		{ doc: JsonObject -> doc.remove(DRAGGABLE_PANELS) },
-		{ doc: JsonObject -> moveEffectsFlagIntoClientBlock(doc) }
+		{ doc: JsonObject -> moveEffectsFlagIntoClientBlock(doc) },
+		{ doc: JsonObject -> dropRetiredLayoutKeys(doc) }
 	)
 
 	fun apply(doc: JsonObject): ClickGuiState {
@@ -24,6 +28,12 @@ internal object CorePersistence {
 
 	fun snapshot(view: ClickGuiState): JsonObject =
 		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view))
+
+	private fun dropRetiredLayoutKeys(doc: JsonObject) {
+		(doc.get(ClickGuiView.CLICK_GUI) as? JsonObject)?.remove(ACCORDION_OPENED)
+		val client = doc.get(ClientPrefs.CLIENT) as? JsonObject ?: return
+		for (key in RETIRED_CLIENT_KEYS) client.remove(key)
+	}
 
 	private fun moveEffectsFlagIntoClientBlock(doc: JsonObject) {
 		val effects = doc.remove(EFFECTS_BLOCK) as? JsonObject ?: return

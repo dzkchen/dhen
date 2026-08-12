@@ -98,7 +98,7 @@ internal object RoundedGui {
 		trackColor: Int,
 		fillColor: Int
 	): Int {
-		val edge = RoundedQuad.trackEdge(left, right, progress)
+		val edge = RoundedQuad.between(left, right, progress)
 		if (edge < right || fillColor ushr 24 != OPAQUE) pill(graphics, left, top, right, bottom, trackColor)
 		pill(graphics, left, top, edge, bottom, fillColor)
 		return edge

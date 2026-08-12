@@ -80,7 +80,8 @@ object Dhen : ClientModInitializer {
 				category = Category.VISUAL,
 				description = "Second placeholder for search and keyboard navigation.",
 				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
-				hudAnchor = HudAnchor.TOP_RIGHT
+				hudAnchor = HudAnchor.TOP_RIGHT,
+				hudBackground = true
 			),
 			PlaceholderModule(
 				name = "Sample Timer",

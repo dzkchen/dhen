@@ -90,7 +90,7 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 		RoundedGui.pillBorder(graphics, left, top, right, bottom, RoundedGui.HAIRLINE, DhenPalette.BORDER)
 		RoundedGui.circle(
 			graphics,
-			RoundedQuad.trackEdge(left + TOGGLE_KNOB_INSET, right - TOGGLE_KNOB_INSET, progress),
+			RoundedQuad.between(left + TOGGLE_KNOB_INSET, right - TOGGLE_KNOB_INSET, progress),
 			top + WIDGET_HEIGHT / 2,
 			TOGGLE_KNOB_RADIUS,
 			DhenPalette.label(on)

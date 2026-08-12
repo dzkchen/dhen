@@ -9,12 +9,14 @@ abstract class HudElement(
 	offsetX: Int = 0,
 	offsetY: Int = 0,
 	scale: Float = DEFAULT_SCALE,
-	visible: Boolean = true
+	visible: Boolean = true,
+	background: Boolean = false
 ) {
 	var anchor: HudAnchor = anchor
 	var offsetX: Int = offsetX
 	var offsetY: Int = offsetY
 	var visible: Boolean = visible
+	var background: Boolean = background
 
 	var scale: Float = clampScale(scale)
 		set(value) {
@@ -26,6 +28,7 @@ abstract class HudElement(
 	private val declaredOffsetY = this.offsetY
 	private val declaredScale = this.scale
 	private val declaredVisible = this.visible
+	private val declaredBackground = this.background
 
 	var failed: Boolean = false
 		private set
@@ -45,6 +48,7 @@ abstract class HudElement(
 			offsetY == declaredOffsetY &&
 			scale == declaredScale &&
 			visible == declaredVisible &&
+			background == declaredBackground &&
 			!failed
 		) {
 			return false
@@ -54,6 +58,7 @@ abstract class HudElement(
 		offsetY = declaredOffsetY
 		scale = declaredScale
 		visible = declaredVisible
+		background = declaredBackground
 		failed = false
 		return true
 	}

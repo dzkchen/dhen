@@ -109,6 +109,42 @@ class HudPersistenceTest {
 	}
 
 	@Test
+	fun `the plate flag defaults off and is switched by the file`() {
+		val element = FixedHudElement("Status")
+		val doc = JsonObject().apply {
+			add("Status", JsonObject().apply { addProperty("background", true) })
+		}
+
+		assertFalse(element.background)
+		HudPersistence.apply(listOf(element), doc)
+
+		assertTrue(element.background)
+		assertTrue(HudPersistence.snapshot(listOf(element)).getAsJsonObject("Status").get("background").asBoolean)
+	}
+
+	@Test
+	fun `one feature can declare a plate while the one beside it does not`() {
+		val plain = FixedHudElement("Status")
+		val plated = FixedHudElement("Plated", background = true)
+
+		assertFalse(plain.background)
+		assertTrue(plated.background)
+	}
+
+	@Test
+	fun `a reset restores the plate the module declared`() {
+		val plain = FixedHudElement("Status")
+		val plated = FixedHudElement("Plated", background = true)
+		plain.background = true
+		plated.background = false
+
+		assertTrue(plain.resetToDeclared())
+		assertTrue(plated.resetToDeclared())
+		assertFalse(plain.background)
+		assertTrue(plated.background)
+	}
+
+	@Test
 	fun `an out of range scale is clamped on load`() {
 		val element = FixedHudElement("Status")
 		val doc = JsonObject().apply {

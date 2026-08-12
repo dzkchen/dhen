@@ -2,10 +2,13 @@ package io.github.dzkchen.dhen.gui
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
+import kotlin.math.roundToInt
 
 internal object GlassGui {
-	const val ENTRY_MILLIS = 180L
-	const val ENTRY_RISE = 7f
+	const val ENTRY_MILLIS = 200L
+	const val ENTRY_RISE = 10f
+	const val TAB_MILLIS = 150L
+	const val TAB_SLIDE = 14f
 	const val SETTLED = 1f
 	private const val SHADOW_LAYERS = 3
 	private const val SHEEN_CORNER_CLEARANCE = 0.5f
@@ -21,29 +24,6 @@ internal object GlassGui {
 		if (Effects.reduced) DhenPalette.SURFACE_INTERACTIVE else DhenPalette.GLASS_SURFACE_INTERACTIVE
 
 	fun raised(hovered: Boolean): Int = if (hovered) interactive() else raised()
-
-	fun shadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int) {
-		if (Effects.reduced) return
-		for (layer in SHADOW_LAYERS downTo 1) {
-			val color = withAlpha(DhenPalette.GLASS_SHADOW, 1f / layer)
-			FlatGui.border(graphics, left - layer, top - layer, right + layer, bottom + layer, color)
-		}
-	}
-
-	fun frame(
-		graphics: GuiGraphicsExtractor,
-		left: Int,
-		top: Int,
-		right: Int,
-		bottom: Int,
-		fill: Int,
-		border: Int
-	) {
-		shadow(graphics, left, top, right, bottom)
-		FlatGui.fill(graphics, left, top, right, bottom, fill)
-		FlatGui.border(graphics, left, top, right, bottom, border)
-		sheen(graphics, left, top, right)
-	}
 
 	fun roundedFrame(
 		graphics: GuiGraphicsExtractor,
@@ -77,28 +57,35 @@ internal object GlassGui {
 	fun sheenInset(width: Int, height: Int, radius: Float): Int =
 		(RoundedQuad.clamped(width * 0.5f, height * 0.5f, radius) * SHEEN_CORNER_CLEARANCE).toInt()
 
-	private fun sheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int) {
-		if (Effects.reduced) return
-		FlatGui.fill(graphics, left + 1, top + 1, right - 1, top + 2, DhenPalette.GLASS_SHEEN)
-	}
-
 	fun scrim(graphics: GuiGraphicsExtractor, width: Int, height: Int) {
 		if (Effects.reduced) return
 		FlatGui.fill(graphics, 0, 0, width, height, DhenPalette.GLASS_SCRIM)
 	}
 
 	fun veil(graphics: GuiGraphicsExtractor, width: Int, height: Int, progress: Float) {
-		val color = withAlpha(DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
-		if (color ushr 24 == 0) return
-		FlatGui.fill(graphics, 0, 0, width, height, color)
+		if (Effects.reduced) return
+		tint(graphics, 0, 0, width, height, DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
 	}
 
-	fun entryProgress(openedAt: Long): Float =
-		if (Effects.reduced) SETTLED else progress(Util.getMillis() - openedAt)
+	private fun tint(
+		graphics: GuiGraphicsExtractor,
+		left: Int,
+		top: Int,
+		right: Int,
+		bottom: Int,
+		color: Int,
+		factor: Float
+	) {
+		val tinted = withAlpha(color, factor)
+		if (tinted ushr 24 == 0) return
+		FlatGui.fill(graphics, left, top, right, bottom, tinted)
+	}
 
-	fun rise(progress: Float): Float = (SETTLED - progress) * ENTRY_RISE
+	fun entryProgress(openedAt: Long): Float = tweenSince(0f, SETTLED, openedAt, ENTRY_MILLIS)
 
-	fun progress(elapsed: Long): Float = tween(0f, SETTLED, elapsed, ENTRY_MILLIS)
+	fun tabProgress(switchedAt: Long): Float = tweenSince(0f, SETTLED, switchedAt, TAB_MILLIS)
+
+	fun offset(progress: Float, distance: Float): Float = (SETTLED - progress) * distance
 
 	fun tween(from: Float, target: Float, elapsed: Long, millis: Long): Float = when {
 		elapsed <= 0L -> from

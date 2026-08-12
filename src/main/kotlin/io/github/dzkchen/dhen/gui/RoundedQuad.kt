@@ -29,9 +29,9 @@ internal object RoundedQuad {
 
 	fun fixed(pixels: Float): Int = (pixels * SUBPIXEL).roundToInt().coerceIn(-FIXED_LIMIT, FIXED_LIMIT)
 
-	fun trackEdge(left: Int, right: Int, progress: Float): Int {
+	fun between(from: Int, to: Int, progress: Float): Int {
 		val settled = if (progress.isNaN()) 0f else progress.coerceIn(0f, 1f)
-		return left + ((right - left) * settled).roundToInt()
+		return from + ((to - from) * settled).roundToInt()
 	}
 
 	fun isUntransformed(pose: Matrix3x2fc): Boolean =

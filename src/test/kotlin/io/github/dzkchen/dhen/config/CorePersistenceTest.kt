@@ -47,6 +47,25 @@ class CorePersistenceTest {
 	}
 
 	@Test
+	fun `the accordion and arrow-key keys are stripped from a file that still carries them`(@TempDir dir: Path) {
+		val path = dir.resolve("core.json")
+		Files.writeString(
+			path,
+			"""{"clickgui":{"collapsed":["DEV"],"opened":["MISC"]},""" +
+				""""client":{"Layout":"Accordion","Arrow keys":"Jump columns","Accent color":-1}}"""
+		)
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations)
+
+		val doc = store.load()
+
+		assertFalse(doc.getAsJsonObject("clickgui").has("opened"))
+		assertFalse(doc.getAsJsonObject("client").has("Layout"))
+		assertFalse(doc.getAsJsonObject("client").has("Arrow keys"))
+		assertTrue(doc.getAsJsonObject("client").has("Accent color"))
+		assertEquals(setOf("DEV"), CorePersistence.apply(doc).collapsed)
+	}
+
+	@Test
 	fun `a document with no effects block at all migrates without inventing one`(@TempDir dir: Path) {
 		val path = dir.resolve("core.json")
 		Files.writeString(path, """{"version":1,"clickgui":{"collapsed":[]}}""")

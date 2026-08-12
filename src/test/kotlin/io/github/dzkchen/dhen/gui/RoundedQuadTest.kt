@@ -39,12 +39,12 @@ class RoundedQuadTest {
 
 	@Test
 	fun `a track edge runs from empty to full and survives a degenerate fraction`() {
-		assertEquals(10, RoundedQuad.trackEdge(10, 50, 0f))
-		assertEquals(50, RoundedQuad.trackEdge(10, 50, 1f))
-		assertEquals(30, RoundedQuad.trackEdge(10, 50, 0.5f))
-		assertEquals(10, RoundedQuad.trackEdge(10, 50, -2f))
-		assertEquals(50, RoundedQuad.trackEdge(10, 50, 9f))
-		assertEquals(10, RoundedQuad.trackEdge(10, 50, Float.NaN))
+		assertEquals(10, RoundedQuad.between(10, 50, 0f))
+		assertEquals(50, RoundedQuad.between(10, 50, 1f))
+		assertEquals(30, RoundedQuad.between(10, 50, 0.5f))
+		assertEquals(10, RoundedQuad.between(10, 50, -2f))
+		assertEquals(50, RoundedQuad.between(10, 50, 9f))
+		assertEquals(10, RoundedQuad.between(10, 50, Float.NaN))
 	}
 
 	@Test

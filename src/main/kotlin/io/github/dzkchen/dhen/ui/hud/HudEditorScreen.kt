@@ -4,6 +4,8 @@ import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.FlatGui
 import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.RoundedGui
+import io.github.dzkchen.dhen.gui.RoundedQuad
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -122,23 +124,31 @@ internal class HudEditorScreen(
 		val guideX = editor.guideX
 		if (guideX != HudEditor.NO_GUIDE) {
 			val left = guideX.coerceIn(0, maxOf(0, width - 1))
-			FlatGui.fill(graphics, left, 0, left + 1, height, DhenPalette.accentMuted)
+			FlatGui.fill(graphics, left, 0, left + 1, height, DhenPalette.accent)
 		}
 		val guideY = editor.guideY
 		if (guideY != HudEditor.NO_GUIDE) {
 			val top = guideY.coerceIn(0, maxOf(0, height - 1))
-			FlatGui.fill(graphics, 0, top, width, top + 1, DhenPalette.accentMuted)
+			FlatGui.fill(graphics, 0, top, width, top + 1, DhenPalette.accent)
 		}
 	}
 
 	private fun drawTarget(graphics: GuiGraphicsExtractor, target: HudTarget) {
+		val left = target.x
+		val top = target.y
+		val right = left + target.width
+		val bottom = top + target.height
+		val outline = when {
+			target === editor.selected -> DhenPalette.accent
+			target === hovered -> DhenPalette.TEXT_SECONDARY
+			else -> DhenPalette.BORDER
+		}
 		if (target.placeholder) {
+			GlassGui.roundedFrame(graphics, left, top, right, bottom, OUTLINE_RADIUS, GlassGui.surface(), outline)
 			val pose = graphics.pose()
 			pose.pushMatrix()
-			pose.translate(target.x.toFloat(), target.y.toFloat())
+			pose.translate(left.toFloat(), top.toFloat())
 			pose.scale(target.element.scale, target.element.scale)
-			GlassGui.shadow(graphics, 0, 0, target.contentWidth, target.contentHeight)
-			FlatGui.fill(graphics, 0, 0, target.contentWidth, target.contentHeight, GlassGui.surface())
 			DhenType.text(
 				graphics,
 				font,
@@ -149,24 +159,20 @@ internal class HudEditorScreen(
 				shadow = true
 			)
 			pose.popMatrix()
+			return
 		}
-		val outline = when {
-			target === editor.selected -> DhenPalette.accent
-			target === hovered -> DhenPalette.TEXT_SECONDARY
-			else -> DhenPalette.BORDER
-		}
-		FlatGui.border(graphics, target.x, target.y, target.x + target.width, target.y + target.height, outline)
+		RoundedGui.border(graphics, left, top, right, bottom, OUTLINE_RADIUS, RoundedGui.HAIRLINE, outline)
 	}
 
 	private fun drawBanner(graphics: GuiGraphicsExtractor, text: String, top: Int) {
-		val boxWidth = DhenType.width(font, text) + 2 * BANNER_PAD
+		val boxWidth = DhenType.width(font, text) + 2 * BANNER_PAD_X
 		val left = (width - boxWidth) / 2
 		val bottom = top + bannerHeight()
-		GlassGui.frame(graphics, left, top, left + boxWidth, bottom, GlassGui.surface(), DhenPalette.BORDER)
-		DhenType.text(graphics, font, text, left + BANNER_PAD, top + BANNER_PAD, DhenPalette.TEXT_PRIMARY, shadow = true)
+		GlassGui.roundedFrame(graphics, left, top, left + boxWidth, bottom, RoundedQuad.FULL, GlassGui.surface(), DhenPalette.BORDER)
+		DhenType.text(graphics, font, text, left + BANNER_PAD_X, top + BANNER_PAD_Y, DhenPalette.TEXT_PRIMARY, shadow = true)
 	}
 
-	private fun bannerHeight(): Int = DhenType.lineHeight(font) + 2 * BANNER_PAD
+	private fun bannerHeight(): Int = DhenType.lineHeight(font) + 2 * BANNER_PAD_Y
 
 	private fun label(): String {
 		val target = editor.selected ?: return ""
@@ -182,9 +188,11 @@ internal class HudEditorScreen(
 
 	private companion object {
 		const val PLACEHOLDER_PAD = 2
-		const val BANNER_PAD = 3
-		const val BANNER_TOP = 6
-		const val BANNER_GAP = 3
+		const val OUTLINE_RADIUS = 3f
+		const val BANNER_PAD_X = 12
+		const val BANNER_PAD_Y = 4
+		const val BANNER_TOP = 8
+		const val BANNER_GAP = 4
 		const val NUDGE = 1
 		const val HINT = "Drag to move, scroll to scale, arrows to nudge"
 		const val MODIFIER_HINT = "Alt: no snap   Right-click: reset one"

@@ -41,7 +41,5 @@ internal class ScrollingStack(
 
 	fun reclamp() = state.reclamp(max())
 
-	fun rewind() = state.scrollTo(ClickGuiScroll.TOP, ClickGuiScroll.TOP)
-
 	private fun window(): Int = maxOf(0, viewport.asInt - margin - start)
 }

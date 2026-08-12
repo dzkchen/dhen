@@ -44,6 +44,21 @@ internal object DhenPalette {
 
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
+	fun mix(from: Int, to: Int, fraction: Float): Int {
+		if (from == to || fraction >= 1f) return to
+		if (fraction <= 0f) return from
+		return (channelBetween(from, to, 24, fraction) shl 24) or
+			(channelBetween(from, to, 16, fraction) shl 16) or
+			(channelBetween(from, to, 8, fraction) shl 8) or
+			channelBetween(from, to, 0, fraction)
+	}
+
+	private fun channelBetween(from: Int, to: Int, shift: Int, fraction: Float): Int =
+		blend(from ushr shift and 0xFF, to ushr shift and 0xFF, fraction)
+
+	private fun blend(from: Int, to: Int, fraction: Float): Int =
+		(from + (to - from) * fraction).roundToInt().coerceIn(0, 0xFF)
+
 	fun luminance(color: Int): Int {
 		val red = color ushr 16 and 0xFF
 		val green = color ushr 8 and 0xFF
@@ -54,12 +69,9 @@ internal object DhenPalette {
 	private fun contrasting(color: Int): Int = if (luminance(color) >= CONTRAST_PIVOT) TEXT_ON_ACCENT else TEXT_PRIMARY
 
 	private fun muted(color: Int): Int {
-		val red = towardsSurface(color ushr 16 and 0xFF, SURFACE ushr 16 and 0xFF)
-		val green = towardsSurface(color ushr 8 and 0xFF, SURFACE ushr 8 and 0xFF)
-		val blue = towardsSurface(color and 0xFF, SURFACE and 0xFF)
+		val red = channelBetween(color, SURFACE, 16, MUTED_BLEND)
+		val green = channelBetween(color, SURFACE, 8, MUTED_BLEND)
+		val blue = channelBetween(color, SURFACE, 0, MUTED_BLEND)
 		return (color and ALPHA_MASK) or (red shl 16) or (green shl 8) or blue
 	}
-
-	private fun towardsSurface(channel: Int, surface: Int): Int =
-		(channel + (surface - channel) * MUTED_BLEND).roundToInt().coerceIn(0, 0xFF)
 }
