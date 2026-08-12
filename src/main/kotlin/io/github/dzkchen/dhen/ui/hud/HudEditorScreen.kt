@@ -122,12 +122,12 @@ internal class HudEditorScreen(
 		val guideX = editor.guideX
 		if (guideX != HudEditor.NO_GUIDE) {
 			val left = guideX.coerceIn(0, maxOf(0, width - 1))
-			FlatGui.fill(graphics, left, 0, left + 1, height, DhenPalette.ACCENT_MUTED)
+			FlatGui.fill(graphics, left, 0, left + 1, height, DhenPalette.accentMuted)
 		}
 		val guideY = editor.guideY
 		if (guideY != HudEditor.NO_GUIDE) {
 			val top = guideY.coerceIn(0, maxOf(0, height - 1))
-			FlatGui.fill(graphics, 0, top, width, top + 1, DhenPalette.ACCENT_MUTED)
+			FlatGui.fill(graphics, 0, top, width, top + 1, DhenPalette.accentMuted)
 		}
 	}
 
@@ -151,7 +151,7 @@ internal class HudEditorScreen(
 			pose.popMatrix()
 		}
 		val outline = when {
-			target === editor.selected -> DhenPalette.ACCENT
+			target === editor.selected -> DhenPalette.accent
 			target === hovered -> DhenPalette.TEXT_SECONDARY
 			else -> DhenPalette.BORDER
 		}

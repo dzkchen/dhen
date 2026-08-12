@@ -469,7 +469,7 @@ internal class ClickGuiScreen(
 		val boxTop = top + (SEARCH_HEIGHT - INDICATOR_SIZE) / 2
 		val boxBottom = boxTop + INDICATOR_SIZE
 		if (Effects.reduced) FlatGui.border(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.BORDER)
-		else FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.ACCENT)
+		else FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.accent)
 	}
 
 	private fun drawSearch(graphics: GuiGraphicsExtractor) {
@@ -477,7 +477,7 @@ internal class ClickGuiScreen(
 		val top = MARGIN
 		val right = left + SEARCH_WIDTH
 		val bottom = top + SEARCH_HEIGHT
-		val outline = if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.ACCENT
+		val outline = if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.accent
 		GlassGui.frame(graphics, left, top, right, bottom, GlassGui.raised(), outline)
 		val textLeft = left + CONTENT_PAD
 		val textTop = top + (SEARCH_HEIGHT - DhenType.lineHeight(font)) / 2
@@ -736,7 +736,7 @@ internal class ClickGuiScreen(
 				else -> null
 			}
 			if (background != null) FlatGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, background)
-			if (module === focusedModule) FlatGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, DhenPalette.ACCENT)
+			if (module === focusedModule) FlatGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, DhenPalette.accent)
 
 			val nameColor = if (module.enabled) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
 			DhenType.text(graphics, font, module.name, left + CONTENT_PAD, rowTop + ROW_TEXT_OFFSET, nameColor)
@@ -746,7 +746,7 @@ internal class ClickGuiScreen(
 			val boxTop = rowTop + (ROW_HEIGHT - INDICATOR_SIZE) / 2
 			val boxBottom = boxTop + INDICATOR_SIZE
 			if (module.enabled) {
-				FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.ACCENT)
+				FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.accent)
 			} else {
 				FlatGui.border(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.BORDER)
 			}

@@ -62,7 +62,7 @@ internal class CheckboxControl(private val boolean: BooleanSetting) : SettingCon
 		val boxLeft = boxRight - CONTROL_INDICATOR
 		val boxTop = y + (height - CONTROL_INDICATOR) / 2
 		val boxBottom = boxTop + CONTROL_INDICATOR
-		if (boolean.value) FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.ACCENT)
+		if (boolean.value) FlatGui.fill(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.accent)
 		else FlatGui.border(graphics, boxLeft, boxTop, boxRight, boxBottom, DhenPalette.BORDER)
 	}
 
@@ -79,8 +79,8 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_RAISED)
 		val fillWidth = (fraction() * width).roundToInt()
-		FlatGui.fill(graphics, x, y, x + fillWidth, y + height, DhenPalette.ACCENT_MUTED)
-		if (hovered) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
+		FlatGui.fill(graphics, x, y, x + fillWidth, y + height, DhenPalette.accentMuted)
+		if (hovered) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.accent)
 		val top = textTop(font, y, height)
 		DhenType.text(graphics, font, number.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_PRIMARY)
 		val value = displayValue()
@@ -189,7 +189,7 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 	}
 
 	protected fun drawFocusFrame(graphics: GuiGraphicsExtractor, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (editing) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
+		if (editing) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.accent)
 		else if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
 	}
 }
@@ -273,7 +273,7 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 	private var cachedLabel = ""
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		if (armed) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.ACCENT)
+		if (armed) FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.accent)
 		else if (hovered) FlatGui.fill(graphics, x, y, x + width, y + height, DhenPalette.SURFACE_INTERACTIVE)
 		val top = textTop(font, y, height)
 		DhenType.text(graphics, font, keybind.name, x + CONTROL_TEXT_INSET, top, DhenPalette.TEXT_SECONDARY)
@@ -327,7 +327,7 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 
 internal class ActionControl(private val action: ActionSetting) : SettingControl(action) {
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		val background = if (hovered) DhenPalette.ACCENT_MUTED else DhenPalette.SURFACE_RAISED
+		val background = if (hovered) DhenPalette.accentMuted else DhenPalette.SURFACE_RAISED
 		FlatGui.fill(graphics, x, y, x + width, y + height, background)
 		FlatGui.border(graphics, x, y, x + width, y + height, DhenPalette.BORDER)
 		val label = action.name
