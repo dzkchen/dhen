@@ -50,7 +50,6 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 
 	open fun blur(): Boolean = false
 
-	protected fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenType.lineHeight(font)) / 2
 }
 
 internal class CheckboxControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
@@ -185,7 +184,7 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 	protected fun editText(): String = if (editing) draft else committedText()
 
 	protected fun drawCaret(graphics: GuiGraphicsExtractor, font: Font, afterX: Int, top: Int) {
-		if (editing) FlatGui.fill(graphics, afterX, top, afterX + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
+		if (editing) caret(graphics, font, afterX, top)
 	}
 
 	protected fun drawFocusFrame(graphics: GuiGraphicsExtractor, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
@@ -199,7 +198,7 @@ internal class TextControl(private val string: StringSetting) : EditableControl(
 
 	override fun committedText(): String = string.value
 
-	override fun accepts(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
+	override fun accepts(codepoint: Int): Boolean = isPrintable(codepoint)
 
 	override fun commit(text: String): Boolean {
 		if (text == string.value) return false
@@ -343,6 +342,14 @@ internal class ActionControl(private val action: ActionSetting) : SettingControl
 		return ControlPress.INVOKED
 	}
 }
+
+internal fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenType.lineHeight(font)) / 2
+
+internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int) {
+	FlatGui.fill(graphics, x, top, x + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
+}
+
+internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
 
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is BooleanSetting -> CheckboxControl(setting)

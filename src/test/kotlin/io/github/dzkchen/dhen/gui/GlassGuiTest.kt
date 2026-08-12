@@ -67,6 +67,15 @@ class GlassGuiTest {
 	}
 
 	@Test
+	fun `the sheen clears the corners it is given and survives the pill sentinel`() {
+		assertEquals(0, GlassGui.sheenInset(width = 240, height = 22, radius = 0f))
+		assertEquals(3, GlassGui.sheenInset(width = 240, height = 22, radius = 6f))
+		assertEquals(5, GlassGui.sheenInset(width = 240, height = 22, radius = RoundedQuad.FULL))
+		assertEquals(0, GlassGui.sheenInset(width = 0, height = 0, radius = RoundedQuad.FULL))
+		assertEquals(0, GlassGui.sheenInset(width = -20, height = -20, radius = RoundedQuad.FULL))
+	}
+
+	@Test
 	fun `alpha scaling keeps the color channels and clamps the alpha`() {
 		val color = 0x80336699u.toInt()
 

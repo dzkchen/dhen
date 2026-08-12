@@ -56,7 +56,7 @@ internal object GlassGui {
 		roundedShadow(graphics, left, top, right, bottom, radius)
 		RoundedGui.fill(graphics, left, top, right, bottom, radius, fill)
 		RoundedGui.border(graphics, left, top, right, bottom, radius, 1f, border)
-		roundedSheen(graphics, left, top, right, radius)
+		roundedSheen(graphics, left, top, right, bottom, radius)
 	}
 
 	fun roundedShadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
@@ -67,11 +67,14 @@ internal object GlassGui {
 		}
 	}
 
-	fun roundedSheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, radius: Float) {
+	fun roundedSheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
 		if (Effects.reduced) return
-		val inset = (radius * SHEEN_CORNER_CLEARANCE).toInt()
+		val inset = sheenInset(right - left, bottom - top, radius)
 		RoundedGui.pill(graphics, left + inset, top + 1, right - inset, top + 2, DhenPalette.GLASS_SHEEN)
 	}
+
+	fun sheenInset(width: Int, height: Int, radius: Float): Int =
+		(RoundedQuad.clamped(width * 0.5f, height * 0.5f, radius) * SHEEN_CORNER_CLEARANCE).toInt()
 
 	fun sheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int) {
 		if (Effects.reduced) return
