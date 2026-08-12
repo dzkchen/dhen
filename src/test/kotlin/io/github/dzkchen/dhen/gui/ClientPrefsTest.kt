@@ -16,6 +16,7 @@ class ClientPrefsTest {
 	@AfterEach
 	fun restoreDefaults() {
 		Effects.reduced = false
+		ClickGuiLayout.setting.value = ClickGuiLayout.COLUMNS
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		ClientPrefs.sync()
 	}
@@ -24,14 +25,35 @@ class ClientPrefsTest {
 	fun `every setting the tab shows survives a write and read round trip`() {
 		ClientPrefs.accent.value = Color(TEAL)
 		Effects.reduced = true
+		ClickGuiLayout.setting.value = ClickGuiLayout.ACCORDION
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		Effects.reduced = false
+		ClickGuiLayout.setting.value = ClickGuiLayout.COLUMNS
 
 		ClientPrefs.read(written)
 
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
 		assertTrue(Effects.reduced)
+		assertTrue(ClickGuiLayout.accordion)
+	}
+
+	@Test
+	fun `the layout mode starts on columns and only accordion turns it off`() {
+		assertEquals(ClickGuiLayout.COLUMNS, ClickGuiLayout.setting.default)
+		assertFalse(ClickGuiLayout.accordion)
+
+		ClickGuiLayout.setting.value = ClickGuiLayout.ACCORDION
+
+		assertTrue(ClickGuiLayout.accordion)
+	}
+
+	@Test
+	fun `a layout mode the build no longer offers falls back to columns`() {
+		ClientPrefs.read(document("""{"client":{"Layout":"Panels"}}"""))
+
+		assertFalse(ClickGuiLayout.accordion)
+		assertEquals(ClickGuiLayout.COLUMNS, ClickGuiLayout.setting.value)
 	}
 
 	@Test
@@ -71,9 +93,10 @@ class ClientPrefsTest {
 	fun `the core document keeps the collapsed columns and the client block side by side`() {
 		Effects.reduced = true
 
-		val core = CorePersistence.snapshot(setOf("DEV"))
+		val core = CorePersistence.snapshot(ClickGuiState(linkedSetOf("DEV"), linkedSetOf("MISC")))
 
 		assertEquals("DEV", core.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
+		assertEquals("MISC", core.getAsJsonObject("clickgui").getAsJsonArray("opened")[0].asString)
 		assertTrue(core.getAsJsonObject("client").get(Effects.REDUCED).asBoolean)
 		assertTrue(core.getAsJsonObject("client").has("Accent color"))
 	}

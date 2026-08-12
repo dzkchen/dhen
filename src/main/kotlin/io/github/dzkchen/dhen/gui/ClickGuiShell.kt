@@ -41,6 +41,11 @@ internal object ClickGuiShell {
 	fun spanTotal(count: Int, extentAt: IntUnaryOperator, gap: Int): Int =
 		if (count <= 0) 0 else spanStart(count, extentAt, gap) - gap
 
+	fun spanOrigin(top: Int, index: Int, extentAt: IntUnaryOperator, gap: Int, offset: Int): Int =
+		top + spanStart(index, extentAt, gap) - offset
+
+	fun spanLocal(top: Int, y: Int, offset: Int): Int = y - top + offset
+
 	fun spanAt(local: Int, count: Int, extentAt: IntUnaryOperator, gap: Int): Int {
 		if (local < 0) return NONE
 		var offset = 0

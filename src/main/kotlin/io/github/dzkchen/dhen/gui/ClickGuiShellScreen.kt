@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 internal class ClickGuiShellScreen(
 	private val categories: List<Category>,
 	private val manager: ModuleManager,
-	private val collapsed: MutableSet<String>,
+	private val view: ClickGuiState,
 	private val persistCore: () -> Unit,
 	private val persistModules: () -> Unit,
 	private val parent: Screen? = null
@@ -29,7 +29,9 @@ internal class ClickGuiShellScreen(
 	private val expanded = mutableSetOf<String>()
 	private val tabWidths = IntArray(TAB_LABELS.size)
 	private val scroll = ScrollState()
+	private val stackScroll = ScrollState()
 	private val prefScroll = ScrollState()
+	private val stackHeightAt = IntUnaryOperator { index -> visible[index].height }
 	private val prefCards: List<PrefCard> = ClientPrefs.sections.map(::PrefCard)
 	private val prefCardHeightAt = IntUnaryOperator { index -> prefCards[index].height }
 	private var query = ""
@@ -106,19 +108,45 @@ internal class ClickGuiShellScreen(
 		}
 		drawSearch(graphics)
 		tooltipText = null
+		if (accordion) drawStack(graphics, mouseX, mouseY) else drawColumns(graphics, mouseX, mouseY)
+		drawTooltip(graphics)
+	}
+
+	private fun drawColumns(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		for (i in visible.indices) {
 			val column = visible[i]
 			val left = column.contentLeft - scroll.offset
-			if (left + COLUMN_WIDTH > 0 && left < width) column.draw(graphics, font, left, mouseX, mouseY)
+			if (left + COLUMN_WIDTH > 0 && left < width) {
+				column.draw(graphics, font, left, FIELD_TOP, column.naturalHeight, mouseX, mouseY)
+			}
 		}
-		drawTooltip(graphics)
+	}
+
+	private fun drawStack(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
+		val max = maxStackScroll()
+		val clipped = max > ClickGuiScroll.TOP
+		val bottom = fieldBottom
+		if (clipped) graphics.enableScissor(0, FIELD_TOP, width, bottom)
+		var top = FIELD_TOP - stackScroll.offset
+		for (i in visible.indices) {
+			val column = visible[i]
+			if (top >= bottom) break
+			val extent = column.naturalHeight
+			if (top + extent > FIELD_TOP) {
+				column.draw(graphics, font, column.contentLeft, top, extent, mouseX, mouseY)
+			}
+			top += extent + COLUMN_GAP
+		}
+		if (!clipped) return
+		graphics.disableScissor()
+		drawScrollbar(graphics, MARGIN + COLUMN_WIDTH, FIELD_TOP, columnViewport, stackScroll.offset, max)
 	}
 
 	private fun drawClientPrefs(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		val left = panelLeft()
 		val max = maxPrefScroll()
 		val clipped = max > ClickGuiScroll.TOP
-		val bottom = FIELD_TOP + columnViewport
+		val bottom = fieldBottom
 		if (clipped) graphics.enableScissor(0, FIELD_TOP, width, bottom)
 		var top = FIELD_TOP - prefScroll.offset
 		for (i in prefCards.indices) {
@@ -149,8 +177,7 @@ internal class ClickGuiShellScreen(
 		RoundedGui.pill(graphics, thumbRight - SCROLLBAR_WIDTH, thumbTop, thumbRight, thumbTop + thumbHeight, DhenPalette.accentMuted)
 	}
 
-	private fun maxPrefScroll(): Int =
-		ClickGuiScroll.maxScroll(FIELD_TOP + ClickGuiShell.spanTotal(prefCards.size, prefCardHeightAt, SECTION_GAP), height, MARGIN)
+	private fun maxPrefScroll(): Int = maxSpanScroll(prefCards.size, prefCardHeightAt, SECTION_GAP)
 
 	private fun drawTooltip(graphics: GuiGraphicsExtractor) {
 		val text = tooltipText ?: return
@@ -195,22 +222,25 @@ internal class ClickGuiShellScreen(
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) pressPrefControl(x, y)
 			return true
 		}
-		val contentX = x + scroll.offset
-		val column = columnAt(contentX, y) ?: return true
-		if (y < BODY_TOP) {
-			toggleCollapsed(column)
+		val slot = columnSlotAt(x, y)
+		if (slot == ClickGuiShell.NONE) return true
+		val column = visible[slot]
+		val top = columnTop(slot)
+		if (y < top + HEADER_HEIGHT) {
+			toggleHeader(column)
 			return true
 		}
-		val module = column.rowAt(y)
+		val contentX = x + scroll.offset
+		val module = column.rowAt(top, y)
 		if (module != null) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !column.chevronContains(contentX)) manager.toggle(module)
 			else {
 				if (!expanded.remove(module.name)) expanded.add(module.name)
-				column.reclamp()
+				reflow(column)
 			}
 			return true
 		}
-		val control = column.controlAt(contentX, y)
+		val control = column.controlAt(top, contentX, y)
 		if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			pressRowControl(column, control, contentX)
 		}
@@ -278,10 +308,11 @@ internal class ClickGuiShellScreen(
 		}
 		val x = mouseX.toInt()
 		val y = mouseY.toInt()
-		if (y >= BODY_TOP && columnAt(x + scroll.offset, y)?.scrollBy(delta) == true) return true
-		val max = maxScroll()
-		if (max <= 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-		scroll.scrollTo(scroll.offset - delta, max)
+		val slot = columnSlotAt(x, y)
+		if (slot != ClickGuiShell.NONE && y >= columnTop(slot) + HEADER_HEIGHT && visible[slot].scrollBy(delta)) return true
+		val max = fieldMax()
+		if (max <= ClickGuiScroll.TOP) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		fieldScroll.scrollTo(fieldScroll.offset - delta, max)
 		return true
 	}
 
@@ -302,7 +333,7 @@ internal class ClickGuiShellScreen(
 		val controlsLeft = column.contentLeft + CONTENT_PAD
 		val press = pressControl(control, contentX - controlsLeft, controlsLeft - scroll.offset, CONTROLS_WIDTH, clientOwned = false)
 		if (press == ControlPress.CHANGED) {
-			column.reclamp()
+			reflow(column)
 			persistModules()
 		}
 	}
@@ -341,8 +372,8 @@ internal class ClickGuiShellScreen(
 	private fun prefControlAt(x: Int, y: Int): SettingControl? {
 		val controlsLeft = panelLeft() + CONTENT_PAD
 		if (x < controlsLeft || x >= controlsLeft + PANEL_CONTROLS_WIDTH) return null
-		if (y < FIELD_TOP || y >= FIELD_TOP + columnViewport) return null
-		val panelY = y - FIELD_TOP + prefScroll.offset
+		if (y < FIELD_TOP || y >= fieldBottom) return null
+		val panelY = ClickGuiShell.spanLocal(FIELD_TOP, y, prefScroll.offset)
 		val index = ClickGuiShell.spanAt(panelY, prefCards.size, prefCardHeightAt, SECTION_GAP)
 		if (index == ClickGuiShell.NONE) return null
 		val card = prefCards[index]
@@ -352,17 +383,23 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun persistArmed() {
-		if (armedClient) persistClient() else persistModules()
+		if (armedClient) {
+			persistClient()
+			return
+		}
+		reflowAll()
+		persistModules()
 	}
 
 	private fun persistClient() {
 		ClientPrefs.sync()
+		relayout()
 		persistCore()
 	}
 
-	private fun toggleCollapsed(column: Column) {
-		if (!collapsed.remove(column.category.name)) collapsed.add(column.category.name)
-		column.reclamp()
+	private fun toggleHeader(column: Column) {
+		view.toggle(column.category.name, accordion)
+		reflow(column)
 		persistCore()
 	}
 
@@ -379,6 +416,7 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) {
 			if (columns[i].collapseSettings()) changed = true
 		}
+		if (changed) reclampStackedField()
 		return changed
 	}
 
@@ -386,6 +424,7 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) columns[i].applyFilter(query)
 		cancelDrag()
 		layout()
+		fieldScroll.refilter(fieldMax())
 	}
 
 	private fun layout() {
@@ -393,10 +432,33 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) {
 			val column = columns[i]
 			if (column.hidden) continue
-			column.contentLeft = MARGIN + ClickGuiShell.columnLeft(visible.size, COLUMN_WIDTH, COLUMN_GAP)
+			column.contentLeft = if (accordion) MARGIN else MARGIN + ClickGuiShell.columnLeft(visible.size, COLUMN_WIDTH, COLUMN_GAP)
 			visible += column
 		}
-		scroll.refilter(maxScroll())
+	}
+
+	private fun relayout() {
+		layout()
+		idleFieldScroll.scrollTo(ClickGuiScroll.TOP, ClickGuiScroll.TOP)
+		reclampField()
+	}
+
+	private fun reflow(column: Column) {
+		column.reclamp()
+		reclampStackedField()
+	}
+
+	private fun reflowAll() {
+		for (i in visible.indices) visible[i].reclamp()
+		reclampStackedField()
+	}
+
+	private fun reclampStackedField() {
+		if (accordion) reclampField()
+	}
+
+	private fun reclampField() {
+		fieldScroll.reclamp(fieldMax())
 	}
 
 	private fun cancelDrag() {
@@ -414,15 +476,42 @@ internal class ClickGuiShellScreen(
 	private fun maxScroll(): Int =
 		ClickGuiScroll.maxScroll(MARGIN + ClickGuiShell.fieldWidth(visible.size, COLUMN_WIDTH, COLUMN_GAP), width, MARGIN)
 
-	private val columnViewport: Int
-		get() = height - FIELD_TOP - MARGIN
+	private fun maxStackScroll(): Int = maxSpanScroll(visible.size, stackHeightAt, COLUMN_GAP)
 
-	private fun columnAt(contentX: Int, y: Int): Column? {
-		if (y < FIELD_TOP) return null
-		val slot = ClickGuiShell.slotAt(contentX - MARGIN, visible.size, COLUMN_WIDTH, COLUMN_GAP)
-		if (slot == ClickGuiShell.NONE) return null
-		val column = visible[slot]
-		return if (y < FIELD_TOP + column.height) column else null
+	private fun maxSpanScroll(count: Int, extentAt: IntUnaryOperator, gap: Int): Int =
+		ClickGuiScroll.maxScroll(FIELD_TOP + ClickGuiShell.spanTotal(count, extentAt, gap), height, MARGIN)
+
+	private val accordion: Boolean
+		get() = ClickGuiLayout.accordion
+
+	private val fieldScroll: ScrollState
+		get() = if (accordion) stackScroll else scroll
+
+	private val idleFieldScroll: ScrollState
+		get() = if (accordion) scroll else stackScroll
+
+	private fun fieldMax(): Int = if (accordion) maxStackScroll() else maxScroll()
+
+	private val fieldBottom: Int
+		get() = height - MARGIN
+
+	private val columnViewport: Int
+		get() = fieldBottom - FIELD_TOP
+
+	private fun columnTop(slot: Int): Int =
+		if (accordion) ClickGuiShell.spanOrigin(FIELD_TOP, slot, stackHeightAt, COLUMN_GAP, stackScroll.offset)
+		else FIELD_TOP
+
+	private fun columnSlotAt(x: Int, y: Int): Int {
+		if (y < FIELD_TOP || y >= fieldBottom) return ClickGuiShell.NONE
+		if (accordion) {
+			if (x < MARGIN || x >= MARGIN + COLUMN_WIDTH) return ClickGuiShell.NONE
+			val localY = ClickGuiShell.spanLocal(FIELD_TOP, y, stackScroll.offset)
+			return ClickGuiShell.spanAt(localY, visible.size, stackHeightAt, COLUMN_GAP)
+		}
+		val slot = ClickGuiShell.slotAt(x + scroll.offset - MARGIN, visible.size, COLUMN_WIDTH, COLUMN_GAP)
+		if (slot == ClickGuiShell.NONE) return ClickGuiShell.NONE
+		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE
 	}
 
 	private fun barLeft(): Int = ClickGuiShell.centeredLeft(width, barWidth)
@@ -551,14 +640,17 @@ internal class ClickGuiShellScreen(
 		val hidden: Boolean
 			get() = query.isNotEmpty() && visibleCount == 0
 		val height: Int
-			get() = ClickGuiShell.clampedColumnHeight(naturalHeight, HEADER_HEIGHT, columnViewport)
+			get() = shownHeight(naturalHeight)
+		val naturalHeight: Int
+			get() = ClickGuiShell.columnHeight(isCollapsed, HEADER_HEIGHT, BODY_PAD, visibleCount, ROW_HEIGHT, settingsHeightAt)
 
 		private val isCollapsed: Boolean
-			get() = category.name in collapsed
-		private val naturalHeight: Int
-			get() = ClickGuiShell.columnHeight(isCollapsed, HEADER_HEIGHT, BODY_PAD, visibleCount, ROW_HEIGHT, settingsHeightAt)
+			get() = view.isBodyHidden(category.name, accordion)
 		private val maxScroll: Int
-			get() = naturalHeight - height
+			get() = naturalHeight.let { it - shownHeight(it) }
+
+		private fun shownHeight(natural: Int): Int =
+			if (accordion) natural else ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, columnViewport)
 
 		fun applyFilter(query: String) {
 			var count = 0
@@ -581,8 +673,8 @@ internal class ClickGuiShellScreen(
 			return true
 		}
 
-		fun rowAt(y: Int): Module? {
-			val localY = bodyLocal(y) ?: return null
+		fun rowAt(top: Int, y: Int): Module? {
+			val localY = bodyLocal(top, y) ?: return null
 			val row = ClickGuiRows.rowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
 			return modules[visibleRows[row]]
 		}
@@ -590,9 +682,9 @@ internal class ClickGuiShellScreen(
 		fun chevronContains(contentX: Int): Boolean =
 			contentX >= contentLeft + COLUMN_WIDTH - CONTENT_PAD - chevronWidth - CHEVRON_HIT_SLOP
 
-		fun controlAt(contentX: Int, y: Int): SettingControl? {
+		fun controlAt(top: Int, contentX: Int, y: Int): SettingControl? {
 			if (contentX < contentLeft + CONTENT_PAD || contentX >= contentLeft + CONTENT_PAD + CONTROLS_WIDTH) return null
-			val localY = bodyLocal(y) ?: return null
+			val localY = bodyLocal(top, y) ?: return null
 			val row = ClickGuiRows.settingsRowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
 			val bandTop = ClickGuiRows.settingsTop(row, ROW_HEIGHT, settingsHeightAt)
 			return renderableAt(visibleRows[row], localY - bandTop - SETTINGS_PAD)
@@ -607,44 +699,49 @@ internal class ClickGuiShellScreen(
 			return changed
 		}
 
-		private fun bodyLocal(y: Int): Int? {
-			if (y < BODY_TOP || y >= FIELD_TOP + height) return null
-			return y - BODY_TOP + scroll.offset
+		private fun bodyLocal(top: Int, y: Int): Int? {
+			val bodyTop = top + HEADER_HEIGHT
+			if (y < bodyTop || y >= top + height) return null
+			return y - bodyTop + scroll.offset
 		}
 
-		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, mouseX: Int, mouseY: Int) {
+		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, natural: Int, mouseX: Int, mouseY: Int) {
 			val right = left + COLUMN_WIDTH
 			val collapsedNow = isCollapsed
-			val natural = naturalHeight
-			val shown = ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, columnViewport)
-			val bottom = FIELD_TOP + shown
+			val shown = shownHeight(natural)
+			val bodyTop = top + HEADER_HEIGHT
+			val bottom = top + shown
 			val overColumn = mouseX in left until right
-			GlassGui.roundedFrame(graphics, left, FIELD_TOP, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
-			val headerColor = if (overColumn && mouseY in FIELD_TOP until BODY_TOP) GlassGui.interactive() else GlassGui.raised()
-			drawHeaderBand(graphics, font, left, right, FIELD_TOP, category.displayName, headerColor)
+			GlassGui.roundedFrame(graphics, left, top, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+			val headerColor = if (overColumn && mouseY in top until bodyTop) GlassGui.interactive() else GlassGui.raised()
+			drawHeaderBand(graphics, font, left, right, top, category.displayName, headerColor)
 			val glyph = if (collapsedNow) EXPAND_GLYPH else COLLAPSE_GLYPH
-			DhenType.text(graphics, font, glyph, right - CONTENT_PAD - glyphWidth, textTop(font, FIELD_TOP, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
-			if (collapsedNow || bottom <= BODY_TOP) return
-			drawHeaderRule(graphics, left, right, BODY_TOP, headerColor)
+			DhenType.text(graphics, font, glyph, right - CONTENT_PAD - glyphWidth, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
+			if (collapsedNow || bottom <= bodyTop) return
+			drawHeaderRule(graphics, left, right, bodyTop, headerColor)
 			val max = natural - shown
 			val clipped = max > ClickGuiScroll.TOP
-			val pointerY = if (overColumn && mouseY in BODY_TOP until bottom) mouseY else NO_POINTER
-			if (clipped) graphics.enableScissor(left + 1, BODY_TOP, right - 1, bottom)
-			var rowTop = BODY_TOP - scroll.offset
+			val visibleTop = maxOf(bodyTop, FIELD_TOP)
+			val visibleBottom = minOf(bottom, fieldBottom)
+			val pointerY = if (overColumn && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
+			if (clipped) graphics.enableScissor(left + 1, bodyTop, right - 1, bottom)
+			var rowTop = bodyTop - scroll.offset
 			for (row in 0 until visibleCount) {
-				if (rowTop >= bottom) break
+				if (rowTop >= visibleBottom) break
 				val index = visibleRows[row]
 				val areaHeight = settingsHeight(index)
 				val nextTop = rowTop + ROW_HEIGHT + areaHeight
-				if (nextTop > BODY_TOP) {
+				if (nextTop > visibleTop) {
 					drawRow(graphics, font, modules[index], left, rowTop, pointerY)
-					if (areaHeight > 0) drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, bottom, mouseX, pointerY)
+					if (areaHeight > 0) {
+						drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, visibleTop, visibleBottom, mouseX, pointerY)
+					}
 				}
 				rowTop = nextTop
 			}
 			if (clipped) {
 				graphics.disableScissor()
-				drawScrollbar(graphics, right, BODY_TOP, shown - HEADER_HEIGHT, scroll.offset, max)
+				drawScrollbar(graphics, right, bodyTop, shown - HEADER_HEIGHT, scroll.offset, max)
 			}
 		}
 
@@ -689,7 +786,8 @@ internal class ClickGuiShellScreen(
 			left: Int,
 			top: Int,
 			areaHeight: Int,
-			bottom: Int,
+			visibleTop: Int,
+			visibleBottom: Int,
 			mouseX: Int,
 			pointerY: Int
 		) {
@@ -701,8 +799,8 @@ internal class ClickGuiShellScreen(
 			for (i in list.indices) {
 				val control = list[i]
 				if (!control.setting.isVisible) continue
-				if (y >= bottom) break
-				if (y + CONTROL_ROW_HEIGHT > BODY_TOP) {
+				if (y >= visibleBottom) break
+				if (y + CONTROL_ROW_HEIGHT > visibleTop) {
 					val hovered = overControls && pointerY in y until y + CONTROL_ROW_HEIGHT
 					control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, CONTROL_ROW_HEIGHT, hovered)
 				}
@@ -772,7 +870,6 @@ internal class ClickGuiShellScreen(
 		const val SEARCH_PAD = 10
 		const val SEARCH_MAX_LENGTH = 20
 		const val FIELD_TOP = SEARCH_TOP + SEARCH_HEIGHT + 12
-		const val BODY_TOP = FIELD_TOP + HEADER_HEIGHT
 		const val SCROLL_STEP = 24
 		const val PANEL_WIDTH = SEARCH_WIDTH
 		const val PANEL_CONTROLS_WIDTH = PANEL_WIDTH - 2 * CONTENT_PAD

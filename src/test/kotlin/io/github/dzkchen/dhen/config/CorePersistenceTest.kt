@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.config
 
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.Effects
@@ -39,10 +40,10 @@ class CorePersistenceTest {
 		Files.writeString(path, """{"version":1,"effects":{"reduced":true},"clickgui":{"collapsed":["DEV"]}}""")
 		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations)
 
-		val collapsed = CorePersistence.apply(store.load())
+		val view = CorePersistence.apply(store.load())
 
 		assertTrue(Effects.reduced)
-		assertEquals(setOf("DEV"), collapsed)
+		assertEquals(setOf("DEV"), view.collapsed)
 	}
 
 	@Test
@@ -78,7 +79,7 @@ class CorePersistenceTest {
 		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), CorePersistence.migrations, debounce = {})
 		store.load()
 
-		store.save(CorePersistence.snapshot(setOf("DEV"))).join()
+		store.save(CorePersistence.snapshot(ClickGuiState(collapsed = linkedSetOf("DEV")))).join()
 
 		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
 		assertFalse(written.has("panels"))
@@ -100,7 +101,7 @@ class CorePersistenceTest {
 		Effects.reduced = true
 		ClientPrefs.accent.value = Color(TEAL)
 
-		store.save(CorePersistence.snapshot(emptySet())).join()
+		store.save(CorePersistence.snapshot(ClickGuiState())).join()
 		Effects.reduced = false
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		CorePersistence.apply(ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations).load())

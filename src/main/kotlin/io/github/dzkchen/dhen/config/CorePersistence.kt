@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.config
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClickGuiView
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.Effects
@@ -16,13 +17,13 @@ internal object CorePersistence {
 		{ doc: JsonObject -> moveEffectsFlagIntoClientBlock(doc) }
 	)
 
-	fun apply(doc: JsonObject): MutableSet<String> {
+	fun apply(doc: JsonObject): ClickGuiState {
 		ClientPrefs.read(doc)
 		return ClickGuiView.read(doc)
 	}
 
-	fun snapshot(collapsedCategories: Set<String>): JsonObject =
-		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), collapsedCategories))
+	fun snapshot(view: ClickGuiState): JsonObject =
+		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view))
 
 	private fun moveEffectsFlagIntoClientBlock(doc: JsonObject) {
 		val effects = doc.remove(EFFECTS_BLOCK) as? JsonObject ?: return

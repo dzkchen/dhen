@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
+import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
@@ -57,7 +58,7 @@ object Dhen : ClientModInitializer {
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
-	private lateinit var collapsedCategories: MutableSet<String>
+	private lateinit var clickGuiView: ClickGuiState
 	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
@@ -71,7 +72,7 @@ object Dhen : ClientModInitializer {
 			configScope,
 			ModulePersistence.migrations
 		)
-		collapsedCategories = CorePersistence.apply(coreStore.load())
+		clickGuiView = CorePersistence.apply(coreStore.load())
 		modules.registerAll(
 			PlaceholderModule(),
 			PlaceholderModule(
@@ -149,13 +150,13 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun persistCore() {
-		coreStore.save(CorePersistence.snapshot(collapsedCategories))
+		coreStore.save(CorePersistence.snapshot(clickGuiView))
 	}
 
 	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiShellScreen(
 		Category.entries.toList(),
 		modules,
-		collapsedCategories,
+		clickGuiView,
 		persistCore = ::persistCore,
 		persistModules = ::persistModules,
 		parent = parent

@@ -19,7 +19,7 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(accent)),
+		PrefSection("Appearance", listOf(ClickGuiLayout.setting, accent)),
 		PrefSection("Client", emptyList())
 	)
 
