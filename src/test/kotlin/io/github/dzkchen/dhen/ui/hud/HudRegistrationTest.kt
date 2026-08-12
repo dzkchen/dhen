@@ -89,7 +89,7 @@ class HudRegistrationTest {
 	}
 
 	@Test
-	fun `resetting the layout restores the declared anchor, offset and scale`() {
+	fun `resetting restores the declared anchor, offset, scale and visibility`() {
 		val element = FixedHudElement("Moved", anchor = HudAnchor.BOTTOM_RIGHT, offsetX = -4, offsetY = -4)
 
 		element.anchor = HudAnchor.MIDDLE_CENTER
@@ -98,13 +98,45 @@ class HudRegistrationTest {
 		element.scale = 2.5f
 		element.visible = false
 
-		assertTrue(element.resetLayout())
+		assertTrue(element.resetToDeclared())
 		assertEquals(HudAnchor.BOTTOM_RIGHT, element.anchor)
 		assertEquals(-4, element.offsetX)
 		assertEquals(-4, element.offsetY)
 		assertEquals(HudElement.DEFAULT_SCALE, element.scale)
+		assertTrue(element.visible)
+		assertFalse(element.resetToDeclared())
+	}
+
+	@Test
+	fun `resetting every layout restores each element and counts only real changes`() {
+		val manager = ModuleManager()
+		val moved = OverlayModule("Moved")
+		val hidden = OverlayModule("Hidden")
+		manager.registerAll(moved, hidden)
+		manager.enable(moved)
+		val runtime = HudRuntime(manager)
+
+		assertEquals(0, runtime.resetLayouts())
+
+		moved.first.offsetX = 120
+		moved.first.scale = 2.0f
+		hidden.first.visible = false
+
+		assertEquals(2, runtime.resetLayouts())
+		assertEquals(0, moved.first.offsetX)
+		assertEquals(HudElement.DEFAULT_SCALE, moved.first.scale)
+		assertTrue(hidden.first.visible)
+		assertEquals(0, runtime.resetLayouts())
+	}
+
+	@Test
+	fun `an element declared hidden resets back to hidden`() {
+		val element = FixedHudElement("Quiet", visible = false)
+
+		element.visible = true
+
+		assertTrue(element.resetToDeclared())
 		assertFalse(element.visible)
-		assertFalse(element.resetLayout())
 	}
 
 	@Test
@@ -112,13 +144,13 @@ class HudRegistrationTest {
 		val element = FixedHudElement("Loud", scale = 99.0f)
 
 		element.scale = 1.0f
-		element.resetLayout()
+		element.resetToDeclared()
 
 		assertEquals(HudElement.MAX_SCALE, element.scale)
 	}
 
 	@Test
-	fun `an element that failed to render is skipped until it is measured again`() {
+	fun `an element that failed to render is skipped`() {
 		val manager = ModuleManager()
 		val module = OverlayModule()
 		manager.register(module)
@@ -126,6 +158,21 @@ class HudRegistrationTest {
 		module.first.markFailed()
 
 		assertEquals(listOf(module.second), visited(manager))
+	}
+
+	@Test
+	fun `resetting lifts the failed quarantine so the element renders again`() {
+		val manager = ModuleManager()
+		val module = OverlayModule()
+		manager.register(module)
+		manager.enable(module)
+		module.first.markFailed()
+
+		assertEquals(listOf(module.second), visited(manager))
+
+		assertTrue(module.first.resetToDeclared())
+		assertEquals(listOf(module.first, module.second), visited(manager))
+		assertFalse(module.first.resetToDeclared())
 	}
 
 	@Test

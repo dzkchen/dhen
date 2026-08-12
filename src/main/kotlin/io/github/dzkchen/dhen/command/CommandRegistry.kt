@@ -12,26 +12,19 @@ import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.ModuleManager
 import java.util.Locale
 
+/**
+ * `feedback` is last so a call site can pass it as a trailing lambda and default every callback it
+ * does not use; `diagnostics` sits after the callbacks for the same reason, since only a test ever
+ * substitutes it. Adding a callback here is a new defaulted parameter, not a new overload.
+ */
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
-	private val diagnostics: Diagnostics,
-	private val openHudEditor: () -> Unit,
-	private val feedback: (S, String) -> Unit,
-	private val persistEffects: () -> Unit = {}
+	private val openHudEditor: () -> Unit = {},
+	private val persistEffects: () -> Unit = {},
+	private val resetHudLayout: () -> Int = { 0 },
+	private val diagnostics: Diagnostics = Diagnostics(manager),
+	private val feedback: (S, String) -> Unit
 ) {
-	constructor(manager: ModuleManager, feedback: (S, String) -> Unit) :
-		this(manager, Diagnostics(manager), {}, feedback)
-
-	constructor(manager: ModuleManager, openHudEditor: () -> Unit, feedback: (S, String) -> Unit) :
-		this(manager, Diagnostics(manager), openHudEditor, feedback)
-
-	constructor(
-		manager: ModuleManager,
-		openHudEditor: () -> Unit,
-		persistEffects: () -> Unit,
-		feedback: (S, String) -> Unit
-	) : this(manager, Diagnostics(manager), openHudEditor, feedback, persistEffects)
-
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
 
 	val commands: List<RegisteredCommand<S>>
@@ -67,7 +60,10 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				feedback(context.source, "Dhen commands: /$name module <name> toggle | debug | edit | effects")
+				feedback(
+					context.source,
+					"Dhen commands: /$name module <name> toggle | debug | edit | reset-all | effects"
+				)
 				Command.SINGLE_SUCCESS
 			}
 			.then(
@@ -102,8 +98,22 @@ class CommandRegistry<S>(
 					Command.SINGLE_SUCCESS
 				}
 			)
+			.then(resetAllCommand())
 			.then(effectsCommand())
 			.then(debugCommand())
+
+	private fun resetAllCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("reset-all")
+			.executes { context ->
+				feedback(context.source, resetSummary(resetHudLayout()))
+				Command.SINGLE_SUCCESS
+			}
+
+	private fun resetSummary(reset: Int): String = when (reset) {
+		0 -> "Every HUD element is already at its declared layout."
+		1 -> "Reset 1 HUD element to the declared layout."
+		else -> "Reset $reset HUD elements to the declared layout."
+	}
 
 	private fun effectsCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("effects")

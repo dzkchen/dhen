@@ -89,7 +89,7 @@ internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudM
 		if (dragging) return false
 		val target = targetAt(x, y) ?: return false
 		selected = target
-		return target.element.resetLayout()
+		return target.element.resetToDeclared()
 	}
 
 	fun rescale(x: Int, y: Int, scroll: Double): Boolean {

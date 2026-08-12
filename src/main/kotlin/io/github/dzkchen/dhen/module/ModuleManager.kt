@@ -16,6 +16,9 @@ class ModuleManager(
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
 	private val registrationOrder = mutableListOf<Module>()
 
+	internal var stateListener: ((Module) -> Unit)? = null
+	private val forwardStateChange: (Module) -> Unit = { module -> stateListener?.invoke(module) }
+
 	val modules: Collection<Module>
 		get() = modulesByName.values.toList()
 
@@ -85,7 +88,7 @@ class ModuleManager(
 	}
 
 	private fun addValidated(module: Module, key: String) {
-		module.bind(eventBus, notifier, clock, clientDispatcher)
+		module.bind(eventBus, notifier, clock, clientDispatcher, forwardStateChange)
 		keybindRuntime.register(module)
 		modulesByName[key] = module
 		modulesByCategory.getOrPut(module.category) { mutableListOf() }.add(module)

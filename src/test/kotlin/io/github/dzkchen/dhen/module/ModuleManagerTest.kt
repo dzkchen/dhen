@@ -142,6 +142,24 @@ class ModuleManagerTest {
 	}
 
 	@Test
+	fun `a state listener sees every enable transition exactly once`() {
+		val changes = mutableListOf<Pair<Module, Boolean>>()
+		val manager = ModuleManager(clock = { 0L })
+		val module = CountingModule()
+		manager.register(module)
+		manager.stateListener = { changed -> changes += changed to changed.enabled }
+
+		manager.enable(module)
+		manager.enable(module)
+		module.toggle()
+		manager.toggle(module)
+
+		assertEquals(3, changes.size)
+		assertSame(module, changes[0].first)
+		assertEquals(listOf(true, false, true), changes.map { it.second })
+	}
+
+	@Test
 	fun `module collections are exposed as snapshots`() {
 		val manager = ModuleManager(EventBus())
 		val first = CountingModule(name = "First")

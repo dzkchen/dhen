@@ -46,6 +46,8 @@ abstract class Module(
 	private var bound = false
 	private var notifier: ModuleNotifier = ModuleNotifier.LogBacked
 	private var clock: () -> Long = System::currentTimeMillis
+	private var stateListener: (Module) -> Unit = {}
+	private val stateLock = Any()
 	private var windowStart = 0L
 	private var warned = false
 	private var scopeContext: CoroutineContext = Dispatchers.Unconfined
@@ -72,16 +74,21 @@ abstract class Module(
 	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
 		moduleScope?.launch(block = block)
 
-	internal fun setEnabled(enabled: Boolean) {
-		if (this.enabled == enabled) return
-		this.enabled = enabled
-		if (enabled) {
-			resetErrorState()
-			moduleScope = CoroutineScope(SupervisorJob() + scopeContext + coroutineExceptionHandler)
-		} else {
-			moduleScope?.cancel()
-			moduleScope = null
+	/** Returns true only for the call that actually flipped the state, so callers can act once. */
+	internal fun setEnabled(enabled: Boolean): Boolean {
+		synchronized(stateLock) {
+			if (this.enabled == enabled) return false
+			this.enabled = enabled
+			if (enabled) {
+				resetErrorState()
+				moduleScope = CoroutineScope(SupervisorJob() + scopeContext + coroutineExceptionHandler)
+			} else {
+				moduleScope?.cancel()
+				moduleScope = null
+			}
 		}
+		notifyStateChangeQuietly()
+		return true
 	}
 
 	internal fun toggle() {
@@ -105,13 +112,15 @@ abstract class Module(
 		eventBus: EventBus,
 		notifier: ModuleNotifier,
 		clock: () -> Long,
-		clientDispatcher: CoroutineContext
+		clientDispatcher: CoroutineContext,
+		stateListener: (Module) -> Unit
 	) {
 		requireUnbound()
 		bound = true
 		this.notifier = notifier
 		this.clock = clock
 		this.scopeContext = clientDispatcher
+		this.stateListener = stateListener
 		for (registration in registrations) registration.bind(eventBus, this)
 	}
 
@@ -140,21 +149,36 @@ abstract class Module(
 	private fun onHandlerError(throwable: Throwable) {
 		log.error("Module '{}' handler threw", name, throwable)
 
-		val now = clock()
-		if (errorCount == 0 || now - windowStart > ERROR_WINDOW_MS) {
-			windowStart = now
-			errorCount = 0
+		var firstSinceEnable = false
+		val overThreshold = synchronized(stateLock) {
+			val now = clock()
+			if (errorCount == 0 || now - windowStart > ERROR_WINDOW_MS) {
+				windowStart = now
+				errorCount = 0
+			}
+			errorCount++
+			if (!warned) {
+				warned = true
+				firstSinceEnable = true
+			}
+			errorCount >= ERROR_THRESHOLD
 		}
-		errorCount++
 
-		if (!warned) {
-			warned = true
-			notifyQuietly("Module '$name' encountered an error.")
-		}
+		if (firstSinceEnable) notifyQuietly("Module '$name' encountered an error.")
 
-		if (errorCount >= ERROR_THRESHOLD) {
-			setEnabled(false)
+		// Past the threshold every further error is still over it, so the notice hangs off the
+		// transition rather than the count — otherwise an error burst reports the same disable
+		// once per throw.
+		if (overThreshold && setEnabled(false)) {
 			notifyQuietly("Module '$name' auto-disabled after repeated errors.")
+		}
+	}
+
+	private fun notifyStateChangeQuietly() {
+		try {
+			stateListener(this)
+		} catch (throwable: Throwable) {
+			log.error("Module '{}' state listener threw", name, throwable)
 		}
 	}
 

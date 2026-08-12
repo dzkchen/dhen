@@ -39,7 +39,7 @@ internal class ClickGuiScreen(
 	private var controlDrag: Panel? = null
 	private var focusPanel: Panel? = null
 	private var swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
-	private var scrollOffset = 0
+	private val scroll = ScrollState()
 
 	override fun init() {
 		blurFocus()
@@ -94,10 +94,10 @@ internal class ClickGuiScreen(
 	}
 
 	private fun drawContent(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		val contentMouseY = mouseY + scrollOffset
+		val contentMouseY = mouseY + scroll.offset
 		val pose = graphics.pose()
 		pose.pushMatrix()
-		pose.translate(0f, -scrollOffset.toFloat())
+		pose.translate(0f, -scroll.offset.toFloat())
 		for (i in panels.indices) {
 			val panel = panels[i]
 			if (!panel.hidden) panel.draw(graphics, font, mouseX, contentMouseY)
@@ -135,20 +135,20 @@ internal class ClickGuiScreen(
 			return true
 		}
 		if (searchContains(x, sy)) return true
-		val cy = sy + scrollOffset
+		val cy = sy + scroll.offset
 		val panel = panelAt(x, cy) ?: return super.mouseClicked(event, doubleClick)
 		bringToFront(panel)
 		if (panel.headerContains(x, cy)) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT || x >= panel.toggleLeft) {
 				panel.state.collapsed = !panel.state.collapsed
 				refreshFocus()
-				scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+				reclampScroll()
 				store(panel)
 			} else {
 				dragging = panel
 				dragMoved = false
 				dragOffsetX = x - panel.state.x
-				dragOffsetY = sy - (panel.state.y - scrollOffset)
+				dragOffsetY = sy - (panel.state.y - scroll.offset)
 			}
 			return true
 		}
@@ -157,10 +157,9 @@ internal class ClickGuiScreen(
 			focusedModule = module
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 				manager.toggle(module)
-				persistModules()
 			} else {
 				if (!expanded.remove(module.name)) expanded.add(module.name)
-				scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+				reclampScroll()
 			}
 			return true
 		}
@@ -168,7 +167,7 @@ internal class ClickGuiScreen(
 			when (panel.pressControl(x, cy)) {
 				ControlPress.TRACK -> controlDrag = panel
 				ControlPress.CHANGED -> {
-					scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+					reclampScroll()
 					persistModules()
 				}
 				ControlPress.FOCUS -> focusPanel = panel
@@ -236,7 +235,7 @@ internal class ClickGuiScreen(
 		dragging?.let { panel ->
 			val newX = (event.x().toInt() - dragOffsetX).coerceIn(0, maxOf(0, width - PANEL_WIDTH))
 			val screenY = (event.y().toInt() - dragOffsetY).coerceIn(0, maxOf(0, height - panel.height))
-			val newY = maxOf(FIELD_TOP, screenY + scrollOffset)
+			val newY = maxOf(FIELD_TOP, screenY + scroll.offset)
 			if (newX != panel.state.x || newY != panel.state.y) {
 				panel.state.x = newX
 				panel.state.y = newY
@@ -255,7 +254,7 @@ internal class ClickGuiScreen(
 		if (dragging != null || controlDrag != null) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		val max = maxScroll()
 		if (max <= 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-		scrollOffset = ClickGuiScroll.clampOffset(scrollOffset - (scrollY * SCROLL_STEP).roundToInt(), max)
+		scroll.scrollTo(scroll.offset - (scrollY * SCROLL_STEP).roundToInt(), max)
 		return true
 	}
 
@@ -267,7 +266,7 @@ internal class ClickGuiScreen(
 		}
 		if (controlDrag != null) {
 			controlDrag = null
-			scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+			reclampScroll()
 			persistModules()
 			return true
 		}
@@ -290,8 +289,10 @@ internal class ClickGuiScreen(
 		for (i in navigation.indices) navigation[i].applyFilter(query)
 		matchCount = refreshNavCounts()
 		cancelPointerInteractions()
+		scroll.refilter(maxScroll())
+		// Focus last: refreshFocus scrolls the focused row into view, so restoring after it
+		// would discard that adjustment and leave the focus ring off screen.
 		refreshFocus()
-		scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
 	}
 
 	private fun cancelPointerInteractions() {
@@ -338,6 +339,7 @@ internal class ClickGuiScreen(
 		val flat = ClickGuiNav.step(total, focusFlat(), delta)
 		val panel = navigation[ClickGuiNav.panelOf(navCounts, flat)]
 		focusedModule = panel.moduleAtRow(ClickGuiNav.rowOf(navCounts, flat))
+		scroll.dropStash()
 		focusIntoView()
 	}
 
@@ -363,7 +365,6 @@ internal class ClickGuiScreen(
 	private fun toggleFocused(): Boolean {
 		val module = focusedModule ?: return false
 		manager.toggle(module)
-		persistModules()
 		return true
 	}
 
@@ -371,7 +372,7 @@ internal class ClickGuiScreen(
 		val module = focusedModule ?: return
 		val changed = if (expand) expanded.add(module.name) else expanded.remove(module.name)
 		if (!changed) return
-		scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+		reclampScroll()
 		focusIntoView()
 	}
 
@@ -381,7 +382,7 @@ internal class ClickGuiScreen(
 			if (navigation[i].collapseSettings()) collapsed = true
 		}
 		if (collapsed) {
-			scrollOffset = ClickGuiScroll.clampOffset(scrollOffset, maxScroll())
+			reclampScroll()
 			focusIntoView()
 		}
 		return collapsed
@@ -399,14 +400,21 @@ internal class ClickGuiScreen(
 		}
 	}
 
+	/**
+	 * Re-clamps scroll after a direct user action changed the content extent. The stash only
+	 * tracks content the search is suppressing, so any other repositioning invalidates it.
+	 */
+	private fun reclampScroll() {
+		scroll.reclamp(maxScroll())
+	}
+
 	private fun scrollIntoView(rowTop: Int) {
-		val max = maxScroll()
 		val target = when {
-			rowTop - FIELD_TOP < scrollOffset -> rowTop - FIELD_TOP
-			rowTop + ROW_HEIGHT + MARGIN > scrollOffset + height -> rowTop + ROW_HEIGHT + MARGIN - height
-			else -> scrollOffset
+			rowTop - FIELD_TOP < scroll.offset -> rowTop - FIELD_TOP
+			rowTop + ROW_HEIGHT + MARGIN > scroll.offset + height -> rowTop + ROW_HEIGHT + MARGIN - height
+			else -> scroll.offset
 		}
-		scrollOffset = ClickGuiScroll.clampOffset(target, max)
+		scroll.settle(target, maxScroll())
 	}
 
 	private fun blurFocus() {
@@ -512,7 +520,7 @@ internal class ClickGuiScreen(
 		val contentHeight = contentBottom + MARGIN
 		val trackLeft = width - SCROLLBAR_WIDTH
 		val thumbHeight = maxOf(SCROLLBAR_MIN_THUMB, height * height / contentHeight)
-		val thumbTop = scrollOffset * (height - thumbHeight) / max
+		val thumbTop = scroll.offset * (height - thumbHeight) / max
 		FlatGui.fill(graphics, trackLeft, 0, width, height, DhenPalette.SURFACE_RAISED)
 		FlatGui.fill(graphics, trackLeft, thumbTop, width, thumbTop + thumbHeight, DhenPalette.BORDER)
 	}

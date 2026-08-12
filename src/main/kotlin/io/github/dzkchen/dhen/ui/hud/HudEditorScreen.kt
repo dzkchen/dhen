@@ -34,13 +34,16 @@ internal class HudEditorScreen(
 		val targets = editor.targets
 		drawGuides(graphics)
 		for (i in targets.indices) drawTarget(graphics, targets[i])
+		val step = bannerHeight() + BANNER_GAP
 		var top = BANNER_TOP
 		drawBanner(graphics, if (targets.isEmpty()) EMPTY_HINT else HINT, top)
 		if (targets.isNotEmpty()) {
-			top += bannerHeight() + BANNER_GAP
+			top += step
 			drawBanner(graphics, MODIFIER_HINT, top)
+			top += step
+			drawBanner(graphics, ACTION_HINT, top)
 		}
-		if (editor.selected != null) drawBanner(graphics, label(), top + bannerHeight() + BANNER_GAP)
+		if (editor.selected != null) drawBanner(graphics, label(), top + step)
 	}
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
@@ -72,15 +75,14 @@ internal class HudEditorScreen(
 	}
 
 	override fun keyPressed(event: KeyEvent): Boolean {
-		val step = if (event.hasShiftDown()) COARSE_NUDGE else FINE_NUDGE
-		val moved = when (event.key()) {
-			GLFW.GLFW_KEY_LEFT -> editor.nudge(-step, 0)
-			GLFW.GLFW_KEY_RIGHT -> editor.nudge(step, 0)
-			GLFW.GLFW_KEY_UP -> editor.nudge(0, -step)
-			GLFW.GLFW_KEY_DOWN -> editor.nudge(0, step)
+		val changed = when (event.key()) {
+			GLFW.GLFW_KEY_LEFT -> editor.nudge(-NUDGE, 0)
+			GLFW.GLFW_KEY_RIGHT -> editor.nudge(NUDGE, 0)
+			GLFW.GLFW_KEY_UP -> editor.nudge(0, -NUDGE)
+			GLFW.GLFW_KEY_DOWN -> editor.nudge(0, NUDGE)
 			else -> return super.keyPressed(event)
 		}
-		if (moved) persist()
+		if (changed) persist()
 		return true
 	}
 
@@ -167,11 +169,12 @@ internal class HudEditorScreen(
 
 	private fun label(): String {
 		val target = editor.selected ?: return ""
-		if (target !== labelled || target.element.scale != labelledScale || target.element.anchor != labelledAnchor) {
+		val element = target.element
+		if (target !== labelled || element.scale != labelledScale || element.anchor != labelledAnchor) {
 			labelled = target
-			labelledScale = target.element.scale
-			labelledAnchor = target.element.anchor
-			label = "${target.module.name} - ${target.element.name}  $labelledAnchor  x$labelledScale"
+			labelledScale = element.scale
+			labelledAnchor = element.anchor
+			label = "${target.module.name} - ${element.name}  $labelledAnchor  x$labelledScale"
 		}
 		return label
 	}
@@ -181,10 +184,10 @@ internal class HudEditorScreen(
 		const val BANNER_PAD = 3
 		const val BANNER_TOP = 6
 		const val BANNER_GAP = 3
-		const val FINE_NUDGE = 1
-		const val COARSE_NUDGE = 10
+		const val NUDGE = 1
 		const val HINT = "Drag to move, scroll to scale, arrows to nudge"
-		const val MODIFIER_HINT = "Shift: nudge 10   Alt: no snap   Right-click: reset   Esc: close"
+		const val MODIFIER_HINT = "Alt: no snap   Right-click: reset one"
+		const val ACTION_HINT = "Esc: close   Reset all: /dhen reset-all"
 		const val EMPTY_HINT = "No HUD elements are registered"
 	}
 }

@@ -406,6 +406,17 @@ class HudEditorTest {
 		assertFalse(module.element.visible)
 	}
 
+	@Test
+	fun `right-click reset restores a hidden element`() {
+		val module = OverlayModule()
+		val editor = editorFor(module, enabled = true)
+		module.element.visible = false
+		editor.layout(WIDTH, HEIGHT)
+
+		assertTrue(editor.reset(5, 3))
+		assertTrue(module.element.visible)
+	}
+
 	private fun editorFor(module: OverlayModule, enabled: Boolean): HudEditor {
 		val manager = ModuleManager()
 		manager.register(module)

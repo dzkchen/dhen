@@ -47,7 +47,12 @@ object Dhen : ClientModInitializer {
 	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 
-	private val commands = CommandRegistry<FabricClientCommandSource>(modules, ::openHudEditor, ::persistCore) { source, message ->
+	private val commands = CommandRegistry<FabricClientCommandSource>(
+		modules,
+		::openHudEditor,
+		::persistCore,
+		::resetHudLayout
+	) { source, message ->
 		source.sendFeedback(Component.literal(message))
 	}
 
@@ -85,6 +90,7 @@ object Dhen : ClientModInitializer {
 			)
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
+		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
 		HudElementRegistry.attachElementAfter(
 			VanillaHudElements.SUBTITLES,
@@ -107,7 +113,7 @@ object Dhen : ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			modules.clientDispatcher.drainQueue()
 			if (!ownsKeyboard(client.gui.screen())) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
-			if (openGuiKey.consumeClick()) client.gui.setScreen(clickGuiScreen())
+			if (openGuiKey.consumeClick() && client.level != null) client.gui.setScreen(clickGuiScreen())
 			if (hudEditorRequested) {
 				hudEditorRequested = false
 				client.gui.setScreen(HudEditorScreen(modules, ::persistModules))
@@ -121,6 +127,12 @@ object Dhen : ClientModInitializer {
 
 	private fun openHudEditor() {
 		hudEditorRequested = true
+	}
+
+	private fun resetHudLayout(): Int {
+		val reset = hudRuntime.resetLayouts()
+		if (reset > 0) persistModules()
+		return reset
 	}
 
 	private fun persistModules() {

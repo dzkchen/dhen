@@ -8,6 +8,10 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class ModuleErrorIsolationTest {
 	@Test
@@ -116,7 +120,80 @@ class ModuleErrorIsolationTest {
 		assertEquals(1, module.errorCount)
 	}
 
+	@Test
+	fun `concurrent error reports lose no count and warn exactly once`() {
+		val notices = AtomicInteger()
+		val bus = EventBus()
+		val manager = ModuleManager(bus, { _, _ -> notices.incrementAndGet() }, { 0L })
+		val module = ThrowingModule()
+		manager.register(module)
+		manager.enable(module)
+
+		val ready = CountDownLatch(THREADS)
+		val start = CountDownLatch(1)
+		val done = CountDownLatch(THREADS)
+		val pool = Executors.newFixedThreadPool(THREADS)
+		try {
+			repeat(THREADS) {
+				pool.execute {
+					ready.countDown()
+					start.await()
+					repeat(ERRORS_PER_THREAD) { module.reportError(QuietFailure()) }
+					done.countDown()
+				}
+			}
+			ready.await()
+			start.countDown()
+			assertTrue(done.await(30, TimeUnit.SECONDS))
+		} finally {
+			pool.shutdownNow()
+		}
+
+		// Two notices total, however many threads pile past the threshold: one "encountered an
+		// error" and one "auto-disabled", because only one thread can win the disable transition.
+		assertEquals(THREADS * ERRORS_PER_THREAD, module.errorCount)
+		assertEquals(2, notices.get())
+	}
+
+	@Test
+	fun `auto-disable reaches the state listener`() {
+		val bus = EventBus()
+		val events = bus.type<TestEvent>()
+		val manager = ModuleManager(bus, clock = { 0L })
+		val module = ThrowingModule()
+		manager.register(module)
+		val disables = mutableListOf<Module>()
+		manager.stateListener = { changed -> if (!changed.enabled) disables += changed }
+		manager.enable(module)
+
+		repeat(Module.ERROR_THRESHOLD) { events.dispatch(TestEvent()) }
+
+		assertFalse(module.enabled)
+		assertEquals(listOf<Module>(module), disables)
+	}
+
+	@Test
+	fun `a throwing state listener does not escape the bus`() {
+		val bus = EventBus()
+		val events = bus.type<TestEvent>()
+		val manager = ModuleManager(bus, clock = { 0L })
+		val module = ThrowingModule()
+		manager.register(module)
+		manager.stateListener = { throw IllegalStateException("disk full") }
+
+		assertDoesNotThrow { manager.enable(module) }
+		assertTrue(module.enabled)
+
+		repeat(Module.ERROR_THRESHOLD) {
+			assertDoesNotThrow { events.dispatch(TestEvent()) }
+		}
+
+		assertFalse(module.enabled)
+	}
+
 	private class TestEvent : Event
+
+	private class QuietFailure : RuntimeException("boom", null, false, false)
 
 	private class ThrowingModule(
 		name: String = "Throwing Module"
@@ -145,5 +222,10 @@ class ModuleErrorIsolationTest {
 				calls++
 			}
 		}
+	}
+
+	private companion object {
+		const val THREADS = 8
+		const val ERRORS_PER_THREAD = 250
 	}
 }

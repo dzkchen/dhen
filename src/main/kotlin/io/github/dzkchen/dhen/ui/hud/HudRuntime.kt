@@ -42,12 +42,22 @@ class HudRuntime(private val manager: ModuleManager) {
 		}
 	}
 
+	fun resetLayouts(): Int {
+		var reset = 0
+		manager.forEachHudElement { element -> if (element.resetToDeclared()) reset++ }
+		return reset
+	}
+
 	fun invalidateMeasurements() {
-		val modules = manager.ordered
-		for (moduleIndex in modules.indices) {
-			val elements = modules[moduleIndex].hudElements
-			for (elementIndex in elements.indices) elements[elementIndex].invalidateMeasurement()
-		}
+		manager.forEachHudElement { element -> element.invalidateMeasurement() }
+	}
+}
+
+internal inline fun ModuleManager.forEachHudElement(action: (HudElement) -> Unit) {
+	val modules = ordered
+	for (moduleIndex in modules.indices) {
+		val elements = modules[moduleIndex].hudElements
+		for (elementIndex in elements.indices) action(elements[elementIndex])
 	}
 }
 

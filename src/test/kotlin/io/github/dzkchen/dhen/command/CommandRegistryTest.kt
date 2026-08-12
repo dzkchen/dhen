@@ -84,9 +84,9 @@ class CommandRegistryTest {
 	}
 
 	@Test
-	fun `two argument constructor accepts positional feedback for compatibility`() {
+	fun `a registry built with only a manager and feedback defaults every callback`() {
 		val feedback: (Any, String) -> Unit = { _, message -> captured += message }
-		val registry = CommandRegistry(ModuleManager(), feedback)
+		val registry = CommandRegistry(ModuleManager(), feedback = feedback)
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -167,6 +167,43 @@ class CommandRegistryTest {
 
 		assertEquals(2, opened)
 		assertEquals("Opening the HUD editor.", captured.last())
+	}
+
+	@Test
+	fun `reset-all resets the HUD layout through both roots and reports the count`() {
+		var resets = 0
+		var pending = 3
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			{},
+			{},
+			{
+				resets++
+				val reset = pending
+				pending = 0
+				reset
+			}
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen reset-all", Any())
+		assertEquals("Reset 3 HUD elements to the declared layout.", captured.last())
+
+		dispatcher.execute("dh reset-all", Any())
+		assertEquals("Every HUD element is already at its declared layout.", captured.last())
+		assertEquals(2, resets)
+	}
+
+	@Test
+	fun `reset-all reports a single element without pluralizing`() {
+		val registry = CommandRegistry<Any>(ModuleManager(), {}, {}, { 1 }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen reset-all", Any())
+
+		assertEquals("Reset 1 HUD element to the declared layout.", captured.last())
 	}
 
 	@Test

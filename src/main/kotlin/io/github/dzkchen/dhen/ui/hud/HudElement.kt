@@ -25,6 +25,7 @@ abstract class HudElement(
 	private val declaredOffsetX = this.offsetX
 	private val declaredOffsetY = this.offsetY
 	private val declaredScale = this.scale
+	private val declaredVisible = this.visible
 
 	var failed: Boolean = false
 		private set
@@ -32,12 +33,19 @@ abstract class HudElement(
 	val isActive: Boolean
 		get() = visible && !failed
 
-	fun resetLayout(): Boolean {
+	/**
+	 * Restores everything the module declared and lifts the [failed] quarantine, so a reset is the
+	 * in-session recovery path for an element that threw once — without it the only cure is a
+	 * restart, and the reset would report success on an element that still cannot draw.
+	 */
+	fun resetToDeclared(): Boolean {
 		if (
 			anchor == declaredAnchor &&
 			offsetX == declaredOffsetX &&
 			offsetY == declaredOffsetY &&
-			scale == declaredScale
+			scale == declaredScale &&
+			visible == declaredVisible &&
+			!failed
 		) {
 			return false
 		}
@@ -45,6 +53,8 @@ abstract class HudElement(
 		offsetX = declaredOffsetX
 		offsetY = declaredOffsetY
 		scale = declaredScale
+		visible = declaredVisible
+		failed = false
 		return true
 	}
 
