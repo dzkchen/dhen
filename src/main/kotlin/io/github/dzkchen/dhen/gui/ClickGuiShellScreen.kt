@@ -12,6 +12,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
+import java.util.function.IntSupplier
 import java.util.function.IntUnaryOperator
 import kotlin.math.roundToInt
 
@@ -28,12 +29,13 @@ internal class ClickGuiShellScreen(
 	private val visible = mutableListOf<Column>()
 	private val expanded = mutableSetOf<String>()
 	private val tabWidths = IntArray(TAB_LABELS.size)
-	private val scroll = ScrollState()
-	private val stackScroll = ScrollState()
-	private val prefScroll = ScrollState()
-	private val stackHeightAt = IntUnaryOperator { index -> visible[index].height }
 	private val prefCards: List<PrefCard> = ClientPrefs.sections.map(::PrefCard)
-	private val prefCardHeightAt = IntUnaryOperator { index -> prefCards[index].height }
+	private val visibleCount = IntSupplier { visible.size }
+	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, visibleCount, { width }, IntUnaryOperator { COLUMN_WIDTH })
+	private val stack = ScrollingStack(FIELD_TOP, COLUMN_GAP, MARGIN, visibleCount, { height }, IntUnaryOperator { index -> visible[index].height })
+	private val prefs = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { prefCards.size }, { height }, IntUnaryOperator { index -> prefCards[index].height })
+	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
+	private var navFocus: Module? = null
 	private var query = ""
 	private var activeTab = CLICK_GUI_TAB
 	private var settled = false
@@ -61,7 +63,7 @@ internal class ClickGuiShellScreen(
 			}
 		}
 		measureChrome()
-		prefScroll.reclamp(maxPrefScroll())
+		prefs.reclamp()
 		applySearch()
 	}
 
@@ -115,7 +117,7 @@ internal class ClickGuiShellScreen(
 	private fun drawColumns(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		for (i in visible.indices) {
 			val column = visible[i]
-			val left = column.contentLeft - scroll.offset
+			val left = column.contentLeft - columnField.offset
 			if (left + COLUMN_WIDTH > 0 && left < width) {
 				column.draw(graphics, font, left, FIELD_TOP, column.naturalHeight, mouseX, mouseY)
 			}
@@ -123,11 +125,11 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun drawStack(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		val max = maxStackScroll()
+		val max = stack.max()
 		val clipped = max > ClickGuiScroll.TOP
 		val bottom = fieldBottom
 		if (clipped) graphics.enableScissor(0, FIELD_TOP, width, bottom)
-		var top = FIELD_TOP - stackScroll.offset
+		var top = FIELD_TOP - stack.offset
 		for (i in visible.indices) {
 			val column = visible[i]
 			if (top >= bottom) break
@@ -139,16 +141,16 @@ internal class ClickGuiShellScreen(
 		}
 		if (!clipped) return
 		graphics.disableScissor()
-		drawScrollbar(graphics, MARGIN + COLUMN_WIDTH, FIELD_TOP, columnViewport, stackScroll.offset, max)
+		drawScrollbar(graphics, MARGIN + COLUMN_WIDTH, FIELD_TOP, columnViewport, stack.offset, max)
 	}
 
 	private fun drawClientPrefs(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		val left = panelLeft()
-		val max = maxPrefScroll()
+		val max = prefs.max()
 		val clipped = max > ClickGuiScroll.TOP
 		val bottom = fieldBottom
 		if (clipped) graphics.enableScissor(0, FIELD_TOP, width, bottom)
-		var top = FIELD_TOP - prefScroll.offset
+		var top = FIELD_TOP - prefs.offset
 		for (i in prefCards.indices) {
 			val card = prefCards[i]
 			if (top >= bottom) break
@@ -157,7 +159,7 @@ internal class ClickGuiShellScreen(
 		}
 		if (!clipped) return
 		graphics.disableScissor()
-		drawScrollbar(graphics, left + PANEL_WIDTH, FIELD_TOP, columnViewport, prefScroll.offset, max)
+		drawScrollbar(graphics, left + PANEL_WIDTH, FIELD_TOP, columnViewport, prefs.offset, max)
 	}
 
 	private fun drawScrollbar(
@@ -176,8 +178,6 @@ internal class ClickGuiShellScreen(
 		val thumbRight = right - SCROLLBAR_INSET
 		RoundedGui.pill(graphics, thumbRight - SCROLLBAR_WIDTH, thumbTop, thumbRight, thumbTop + thumbHeight, DhenPalette.accentMuted)
 	}
-
-	private fun maxPrefScroll(): Int = maxSpanScroll(prefCards.size, prefCardHeightAt, SECTION_GAP)
 
 	private fun drawTooltip(graphics: GuiGraphicsExtractor) {
 		val text = tooltipText ?: return
@@ -230,9 +230,10 @@ internal class ClickGuiShellScreen(
 			toggleHeader(column)
 			return true
 		}
-		val contentX = x + scroll.offset
+		val contentX = x + columnField.offset
 		val module = column.rowAt(top, y)
 		if (module != null) {
+			navFocus = module
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !column.chevronContains(contentX)) manager.toggle(module)
 			else {
 				if (!expanded.remove(module.name)) expanded.add(module.name)
@@ -261,12 +262,24 @@ internal class ClickGuiShellScreen(
 				return true
 			}
 		}
-		return when (event.key()) {
-			GLFW.GLFW_KEY_BACKSPACE -> backspaceSearch() || super.keyPressed(event)
-			GLFW.GLFW_KEY_ESCAPE -> collapseExpandedSettings() || super.keyPressed(event)
-			else -> super.keyPressed(event)
-		}
+		if (activeTab == CLICK_GUI_TAB && clickGuiKey(event.key())) return true
+		return super.keyPressed(event)
 	}
+
+	private fun clickGuiKey(key: Int): Boolean = when (key) {
+		GLFW.GLFW_KEY_BACKSPACE -> backspaceSearch()
+		GLFW.GLFW_KEY_ESCAPE -> collapseExpandedSettings()
+		GLFW.GLFW_KEY_UP -> moveFocus(-1)
+		GLFW.GLFW_KEY_DOWN -> moveFocus(1)
+		GLFW.GLFW_KEY_LEFT -> horizontalKey(-1)
+		GLFW.GLFW_KEY_RIGHT -> horizontalKey(1)
+		GLFW.GLFW_KEY_TAB -> toggleExpandFocus()
+		GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> toggleFocus()
+		else -> false
+	}
+
+	private fun horizontalKey(delta: Int): Boolean =
+		if (ClickGuiKeys.jumpColumns) jumpColumn(delta) else expandFocus(delta > 0)
 
 	override fun keyReleased(event: KeyEvent): Boolean {
 		if (event.key() == swallowCharKey) swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
@@ -301,19 +314,15 @@ internal class ClickGuiShellScreen(
 		val delta = ((scrollY + scrollX) * SCROLL_STEP).roundToInt()
 		if (delta == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		if (activeTab != CLICK_GUI_TAB) {
-			val max = maxPrefScroll()
-			if (max <= ClickGuiScroll.TOP) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-			prefScroll.scrollTo(prefScroll.offset - delta, max)
-			return true
+			if (prefs.scrollBy(delta)) return true
+			return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		}
 		val x = mouseX.toInt()
 		val y = mouseY.toInt()
 		val slot = columnSlotAt(x, y)
 		if (slot != ClickGuiShell.NONE && y >= columnTop(slot) + HEADER_HEIGHT && visible[slot].scrollBy(delta)) return true
-		val max = fieldMax()
-		if (max <= ClickGuiScroll.TOP) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
-		fieldScroll.scrollTo(fieldScroll.offset - delta, max)
-		return true
+		if (fieldStack.scrollBy(delta)) return true
+		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 	}
 
 	override fun mouseReleased(event: MouseButtonEvent): Boolean {
@@ -331,7 +340,7 @@ internal class ClickGuiShellScreen(
 
 	private fun pressRowControl(column: Column, control: SettingControl, contentX: Int) {
 		val controlsLeft = column.contentLeft + CONTENT_PAD
-		val press = pressControl(control, contentX - controlsLeft, controlsLeft - scroll.offset, CONTROLS_WIDTH, clientOwned = false)
+		val press = pressControl(control, contentX - controlsLeft, controlsLeft - columnField.offset, CONTROLS_WIDTH, clientOwned = false)
 		if (press == ControlPress.CHANGED) {
 			reflow(column)
 			persistModules()
@@ -373,11 +382,10 @@ internal class ClickGuiShellScreen(
 		val controlsLeft = panelLeft() + CONTENT_PAD
 		if (x < controlsLeft || x >= controlsLeft + PANEL_CONTROLS_WIDTH) return null
 		if (y < FIELD_TOP || y >= fieldBottom) return null
-		val panelY = ClickGuiShell.spanLocal(FIELD_TOP, y, prefScroll.offset)
-		val index = ClickGuiShell.spanAt(panelY, prefCards.size, prefCardHeightAt, SECTION_GAP)
+		val index = prefs.slotAt(y)
 		if (index == ClickGuiShell.NONE) return null
 		val card = prefCards[index]
-		val localY = panelY - ClickGuiShell.spanStart(index, prefCardHeightAt, SECTION_GAP)
+		val localY = y - prefs.originOf(index)
 		val row = ClickGuiShell.sectionRowAt(localY, HEADER_HEIGHT + SECTION_PAD, card.count, CONTROL_ROW_HEIGHT)
 		return if (row == ClickGuiShell.NONE) null else card.control(row)
 	}
@@ -400,18 +408,18 @@ internal class ClickGuiShellScreen(
 	private fun toggleHeader(column: Column) {
 		view.toggle(column.category.name, accordion)
 		reflow(column)
+		refreshFocus()
 		persistCore()
 	}
 
 	private fun backspaceSearch(): Boolean {
-		if (activeTab != CLICK_GUI_TAB || query.isEmpty()) return false
+		if (query.isEmpty()) return false
 		query = query.substring(0, query.length - 1)
 		applySearch()
 		return true
 	}
 
 	private fun collapseExpandedSettings(): Boolean {
-		if (activeTab != CLICK_GUI_TAB) return false
 		var changed = false
 		for (i in columns.indices) {
 			if (columns[i].collapseSettings()) changed = true
@@ -424,23 +432,100 @@ internal class ClickGuiShellScreen(
 		for (i in columns.indices) columns[i].applyFilter(query)
 		cancelDrag()
 		layout()
-		fieldScroll.refilter(fieldMax())
+		fieldStack.refilter()
+		refreshFocus()
 	}
 
 	private fun layout() {
 		visible.clear()
+		var left = MARGIN
 		for (i in columns.indices) {
 			val column = columns[i]
 			if (column.hidden) continue
-			column.contentLeft = if (accordion) MARGIN else MARGIN + ClickGuiShell.columnLeft(visible.size, COLUMN_WIDTH, COLUMN_GAP)
+			column.contentLeft = if (accordion) MARGIN else left
+			left += COLUMN_WIDTH + COLUMN_GAP
 			visible += column
 		}
 	}
 
 	private fun relayout() {
 		layout()
-		idleFieldScroll.scrollTo(ClickGuiScroll.TOP, ClickGuiScroll.TOP)
+		idleStack.rewind()
 		reclampField()
+	}
+
+	private fun moveFocus(delta: Int): Boolean {
+		val flat = ClickGuiNav.step(focusFlat(), delta, ClickGuiNav.total(visible.size, navRowsAt))
+		val slot = ClickGuiNav.columnOf(flat, visible.size, navRowsAt)
+		if (slot == ClickGuiShell.NONE) navFocus = null
+		else focusAt(slot, flat - ClickGuiNav.flatOf(slot, 0, navRowsAt))
+		return true
+	}
+
+	private fun jumpColumn(delta: Int): Boolean {
+		val slot = focusSlot()
+		if (slot == ClickGuiShell.NONE) return moveFocus(delta)
+		val next = ClickGuiNav.columnStep(slot, delta, visible.size, navRowsAt)
+		if (next == ClickGuiShell.NONE) return true
+		focusAt(next, minOf(visible[slot].rowOf(navFocus), visible[next].navCount - 1))
+		return true
+	}
+
+	private fun toggleFocus(): Boolean {
+		val module = navFocus ?: return false
+		manager.toggle(module)
+		return true
+	}
+
+	private fun toggleExpandFocus(): Boolean {
+		val module = navFocus ?: return false
+		return expandFocus(module.name !in expanded)
+	}
+
+	private fun expandFocus(open: Boolean): Boolean {
+		val module = navFocus ?: return false
+		val slot = focusSlot()
+		if (slot == ClickGuiShell.NONE) return false
+		val row = visible[slot].rowOf(module)
+		val changed = if (open) expanded.add(module.name) else expanded.remove(module.name)
+		if (changed) reflow(visible[slot])
+		revealFocus(slot, row)
+		return true
+	}
+
+	private fun focusAt(slot: Int, row: Int) {
+		navFocus = visible[slot].moduleAt(row)
+		revealFocus(slot, row)
+	}
+
+	private fun refreshFocus() {
+		if (navFocus == null || focusSlot() != ClickGuiShell.NONE) return
+		val slot = ClickGuiNav.columnOf(0, visible.size, navRowsAt)
+		navFocus = if (slot == ClickGuiShell.NONE) null else visible[slot].moduleAt(0)
+	}
+
+	private fun focusSlot(): Int {
+		val module = navFocus ?: return ClickGuiShell.NONE
+		for (i in visible.indices) {
+			if (visible[i].rowOf(module) != ClickGuiShell.NONE) return i
+		}
+		return ClickGuiShell.NONE
+	}
+
+	private fun focusFlat(): Int {
+		val slot = focusSlot()
+		if (slot == ClickGuiShell.NONE) return ClickGuiShell.NONE
+		return ClickGuiNav.flatOf(slot, visible[slot].rowOf(navFocus), navRowsAt)
+	}
+
+	private fun revealFocus(slot: Int, row: Int) {
+		val column = visible[slot]
+		if (accordion) {
+			stack.revealSpan(stack.startOf(slot) + HEADER_HEIGHT + column.rowTop(row), column.rowExtent(row))
+			return
+		}
+		columnField.reveal(slot)
+		column.revealRow(row)
 	}
 
 	private fun reflow(column: Column) {
@@ -457,12 +542,10 @@ internal class ClickGuiShellScreen(
 		if (accordion) reclampField()
 	}
 
-	private fun reclampField() {
-		fieldScroll.reclamp(fieldMax())
-	}
+	private fun reclampField() = fieldStack.reclamp()
 
 	private fun cancelDrag() {
-		val control = dragged ?: return
+		if (dragged == null) return
 		dragged = null
 		persistArmed()
 	}
@@ -473,24 +556,14 @@ internal class ClickGuiShellScreen(
 		if (control.blur()) persistArmed()
 	}
 
-	private fun maxScroll(): Int =
-		ClickGuiScroll.maxScroll(MARGIN + ClickGuiShell.fieldWidth(visible.size, COLUMN_WIDTH, COLUMN_GAP), width, MARGIN)
-
-	private fun maxStackScroll(): Int = maxSpanScroll(visible.size, stackHeightAt, COLUMN_GAP)
-
-	private fun maxSpanScroll(count: Int, extentAt: IntUnaryOperator, gap: Int): Int =
-		ClickGuiScroll.maxScroll(FIELD_TOP + ClickGuiShell.spanTotal(count, extentAt, gap), height, MARGIN)
-
 	private val accordion: Boolean
 		get() = ClickGuiLayout.accordion
 
-	private val fieldScroll: ScrollState
-		get() = if (accordion) stackScroll else scroll
+	private val fieldStack: ScrollingStack
+		get() = if (accordion) stack else columnField
 
-	private val idleFieldScroll: ScrollState
-		get() = if (accordion) scroll else stackScroll
-
-	private fun fieldMax(): Int = if (accordion) maxStackScroll() else maxScroll()
+	private val idleStack: ScrollingStack
+		get() = if (accordion) columnField else stack
 
 	private val fieldBottom: Int
 		get() = height - MARGIN
@@ -498,18 +571,15 @@ internal class ClickGuiShellScreen(
 	private val columnViewport: Int
 		get() = fieldBottom - FIELD_TOP
 
-	private fun columnTop(slot: Int): Int =
-		if (accordion) ClickGuiShell.spanOrigin(FIELD_TOP, slot, stackHeightAt, COLUMN_GAP, stackScroll.offset)
-		else FIELD_TOP
+	private fun columnTop(slot: Int): Int = if (accordion) stack.originOf(slot) else FIELD_TOP
 
 	private fun columnSlotAt(x: Int, y: Int): Int {
 		if (y < FIELD_TOP || y >= fieldBottom) return ClickGuiShell.NONE
 		if (accordion) {
 			if (x < MARGIN || x >= MARGIN + COLUMN_WIDTH) return ClickGuiShell.NONE
-			val localY = ClickGuiShell.spanLocal(FIELD_TOP, y, stackScroll.offset)
-			return ClickGuiShell.spanAt(localY, visible.size, stackHeightAt, COLUMN_GAP)
+			return stack.slotAt(y)
 		}
-		val slot = ClickGuiShell.slotAt(x + scroll.offset - MARGIN, visible.size, COLUMN_WIDTH, COLUMN_GAP)
+		val slot = columnField.slotAt(x)
 		if (slot == ClickGuiShell.NONE) return ClickGuiShell.NONE
 		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE
 	}
@@ -639,6 +709,8 @@ internal class ClickGuiShellScreen(
 
 		val hidden: Boolean
 			get() = query.isNotEmpty() && visibleCount == 0
+		val navCount: Int
+			get() = if (isCollapsed) 0 else visibleCount
 		val height: Int
 			get() = shownHeight(naturalHeight)
 		val naturalHeight: Int
@@ -672,6 +744,22 @@ internal class ClickGuiShellScreen(
 			scroll.scrollTo(scroll.offset - delta, max)
 			return true
 		}
+
+		fun moduleAt(row: Int): Module = modules[visibleRows[row]]
+
+		fun rowOf(module: Module?): Int {
+			if (module == null || isCollapsed) return ClickGuiShell.NONE
+			for (row in 0 until visibleCount) {
+				if (modules[visibleRows[row]] === module) return row
+			}
+			return ClickGuiShell.NONE
+		}
+
+		fun rowTop(row: Int): Int = ClickGuiRows.rowTop(row, ROW_HEIGHT, settingsHeightAt)
+
+		fun rowExtent(row: Int): Int = ROW_HEIGHT + settingsHeight(visibleRows[row])
+
+		fun revealRow(row: Int) = scroll.reveal(rowTop(row), rowExtent(row), height - HEADER_HEIGHT, maxScroll)
 
 		fun rowAt(top: Int, y: Int): Module? {
 			val localY = bodyLocal(top, y) ?: return null
@@ -756,12 +844,17 @@ internal class ClickGuiShellScreen(
 			val right = left + COLUMN_WIDTH
 			val rowBottom = rowTop + ROW_HEIGHT
 			val hovered = pointerY in rowTop until rowBottom
-			if (hovered) FlatGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, GlassGui.interactive())
+			val navigated = module === navFocus
+			val active = hovered || navigated
+			if (active) FlatGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, GlassGui.interactive())
 			if (module.enabled) FlatGui.fill(graphics, left + 1, rowTop, left + 1 + ROW_RAIL_WIDTH, rowBottom, DhenPalette.accent)
+			if (navigated) {
+				RoundedGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, FOCUS_RADIUS, RoundedGui.HAIRLINE, DhenPalette.accent)
+			}
 
 			val nameColor = when {
 				module.enabled -> DhenPalette.accent
-				hovered -> DhenPalette.TEXT_PRIMARY
+				active -> DhenPalette.TEXT_PRIMARY
 				else -> DhenPalette.TEXT_SECONDARY
 			}
 			val labelTop = textTop(font, rowTop, ROW_HEIGHT)
@@ -848,6 +941,7 @@ internal class ClickGuiShellScreen(
 		const val BODY_PAD = 6
 		const val ROW_HEIGHT = 13
 		const val ROW_RAIL_WIDTH = 2
+		const val FOCUS_RADIUS = 3f
 		const val CHEVRON_HIT_SLOP = 4
 		const val SCROLLBAR_WIDTH = 2
 		const val SCROLLBAR_INSET = 3

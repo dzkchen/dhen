@@ -157,13 +157,37 @@ class ClickGuiScrollTest {
 	}
 
 	@Test
+	fun `a row already inside the window is not scrolled to`() {
+		assertEquals(40, reveal(offset = 40, spanStart = 60, extent = 13))
+		assertEquals(40, reveal(offset = 40, spanStart = 40, extent = 13))
+		assertEquals(40, reveal(offset = 40, spanStart = 127, extent = 13))
+	}
+
+	@Test
+	fun `a row above the window scrolls its top flush with the window`() {
+		assertEquals(20, reveal(offset = 40, spanStart = 20, extent = 13))
+		assertEquals(0, reveal(offset = 40, spanStart = 0, extent = 13))
+	}
+
+	@Test
+	fun `a row below the window scrolls just far enough to show its bottom`() {
+		assertEquals(41, reveal(offset = 40, spanStart = 128, extent = 13))
+		assertEquals(148, reveal(offset = 40, spanStart = 400, extent = 13))
+	}
+
+	@Test
+	fun `a row taller than the window is shown from its top`() {
+		assertEquals(60, reveal(offset = 40, spanStart = 60, extent = 200))
+	}
+
+	@Test
 	fun `focusing a row after a restore keeps the row on screen`() {
 		val field = scrolledTo(120)
 
 		field.refilter(maxScroll = 0)
 		// The order a search pass runs in: refilter, then focus the matched row.
 		field.refilter(maxScroll = 148)
-		field.settle(target = 12, maxScroll = 148)
+		field.reveal(spanStart = 12, extent = 13, window = 100, maxScroll = 148)
 
 		assertEquals(12, field.offset)
 		// The offset alone would pass for any stash/restore pair, since settling overwrites it.
@@ -185,4 +209,7 @@ class ClickGuiScrollTest {
 
 	/** A state already parked at [offset], as a user scroll through that much content would leave it. */
 	private fun scrolledTo(offset: Int) = ScrollState().apply { scrollTo(offset, maxScroll = offset) }
+
+	private fun reveal(offset: Int, spanStart: Int, extent: Int): Int =
+		ClickGuiScroll.reveal(offset, spanStart, extent, window = 100, maxScroll = 148)
 }

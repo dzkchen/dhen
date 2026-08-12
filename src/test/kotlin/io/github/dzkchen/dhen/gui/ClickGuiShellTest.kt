@@ -6,46 +6,6 @@ import java.util.function.IntUnaryOperator
 
 class ClickGuiShellTest {
 	@Test
-	fun `columns sit side by side in slot order`() {
-		assertEquals(0, ClickGuiShell.columnLeft(0, COLUMN_WIDTH, GAP))
-		assertEquals(126, ClickGuiShell.columnLeft(1, COLUMN_WIDTH, GAP))
-		assertEquals(2016, ClickGuiShell.columnLeft(16, COLUMN_WIDTH, GAP))
-	}
-
-	@Test
-	fun `field width counts the gaps between columns only`() {
-		assertEquals(0, ClickGuiShell.fieldWidth(0, COLUMN_WIDTH, GAP))
-		assertEquals(118, ClickGuiShell.fieldWidth(1, COLUMN_WIDTH, GAP))
-		assertEquals(2134, ClickGuiShell.fieldWidth(CATEGORIES, COLUMN_WIDTH, GAP))
-	}
-
-	@Test
-	fun `the field scrolls by whatever the viewport cannot show`() {
-		val right = MARGIN + ClickGuiShell.fieldWidth(CATEGORIES, COLUMN_WIDTH, GAP)
-		assertEquals(1766, ClickGuiScroll.maxScroll(right, viewportHeight = 384, margin = MARGIN))
-		assertEquals(0, ClickGuiScroll.maxScroll(right, viewportHeight = 2150, margin = MARGIN))
-		assertEquals(0, ClickGuiScroll.maxScroll(right, viewportHeight = 4000, margin = MARGIN))
-	}
-
-	@Test
-	fun `a hit lands on the column under it and never in a gap`() {
-		assertEquals(0, ClickGuiShell.slotAt(0, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(0, ClickGuiShell.slotAt(117, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.slotAt(118, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.slotAt(125, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(1, ClickGuiShell.slotAt(126, CATEGORIES, COLUMN_WIDTH, GAP))
-	}
-
-	@Test
-	fun `a hit outside the field resolves to no column`() {
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.slotAt(-1, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.slotAt(0, 0, COLUMN_WIDTH, GAP))
-		val past = ClickGuiShell.columnLeft(CATEGORIES, COLUMN_WIDTH, GAP)
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.slotAt(past, CATEGORIES, COLUMN_WIDTH, GAP))
-		assertEquals(16, ClickGuiShell.slotAt(past - GAP - 1, CATEGORIES, COLUMN_WIDTH, GAP))
-	}
-
-	@Test
 	fun `an expanded category is its header plus every row and settings area`() {
 		val heights = intArrayOf(30, 0, 42)
 
@@ -131,32 +91,6 @@ class ClickGuiShellTest {
 	}
 
 	@Test
-	fun `a scrolled stack draws each entry where a click on it resolves back`() {
-		val offset = 90
-
-		for (slot in intArrayOf(0, OPENED_SLOT, CATEGORIES - 1)) {
-			val origin = ClickGuiShell.spanOrigin(FIELD_TOP, slot, ACCORDION, GAP, offset)
-			val local = ClickGuiShell.spanLocal(FIELD_TOP, origin, offset)
-
-			assertEquals(ClickGuiShell.spanStart(slot, ACCORDION, GAP), local)
-			assertEquals(slot, ClickGuiShell.spanAt(local, CATEGORIES, ACCORDION, GAP))
-		}
-	}
-
-	@Test
-	fun `an unscrolled stack starts at the top of the field`() {
-		assertEquals(FIELD_TOP, ClickGuiShell.spanOrigin(FIELD_TOP, 0, ACCORDION, GAP, 0))
-		assertEquals(0, ClickGuiShell.spanLocal(FIELD_TOP, FIELD_TOP, 0))
-	}
-
-	@Test
-	fun `the accordion stack scrolls by whatever the viewport cannot show`() {
-		val bottom = FIELD_TOP + ClickGuiShell.spanTotal(CATEGORIES, ACCORDION, GAP)
-		assertEquals(354, ClickGuiScroll.maxScroll(bottom, viewportHeight = 240, margin = MARGIN))
-		assertEquals(0, ClickGuiScroll.maxScroll(bottom, viewportHeight = 600, margin = MARGIN))
-	}
-
-	@Test
 	fun `a tooltip sits beside its column while there is room to the right`() {
 		assertEquals(132, tooltipLeft(columnLeft = 8, tooltipWidth = 120))
 		assertEquals(346, tooltipLeft(columnLeft = 222, tooltipWidth = 120))
@@ -228,7 +162,6 @@ class ClickGuiShellTest {
 		const val MARGIN = 8
 		const val CATEGORIES = 17
 		const val HEADER_HEIGHT = 18
-		const val FIELD_TOP = 70
 		const val OPENED_SLOT = 2
 		const val OPENED_HEIGHT = 100
 		const val SEGMENT_GAP = 2

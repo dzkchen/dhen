@@ -5,18 +5,6 @@ import java.util.function.IntUnaryOperator
 internal object ClickGuiShell {
 	const val NONE = -1
 
-	fun columnLeft(slot: Int, columnWidth: Int, gap: Int): Int = slot * (columnWidth + gap)
-
-	fun fieldWidth(columnCount: Int, columnWidth: Int, gap: Int): Int =
-		if (columnCount <= 0) 0 else columnCount * columnWidth + (columnCount - 1) * gap
-
-	fun slotAt(contentX: Int, columnCount: Int, columnWidth: Int, gap: Int): Int {
-		if (contentX < 0 || columnCount <= 0) return NONE
-		val slot = contentX / (columnWidth + gap)
-		if (slot >= columnCount) return NONE
-		return if (contentX - columnLeft(slot, columnWidth, gap) < columnWidth) slot else NONE
-	}
-
 	fun columnHeight(
 		collapsed: Boolean,
 		headerHeight: Int,

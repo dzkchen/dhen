@@ -32,6 +32,15 @@ internal object ClickGuiScroll {
 
 	fun restore(offset: Int, stashed: Int, maxScroll: Int): Int =
 		clampOffset(if (stashed > TOP) stashed else offset, maxScroll)
+
+	fun reveal(offset: Int, spanStart: Int, extent: Int, window: Int, maxScroll: Int): Int {
+		val target = when {
+			spanStart < offset -> spanStart
+			spanStart + extent > offset + window -> minOf(spanStart, spanStart + extent - window)
+			else -> offset
+		}
+		return clampOffset(target, maxScroll)
+	}
 }
 
 /**
@@ -61,22 +70,18 @@ internal class ScrollState {
 	}
 
 	/**
-	 * Pulls a row into view without disturbing the stash. This runs *after* [refilter] on the
-	 * search path, so dropping the stash here would throw away the position a widening query is
-	 * still owed.
+	 * Pulls an entry into view without disturbing the stash: navigating inside a filtered list is
+	 * not the same gesture as scrolling, so a widening query is still owed the position it stashed.
+	 * Each caller supplies its own window, because a trailing gutter outside the viewport and a
+	 * trailing pad inside the content scroll alike but frame differently.
 	 */
-	fun settle(target: Int, maxScroll: Int) {
-		offset = ClickGuiScroll.clampOffset(target, maxScroll)
+	fun reveal(spanStart: Int, extent: Int, window: Int, maxScroll: Int) {
+		offset = ClickGuiScroll.reveal(offset, spanStart, extent, window, maxScroll)
 	}
 
 	/** The content extent moved under a direct user action, so re-clamp and drop the stash. */
 	fun reclamp(maxScroll: Int) {
 		offset = ClickGuiScroll.clampOffset(offset, maxScroll)
-		stashed = ClickGuiScroll.TOP
-	}
-
-	/** A direct user action repositioned focus without changing the extent. */
-	fun dropStash() {
 		stashed = ClickGuiScroll.TOP
 	}
 }
