@@ -6,11 +6,16 @@ import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.config.Setting
+import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.config.StringSetting
+import io.github.dzkchen.dhen.module.Category
+import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.Color
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
@@ -233,10 +238,70 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `action control swallows callback failures`() {
+	fun `a throwing dependency quarantines the control and reports it to the owning module once`() {
+		var invocations = 0
+		val setting = BooleanSetting("b").withDependency {
+			invocations++
+			throw RuntimeException("boom")
+		}
+		val module = owning(setting)
+		val control = controlFor(setting)!!
+
+		assertFalse(control.renderable())
+		assertTrue(control.failed)
+		assertEquals(1, invocations)
+		assertEquals(1, module.errorCount)
+
+		assertFalse(control.renderable())
+		assertEquals(1, invocations)
+		assertEquals(1, module.errorCount)
+	}
+
+	@Test
+	fun `a quarantined control takes no input and changes no value`() {
+		val setting = BooleanSetting("b", default = false).withDependency { throw RuntimeException("boom") }
+		val module = owning(setting)
+		val control = controlFor(setting)!!
+		control.renderable()
+
+		assertNull(control.press(0, 100))
+		assertFalse(setting.value)
+		assertEquals(ControlKey.IGNORED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
+		assertEquals(ControlKey.IGNORED, control.captureMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT))
+		assertFalse(control.charTyped('a'.code))
+		assertFalse(control.blur())
+		assertEquals(1, module.errorCount)
+	}
+
+	@Test
+	fun `a throwing action quarantines the control and reports it instead of swallowing it`() {
 		val setting = ActionSetting("a", default = { throw RuntimeException("boom") })
-		val control = ActionControl(setting)
-		assertEquals(ControlPress.INVOKED, control.press(0, 100))
+		val module = owning(setting)
+		val control = controlFor(setting)!!
+
+		assertNull(control.press(0, 100))
+		assertTrue(control.failed)
+		assertEquals(1, module.errorCount)
+	}
+
+	@Test
+	fun `a control whose setting no module registered quarantines itself with nothing to report to`() {
+		val setting = BooleanSetting("b").withDependency { throw RuntimeException("boom") }
+		val control = controlFor(setting)!!
+
+		assertTrue(control.clientOwned)
+		assertFalse(control.renderable())
+		assertTrue(control.failed)
+	}
+
+	private fun <T> owning(setting: Setting<T>): Module = object : Module(
+		name = "Owner",
+		category = Category.DEV,
+		description = "Fixture owning the setting under test."
+	) {
+		init {
+			registerSetting(setting)
+		}
 	}
 
 	@Test

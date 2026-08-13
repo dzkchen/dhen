@@ -13,6 +13,8 @@ abstract class Setting<T>(
 	abstract val default: T
 	abstract var value: T
 
+	internal var owner: Module? = null
+
 	private var hidden = false
 	private var visibilityDependency: (() -> Boolean)? = null
 

@@ -50,7 +50,6 @@ internal class ClickGuiShellScreen(
 	private var dragLeft = 0
 	private var dragWidth = 0
 	private var focused: SettingControl? = null
-	private var armedClient = false
 	private var swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
 
 	override fun init() {
@@ -196,12 +195,12 @@ internal class ClickGuiShellScreen(
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
 		val button = event.button()
-		val armed = focused
+		val armed = liveFocus
 		if (armed != null) {
 			val result = armed.captureMouse(button)
 			if (result != ControlKey.IGNORED) {
 				focused = null
-				if (result == ControlKey.COMMITTED) persistArmed()
+				if (result == ControlKey.COMMITTED) persistArmed(armed)
 				return true
 			}
 		}
@@ -248,14 +247,14 @@ internal class ClickGuiShellScreen(
 
 	override fun keyPressed(event: KeyEvent): Boolean {
 		if (event.key() != swallowCharKey) swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
-		val control = focused
+		val control = liveFocus
 		if (control != null) {
 			val result = control.keyPressed(event.key(), event.modifiers())
 			if (result != ControlKey.IGNORED) {
 				if (result != ControlKey.CONSUMED) {
 					focused = null
 					swallowCharKey = event.key()
-					if (result == ControlKey.COMMITTED) persistArmed()
+					if (result == ControlKey.COMMITTED) persistArmed(control)
 				}
 				return true
 			}
@@ -291,7 +290,7 @@ internal class ClickGuiShellScreen(
 
 	override fun charTyped(event: CharacterEvent): Boolean {
 		val codepoint = event.codepoint()
-		if (focused?.charTyped(codepoint) == true) return true
+		if (liveFocus?.charTyped(codepoint) == true) return true
 		if (swallowCharKey != GLFW.GLFW_KEY_UNKNOWN) return true
 		if (activeTab != FEATURES_TAB || !isPrintable(codepoint)) return super.charTyped(event)
 		if (query.length < SEARCH_MAX_LENGTH) {
@@ -343,7 +342,7 @@ internal class ClickGuiShellScreen(
 
 	private fun pressRowControl(column: Column, control: SettingControl, contentX: Int) {
 		val controlsLeft = column.contentLeft + CONTENT_PAD
-		val press = pressControl(control, contentX - controlsLeft, controlsLeft - columnField.offset, CONTROLS_WIDTH, clientOwned = false)
+		val press = pressControl(control, contentX - controlsLeft, controlsLeft - columnField.offset, CONTROLS_WIDTH)
 		if (press == ControlPress.CHANGED) {
 			column.reclamp()
 			persistModules()
@@ -353,31 +352,31 @@ internal class ClickGuiShellScreen(
 	private fun pressPrefControl(x: Int, y: Int) {
 		val control = prefControlAt(x, y) ?: return
 		val controlsLeft = panelLeft() + CONTENT_PAD
-		val press = pressControl(control, x - controlsLeft, controlsLeft, PANEL_CONTROLS_WIDTH, clientOwned = true)
-		if (press == ControlPress.CHANGED) persistClient()
+		if (pressControl(control, x - controlsLeft, controlsLeft, PANEL_CONTROLS_WIDTH) == ControlPress.CHANGED) persistClient()
+	}
+
+	private fun reflowQuarantined(control: SettingControl) {
+		if (!control.failed) return
+		if (control.clientOwned) prefs.reclamp() else reflowAll()
 	}
 
 	private fun pressControl(
 		control: SettingControl,
 		localX: Int,
 		screenLeft: Int,
-		width: Int,
-		clientOwned: Boolean
-	): ControlPress {
+		width: Int
+	): ControlPress? {
 		val result = control.press(localX, width)
 		when (result) {
 			ControlPress.TRACK -> {
 				dragged = control
 				dragLeft = screenLeft
 				dragWidth = width
-				armedClient = clientOwned
 			}
-			ControlPress.FOCUS -> {
-				focused = control
-				armedClient = clientOwned
-			}
+			ControlPress.FOCUS -> focused = control
 			else -> Unit
 		}
+		reflowQuarantined(control)
 		return result
 	}
 
@@ -393,8 +392,8 @@ internal class ClickGuiShellScreen(
 		return if (row == ClickGuiShell.NONE) null else card.control(row)
 	}
 
-	private fun persistArmed() {
-		if (armedClient) {
+	private fun persistArmed(control: SettingControl) {
+		if (control.clientOwned) {
 			persistClient()
 			return
 		}
@@ -405,6 +404,7 @@ internal class ClickGuiShellScreen(
 	private fun persistClient() {
 		ClientPrefs.sync()
 		relayout()
+		prefs.reclamp()
 		persistCore()
 	}
 
@@ -530,16 +530,19 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun cancelDrag() {
-		if (dragged == null) return
+		val control = dragged ?: return
 		dragged = null
-		persistArmed()
+		persistArmed(control)
 	}
 
 	private fun blurFocus() {
 		val control = focused ?: return
 		focused = null
-		if (control.blur()) persistArmed()
+		if (control.blur()) persistArmed(control) else reflowQuarantined(control)
 	}
+
+	private val liveFocus: SettingControl?
+		get() = focused?.takeIf { !it.failed }
 
 	private val fieldBottom: Int
 		get() = height - MARGIN
@@ -608,7 +611,7 @@ internal class ClickGuiShellScreen(
 			return
 		}
 		DhenType.text(graphics, font, query, textLeft, top, DhenPalette.TEXT_PRIMARY)
-		if (focused == null) caret(graphics, font, textLeft + DhenType.width(font, query), top)
+		if (liveFocus == null) caret(graphics, font, textLeft + DhenType.width(font, query), top)
 		if (visible.isEmpty()) {
 			val labelLeft = ClickGuiShell.centeredLeft(width, DhenType.width(font, NO_MATCH_LABEL))
 			DhenType.text(graphics, font, NO_MATCH_LABEL, labelLeft, bottom + SEARCH_PAD, DhenPalette.TEXT_SECONDARY)
@@ -620,29 +623,14 @@ internal class ClickGuiShellScreen(
 		private val controls: List<SettingControl> = section.settings.mapNotNull(::controlFor)
 
 		val count: Int
-			get() {
-				var visible = 0
-				for (i in controls.indices) {
-					if (controls[i].setting.isVisible) visible++
-				}
-				return visible
-			}
+			get() = controls.renderableCount()
 		val height: Int
 			get() {
 				val shown = count
 				return HEADER_HEIGHT + 2 * SECTION_PAD + if (shown == 0) EMPTY_SECTION_HEIGHT else shown * CONTROL_ROW_HEIGHT
 			}
 
-		fun control(row: Int): SettingControl? {
-			var seen = 0
-			for (i in controls.indices) {
-				val control = controls[i]
-				if (!control.setting.isVisible) continue
-				if (seen == row) return control
-				seen++
-			}
-			return null
-		}
+		fun control(row: Int): SettingControl? = controls.renderableAt(row)
 
 		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
 			val right = left + PANEL_WIDTH
@@ -660,7 +648,7 @@ internal class ClickGuiShellScreen(
 			val overControls = mouseX in contentLeft until contentLeft + PANEL_CONTROLS_WIDTH
 			for (i in controls.indices) {
 				val control = controls[i]
-				if (!control.setting.isVisible) continue
+				if (!control.renderable()) continue
 				if (y >= bottom) break
 				val hovered = overControls && mouseY in y until y + CONTROL_ROW_HEIGHT
 				control.draw(graphics, font, contentLeft, y, PANEL_CONTROLS_WIDTH, CONTROL_ROW_HEIGHT, hovered)
@@ -864,7 +852,7 @@ internal class ClickGuiShellScreen(
 			val list = controls[index]
 			for (i in list.indices) {
 				val control = list[i]
-				if (!control.setting.isVisible) continue
+				if (!control.renderable()) continue
 				if (y >= visibleBottom) break
 				if (y + CONTROL_ROW_HEIGHT > visibleTop) {
 					val hovered = overControls && pointerY in y until y + CONTROL_ROW_HEIGHT
@@ -876,16 +864,7 @@ internal class ClickGuiShellScreen(
 
 		private fun renderableAt(index: Int, localY: Int): SettingControl? {
 			if (localY < 0) return null
-			val target = localY / CONTROL_ROW_HEIGHT
-			val list = controls[index]
-			var seen = 0
-			for (i in list.indices) {
-				val control = list[i]
-				if (!control.setting.isVisible) continue
-				if (seen == target) return control
-				seen++
-			}
-			return null
+			return controls[index].renderableAt(localY / CONTROL_ROW_HEIGHT)
 		}
 
 		private fun settingsHeight(index: Int): Int {
@@ -893,14 +872,7 @@ internal class ClickGuiShellScreen(
 			return 2 * SETTINGS_PAD + renderableCount(index) * CONTROL_ROW_HEIGHT
 		}
 
-		private fun renderableCount(index: Int): Int {
-			val list = controls[index]
-			var count = 0
-			for (i in list.indices) {
-				if (list[i].setting.isVisible) count++
-			}
-			return count
-		}
+		private fun renderableCount(index: Int): Int = controls[index].renderableCount()
 	}
 
 	private companion object {

@@ -52,21 +52,111 @@ internal enum class ControlPress { CHANGED, TRACK, FOCUS, INVOKED }
 
 internal enum class ControlKey { IGNORED, CONSUMED, COMMITTED, CANCELLED }
 
-internal sealed class SettingControl(val setting: Setting<*>) {
-	abstract fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean)
+internal sealed class SettingControl(private val setting: Setting<*>) {
+	var failed = false
+		private set
 
-	abstract fun press(localX: Int, width: Int): ControlPress
+	val clientOwned: Boolean
+		get() = setting.owner == null
 
-	open fun drag(localX: Int, width: Int) = Unit
+	protected abstract fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean)
 
-	open fun keyPressed(key: Int, modifiers: Int): ControlKey = ControlKey.IGNORED
+	protected abstract fun onPress(localX: Int, width: Int): ControlPress
 
-	open fun charTyped(codepoint: Int): Boolean = false
+	protected open fun onDrag(localX: Int, width: Int) = Unit
 
-	open fun captureMouse(button: Int): ControlKey = ControlKey.IGNORED
+	protected open fun onKeyPressed(key: Int, modifiers: Int): ControlKey = ControlKey.IGNORED
 
-	open fun blur(): Boolean = false
+	protected open fun onCharTyped(codepoint: Int): Boolean = false
 
+	protected open fun onCaptureMouse(button: Int): ControlKey = ControlKey.IGNORED
+
+	protected open fun onBlur(): Boolean = false
+
+	fun renderable(): Boolean {
+		if (failed) return false
+		return try {
+			setting.isVisible
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			false
+		}
+	}
+
+	fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+		if (failed) return
+		try {
+			onDraw(graphics, font, x, y, width, height, hovered)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+		}
+	}
+
+	fun press(localX: Int, width: Int): ControlPress? {
+		if (failed) return null
+		return try {
+			onPress(localX, width)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			null
+		}
+	}
+
+	fun drag(localX: Int, width: Int) {
+		if (failed) return
+		try {
+			onDrag(localX, width)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+		}
+	}
+
+	fun keyPressed(key: Int, modifiers: Int): ControlKey {
+		if (failed) return ControlKey.IGNORED
+		return try {
+			onKeyPressed(key, modifiers)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			ControlKey.CANCELLED
+		}
+	}
+
+	fun charTyped(codepoint: Int): Boolean {
+		if (failed) return false
+		return try {
+			onCharTyped(codepoint)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			true
+		}
+	}
+
+	fun captureMouse(button: Int): ControlKey {
+		if (failed) return ControlKey.IGNORED
+		return try {
+			onCaptureMouse(button)
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			ControlKey.CANCELLED
+		}
+	}
+
+	fun blur(): Boolean {
+		if (failed) return false
+		return try {
+			onBlur()
+		} catch (throwable: Throwable) {
+			quarantine(throwable)
+			false
+		}
+	}
+
+	private fun quarantine(throwable: Throwable) {
+		failed = true
+		val owner = setting.owner
+		if (owner == null) LOG.error("Client setting '{}' threw", setting.name, throwable)
+		else owner.reportError(throwable)
+	}
 }
 
 internal class ToggleControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
@@ -75,7 +165,7 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 	private var slideFrom = slide
 	private var slideAt = 0L
 
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val on = boolean.on
 		val progress = slide()
 		DhenType.text(graphics, font, boolean.name, x + CONTROL_TEXT_INSET, textTop(font, y, height), DhenPalette.label(on || hovered))
@@ -96,7 +186,7 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 		)
 	}
 
-	override fun press(localX: Int, width: Int): ControlPress {
+	override fun onPress(localX: Int, width: Int): ControlPress {
 		boolean.value = !boolean.on
 		return ControlPress.CHANGED
 	}
@@ -118,7 +208,7 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	private var cachedValue = Double.NaN
 	private var cachedText = ""
 
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val labelTop = y + SLIDER_LABEL_INSET
 		DhenType.text(graphics, font, number.name, x + CONTROL_TEXT_INSET, labelTop, DhenPalette.label(hovered))
 		val value = displayValue()
@@ -131,12 +221,12 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 		RoundedGui.circle(graphics, knobX, (top + bottom) / 2, SLIDER_KNOB_RADIUS, DhenPalette.TEXT_PRIMARY)
 	}
 
-	override fun press(localX: Int, width: Int): ControlPress {
+	override fun onPress(localX: Int, width: Int): ControlPress {
 		number.value = valueAt(localX, width)
 		return ControlPress.TRACK
 	}
 
-	override fun drag(localX: Int, width: Int) {
+	override fun onDrag(localX: Int, width: Int) {
 		number.value = valueAt(localX, width)
 	}
 
@@ -162,7 +252,7 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 }
 
 internal class DropdownControl(private val selector: SelectorSetting) : SettingControl(selector) {
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val value = selector.value
 		val valueWidth = DhenType.width(font, value)
 		val glyphWidth = DhenType.width(font, DROPDOWN_GLYPH)
@@ -173,7 +263,7 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 		DhenType.text(graphics, font, DROPDOWN_GLYPH, glyphLeft, baseline, DhenPalette.TEXT_SECONDARY)
 	}
 
-	override fun press(localX: Int, width: Int): ControlPress {
+	override fun onPress(localX: Int, width: Int): ControlPress {
 		selector.index += 1
 		return ControlPress.CHANGED
 	}
@@ -191,19 +281,19 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 
 	protected open fun initialDraft(): String = committedText()
 
-	override fun press(localX: Int, width: Int): ControlPress {
+	override fun onPress(localX: Int, width: Int): ControlPress {
 		editing = true
 		draft = initialDraft()
 		return ControlPress.FOCUS
 	}
 
-	override fun charTyped(codepoint: Int): Boolean {
+	override fun onCharTyped(codepoint: Int): Boolean {
 		if (!editing) return false
 		if (draft.length < maxLength && accepts(codepoint)) draft += codepoint.toChar()
 		return true
 	}
 
-	override fun keyPressed(key: Int, modifiers: Int): ControlKey {
+	override fun onKeyPressed(key: Int, modifiers: Int): ControlKey {
 		if (!editing) return ControlKey.IGNORED
 		return when (key) {
 			GLFW.GLFW_KEY_BACKSPACE -> {
@@ -216,7 +306,7 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 		}
 	}
 
-	override fun blur(): Boolean {
+	override fun onBlur(): Boolean {
 		if (!editing) return false
 		val changed = commit(draft)
 		editing = false
@@ -250,7 +340,7 @@ internal class TextControl(private val string: StringSetting) : EditableControl(
 		return true
 	}
 
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val shown = editText()
 		val shownWidth = DhenType.width(font, shown)
 		val reserve = caretReserve()
@@ -290,7 +380,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		return color.value.argb != before
 	}
 
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val shown = editText()
 		val shownWidth = DhenType.width(font, shown)
 		val reserve = caretReserve()
@@ -311,7 +401,7 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 	private var cachedCode = Int.MIN_VALUE
 	private var cachedLabel = ""
 
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val shown = if (armed) CAPTURE_PROMPT else keyLabel()
 		val shownWidth = DhenType.width(font, shown)
 		val contentRight = pillRow(graphics, font, keybind.name, x, y, width, height, shownWidth, hovered, armed)
@@ -319,24 +409,24 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 		DhenType.text(graphics, font, shown, contentRight - shownWidth, textTop(font, y, height), valueColor)
 	}
 
-	override fun press(localX: Int, width: Int): ControlPress {
+	override fun onPress(localX: Int, width: Int): ControlPress {
 		armed = true
 		return ControlPress.FOCUS
 	}
 
-	override fun keyPressed(key: Int, modifiers: Int): ControlKey {
+	override fun onKeyPressed(key: Int, modifiers: Int): ControlKey {
 		if (!armed) return ControlKey.IGNORED
 		armed = false
 		return bind(if (key == GLFW.GLFW_KEY_ESCAPE) GLFW.GLFW_KEY_UNKNOWN else key)
 	}
 
-	override fun captureMouse(button: Int): ControlKey {
+	override fun onCaptureMouse(button: Int): ControlKey {
 		if (!armed) return ControlKey.IGNORED
 		armed = false
 		return bind(button)
 	}
 
-	override fun blur(): Boolean {
+	override fun onBlur(): Boolean {
 		armed = false
 		return false
 	}
@@ -364,7 +454,7 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 }
 
 internal class ActionControl(private val action: ActionSetting) : SettingControl(action) {
-	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
 		val top = widgetTop(y, height)
 		RoundedGui.pill(graphics, x, top, x + width, top + WIDGET_HEIGHT, if (hovered) DhenPalette.accent else DhenPalette.accentMuted)
 		val label = action.name
@@ -373,12 +463,8 @@ internal class ActionControl(private val action: ActionSetting) : SettingControl
 		DhenType.text(graphics, font, label, labelLeft, textTop(font, y, height), labelTint)
 	}
 
-	override fun press(localX: Int, width: Int): ControlPress {
-		try {
-			action.value.invoke()
-		} catch (e: Exception) {
-			LOG.warn("Action setting '{}' threw", action.name, e)
-		}
+	override fun onPress(localX: Int, width: Int): ControlPress {
+		action.value.invoke()
 		return ControlPress.INVOKED
 	}
 }
@@ -422,6 +508,25 @@ internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int)
 }
 
 internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
+
+internal fun List<SettingControl>.renderableCount(): Int {
+	var count = 0
+	for (i in indices) {
+		if (this[i].renderable()) count++
+	}
+	return count
+}
+
+internal fun List<SettingControl>.renderableAt(position: Int): SettingControl? {
+	var seen = 0
+	for (i in indices) {
+		val control = this[i]
+		if (!control.renderable()) continue
+		if (seen == position) return control
+		seen++
+	}
+	return null
+}
 
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is BooleanSetting -> ToggleControl(setting)

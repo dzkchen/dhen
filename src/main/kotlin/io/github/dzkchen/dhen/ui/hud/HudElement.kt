@@ -48,7 +48,7 @@ abstract class HudElement(
 		scale = declaredScale
 		visible = declaredVisible
 		background = declaredBackground
-		failed = false
+		clearFailure()
 		return true
 	}
 
@@ -62,6 +62,10 @@ abstract class HudElement(
 
 	internal fun markFailed() {
 		failed = true
+	}
+
+	internal fun clearFailure() {
+		failed = false
 	}
 
 	companion object {

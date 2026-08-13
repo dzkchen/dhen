@@ -176,6 +176,24 @@ class HudRegistrationTest {
 	}
 
 	@Test
+	fun `turning a module off and on lifts the quarantine without costing the layout`() {
+		val manager = ModuleManager()
+		val module = OverlayModule()
+		manager.register(module)
+		manager.enable(module)
+		module.first.offsetX = 120
+		module.first.markFailed()
+
+		assertEquals(listOf(module.second), visited(manager))
+
+		manager.disable(module)
+		manager.enable(module)
+
+		assertEquals(listOf(module.first, module.second), visited(manager))
+		assertEquals(120, module.first.offsetX)
+	}
+
+	@Test
 	fun `the exposed element list rejects mutation`() {
 		val module = OverlayModule()
 

@@ -138,6 +138,7 @@ abstract class Module(
 
 	internal fun <T> registerSetting(setting: Setting<T>): ReadWriteProperty<Module, T> {
 		require(!bound) { "Module '$name' settings must be registered before manager registration." }
+		setting.owner = this
 		settingList += setting
 		return setting
 	}
@@ -153,6 +154,7 @@ abstract class Module(
 	private fun resetErrorState() {
 		errorCount = 0
 		warned = false
+		for (element in hudList) element.clearFailure()
 	}
 
 	private fun onHandlerError(throwable: Throwable) {
