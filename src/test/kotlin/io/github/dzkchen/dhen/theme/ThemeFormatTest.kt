@@ -112,6 +112,7 @@ class ThemeFormatTest {
 		val entry = parse(document)
 
 		assertEquals(PROBE, entry.theme.canvas)
+		assertEquals(99, entry.schema)
 		assertEquals(1, COLOR_TOKENS.values.count { it(entry.theme) != it(DhenTheme.DEFAULT) })
 	}
 

@@ -15,6 +15,7 @@ internal data class ThemeEntry(
 	val name: String,
 	val version: String,
 	val authors: List<String>,
+	val schema: Int,
 	val theme: DhenTheme,
 	val document: JsonObject?
 )
@@ -78,20 +79,21 @@ internal object ThemeFormat {
 	)
 
 	fun parse(id: String, document: JsonObject): ThemeEntry {
-		val declared = number(document.get(SCHEMA_KEY))?.toInt() ?: SCHEMA
-		if (declared > SCHEMA) log.info("Theme '{}' is written for schema {}; reading it as {}", id, declared, SCHEMA)
+		val authorsSchema = document.get(SCHEMA_KEY)
+		val declared = number(authorsSchema)?.toInt() ?: SCHEMA
+		if (declared > SCHEMA) log.info("Theme '{}' is written for schema {}; reading it as {}", id, authorsSchema, SCHEMA)
 		val declaredId = text(document, ID_KEY)
 		if (declaredId != null && !declaredId.equals(id, ignoreCase = true)) {
 			log.warn("Theme '{}' calls itself '{}'; a theme is named by the folder it lives in", id, declaredId)
 		}
 		val colored = readColors(id, block(id, document, COLORS_KEY), DhenTheme.DEFAULT)
 		val theme = readMotion(id, block(id, document, MOTION_KEY), colored)
-		return ThemeEntry(id, text(document, NAME_KEY) ?: id, text(document, VERSION_KEY) ?: "", authors(document), theme, document)
+		return ThemeEntry(id, text(document, NAME_KEY) ?: id, text(document, VERSION_KEY) ?: "", authors(document), declared, theme, document)
 	}
 
 	fun document(id: String, metadata: ThemeEntry?, resolved: DhenTheme): JsonObject {
 		val document = metadata?.document?.deepCopy() ?: JsonObject()
-		document.addProperty(SCHEMA_KEY, SCHEMA)
+		stampSchema(document, metadata?.schema ?: SCHEMA)
 		document.addProperty(ID_KEY, id)
 		document.addProperty(NAME_KEY, id)
 		document.addProperty(VERSION_KEY, metadata?.version ?: "")
@@ -101,6 +103,11 @@ internal object ThemeFormat {
 		val motion = section(document, MOTION_KEY)
 		for ((token, slot) in MOTION) motion.addProperty(token, slot.read(resolved))
 		return document
+	}
+
+	private fun stampSchema(document: JsonObject, declared: Int) {
+		val keepAuthorsSchema = declared > SCHEMA && number(document.get(SCHEMA_KEY))?.toInt() == declared
+		if (!keepAuthorsSchema) document.addProperty(SCHEMA_KEY, maxOf(SCHEMA, declared))
 	}
 
 	private fun section(document: JsonObject, key: String): JsonObject =

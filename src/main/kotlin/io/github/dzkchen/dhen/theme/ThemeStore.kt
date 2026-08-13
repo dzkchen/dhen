@@ -20,8 +20,8 @@ internal object ThemeStore {
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	val builtIn: List<ThemeEntry> = listOf(
-		ThemeEntry(DEFAULT_ID, "Dhen", "", emptyList(), DhenTheme.DEFAULT, null),
-		ThemeEntry(LIGHT_ID, "Dhen Light", "", emptyList(), DhenTheme.LIGHT, null)
+		ThemeEntry(DEFAULT_ID, "Dhen", "", emptyList(), ThemeFormat.SCHEMA, DhenTheme.DEFAULT, null),
+		ThemeEntry(LIGHT_ID, "Dhen Light", "", emptyList(), ThemeFormat.SCHEMA, DhenTheme.LIGHT, null)
 	)
 
 	@Volatile

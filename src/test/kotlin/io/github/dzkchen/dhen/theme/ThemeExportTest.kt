@@ -57,13 +57,52 @@ class ThemeExportTest {
 
 	@Test
 	fun `keys and tokens this build does not know are carried through an export`() {
-		val source = ThemeFormat.parse("ocean", json("""{"shaders":{"blur":true},"colors":{"hologram":"#123456"}}"""))
+		val source = ThemeFormat.parse("ocean", json("""{"schema":99,"shaders":{"blur":true},"colors":{"hologram":"#123456"}}"""))
 
 		val document = read(ThemeExport.write(config, "ocean", source, PROBE))
 
+		assertEquals(99, document.get("schema").asInt)
 		assertTrue(document.getAsJsonObject("shaders").get("blur").asBoolean)
 		assertEquals("#123456", document.getAsJsonObject("colors").get("hologram").asString)
 		assertEquals(TOKEN_COUNT + 1, document.getAsJsonObject("colors").size())
+	}
+
+	@Test
+	fun `an export of a theme this build understands is stamped with this build's schema`() {
+		val sources = mapOf(
+			"declared" to """{"schema":${ThemeFormat.SCHEMA},"colors":{"canvas":"#112233"}}""",
+			"silent" to """{"colors":{"canvas":"#112233"}}""",
+			"unreadable" to """{"schema":"two"}""",
+			"older" to """{"schema":0}""",
+			"fractional" to """{"schema":1.9}"""
+		)
+
+		for ((name, source) in sources) {
+			val document = read(ThemeExport.write(config, name, ThemeFormat.parse(name, json(source)), PROBE))
+
+			assertEquals(ThemeFormat.SCHEMA, document.get("schema").asInt, name)
+		}
+	}
+
+	@Test
+	fun `a future schema is exported as the author wrote it rather than as a number this build can hold`() {
+		val source = ThemeFormat.parse("ocean", json("""{"schema":1e20}"""))
+
+		val document = read(ThemeExport.write(config, "ocean", source, PROBE))
+
+		assertEquals("1e20", document.get("schema").asString)
+	}
+
+	@Test
+	fun `a future theme re-exported from an export still carries the version and keys it arrived with`() {
+		val arrived = json("""{"schema":1e20,"shaders":{"blur":true},"colors":{"hologram":"#123456"}}""")
+		val once = read(ThemeExport.write(config, "ocean", ThemeFormat.parse("ocean", arrived), PROBE))
+
+		val twice = read(ThemeExport.write(config, "reef", ThemeFormat.parse("reef", once), PROBE))
+
+		assertEquals("1e20", twice.get("schema").asString)
+		assertTrue(twice.getAsJsonObject("shaders").get("blur").asBoolean)
+		assertEquals("#123456", twice.getAsJsonObject("colors").get("hologram").asString)
 	}
 
 	@Test
