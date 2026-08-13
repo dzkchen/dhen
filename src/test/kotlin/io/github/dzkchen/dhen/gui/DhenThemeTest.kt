@@ -4,12 +4,14 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.theme.ThemeFormat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.lang.reflect.Modifier
 import java.util.Locale
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
@@ -61,6 +63,37 @@ class DhenThemeTest {
 		assertEquals(30L, GlassGui.TAB_MILLIS)
 		assertEquals(4f, GlassGui.TAB_SLIDE)
 		assertEquals(20L, GlassGui.TOGGLE_MILLIS)
+	}
+
+	@Test
+	fun `every activation reaches the next read the palette serves`() {
+		assertEquals(DhenTheme.DEFAULT.canvas, DhenPalette.CANVAS)
+
+		DhenTheme.activate(DhenTheme.LIGHT)
+
+		assertEquals(DhenTheme.LIGHT.canvas, DhenPalette.CANVAS)
+		assertEquals(DhenTheme.LIGHT.accent, DhenPalette.accent)
+
+		DhenTheme.activate(DhenTheme.LIGHT.withAccent(TEAL).copy(entryMillis = 40L))
+
+		assertEquals(TEAL, DhenPalette.accent)
+		assertEquals(DhenTheme.LIGHT.canvas, DhenPalette.CANVAS)
+		assertEquals(40L, GlassGui.ENTRY_MILLIS)
+
+		DhenTheme.activate(DhenTheme.DEFAULT)
+
+		assertEquals(DhenTheme.DEFAULT.canvas, DhenPalette.CANVAS)
+		assertEquals(DhenTheme.DEFAULT.accent, DhenPalette.accent)
+		assertEquals(DhenTheme.DEFAULT.entryMillis, GlassGui.ENTRY_MILLIS)
+	}
+
+	@Test
+	fun `the draw path reads a plain field while the cross-thread one stays volatile`() {
+		val drawn = DhenTheme::class.java.getDeclaredField("activeOnRenderThread")
+		val shared = DhenTheme::class.java.getDeclaredField("active")
+
+		assertFalse(Modifier.isVolatile(drawn.modifiers))
+		assertTrue(Modifier.isVolatile(shared.modifiers))
 	}
 
 	@Test

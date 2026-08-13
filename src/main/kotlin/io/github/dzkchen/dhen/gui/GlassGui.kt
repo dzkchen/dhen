@@ -4,11 +4,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.util.Util
 
 internal object GlassGui {
-	val ENTRY_MILLIS: Long get() = DhenTheme.active.entryMillis
-	val ENTRY_RISE: Float get() = DhenTheme.active.entryRise
-	val TAB_MILLIS: Long get() = DhenTheme.active.tabMillis
-	val TAB_SLIDE: Float get() = DhenTheme.active.tabSlide
-	val TOGGLE_MILLIS: Long get() = DhenTheme.active.toggleMillis
+	val ENTRY_MILLIS: Long get() = DhenTheme.activeOnRenderThread.entryMillis
+	val ENTRY_RISE: Float get() = DhenTheme.activeOnRenderThread.entryRise
+	val TAB_MILLIS: Long get() = DhenTheme.activeOnRenderThread.tabMillis
+	val TAB_SLIDE: Float get() = DhenTheme.activeOnRenderThread.tabSlide
+	val TOGGLE_MILLIS: Long get() = DhenTheme.activeOnRenderThread.toggleMillis
 	const val SETTLED = 1f
 	private const val SHADOW_LAYERS = 3
 	private const val SHEEN_CORNER_CLEARANCE = 0.5f

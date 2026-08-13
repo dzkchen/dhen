@@ -6,34 +6,34 @@ import kotlin.math.roundToInt
 internal object DhenPalette {
 	val DEFAULT_ACCENT: Int get() = DhenTheme.DEFAULT.accent
 
-	val CANVAS: Int get() = DhenTheme.active.canvas
-	val SURFACE: Int get() = DhenTheme.active.surface
-	val SURFACE_RAISED: Int get() = DhenTheme.active.surfaceRaised
-	val SURFACE_INTERACTIVE: Int get() = DhenTheme.active.surfaceInteractive
-	val BORDER: Int get() = DhenTheme.active.border
+	val CANVAS: Int get() = DhenTheme.activeOnRenderThread.canvas
+	val SURFACE: Int get() = DhenTheme.activeOnRenderThread.surface
+	val SURFACE_RAISED: Int get() = DhenTheme.activeOnRenderThread.surfaceRaised
+	val SURFACE_INTERACTIVE: Int get() = DhenTheme.activeOnRenderThread.surfaceInteractive
+	val BORDER: Int get() = DhenTheme.activeOnRenderThread.border
 
-	val TEXT_PRIMARY: Int get() = DhenTheme.active.textPrimary
-	val TEXT_SECONDARY: Int get() = DhenTheme.active.textSecondary
-	val TEXT_DISABLED: Int get() = DhenTheme.active.textDisabled
-	val TEXT_ON_ACCENT: Int get() = DhenTheme.active.textOnAccent
-	val TEXT_ON_WORLD: Int get() = DhenTheme.active.textOnWorld
+	val TEXT_PRIMARY: Int get() = DhenTheme.activeOnRenderThread.textPrimary
+	val TEXT_SECONDARY: Int get() = DhenTheme.activeOnRenderThread.textSecondary
+	val TEXT_DISABLED: Int get() = DhenTheme.activeOnRenderThread.textDisabled
+	val TEXT_ON_ACCENT: Int get() = DhenTheme.activeOnRenderThread.textOnAccent
+	val TEXT_ON_WORLD: Int get() = DhenTheme.activeOnRenderThread.textOnWorld
 
-	val SPLASH_CANVAS: Int get() = DhenTheme.active.splashCanvas
-	val SPLASH_TRACK: Int get() = DhenTheme.active.splashTrack
-	val SPLASH_INK: Int get() = DhenTheme.active.splashInk
+	val SPLASH_CANVAS: Int get() = DhenTheme.activeOnRenderThread.splashCanvas
+	val SPLASH_TRACK: Int get() = DhenTheme.activeOnRenderThread.splashTrack
+	val SPLASH_INK: Int get() = DhenTheme.activeOnRenderThread.splashInk
 
-	val GLASS_CANVAS: Int get() = DhenTheme.active.glassCanvas
-	val GLASS_SURFACE: Int get() = DhenTheme.active.glassSurface
-	val GLASS_SURFACE_RAISED: Int get() = DhenTheme.active.glassSurfaceRaised
-	val GLASS_SURFACE_INTERACTIVE: Int get() = DhenTheme.active.glassSurfaceInteractive
-	val GLASS_SCRIM: Int get() = DhenTheme.active.glassScrim
-	val GLASS_SHADOW: Int get() = DhenTheme.active.glassShadow
-	val GLASS_SHEEN: Int get() = DhenTheme.active.glassSheen
-	val GLASS_VEIL: Int get() = DhenTheme.active.glassVeil
+	val GLASS_CANVAS: Int get() = DhenTheme.activeOnRenderThread.glassCanvas
+	val GLASS_SURFACE: Int get() = DhenTheme.activeOnRenderThread.glassSurface
+	val GLASS_SURFACE_RAISED: Int get() = DhenTheme.activeOnRenderThread.glassSurfaceRaised
+	val GLASS_SURFACE_INTERACTIVE: Int get() = DhenTheme.activeOnRenderThread.glassSurfaceInteractive
+	val GLASS_SCRIM: Int get() = DhenTheme.activeOnRenderThread.glassScrim
+	val GLASS_SHADOW: Int get() = DhenTheme.activeOnRenderThread.glassShadow
+	val GLASS_SHEEN: Int get() = DhenTheme.activeOnRenderThread.glassSheen
+	val GLASS_VEIL: Int get() = DhenTheme.activeOnRenderThread.glassVeil
 
-	val accent: Int get() = DhenTheme.active.accent
-	val accentMuted: Int get() = DhenTheme.active.accentMuted
-	val accentForeground: Int get() = DhenTheme.active.accentForeground
+	val accent: Int get() = DhenTheme.activeOnRenderThread.accent
+	val accentMuted: Int get() = DhenTheme.activeOnRenderThread.accentMuted
+	val accentForeground: Int get() = DhenTheme.activeOnRenderThread.accentForeground
 
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 

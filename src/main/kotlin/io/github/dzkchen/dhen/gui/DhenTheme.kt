@@ -73,8 +73,12 @@ internal data class DhenTheme(
 		var active: DhenTheme = DEFAULT
 			private set
 
+		var activeOnRenderThread: DhenTheme = DEFAULT
+			private set
+
 		fun activate(theme: DhenTheme) {
 			if (theme != active) active = theme
+			activeOnRenderThread = theme
 		}
 	}
 }
