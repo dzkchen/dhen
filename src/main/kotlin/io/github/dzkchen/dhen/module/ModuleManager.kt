@@ -10,8 +10,10 @@ class ModuleManager(
 	val eventBus: EventBus = EventBus(),
 	private val notifier: ModuleNotifier = ModuleNotifier.LogBacked,
 	private val clock: () -> Long = System::currentTimeMillis,
-	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher()
+	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher(),
+	nanoClock: NanoClock = NanoClock.SYSTEM
 ) {
+	val profiler = HandlerProfiler(nanoClock)
 	private val keybindRuntime = KeybindRuntime(eventBus)
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
@@ -44,6 +46,17 @@ class ModuleManager(
 			require(pendingKeys.add(key)) { "Module '${module.name}' is already registered." }
 		}
 		for (module in modules) addValidated(module, key(module.name))
+	}
+
+	fun unregister(module: Module) {
+		requireRegistered(module)
+		module.setEnabled(false)
+		module.unbind()
+		modulesByName -= key(module.name)
+		val inCategory = modulesByCategory.getValue(module.category)
+		inCategory -= module
+		if (inCategory.isEmpty()) modulesByCategory -= module.category
+		registrationOrder -= module
 	}
 
 	operator fun get(name: String): Module? =
@@ -88,8 +101,8 @@ class ModuleManager(
 	}
 
 	private fun addValidated(module: Module, key: String) {
-		module.bind(eventBus, notifier, clock, clientDispatcher, forwardStateChange)
-		keybindRuntime.register(module)
+		module.bind(eventBus, profiler, notifier, clock, clientDispatcher, forwardStateChange)
+		module.retain(keybindRuntime.register(module))
 		modulesByName[key] = module
 		modulesByCategory.getOrPut(module.category) { mutableListOf() }.add(module)
 		registrationOrder += module

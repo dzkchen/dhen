@@ -3,9 +3,10 @@ package io.github.dzkchen.dhen.module
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.Setting
+import io.github.dzkchen.dhen.event.DeepProfiledEvent
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.event.HandlerTiming
+import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,7 @@ abstract class Module(
 	private val registrations = mutableListOf<Registration<out Event>>()
 	private val settingList = mutableListOf<Setting<*>>()
 	private val hudList = mutableListOf<HudElement>()
+	private val disposables = mutableListOf<Handle>()
 
 	val settings: List<Setting<*>>
 		get() = settingList.toList()
@@ -43,14 +45,13 @@ abstract class Module(
 		get() = registrations.map { it.timing }
 	val subscriptionCount: Int
 		get() = registrations.size
-	private var bound = false
-	private var notifier: ModuleNotifier = ModuleNotifier.LogBacked
-	private var clock: () -> Long = System::currentTimeMillis
-	private var stateListener: (Module) -> Unit = {}
+	@Volatile
+	private var host: Host = Host.UNBOUND
+	private val bound: Boolean
+		get() = host !== Host.UNBOUND
 	private val stateLock = Any()
 	private var windowStart = 0L
 	private var warned = false
-	private var scopeContext: CoroutineContext = Dispatchers.Unconfined
 	@Volatile
 	private var moduleScope: CoroutineScope? = null
 	private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
@@ -79,7 +80,7 @@ abstract class Module(
 			this.enabled = enabled
 			if (enabled) {
 				resetErrorState()
-				moduleScope = CoroutineScope(SupervisorJob() + scopeContext + coroutineExceptionHandler)
+				moduleScope = CoroutineScope(SupervisorJob() + host.scopeContext + coroutineExceptionHandler)
 			} else {
 				moduleScope?.cancel()
 				moduleScope = null
@@ -108,18 +109,27 @@ abstract class Module(
 
 	internal fun bind(
 		eventBus: EventBus,
+		profiler: HandlerProfiler,
 		notifier: ModuleNotifier,
 		clock: () -> Long,
 		clientDispatcher: CoroutineContext,
 		stateListener: (Module) -> Unit
 	) {
 		requireUnbound()
-		bound = true
-		this.notifier = notifier
-		this.clock = clock
-		this.scopeContext = clientDispatcher
-		this.stateListener = stateListener
-		for (registration in registrations) registration.bind(eventBus, this)
+		host = Host(notifier, clock, clientDispatcher, stateListener)
+		for (registration in registrations) disposables += registration.bind(eventBus, profiler, this)
+	}
+
+	internal fun retain(handle: Handle) {
+		require(bound) { "Module '$name' must be bound before it can retain a handle." }
+		disposables += handle
+	}
+
+	internal fun unbind() {
+		for (handle in disposables) handle.unsubscribe()
+		disposables.clear()
+		for (registration in registrations) registration.resetTiming()
+		host = Host.UNBOUND
 	}
 
 	internal fun requireUnbound() {
@@ -150,7 +160,7 @@ abstract class Module(
 
 		var firstSinceEnable = false
 		val overThreshold = synchronized(stateLock) {
-			val now = clock()
+			val now = host.clock()
 			if (errorCount == 0 || now - windowStart > ERROR_WINDOW_MS) {
 				windowStart = now
 				errorCount = 0
@@ -172,7 +182,7 @@ abstract class Module(
 
 	private fun notifyStateChangeQuietly() {
 		try {
-			stateListener(this)
+			host.stateListener(this)
 		} catch (throwable: Throwable) {
 			log.error("Module '{}' state listener threw", name, throwable)
 		}
@@ -180,7 +190,7 @@ abstract class Module(
 
 	private fun notifyQuietly(message: String) {
 		try {
-			notifier.notify(this, message)
+			host.notifier.notify(this, message)
 		} catch (throwable: Throwable) {
 			log.error("Module '{}' notifier threw", name, throwable)
 		}
@@ -191,16 +201,40 @@ abstract class Module(
 		private val priority: Int,
 		private val handler: (T) -> Unit
 	) {
-		val timing = HandlerTiming(type.simpleName.ifEmpty { type.name })
+		var timing = HandlerTiming(type.simpleName.ifEmpty { type.name })
+			private set
 
-		fun bind(eventBus: EventBus, module: Module) {
-			eventBus.type(type).subscribeProfiled(priority, timing, active = { module.enabled }) { event ->
+		fun bind(eventBus: EventBus, profiler: HandlerProfiler, module: Module): Handle {
+			val timedOnlyInDeepMode = DeepProfiledEvent::class.java.isAssignableFrom(type)
+			val clock = profiler.clock
+			return eventBus.type(type).subscribe(priority) { event ->
+				if (!module.enabled) return@subscribe
+
+				val timed = !timedOnlyInDeepMode || profiler.deepMode
+				val started = if (timed) clock.nanoTime() else 0L
 				try {
 					handler(event)
 				} catch (throwable: Throwable) {
 					module.onHandlerError(throwable)
+				} finally {
+					if (timed) timing.record(clock.nanoTime() - started)
 				}
 			}
+		}
+
+		fun resetTiming() {
+			timing = HandlerTiming(timing.eventName)
+		}
+	}
+
+	private class Host(
+		val notifier: ModuleNotifier,
+		val clock: () -> Long,
+		val scopeContext: CoroutineContext,
+		val stateListener: (Module) -> Unit
+	) {
+		companion object {
+			val UNBOUND = Host(ModuleNotifier.LogBacked, System::currentTimeMillis, Dispatchers.Unconfined) {}
 		}
 	}
 

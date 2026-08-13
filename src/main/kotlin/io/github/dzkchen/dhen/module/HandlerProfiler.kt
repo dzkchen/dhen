@@ -1,4 +1,4 @@
-package io.github.dzkchen.dhen.event
+package io.github.dzkchen.dhen.module
 
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicLongArray
@@ -12,18 +12,12 @@ fun interface NanoClock {
 	}
 }
 
-internal fun interface HandlerGate {
-	fun isActive(): Boolean
-}
-
-class EventProfiler internal constructor(
+class HandlerProfiler internal constructor(
 	internal val clock: NanoClock
 ) {
 	@Volatile
 	var deepMode: Boolean = false
 }
-
-interface DeepProfiledEvent : Event
 
 class HandlerTiming internal constructor(
 	val eventName: String

@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.input
 
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.InputAction
 import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.MouseInputEvent
@@ -20,10 +21,11 @@ internal class KeybindRuntime(eventBus: EventBus) {
 		}
 	}
 
-	fun register(module: Module) {
+	fun register(module: Module): Handle {
 		for (setting in module.settings) {
 			if (setting is KeybindSetting) bindings += Binding(module, setting)
 		}
+		return Handle { bindings = bindings.filterNot { it.module === module }.toTypedArray() }
 	}
 
 	fun count(module: Module): Int {

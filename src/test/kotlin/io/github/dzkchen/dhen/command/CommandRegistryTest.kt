@@ -6,7 +6,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.Event
-import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -343,11 +342,10 @@ class CommandRegistryTest {
 	@Test
 	fun `debug reports live module counters and handler timing`() {
 		val times = ArrayDeque(listOf(10L, 60L))
-		val bus = EventBus { times.removeFirst() }
-		val manager = ModuleManager(bus)
+		val manager = ModuleManager(nanoClock = { times.removeFirst() })
 		val module = manager.register(DebugModule())
 		manager.enable(module)
-		bus.type<DebugEvent>().dispatch(DebugEvent())
+		manager.eventBus.type<DebugEvent>().dispatch(DebugEvent())
 		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
@@ -382,11 +380,11 @@ class CommandRegistryTest {
 		registry.install(dispatcher)
 
 		dispatcher.execute("dhen debug deep on", Any())
-		assertTrue(manager.eventBus.profiler.deepMode)
+		assertTrue(manager.profiler.deepMode)
 		assertEquals("Deep profiling enabled.", captured.last())
 
 		dispatcher.execute("dh debug deep off", Any())
-		assertFalse(manager.eventBus.profiler.deepMode)
+		assertFalse(manager.profiler.deepMode)
 		assertEquals("Deep profiling disabled.", captured.last())
 	}
 

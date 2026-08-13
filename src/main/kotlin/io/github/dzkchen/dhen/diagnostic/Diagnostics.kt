@@ -5,9 +5,9 @@ import io.github.dzkchen.dhen.module.ModuleManager
 
 class Diagnostics(private val manager: ModuleManager) {
 	var deepMode: Boolean
-		get() = manager.eventBus.profiler.deepMode
+		get() = manager.profiler.deepMode
 		set(value) {
-			manager.eventBus.profiler.deepMode = value
+			manager.profiler.deepMode = value
 		}
 
 	fun lines(): List<String> = buildList {
