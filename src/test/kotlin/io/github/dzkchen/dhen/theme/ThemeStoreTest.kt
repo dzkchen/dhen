@@ -15,11 +15,11 @@ class ThemeStoreTest {
 	@TempDir
 	lateinit var config: Path
 
-	private val themes: Path get() = config.resolve(ThemeStore.DIRECTORY)
+	private val themes: Path get() = ThemeFixture.folder(config)
 
 	@AfterEach
 	fun forgetDiscovered() {
-		ThemeStore.refresh(config.resolve("gone"))
+		ThemeFixture.forgetDiscovered(config)
 	}
 
 	@Test
@@ -105,8 +105,5 @@ class ThemeStoreTest {
 		assertNull(ThemeStore.find("ocean"))
 	}
 
-	private fun theme(id: String, manifest: String) {
-		val folder = Files.createDirectories(themes.resolve(id))
-		Files.writeString(folder.resolve(ThemeFormat.MANIFEST), manifest)
-	}
+	private fun theme(id: String, manifest: String) = ThemeFixture.write(config, id, manifest)
 }

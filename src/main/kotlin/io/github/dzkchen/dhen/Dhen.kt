@@ -7,17 +7,21 @@ import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
+import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.PlaceholderModule
+import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
@@ -35,6 +39,7 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
+import java.nio.file.Path
 
 object Dhen : ClientModInitializer {
 	const val MOD_ID: String = "dhen"
@@ -55,23 +60,19 @@ object Dhen : ClientModInitializer {
 	}
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private lateinit var configRoot: Path
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
 	private lateinit var clickGuiView: ClickGuiState
 	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
-		coreStore = ConfigStore(
-			FabricLoader.getInstance().configDir.resolve("$MOD_ID/core.json"),
-			configScope,
-			CorePersistence.migrations
-		)
-		moduleStore = ConfigStore(
-			FabricLoader.getInstance().configDir.resolve("$MOD_ID/modules.json"),
-			configScope,
-			ModulePersistence.migrations
-		)
+		configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
+		coreStore = ConfigStore(configRoot.resolve("core.json"), configScope, CorePersistence.migrations)
+		moduleStore = ConfigStore(configRoot.resolve("modules.json"), configScope, ModulePersistence.migrations)
 		clickGuiView = CorePersistence.apply(coreStore.load())
+		ClientPrefs.reload.value = ::reloadThemes
+		reloadThemes()
 		modules.registerAll(
 			PlaceholderModule(),
 			PlaceholderModule(
@@ -130,6 +131,13 @@ object Dhen : ClientModInitializer {
 
 	private fun openHudEditor() {
 		hudEditorRequested = true
+	}
+
+	private fun reloadThemes() {
+		configScope.launch {
+			ThemeStore.refresh(configRoot)
+			withContext(modules.clientDispatcher) { ClientPrefs.adopt() }
+		}
 	}
 
 	private fun invalidateTextMeasurements() {

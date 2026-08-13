@@ -44,6 +44,12 @@ internal data class DhenTheme(
 
 		val DEFAULT = DhenTheme()
 
+		@Volatile
 		var active: DhenTheme = DEFAULT
+			private set
+
+		fun activate(theme: DhenTheme) {
+			if (theme != active) active = theme
+		}
 	}
 }

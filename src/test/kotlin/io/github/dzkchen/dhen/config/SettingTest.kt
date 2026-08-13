@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.config
 
+import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.module.Category
@@ -74,6 +75,68 @@ class SettingTest {
 		assertEquals("B", unknownDefault.value)
 		unknownDefault.value = "missing"
 		assertEquals("A", unknownDefault.value)
+	}
+
+	@Test
+	fun `a selector re-resolves its index when the options change under it`() {
+		val selector = SelectorSetting("Theme", default = "Default", options = listOf("Default"))
+
+		selector.options = listOf("Amber", "Default", "Ocean")
+		assertEquals("Default", selector.value)
+		assertEquals(1, selector.index)
+
+		selector.value = "Ocean"
+		selector.options = listOf("Default", "Ocean")
+		assertEquals("Ocean", selector.value)
+		assertEquals(1, selector.index)
+	}
+
+	@Test
+	fun `a selector keeps the option it was asked for after that option disappears`() {
+		val selector = SelectorSetting("Theme", default = "Default", options = listOf("Default", "Ocean"))
+		selector.value = "Ocean"
+
+		selector.options = listOf("Default")
+
+		assertEquals("Default", selector.value)
+		assertEquals(0, selector.index)
+		assertEquals("Ocean", selector.preferred)
+
+		selector.options = emptyList()
+
+		assertEquals("Default", selector.value)
+		assertEquals(0, selector.index)
+		assertEquals("Ocean", selector.preferred)
+
+		selector.options = listOf("Default", "Ocean")
+
+		assertEquals("Ocean", selector.value)
+		assertEquals("Ocean", selector.preferred)
+	}
+
+	@Test
+	fun `cycling a selector makes the option it lands on the one it asks for`() {
+		val selector = SelectorSetting("Theme", default = "Default", options = listOf("Default", "Ocean"))
+		selector.value = "Amber"
+
+		selector.index += 1
+
+		assertEquals("Ocean", selector.value)
+		assertEquals("Ocean", selector.preferred)
+
+		selector.index += 1
+
+		assertEquals("Default", selector.value)
+		assertEquals("Default", selector.preferred)
+	}
+
+	@Test
+	fun `a selector persists the option it was asked for, not the one it fell back to`() {
+		val selector = SelectorSetting("Theme", default = "Default", options = listOf("Default", "Ocean"))
+		selector.value = "Ocean"
+		selector.options = listOf("Default")
+
+		assertEquals("Ocean", (SettingCodec.serialize(selector) as JsonPrimitive).asString)
 	}
 
 	@Test

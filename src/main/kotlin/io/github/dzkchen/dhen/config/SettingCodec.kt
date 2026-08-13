@@ -35,7 +35,7 @@ internal object SettingCodec {
 		is NumberSetting -> JsonPrimitive(setting.value)
 		is ColorSetting -> JsonPrimitive(setting.value.argb)
 		is KeybindSetting -> JsonPrimitive(setting.value)
-		is SelectorSetting -> JsonPrimitive(setting.value)
+		is SelectorSetting -> JsonPrimitive(setting.preferred)
 		is StringSetting -> JsonPrimitive(setting.value)
 		else -> null
 	}

@@ -25,7 +25,10 @@ internal object ThemeStore {
 	var themes: List<ThemeEntry> = builtIn
 		private set
 
+	@Synchronized
 	fun refresh(configRoot: Path): List<ThemeEntry> = (builtIn + discover(configRoot.resolve(DIRECTORY))).also { themes = it }
+
+	val ids: List<String> get() = themes.map { it.id }
 
 	fun find(id: String): ThemeEntry? = themes.firstOrNull { it.id.equals(id, ignoreCase = true) }
 

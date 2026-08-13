@@ -14,7 +14,7 @@ class DhenThemeTest {
 	@BeforeEach
 	@AfterEach
 	fun restoreDefault() {
-		DhenTheme.active = DhenTheme.DEFAULT
+		DhenTheme.activate(DhenTheme.DEFAULT)
 	}
 
 	@Test
@@ -59,7 +59,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `every token the palette exposes reads the active theme`() {
-		DhenTheme.active = DhenTheme.DEFAULT.withAccent(TEAL)
+		DhenTheme.activate(DhenTheme.DEFAULT.withAccent(TEAL))
 
 		assertEquals(DhenTheme.active.canvas, DhenPalette.CANVAS)
 		assertEquals(DhenTheme.active.surface, DhenPalette.SURFACE)
@@ -89,7 +89,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `the motion the animations read comes from the active theme`() {
-		DhenTheme.active = DhenTheme.DEFAULT.copy(entryMillis = 40L, entryRise = 3f, tabMillis = 30L, tabSlide = 4f, toggleMillis = 20L)
+		DhenTheme.activate(DhenTheme.DEFAULT.copy(entryMillis = 40L, entryRise = 3f, tabMillis = 30L, tabSlide = 4f, toggleMillis = 20L))
 
 		assertEquals(40L, GlassGui.ENTRY_MILLIS)
 		assertEquals(3f, GlassGui.ENTRY_RISE)

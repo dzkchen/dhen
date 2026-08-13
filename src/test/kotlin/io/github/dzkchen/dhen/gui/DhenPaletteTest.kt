@@ -10,7 +10,7 @@ class DhenPaletteTest {
 	@BeforeEach
 	@AfterEach
 	fun restoreDefault() {
-		DhenTheme.active = DhenTheme.DEFAULT
+		DhenTheme.activate(DhenTheme.DEFAULT)
 	}
 
 	@Test
