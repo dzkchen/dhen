@@ -1,19 +1,17 @@
 package io.github.dzkchen.dhen.config
 
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.JsonFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import kotlin.time.Duration.Companion.seconds
 
 class ConfigStore(
@@ -21,7 +19,7 @@ class ConfigStore(
 	private val scope: CoroutineScope,
 	private val migrations: List<(JsonObject) -> Unit> = emptyList(),
 	private val debounce: suspend () -> Unit = { delay(DEFAULT_DEBOUNCE) },
-	private val gson: Gson = DEFAULT_GSON
+	private val gson: Gson = JsonFile.pretty
 ) {
 	private val version: Int get() = migrations.size
 
@@ -70,21 +68,10 @@ class ConfigStore(
 		merged.addProperty("version", version)
 		base = merged
 		try {
-			path.parent?.let { Files.createDirectories(it) }
-			val tmp = path.resolveSibling(path.fileName.toString() + ".tmp")
-			Files.writeString(tmp, gson.toJson(merged))
-			move(tmp)
+			JsonFile.writeAtomic(path, gson.toJson(merged))
 			writes++
 		} catch (e: Exception) {
 			log.error("Failed to write config {}", path, e)
-		}
-	}
-
-	private fun move(tmp: Path) {
-		try {
-			Files.move(tmp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-		} catch (_: AtomicMoveNotSupportedException) {
-			Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING)
 		}
 	}
 
@@ -113,6 +100,5 @@ class ConfigStore(
 	private companion object {
 		private val log = LoggerFactory.getLogger(ConfigStore::class.java)
 		private val DEFAULT_DEBOUNCE = 1.seconds
-		private val DEFAULT_GSON: Gson = GsonBuilder().setPrettyPrinting().create()
 	}
 }

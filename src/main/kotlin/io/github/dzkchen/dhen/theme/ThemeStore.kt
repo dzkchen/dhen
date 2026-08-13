@@ -25,12 +25,20 @@ internal object ThemeStore {
 	var themes: List<ThemeEntry> = builtIn
 		private set
 
-	@Synchronized
-	fun refresh(configRoot: Path): List<ThemeEntry> = (builtIn + discover(configRoot.resolve(DIRECTORY))).also { themes = it }
+	@Volatile
+	var ids: List<String> = builtIn.map { it.id }
+		private set
 
-	val ids: List<String> get() = themes.map { it.id }
+	@Synchronized
+	fun refresh(configRoot: Path): List<ThemeEntry> =
+		(builtIn + discover(configRoot.resolve(DIRECTORY))).also {
+			themes = it
+			ids = it.map { entry -> entry.id }
+		}
 
 	fun find(id: String): ThemeEntry? = themes.firstOrNull { it.id.equals(id, ignoreCase = true) }
+
+	fun reserved(id: String): Boolean = builtIn.any { it.id.equals(id, ignoreCase = true) }
 
 	private fun discover(root: Path): List<ThemeEntry> {
 		if (!Files.isDirectory(root)) return emptyList()
@@ -66,7 +74,7 @@ internal object ThemeStore {
 	}
 
 	private fun claimed(found: List<ThemeEntry>, id: String): Boolean =
-		builtIn.any { it.id.equals(id, ignoreCase = true) } || found.any { it.id.equals(id, ignoreCase = true) }
+		reserved(id) || found.any { it.id.equals(id, ignoreCase = true) }
 
 	private fun read(folder: Path, id: String): ThemeEntry? {
 		val manifest = folder.resolve(ThemeFormat.MANIFEST)

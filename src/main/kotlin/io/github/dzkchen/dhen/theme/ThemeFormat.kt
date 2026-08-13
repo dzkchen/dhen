@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.gui.DhenTheme
 import io.github.dzkchen.dhen.util.Color
 import org.slf4j.LoggerFactory
+import java.util.Locale
 
 internal data class ThemeEntry(
 	val id: String,
@@ -39,36 +40,40 @@ internal object ThemeFormat {
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
-	private val COLORS: Map<String, DhenTheme.(Int) -> DhenTheme> = mapOf(
-		"canvas" to { copy(canvas = it) },
-		"surface" to { copy(surface = it) },
-		"surfaceRaised" to { copy(surfaceRaised = it) },
-		"surfaceInteractive" to { copy(surfaceInteractive = it) },
-		"border" to { copy(border = it) },
-		"textPrimary" to { copy(textPrimary = it) },
-		"textSecondary" to { copy(textSecondary = it) },
-		"textDisabled" to { copy(textDisabled = it) },
-		"textOnAccent" to { copy(textOnAccent = it) },
-		"splashCanvas" to { copy(splashCanvas = it) },
-		"splashTrack" to { copy(splashTrack = it) },
-		"splashInk" to { copy(splashInk = it) },
-		"glassCanvas" to { copy(glassCanvas = it) },
-		"glassSurface" to { copy(glassSurface = it) },
-		"glassSurfaceRaised" to { copy(glassSurfaceRaised = it) },
-		"glassSurfaceInteractive" to { copy(glassSurfaceInteractive = it) },
-		"glassScrim" to { copy(glassScrim = it) },
-		"glassShadow" to { copy(glassShadow = it) },
-		"glassSheen" to { copy(glassSheen = it) },
-		"glassVeil" to { copy(glassVeil = it) },
-		"accent" to { copy(accent = it) }
+	private class ColorToken(val read: (DhenTheme) -> Int, val write: DhenTheme.(Int) -> DhenTheme)
+
+	private class MotionToken(val read: (DhenTheme) -> Number, val write: DhenTheme.(Double) -> DhenTheme)
+
+	private val COLORS: Map<String, ColorToken> = mapOf(
+		"canvas" to ColorToken(DhenTheme::canvas) { copy(canvas = it) },
+		"surface" to ColorToken(DhenTheme::surface) { copy(surface = it) },
+		"surfaceRaised" to ColorToken(DhenTheme::surfaceRaised) { copy(surfaceRaised = it) },
+		"surfaceInteractive" to ColorToken(DhenTheme::surfaceInteractive) { copy(surfaceInteractive = it) },
+		"border" to ColorToken(DhenTheme::border) { copy(border = it) },
+		"textPrimary" to ColorToken(DhenTheme::textPrimary) { copy(textPrimary = it) },
+		"textSecondary" to ColorToken(DhenTheme::textSecondary) { copy(textSecondary = it) },
+		"textDisabled" to ColorToken(DhenTheme::textDisabled) { copy(textDisabled = it) },
+		"textOnAccent" to ColorToken(DhenTheme::textOnAccent) { copy(textOnAccent = it) },
+		"splashCanvas" to ColorToken(DhenTheme::splashCanvas) { copy(splashCanvas = it) },
+		"splashTrack" to ColorToken(DhenTheme::splashTrack) { copy(splashTrack = it) },
+		"splashInk" to ColorToken(DhenTheme::splashInk) { copy(splashInk = it) },
+		"glassCanvas" to ColorToken(DhenTheme::glassCanvas) { copy(glassCanvas = it) },
+		"glassSurface" to ColorToken(DhenTheme::glassSurface) { copy(glassSurface = it) },
+		"glassSurfaceRaised" to ColorToken(DhenTheme::glassSurfaceRaised) { copy(glassSurfaceRaised = it) },
+		"glassSurfaceInteractive" to ColorToken(DhenTheme::glassSurfaceInteractive) { copy(glassSurfaceInteractive = it) },
+		"glassScrim" to ColorToken(DhenTheme::glassScrim) { copy(glassScrim = it) },
+		"glassShadow" to ColorToken(DhenTheme::glassShadow) { copy(glassShadow = it) },
+		"glassSheen" to ColorToken(DhenTheme::glassSheen) { copy(glassSheen = it) },
+		"glassVeil" to ColorToken(DhenTheme::glassVeil) { copy(glassVeil = it) },
+		"accent" to ColorToken(DhenTheme::accent) { copy(accent = it) }
 	)
 
-	private val MOTION: Map<String, DhenTheme.(Double) -> DhenTheme> = mapOf(
-		"entryMillis" to { copy(entryMillis = it.toLong()) },
-		"entryRise" to { copy(entryRise = it.toFloat()) },
-		"tabMillis" to { copy(tabMillis = it.toLong()) },
-		"tabSlide" to { copy(tabSlide = it.toFloat()) },
-		"toggleMillis" to { copy(toggleMillis = it.toLong()) }
+	private val MOTION: Map<String, MotionToken> = mapOf(
+		"entryMillis" to MotionToken(DhenTheme::entryMillis) { copy(entryMillis = it.toLong()) },
+		"entryRise" to MotionToken(DhenTheme::entryRise) { copy(entryRise = it.toFloat()) },
+		"tabMillis" to MotionToken(DhenTheme::tabMillis) { copy(tabMillis = it.toLong()) },
+		"tabSlide" to MotionToken(DhenTheme::tabSlide) { copy(tabSlide = it.toFloat()) },
+		"toggleMillis" to MotionToken(DhenTheme::toggleMillis) { copy(toggleMillis = it.toLong()) }
 	)
 
 	fun parse(id: String, document: JsonObject): ThemeEntry {
@@ -83,6 +88,25 @@ internal object ThemeFormat {
 		return ThemeEntry(id, text(document, NAME_KEY) ?: id, text(document, VERSION_KEY) ?: "", authors(document), theme, document)
 	}
 
+	fun document(id: String, metadata: ThemeEntry?, resolved: DhenTheme): JsonObject {
+		val document = metadata?.document?.deepCopy() ?: JsonObject()
+		document.addProperty(SCHEMA_KEY, SCHEMA)
+		document.addProperty(ID_KEY, id)
+		document.addProperty(NAME_KEY, id)
+		document.addProperty(VERSION_KEY, metadata?.version ?: "")
+		document.add(AUTHORS_KEY, JsonArray().apply { metadata?.authors?.forEach { add(it) } })
+		val colors = section(document, COLORS_KEY)
+		for ((token, slot) in COLORS) colors.addProperty(token, hex(slot.read(resolved)))
+		val motion = section(document, MOTION_KEY)
+		for ((token, slot) in MOTION) motion.addProperty(token, slot.read(resolved))
+		return document
+	}
+
+	private fun section(document: JsonObject, key: String): JsonObject =
+		(document.get(key) as? JsonObject) ?: JsonObject().also { document.add(key, it) }
+
+	private fun hex(argb: Int): String = String.format(Locale.ROOT, "#%08X", argb)
+
 	private fun readColors(id: String, block: JsonObject?, base: DhenTheme): DhenTheme {
 		var theme = base
 		if (block == null) return theme
@@ -93,7 +117,7 @@ internal object ThemeFormat {
 				log.warn("Theme '{}' has an unreadable color for '{}': {}", id, token, element)
 				continue
 			}
-			theme = slot(theme, color)
+			theme = slot.write(theme, color)
 		}
 		return theme
 	}
@@ -108,7 +132,7 @@ internal object ThemeFormat {
 				log.warn("Theme '{}' has an unreadable motion value for '{}': {}", id, token, element)
 				continue
 			}
-			theme = slot(theme, value)
+			theme = slot.write(theme, value)
 		}
 		return theme
 	}

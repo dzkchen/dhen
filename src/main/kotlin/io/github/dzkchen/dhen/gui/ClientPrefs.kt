@@ -37,6 +37,11 @@ internal object ClientPrefs {
 		description = "Read the themes folder again without restarting."
 	)
 
+	val browse = ActionSetting(
+		"Open themes folder",
+		description = "Show the folder themes are dropped into in your file browser."
+	)
+
 	val splash = BooleanSetting(
 		"Splash screen",
 		true,
@@ -45,7 +50,7 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(theme, accent, reload)),
+		PrefSection("Appearance", listOf(theme, accent, reload, browse)),
 		PrefSection("Client", listOf(splash))
 	)
 

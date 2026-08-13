@@ -230,6 +230,89 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `theme lists, switches, exports and reloads through both roots`() {
+		val exported = mutableListOf<String?>()
+		var reloads = 0
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			{},
+			{},
+			{ 0 },
+			object : ThemeCommands {
+				override fun names() = listOf("Default", "ocean")
+				override fun summary() = "Themes: Default (active), ocean."
+				override fun select(name: String) = "Theme set to '$name'."
+				override fun export(name: String?, notify: (String) -> Unit) {
+					exported += name
+					notify("Exported.")
+				}
+
+				override fun reload(notify: (String) -> Unit) {
+					reloads++
+					notify("Read 2 themes.")
+				}
+			}
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen theme", Any())
+		assertEquals("Themes: Default (active), ocean.", captured.last())
+
+		dispatcher.execute("dh theme list", Any())
+		assertEquals("Themes: Default (active), ocean.", captured.last())
+
+		dispatcher.execute("dhen theme use ocean", Any())
+		assertEquals("Theme set to 'ocean'.", captured.last())
+
+		dispatcher.execute("dhen theme export", Any())
+		dispatcher.execute("dh theme export mine", Any())
+		assertEquals(listOf(null, "mine"), exported)
+		assertEquals("Exported.", captured.last())
+
+		dispatcher.execute("dh theme reload", Any())
+		assertEquals(1, reloads)
+		assertEquals("Read 2 themes.", captured.last())
+	}
+
+	@Test
+	fun `theme suggestions filter by the typed prefix`() {
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			{},
+			{},
+			{ 0 },
+			object : ThemeCommands {
+				override fun names() = listOf("Default", "ocean")
+			}
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		fun suggestions(input: String): List<String> =
+			dispatcher.getCompletionSuggestions(dispatcher.parse(input, Any())).get().list.map { it.text }
+
+		assertEquals(listOf("ocean"), suggestions("dhen theme use oc"))
+		assertEquals(listOf("Default", "ocean"), suggestions("dhen theme use "))
+		assertTrue(suggestions("dhen theme use zz").isEmpty())
+	}
+
+	@Test
+	fun `a registry with no theme wiring says so instead of pretending`() {
+		val registry = registry()
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen theme", Any())
+		dispatcher.execute("dhen theme use ocean", Any())
+		dispatcher.execute("dhen theme export", Any())
+		dispatcher.execute("dhen theme reload", Any())
+
+		assertEquals(4, captured.size)
+		assertTrue(captured.all { it == "Themes are not available." }, captured.toString())
+	}
+
+	@Test
 	fun `debug reports live module counters and handler timing`() {
 		val times = ArrayDeque(listOf(10L, 60L))
 		val bus = EventBus { times.removeFirst() }
