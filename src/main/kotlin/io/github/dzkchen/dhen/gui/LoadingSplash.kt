@@ -30,7 +30,7 @@ internal object LoadingSplash {
 	private var progress = 0f
 
 	@JvmStatic
-	fun enabled(): Boolean = !failsafe.failed && ClientPrefs.splash.value
+	fun enabled(): Boolean = !failsafe.failed && ClientPrefs.splash.on
 
 	@JvmStatic
 	fun paint(
@@ -44,7 +44,7 @@ internal object LoadingSplash {
 		now: Long,
 		partialTick: Float
 	): Boolean {
-		if (!ClientPrefs.splash.value) return false
+		if (!ClientPrefs.splash.on) return false
 		return failsafe.guard("loading splash") {
 			val minecraft = Minecraft.getInstance()
 			ensureMark(minecraft)

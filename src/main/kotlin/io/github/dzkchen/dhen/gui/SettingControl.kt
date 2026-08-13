@@ -70,13 +70,13 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 }
 
 internal class ToggleControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
-	private var slide = if (boolean.value) GlassGui.SETTLED else 0f
+	private var slide = if (boolean.on) GlassGui.SETTLED else 0f
 	private var slideTarget = slide
 	private var slideFrom = slide
 	private var slideAt = 0L
 
 	override fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean) {
-		val on = boolean.value
+		val on = boolean.on
 		val progress = slide()
 		DhenType.text(graphics, font, boolean.name, x + CONTROL_TEXT_INSET, textTop(font, y, height), DhenPalette.label(on || hovered))
 		val right = x + width
@@ -97,12 +97,12 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
-		boolean.value = !boolean.value
+		boolean.value = !boolean.on
 		return ControlPress.CHANGED
 	}
 
 	private fun slide(): Float {
-		val target = if (boolean.value) GlassGui.SETTLED else 0f
+		val target = if (boolean.on) GlassGui.SETTLED else 0f
 		if (target != slideTarget) {
 			slideTarget = target
 			slideFrom = slide
@@ -143,7 +143,7 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	private fun fraction(): Double {
 		val range = number.max - number.min
 		if (range <= 0.0) return 0.0
-		return ((number.value - number.min) / range).coerceIn(0.0, 1.0)
+		return ((number.amount - number.min) / range).coerceIn(0.0, 1.0)
 	}
 
 	private fun valueAt(localX: Int, width: Int): Double {
@@ -153,9 +153,9 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	}
 
 	private fun displayValue(): String {
-		if (number.value != cachedValue) {
-			cachedValue = number.value
-			cachedText = formatSliderValue(number.value)
+		if (number.amount != cachedValue) {
+			cachedValue = number.amount
+			cachedText = formatSliderValue(number.amount)
 		}
 		return cachedText
 	}
@@ -343,13 +343,13 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 	}
 
 	private fun bind(code: Int): ControlKey {
-		if (keybind.value == code) return ControlKey.CANCELLED
+		if (keybind.code == code) return ControlKey.CANCELLED
 		keybind.value = code
 		return ControlKey.COMMITTED
 	}
 
 	private fun keyLabel(): String {
-		val code = keybind.value
+		val code = keybind.code
 		if (code != cachedCode) {
 			cachedCode = code
 			cachedLabel = displayName(code)

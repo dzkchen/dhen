@@ -12,7 +12,7 @@ internal object Effects {
 	)
 
 	var reduced: Boolean
-		get() = reducedSetting.value
+		get() = reducedSetting.on
 		set(value) {
 			reducedSetting.value = value
 		}
