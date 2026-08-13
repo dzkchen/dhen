@@ -436,6 +436,7 @@ internal class ClickGuiShellScreen(
 		layout()
 		columnField.refilter()
 		refreshFocus()
+		revealFocus()
 	}
 
 	private fun layout() {
@@ -497,7 +498,7 @@ internal class ClickGuiShellScreen(
 	private fun refreshFocus() {
 		if (navFocus == null || focusSlot() != ClickGuiShell.NONE) return
 		val slot = ClickGuiNav.columnOf(0, visible.size, navRowsAt)
-		navFocus = if (slot == ClickGuiShell.NONE) null else visible[slot].moduleAt(0)
+		if (slot == ClickGuiShell.NONE) navFocus = null else focusAt(slot, 0)
 	}
 
 	private fun focusSlot(): Int {
@@ -517,6 +518,11 @@ internal class ClickGuiShellScreen(
 	private fun revealFocus(slot: Int, row: Int) {
 		columnField.reveal(slot)
 		visible[slot].revealRow(row)
+	}
+
+	private fun revealFocus() {
+		val slot = focusSlot()
+		if (slot != ClickGuiShell.NONE) revealFocus(slot, visible[slot].rowOf(navFocus))
 	}
 
 	private fun reflowAll() {

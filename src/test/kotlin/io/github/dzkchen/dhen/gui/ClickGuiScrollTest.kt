@@ -187,9 +187,10 @@ class ClickGuiScrollTest {
 		field.refilter(maxScroll = 0)
 		field.refilter(maxScroll = 148)
 		field.reveal(spanStart = 12, extent = 13, window = 100, maxScroll = 148)
-
 		assertEquals(12, field.offset)
-		assertEquals(ClickGuiScroll.TOP, field.stashed)
+
+		field.refilter(maxScroll = 148)
+		assertEquals(12, field.offset)
 	}
 
 	@Test
