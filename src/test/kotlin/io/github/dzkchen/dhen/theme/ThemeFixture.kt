@@ -6,6 +6,8 @@ import java.nio.file.Path
 internal object ThemeFixture {
 	fun folder(configRoot: Path): Path = configRoot.resolve(ThemeStore.DIRECTORY)
 
+	fun ids(vararg discovered: String): List<String> = ThemeStore.builtIn.map { it.id } + discovered
+
 	fun write(configRoot: Path, id: String, manifest: String) {
 		val folder = Files.createDirectories(folder(configRoot).resolve(id))
 		Files.writeString(folder.resolve(ThemeFormat.MANIFEST), manifest)

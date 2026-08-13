@@ -58,7 +58,7 @@ class ClientPrefsTest {
 
 		pick("ocean")
 
-		assertEquals(listOf(ThemeStore.DEFAULT_ID, "amber", "ocean"), ClientPrefs.theme.options)
+		assertEquals(ThemeFixture.ids("amber", "ocean"), ClientPrefs.theme.options)
 		assertEquals(OCEAN_CANVAS_ARGB, DhenPalette.CANVAS)
 
 		ClientPrefs.theme.value = "amber"

@@ -67,7 +67,7 @@ object Dhen : ClientModInitializer {
 			Util.getPlatform().openPath(it)
 		}
 		commands = CommandRegistry(modules, ::openHudEditor, ::persistCore, ::resetHudLayout, themes) { source, message ->
-			source.sendFeedback(DhenType.component(message))
+			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
 		modules.registerAll(
@@ -131,7 +131,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun announce(message: String) {
-		Minecraft.getInstance().player?.sendSystemMessage(DhenType.component(message))
+		Minecraft.getInstance().player?.sendSystemMessage(DhenType.overWorld(message))
 	}
 
 	private fun invalidateTextMeasurements() {

@@ -11,6 +11,14 @@ import org.junit.jupiter.api.Test
 
 class ThemeFormatTest {
 	@Test
+	fun `the tokens these cases walk are the tokens the format actually writes`() {
+		val written = ThemeFormat.document("probe", null, DhenTheme.DEFAULT)
+
+		assertEquals(written.getAsJsonObject("colors").keySet(), COLOR_TOKENS.keys)
+		assertEquals(written.getAsJsonObject("motion").keySet(), MOTION_TOKENS.keys)
+	}
+
+	@Test
 	fun `every color token drives its own slot`() {
 		for ((token, read) in COLOR_TOKENS) {
 			val theme = parse("""{"colors":{"$token":"$PROBE_HEX"}}""").theme
@@ -155,6 +163,7 @@ class ThemeFormatTest {
 			"textSecondary" to { it.textSecondary },
 			"textDisabled" to { it.textDisabled },
 			"textOnAccent" to { it.textOnAccent },
+			"textOnWorld" to { it.textOnWorld },
 			"splashCanvas" to { it.splashCanvas },
 			"splashTrack" to { it.splashTrack },
 			"splashInk" to { it.splashInk },

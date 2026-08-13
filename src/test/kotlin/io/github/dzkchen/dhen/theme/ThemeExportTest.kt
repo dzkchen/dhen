@@ -120,7 +120,7 @@ class ThemeExportTest {
 	private fun json(text: String): JsonObject = JsonParser.parseString(text) as JsonObject
 
 	private companion object {
-		const val TOKEN_COUNT = 21
+		const val TOKEN_COUNT = 22
 		const val MOTION_COUNT = 5
 
 		val PROBE = DhenTheme.DEFAULT.copy(

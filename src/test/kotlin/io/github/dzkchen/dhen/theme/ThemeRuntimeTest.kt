@@ -60,8 +60,8 @@ class ThemeRuntimeTest {
 
 		themes.reload { said += it }
 
-		assertEquals(listOf(ThemeStore.DEFAULT_ID, "ocean"), ClientPrefs.theme.options)
-		assertTrue(said.single().contains("Read 2 themes"))
+		assertEquals(ThemeFixture.ids("ocean"), ClientPrefs.theme.options)
+		assertTrue(said.single().contains("Read ${ThemeStore.builtIn.size + 1} themes"))
 	}
 
 	@Test
@@ -92,7 +92,7 @@ class ThemeRuntimeTest {
 		themes.reload()
 		themes.select("ocean")
 
-		assertEquals("Themes: ${ThemeStore.DEFAULT_ID}, ocean (active).", themes.summary())
+		assertEquals("Themes: ${ThemeStore.builtIn.joinToString(", ") { it.id }}, ocean (active).", themes.summary())
 	}
 
 	@Test
@@ -162,7 +162,7 @@ class ThemeRuntimeTest {
 		ClientPrefs.reload.value()
 
 		assertEquals(listOf(ThemeFixture.folder(config)), revealed)
-		assertTrue(said.single().startsWith("Read 1 themes"), said.toString())
+		assertTrue(said.single().startsWith("Read ${ThemeStore.builtIn.size} themes"), said.toString())
 	}
 
 	private companion object {

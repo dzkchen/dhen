@@ -10,6 +10,7 @@ internal data class DhenTheme(
 	val textSecondary: Int = 0xFFA9A6AEu.toInt(),
 	val textDisabled: Int = 0xFF6B6872u.toInt(),
 	val textOnAccent: Int = 0xFF17070Eu.toInt(),
+	val textOnWorld: Int = 0xFFF6F4F6u.toInt(),
 	val splashCanvas: Int = 0xFFF8D7E3u.toInt(),
 	val splashTrack: Int = 0xFFEBB4CBu.toInt(),
 	val splashInk: Int = 0xFF2A0E18u.toInt(),
@@ -32,17 +33,41 @@ internal data class DhenTheme(
 		((accent ushr ALPHA_SHIFT) shl ALPHA_SHIFT) or (DhenPalette.mix(accent, surface, MUTED_BLEND) and RGB_MASK)
 
 	val accentForeground: Int =
-		if (DhenPalette.luminance(accent) >= CONTRAST_PIVOT) textOnAccent else textPrimary
+		if (DhenPalette.contrast(accent, textOnAccent) >= DhenPalette.contrast(accent, textPrimary)) textOnAccent else textPrimary
 
 	fun withAccent(color: Int): DhenTheme = if (color == accent) this else copy(accent = color)
 
 	companion object {
 		private const val MUTED_BLEND = 0.55f
-		private const val CONTRAST_PIVOT = 140
 		private const val RGB_MASK = 0xFFFFFF
 		private const val ALPHA_SHIFT = 24
 
 		val DEFAULT = DhenTheme()
+
+		val LIGHT = DhenTheme(
+			canvas = 0xFFE9EAEFu.toInt(),
+			surface = 0xFFF4F5F8u.toInt(),
+			surfaceRaised = 0xFFFBFBFDu.toInt(),
+			surfaceInteractive = 0xFFFFFFFFu.toInt(),
+			border = 0xFFC9CCD8u.toInt(),
+			textPrimary = 0xFF15151Au.toInt(),
+			textSecondary = 0xFF5A5865u.toInt(),
+			textDisabled = 0xFF9C99A6u.toInt(),
+			textOnAccent = 0xFFFFF2F7u.toInt(),
+			textOnWorld = 0xFFF7EEF3u.toInt(),
+			splashCanvas = 0xFFFDF3F7u.toInt(),
+			splashTrack = 0xFFF0CBDCu.toInt(),
+			splashInk = 0xFF5A1233u.toInt(),
+			glassCanvas = 0xA6E9EAEFu.toInt(),
+			glassSurface = 0xC2F4F5F8u.toInt(),
+			glassSurfaceRaised = 0xD4FBFBFDu.toInt(),
+			glassSurfaceInteractive = 0xE0FFFFFFu.toInt(),
+			glassScrim = 0x8CE9EAEFu.toInt(),
+			glassShadow = 0x33202430u.toInt(),
+			glassSheen = 0x1F1A2030u.toInt(),
+			glassVeil = 0xE6E9EAEFu.toInt(),
+			accent = 0xFFC63F79u.toInt()
+		)
 
 		@Volatile
 		var active: DhenTheme = DEFAULT

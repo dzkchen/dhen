@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.math.abs
 
 class DhenThemeTest {
 	@BeforeEach
@@ -30,6 +29,7 @@ class DhenThemeTest {
 		assertEquals(0xFFA9A6AEu.toInt(), theme.textSecondary)
 		assertEquals(0xFF6B6872u.toInt(), theme.textDisabled)
 		assertEquals(0xFF17070Eu.toInt(), theme.textOnAccent)
+		assertEquals(0xFFF6F4F6u.toInt(), theme.textOnWorld)
 		assertEquals(0xFFF8D7E3u.toInt(), theme.splashCanvas)
 		assertEquals(0xFFEBB4CBu.toInt(), theme.splashTrack)
 		assertEquals(0xFF2A0E18u.toInt(), theme.splashInk)
@@ -70,6 +70,7 @@ class DhenThemeTest {
 		assertEquals(DhenTheme.active.textSecondary, DhenPalette.TEXT_SECONDARY)
 		assertEquals(DhenTheme.active.textDisabled, DhenPalette.TEXT_DISABLED)
 		assertEquals(DhenTheme.active.textOnAccent, DhenPalette.TEXT_ON_ACCENT)
+		assertEquals(DhenTheme.active.textOnWorld, DhenPalette.TEXT_ON_WORLD)
 		assertEquals(DhenTheme.active.splashCanvas, DhenPalette.SPLASH_CANVAS)
 		assertEquals(DhenTheme.active.splashTrack, DhenPalette.SPLASH_TRACK)
 		assertEquals(DhenTheme.active.splashInk, DhenPalette.SPLASH_INK)
@@ -119,7 +120,7 @@ class DhenThemeTest {
 	fun `text on the accent stays readable whichever accent the user picks`() {
 		for (candidate in listOf(DhenTheme.DEFAULT.accent, TEAL, 0xFF3A0B5Fu.toInt(), 0xFF000000u.toInt())) {
 			val themed = DhenTheme.DEFAULT.withAccent(candidate)
-			val gap = abs(DhenPalette.luminance(candidate) - DhenPalette.luminance(themed.accentForeground))
+			val gap = DhenPalette.contrast(candidate, themed.accentForeground)
 
 			assertTrue(gap >= 100, "accent ${Integer.toHexString(candidate)} left only $gap luminance of contrast")
 		}

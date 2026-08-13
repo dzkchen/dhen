@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
@@ -29,6 +30,9 @@ internal object DhenType {
 	private var japaneseVariants = false
 
 	fun component(text: String): Component = Component.literal(text).setStyle(style)
+
+	fun overWorld(text: String): Component =
+		Component.literal(text).setStyle(style.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
 
 	fun styled(text: String): Component = cached(text).component
 

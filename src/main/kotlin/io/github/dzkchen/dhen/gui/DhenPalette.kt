@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 internal object DhenPalette {
@@ -15,6 +16,7 @@ internal object DhenPalette {
 	val TEXT_SECONDARY: Int get() = DhenTheme.active.textSecondary
 	val TEXT_DISABLED: Int get() = DhenTheme.active.textDisabled
 	val TEXT_ON_ACCENT: Int get() = DhenTheme.active.textOnAccent
+	val TEXT_ON_WORLD: Int get() = DhenTheme.active.textOnWorld
 
 	val SPLASH_CANVAS: Int get() = DhenTheme.active.splashCanvas
 	val SPLASH_TRACK: Int get() = DhenTheme.active.splashTrack
@@ -56,4 +58,6 @@ internal object DhenPalette {
 		val blue = color and 0xFF
 		return (red * 299 + green * 587 + blue * 114) / 1000
 	}
+
+	fun contrast(from: Int, to: Int): Int = abs(luminance(from) - luminance(to))
 }

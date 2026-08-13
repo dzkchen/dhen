@@ -54,6 +54,7 @@ internal object ThemeFormat {
 		"textSecondary" to ColorToken(DhenTheme::textSecondary) { copy(textSecondary = it) },
 		"textDisabled" to ColorToken(DhenTheme::textDisabled) { copy(textDisabled = it) },
 		"textOnAccent" to ColorToken(DhenTheme::textOnAccent) { copy(textOnAccent = it) },
+		"textOnWorld" to ColorToken(DhenTheme::textOnWorld) { copy(textOnWorld = it) },
 		"splashCanvas" to ColorToken(DhenTheme::splashCanvas) { copy(splashCanvas = it) },
 		"splashTrack" to ColorToken(DhenTheme::splashTrack) { copy(splashTrack = it) },
 		"splashInk" to ColorToken(DhenTheme::splashInk) { copy(splashInk = it) },

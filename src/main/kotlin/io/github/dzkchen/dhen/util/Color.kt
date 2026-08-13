@@ -7,6 +7,7 @@ value class Color(val argb: Int) {
 	val red: Int get() = argb ushr 16 and 0xFF
 	val green: Int get() = argb ushr 8 and 0xFF
 	val blue: Int get() = argb and 0xFF
+	val rgb: Int get() = argb and 0xFFFFFF
 
 	fun opaque(): Color = Color(argb or (0xFF shl 24))
 

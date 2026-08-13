@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -23,11 +24,19 @@ class ThemeStoreTest {
 	}
 
 	@Test
-	fun `a themes directory that is empty or missing leaves only the built-in`() {
+	fun `a themes directory that is empty or missing leaves only the built-ins`() {
 		assertEquals(ThemeStore.builtIn, ThemeStore.refresh(config))
 		Files.createDirectories(config.resolve(ThemeStore.DIRECTORY))
 		assertEquals(ThemeStore.builtIn, ThemeStore.refresh(config))
 		assertSame(DhenTheme.DEFAULT, ThemeStore.find(ThemeStore.DEFAULT_ID)?.theme)
+		assertSame(DhenTheme.LIGHT, ThemeStore.find(ThemeStore.LIGHT_ID)?.theme)
+	}
+
+	@Test
+	fun `each built-in answers to its own name and carries no manifest of its own`() {
+		assertEquals(listOf(ThemeStore.DEFAULT_ID, ThemeStore.LIGHT_ID), ThemeStore.builtIn.map { it.id })
+		assertEquals(ThemeStore.builtIn.size, ThemeStore.builtIn.distinctBy { it.id.lowercase() }.size)
+		assertTrue(ThemeStore.builtIn.all { ThemeStore.reserved(it.id) && it.document == null })
 	}
 
 	@Test
@@ -37,7 +46,7 @@ class ThemeStoreTest {
 
 		val found = ThemeStore.refresh(config)
 
-		assertEquals(listOf(ThemeStore.DEFAULT_ID, "Amber", "ocean"), found.map { it.id })
+		assertEquals(ThemeFixture.ids("Amber", "ocean"), found.map { it.id })
 		assertEquals(found, ThemeStore.themes)
 		assertEquals(0xFF112233u.toInt(), ThemeStore.find("ocean")?.theme?.canvas)
 		assertEquals("Ocean", ThemeStore.find("OCEAN")?.name)
@@ -52,7 +61,7 @@ class ThemeStoreTest {
 
 		val found = ThemeStore.refresh(config)
 
-		assertEquals(listOf(ThemeStore.DEFAULT_ID, "ocean"), found.map { it.id })
+		assertEquals(ThemeFixture.ids("ocean"), found.map { it.id })
 	}
 
 	@Test
@@ -69,8 +78,7 @@ class ThemeStoreTest {
 
 		val found = ThemeStore.refresh(config)
 
-		assertEquals(1, found.size)
-		assertSame(DhenTheme.DEFAULT, found.single().theme)
+		assertEquals(ThemeStore.builtIn, found)
 	}
 
 	@Test
@@ -90,7 +98,7 @@ class ThemeStoreTest {
 		theme("bloated", """{"name":"${"x".repeat(300_000)}"}""")
 		theme("ocean", "{}")
 
-		assertEquals(listOf(ThemeStore.DEFAULT_ID, "ocean"), ThemeStore.refresh(config).map { it.id })
+		assertEquals(ThemeFixture.ids("ocean"), ThemeStore.refresh(config).map { it.id })
 	}
 
 	@Test

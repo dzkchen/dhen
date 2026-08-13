@@ -11,6 +11,7 @@ import java.nio.file.Path
 internal object ThemeStore {
 	const val DIRECTORY = "themes"
 	const val DEFAULT_ID = "Default"
+	const val LIGHT_ID = "Light"
 	const val MAX_THEMES = 64
 
 	private const val MAX_MANIFEST_BYTES = 64L * 1024L
@@ -18,7 +19,8 @@ internal object ThemeStore {
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	val builtIn: List<ThemeEntry> = listOf(
-		ThemeEntry(DEFAULT_ID, "Dhen", "", emptyList(), DhenTheme.DEFAULT, null)
+		ThemeEntry(DEFAULT_ID, "Dhen", "", emptyList(), DhenTheme.DEFAULT, null),
+		ThemeEntry(LIGHT_ID, "Dhen Light", "", emptyList(), DhenTheme.LIGHT, null)
 	)
 
 	@Volatile
