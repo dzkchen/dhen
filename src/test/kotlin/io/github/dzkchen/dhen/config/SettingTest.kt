@@ -40,6 +40,47 @@ class SettingTest {
 		assertEquals(3.0, module.speed)
 		module.speed = 7.3
 		assertEquals(7.5, module.speed)
+		assertEquals(7.5, module.currentSpeed())
+	}
+
+	@Test
+	fun `number setting shares storage between amount and value`() {
+		val setting = NumberSetting("n", default = 3.0, min = 0.0, max = 10.0, step = 1.0)
+
+		setting.value = 7.0
+		assertEquals(7.0, setting.amount)
+		setting.amount = 2.0
+		assertEquals(2.0, setting.value)
+	}
+
+	@Test
+	fun `number setting coerces a write that skips value`() {
+		val setting = NumberSetting("n", default = 1.0, min = 1.0, max = 4.0, step = 0.5)
+
+		setting.amount = 9.0
+		assertEquals(4.0, setting.value)
+		setting.amount = 2.2
+		assertEquals(2.0, setting.value)
+	}
+
+	@Test
+	fun `boolean setting shares storage between on and value`() {
+		val setting = BooleanSetting("b", true)
+
+		setting.value = false
+		assertFalse(setting.on)
+		setting.on = true
+		assertTrue(setting.value)
+	}
+
+	@Test
+	fun `keybind setting shares storage between code and value`() {
+		val setting = KeybindSetting("k")
+
+		setting.value = GLFW.GLFW_KEY_G
+		assertEquals(GLFW.GLFW_KEY_G, setting.code)
+		setting.code = GLFW.GLFW_KEY_H
+		assertEquals(GLFW.GLFW_KEY_H, setting.value)
 	}
 
 	@Test
@@ -265,6 +306,8 @@ class SettingTest {
 		var runs = 0
 		val runSetting = ActionSetting("Run", default = { runs++ })
 		val run by runSetting
+
+		fun currentSpeed(): Double = speedSetting.amount
 	}
 
 	@Suppress("unused")

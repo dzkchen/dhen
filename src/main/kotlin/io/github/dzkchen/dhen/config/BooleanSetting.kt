@@ -5,5 +5,11 @@ class BooleanSetting(
 	override val default: Boolean = false,
 	description: String = ""
 ) : Setting<Boolean>(name, description) {
-	override var value: Boolean = default
+	var on: Boolean = default
+
+	override var value: Boolean
+		get() = on
+		set(value) {
+			on = value
+		}
 }

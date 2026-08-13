@@ -9,13 +9,19 @@ class KeybindSetting(
 ) : Setting<Int>(name, description) {
 	private var onPress: (() -> Unit)? = null
 
-	override var value: Int = default
+	var code: Int = default
+
+	override var value: Int
+		get() = code
+		set(value) {
+			code = value
+		}
 
 	var firesWhileDisabled: Boolean = false
 		private set
 
 	val isBound: Boolean
-		get() = value != GLFW.GLFW_KEY_UNKNOWN
+		get() = code != GLFW.GLFW_KEY_UNKNOWN
 
 	fun onPress(callback: () -> Unit): KeybindSetting {
 		onPress = callback

@@ -13,9 +13,15 @@ class NumberSetting(
 
 	override val default: Double = coerce(default)
 
-	override var value: Double = this.default
+	var amount: Double = this.default
 		set(value) {
 			field = coerce(value)
+		}
+
+	override var value: Double
+		get() = amount
+		set(value) {
+			amount = value
 		}
 
 	private fun coerce(raw: Double): Double {

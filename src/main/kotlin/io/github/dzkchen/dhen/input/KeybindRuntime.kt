@@ -39,7 +39,7 @@ internal class KeybindRuntime(eventBus: EventBus) {
 		var index = 0
 		while (index < bindings.size) {
 			val binding = bindings[index]
-			if (binding.setting.value == code) binding.module.activateKeybind(binding.setting)
+			if (binding.setting.code == code) binding.module.activateKeybind(binding.setting)
 			index++
 		}
 	}
