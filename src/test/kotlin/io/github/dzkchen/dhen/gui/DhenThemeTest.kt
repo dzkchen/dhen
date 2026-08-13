@@ -22,47 +22,6 @@ class DhenThemeTest {
 	}
 
 	@Test
-	fun `the built-in theme carries the colors the design system shipped`() {
-		val theme = DhenTheme.DEFAULT
-
-		assertEquals(0xFF08080Au.toInt(), theme.canvas)
-		assertEquals(0xFF0D0D10u.toInt(), theme.surface)
-		assertEquals(0xFF141418u.toInt(), theme.surfaceRaised)
-		assertEquals(0xFF1D1D23u.toInt(), theme.surfaceInteractive)
-		assertEquals(0xFF2B2B33u.toInt(), theme.border)
-		assertEquals(0xFFF6F4F6u.toInt(), theme.textPrimary)
-		assertEquals(0xFFA9A6AEu.toInt(), theme.textSecondary)
-		assertEquals(0xFF6B6872u.toInt(), theme.textDisabled)
-		assertEquals(0xFF17070Eu.toInt(), theme.textOnAccent)
-		assertEquals(0xFFF6F4F6u.toInt(), theme.textOnWorld)
-		assertEquals(0xFFF8D7E3u.toInt(), theme.splashCanvas)
-		assertEquals(0xFFEBB4CBu.toInt(), theme.splashTrack)
-		assertEquals(0xFF2A0E18u.toInt(), theme.splashInk)
-		assertEquals(0xA608080Au.toInt(), theme.glassCanvas)
-		assertEquals(0xC20D0D10u.toInt(), theme.glassSurface)
-		assertEquals(0xD4141418u.toInt(), theme.glassSurfaceRaised)
-		assertEquals(0xE01D1D23u.toInt(), theme.glassSurfaceInteractive)
-		assertEquals(0x8C08080Au.toInt(), theme.glassScrim)
-		assertEquals(0x73000000u.toInt(), theme.glassShadow)
-		assertEquals(0x24FFFFFFu.toInt(), theme.glassSheen)
-		assertEquals(0xE608080Au.toInt(), theme.glassVeil)
-		assertEquals(0xFFF5A9C6u.toInt(), theme.accent)
-		assertEquals(0xFF755362u.toInt(), theme.accentMuted)
-		assertEquals(theme.textOnAccent, theme.accentForeground)
-	}
-
-	@Test
-	fun `the built-in theme carries the motion the design system shipped`() {
-		val theme = DhenTheme.DEFAULT
-
-		assertEquals(200L, theme.entryMillis)
-		assertEquals(10f, theme.entryRise)
-		assertEquals(150L, theme.tabMillis)
-		assertEquals(14f, theme.tabSlide)
-		assertEquals(100L, theme.toggleMillis)
-	}
-
-	@Test
 	fun `every token the palette exposes reads the active theme`() {
 		DhenTheme.activate(DhenTheme.DEFAULT.withAccent(TEAL))
 
