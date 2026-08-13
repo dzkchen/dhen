@@ -282,7 +282,7 @@ class CommandRegistryTest {
 			{},
 			{},
 			{ 0 },
-			object : ThemeCommands {
+			object : ThemeCommands by ThemeCommands.NONE {
 				override fun names() = listOf("Default", "ocean")
 			}
 		) { _, message -> captured += message }

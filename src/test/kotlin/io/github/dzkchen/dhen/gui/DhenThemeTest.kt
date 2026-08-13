@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
+import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.theme.ThemeFormat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -8,6 +10,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.util.Locale
+import kotlin.reflect.KVisibility
+import kotlin.reflect.full.memberProperties
 
 class DhenThemeTest {
 	@BeforeEach
@@ -84,7 +89,7 @@ class DhenThemeTest {
 		assertEquals(DhenTheme.active.glassVeil, DhenPalette.GLASS_VEIL)
 		assertEquals(TEAL, DhenPalette.accent)
 		assertEquals(DhenTheme.active.accentMuted, DhenPalette.accentMuted)
-		assertEquals(DhenTheme.active.accentForeground, DhenPalette.textOnAccent)
+		assertEquals(DhenTheme.active.accentForeground, DhenPalette.accentForeground)
 		assertEquals(DhenTheme.DEFAULT.accent, DhenPalette.DEFAULT_ACCENT)
 	}
 
@@ -96,7 +101,7 @@ class DhenThemeTest {
 		assertEquals(3f, GlassGui.ENTRY_RISE)
 		assertEquals(30L, GlassGui.TAB_MILLIS)
 		assertEquals(4f, GlassGui.TAB_SLIDE)
-		assertEquals(20L, TOGGLE_MILLIS)
+		assertEquals(20L, GlassGui.TOGGLE_MILLIS)
 	}
 
 	@Test
@@ -142,6 +147,25 @@ class DhenThemeTest {
 	}
 
 	@Test
+	fun `every slot the record holds is reachable through the palette`() {
+		val slots = DhenTheme::class.memberProperties
+			.filter { it.returnType.classifier == Int::class && it.name !in DERIVED }
+		val colors = JsonObject()
+		slots.forEachIndexed { index, slot -> colors.addProperty(slot.name, probe(index)) }
+		DhenTheme.activate(ThemeFormat.parse(PROBE_ID, JsonObject().apply { add("colors", colors) }).theme)
+
+		val exposed = DhenPalette::class.memberProperties
+			.filter { it.visibility == KVisibility.PUBLIC }
+			.mapNotNull { it.getter.call(DhenPalette) as? Int }
+			.toSet()
+		val unreachable = slots.filter { (it.getter.call(DhenTheme.active) as Int) !in exposed }
+
+		assertTrue(unreachable.isEmpty()) {
+			"DhenPalette forwards each token by hand, so these are unreadable through it: ${unreachable.map { it.name }}"
+		}
+	}
+
+	@Test
 	fun `no color literal lives outside the token table`() {
 		val scanned = SourceScan.files(SOURCE_ROOT, SOURCES)
 		assertTrue(scanned.any { it.name == TOKENS }) { "scan missed the sources at ${SOURCE_ROOT.absolutePath}" }
@@ -154,8 +178,12 @@ class DhenThemeTest {
 		}
 	}
 
+	private fun probe(index: Int): String = String.format(Locale.ROOT, "#FF%02X%02X%02X", index + 1, 0x40 + index, 0x90 + index)
+
 	private companion object {
 		const val TOKENS = "DhenTheme.kt"
+		const val PROBE_ID = "probe"
+		val DERIVED = setOf("accentMuted", "accentForeground")
 		val TEAL = 0xFF55D6C2u.toInt()
 		val SOURCE_ROOT = File("src/main")
 		val SOURCES = setOf("kt", "java")

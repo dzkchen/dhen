@@ -33,7 +33,7 @@ internal object DhenPalette {
 
 	val accent: Int get() = DhenTheme.active.accent
 	val accentMuted: Int get() = DhenTheme.active.accentMuted
-	val textOnAccent: Int get() = DhenTheme.active.accentForeground
+	val accentForeground: Int get() = DhenTheme.active.accentForeground
 
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 

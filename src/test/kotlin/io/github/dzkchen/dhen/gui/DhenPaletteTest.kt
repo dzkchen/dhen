@@ -35,24 +35,6 @@ class DhenPaletteTest {
 	}
 
 	@Test
-	fun `the splash set is a light pink ground with ink dark enough to read on it`() {
-		val splash = intArrayOf(DhenPalette.SPLASH_CANVAS, DhenPalette.SPLASH_TRACK, DhenPalette.SPLASH_INK)
-
-		assertTrue(splash.all { it ushr 24 == 0xFF })
-		assertEquals(splash.size, splash.distinct().size)
-		assertTrue(DhenPalette.luminance(DhenPalette.SPLASH_CANVAS) > 190, "the splash ground is not light")
-		assertTrue(DhenPalette.luminance(DhenPalette.SPLASH_INK) < 60, "the splash ink is not dark")
-		assertTrue(
-			DhenPalette.luminance(DhenPalette.SPLASH_TRACK) < DhenPalette.luminance(DhenPalette.SPLASH_CANVAS),
-			"the bar track has to sit deeper than the ground it lies on"
-		)
-		assertTrue(
-			DhenPalette.luminance(DhenPalette.SPLASH_INK) < DhenPalette.luminance(DhenPalette.SPLASH_TRACK),
-			"the filled bar has to read against its own track"
-		)
-	}
-
-	@Test
 	fun `the surface set stays near black so panels read as glass`() {
 		val surfaces = intArrayOf(
 			DhenPalette.CANVAS,

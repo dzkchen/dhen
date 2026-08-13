@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.theme
 import io.github.dzkchen.dhen.gui.DhenTheme
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -70,6 +71,27 @@ class ThemeStoreTest {
 		Files.writeString(themes.resolve("loose.json"), "{}")
 
 		assertEquals(ThemeStore.builtIn, ThemeStore.refresh(config))
+	}
+
+	@Test
+	fun `only a name a command can also type is accepted`() {
+		assertTrue(ThemeStore.legal("ocean"))
+		assertTrue(ThemeStore.legal("Ocean-2_dark"))
+		assertFalse(ThemeStore.legal(""))
+		assertFalse(ThemeStore.legal(".."))
+		assertFalse(ThemeStore.legal("a/b"))
+		assertFalse(ThemeStore.legal("a.b"))
+		assertFalse(ThemeStore.legal("a b"))
+		assertFalse(ThemeStore.legal("x".repeat(ThemeStore.MAX_NAME + 1)))
+	}
+
+	@Test
+	fun `a folder the picker could offer but no command could name is not discovered`() {
+		theme("My Theme", """{"colors":{"canvas":"#112233"}}""")
+		theme("x".repeat(ThemeStore.MAX_NAME + 1), "{}")
+		theme("ocean", "{}")
+
+		assertEquals(ThemeFixture.ids("ocean"), ThemeStore.refresh(config).map { it.id })
 	}
 
 	@Test

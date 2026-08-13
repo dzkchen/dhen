@@ -97,15 +97,17 @@ class ThemeExportTest {
 	}
 
 	@Test
-	fun `only a name that can be a folder is accepted`() {
-		assertTrue(ThemeExport.legal("ocean"))
-		assertTrue(ThemeExport.legal("Ocean-2_dark"))
-		assertFalse(ThemeExport.legal(""))
-		assertFalse(ThemeExport.legal(".."))
-		assertFalse(ThemeExport.legal("a/b"))
-		assertFalse(ThemeExport.legal("a.b"))
-		assertFalse(ThemeExport.legal("a b"))
-		assertFalse(ThemeExport.legal("x".repeat(ThemeExport.MAX_NAME + 1)))
+	fun `a copy of a name already at the length limit still fits inside it`() {
+		val long = "x".repeat(ThemeStore.MAX_NAME)
+		ThemeExport.write(config, long, null, PROBE)
+
+		val copy = ThemeExport.write(config, long, null, PROBE).fileName.toString()
+
+		assertEquals(ThemeStore.MAX_NAME, copy.length)
+		assertTrue(copy.endsWith("-copy"), copy)
+		ThemeStore.refresh(config)
+		assertNotNull(ThemeStore.find(copy))
+		assertNotNull(ThemeStore.find(long))
 	}
 
 	@Test

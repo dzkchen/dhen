@@ -577,7 +577,7 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun tabLabelColor(tab: Int, active: Int): Int =
-		if (tab == active) DhenPalette.textOnAccent else DhenPalette.TEXT_SECONDARY
+		if (tab == active) DhenPalette.accentForeground else DhenPalette.TEXT_SECONDARY
 
 	private fun drawHeaderBand(graphics: GuiGraphicsExtractor, font: Font, left: Int, right: Int, top: Int, title: String, fill: Int) {
 		RoundedGui.fill(graphics, left, top, right, top + HEADER_HEIGHT, COLUMN_RADIUS, fill)

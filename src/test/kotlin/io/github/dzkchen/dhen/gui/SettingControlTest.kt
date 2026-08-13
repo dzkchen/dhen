@@ -225,8 +225,8 @@ class SettingControlTest {
 
 	@Test
 	fun `the toggle knob slides over a tenth of a second`() {
-		assertEquals(0f, GlassGui.tween(0f, 1f, 0L, TOGGLE_MILLIS))
-		assertEquals(1f, GlassGui.tween(0f, 1f, TOGGLE_MILLIS, TOGGLE_MILLIS))
+		assertEquals(0f, GlassGui.tween(0f, 1f, 0L, GlassGui.TOGGLE_MILLIS))
+		assertEquals(1f, GlassGui.tween(0f, 1f, GlassGui.TOGGLE_MILLIS, GlassGui.TOGGLE_MILLIS))
 	}
 
 	@Test

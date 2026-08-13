@@ -10,15 +10,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 internal object ThemeExport {
-	const val MAX_NAME = 32
-
 	private const val COPY = "-copy"
 	private const val MAX_COPIES = 32
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
-
-	fun legal(name: String): Boolean =
-		name.length in 1..MAX_NAME && name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' || it == '_' }
 
 	fun write(root: Path, name: String, metadata: ThemeEntry?, resolved: DhenTheme): Path {
 		val themes = root.resolve(ThemeStore.DIRECTORY)
@@ -45,12 +40,13 @@ internal object ThemeExport {
 
 	private fun claim(themes: Path, name: String): Path? {
 		for (copy in 0..MAX_COPIES) {
-			val id = when (copy) {
-				0 -> name
-				1 -> name + COPY
-				else -> "$name$COPY-$copy"
+			val suffix = when (copy) {
+				0 -> ""
+				1 -> COPY
+				else -> "$COPY-$copy"
 			}
-			if (ThemeStore.reserved(id)) continue
+			val id = name.take(ThemeStore.MAX_NAME - suffix.length) + suffix
+			if (!ThemeStore.legal(id) || ThemeStore.reserved(id)) continue
 			try {
 				return Files.createDirectory(themes.resolve(id))
 			} catch (_: FileAlreadyExistsException) {

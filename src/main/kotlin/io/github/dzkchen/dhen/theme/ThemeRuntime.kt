@@ -43,50 +43,60 @@ internal class ThemeRuntime(
 		return "Theme set to '${entry.id}'."
 	}
 
-	override fun reload(notify: (String) -> Unit) = offThread(notify, "Could not read ${ThemeStore.DIRECTORY}") {
-		"Read ${ThemeStore.refresh(root).size} themes; drawing '${ClientPrefs.theme.value}'."
-	}
+	override fun reload(notify: (String) -> Unit) = offThread(
+		notify,
+		"Could not read ${ThemeStore.DIRECTORY}",
+		{ ThemeStore.refresh(root).size }
+	) { count -> "Read $count themes; drawing '${ClientPrefs.theme.value}'." }
 
 	override fun export(name: String?, notify: (String) -> Unit) {
 		val requested = name ?: ClientPrefs.theme.value
-		if (!ThemeExport.legal(requested)) {
-			notify("'$requested' cannot name a theme folder; use up to ${ThemeExport.MAX_NAME} letters, digits, '-' or '_'.")
+		if (!ThemeStore.legal(requested)) {
+			notify("'$requested' cannot name a theme folder; use up to ${ThemeStore.MAX_NAME} letters, digits, '-' or '_'.")
 			return
 		}
 		val metadata = ThemeStore.find(ClientPrefs.theme.value)
 		val resolved = DhenTheme.active
-		offThread(notify, "Could not write ${ThemeStore.DIRECTORY}/$requested/${ThemeFormat.MANIFEST}") {
-			val folder = ThemeExport.write(root, requested, metadata, resolved)
-			ThemeStore.refresh(root)
-			"Exported the theme on screen to ${ThemeStore.DIRECTORY}/${folder.fileName}/${ThemeFormat.MANIFEST}."
-		}
+		offThread(
+			notify,
+			"Could not write ${ThemeStore.DIRECTORY}/$requested/${ThemeFormat.MANIFEST}",
+			{
+				val folder = ThemeExport.write(root, requested, metadata, resolved)
+				ThemeStore.refresh(root)
+				folder
+			}
+		) { folder -> "Exported the theme on screen to ${ThemeStore.DIRECTORY}/${folder.fileName}/${ThemeFormat.MANIFEST}." }
 	}
 
 	fun browse(notify: (String) -> Unit = {}) {
-		val folder = root.resolve(ThemeStore.DIRECTORY)
+		val failure = "Could not open ${ThemeStore.DIRECTORY}"
 		scope.launch {
-			val failure = attempt("Could not open ${ThemeStore.DIRECTORY}") { Files.createDirectories(folder); null }
-			withContext(client) { if (failure == null) open(folder, notify) else notify(failure) }
+			val folder = try {
+				Files.createDirectories(root.resolve(ThemeStore.DIRECTORY))
+			} catch (e: Exception) {
+				log.warn("{} under {}", failure, root, e)
+				withContext(client) { notify("$failure: ${reason(e)}") }
+				return@launch
+			}
+			withContext(client) { open(folder, notify) }
 		}
 	}
 
-	private fun offThread(notify: (String) -> Unit, failure: String, work: () -> String) {
+	private fun <T> offThread(notify: (String) -> Unit, failure: String, work: () -> T, say: (T) -> String) {
 		scope.launch {
-			val message = attempt(failure, work)
+			val done = try {
+				work()
+			} catch (e: Exception) {
+				log.warn("{} under {}", failure, root, e)
+				withContext(client) { notify("$failure: ${reason(e)}") }
+				return@launch
+			}
 			withContext(client) {
 				ClientPrefs.adopt()
-				message?.let(notify)
+				notify(say(done))
 			}
 		}
 	}
-
-	private fun attempt(failure: String, work: () -> String?): String? =
-		try {
-			work()
-		} catch (e: Exception) {
-			log.warn("{} under {}", failure, root, e)
-			"$failure: ${reason(e)}"
-		}
 
 	private fun open(folder: Path, notify: (String) -> Unit) {
 		try {

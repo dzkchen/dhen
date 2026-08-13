@@ -21,7 +21,6 @@ import kotlin.math.roundToLong
 
 internal const val CONTROL_TEXT_INSET = 2
 internal const val PILL_MIN_WIDTH = 26
-internal val TOGGLE_MILLIS: Long get() = DhenTheme.active.toggleMillis
 private const val WIDGET_HEIGHT = 14
 private const val WIDGET_PAD = 3
 internal const val CONTROL_ROW_HEIGHT = WIDGET_HEIGHT + 2 * WIDGET_PAD
@@ -84,7 +83,7 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 		val left = right - TOGGLE_WIDTH
 		val top = widgetTop(y, height)
 		val bottom = top + WIDGET_HEIGHT
-		val lit = GlassGui.withAlpha(DhenPalette.accent, progress)
+		val lit = GlassGui.scaleAlpha(DhenPalette.accent, progress)
 		if (lit ushr 24 != OPAQUE_ALPHA) RoundedGui.pill(graphics, left, top, right, bottom, GlassGui.raised(hovered))
 		RoundedGui.pill(graphics, left, top, right, bottom, lit)
 		RoundedGui.pillBorder(graphics, left, top, right, bottom, RoundedGui.HAIRLINE, DhenPalette.BORDER)
@@ -110,7 +109,7 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 			slideAt = Util.getMillis()
 		}
 		if (slide == target) return slide
-		slide = GlassGui.tweenSince(slideFrom, target, slideAt, TOGGLE_MILLIS)
+		slide = GlassGui.tweenSince(slideFrom, target, slideAt, GlassGui.TOGGLE_MILLIS)
 		return slide
 	}
 }
@@ -370,7 +369,7 @@ internal class ActionControl(private val action: ActionSetting) : SettingControl
 		val top = widgetTop(y, height)
 		RoundedGui.pill(graphics, x, top, x + width, top + WIDGET_HEIGHT, if (hovered) DhenPalette.accent else DhenPalette.accentMuted)
 		val label = action.name
-		val labelTint = if (hovered) DhenPalette.textOnAccent else DhenPalette.TEXT_PRIMARY
+		val labelTint = if (hovered) DhenPalette.accentForeground else DhenPalette.TEXT_PRIMARY
 		DhenType.text(graphics, font, label, x + (width - DhenType.width(font, label)) / 2, textTop(font, y, height), labelTint)
 	}
 

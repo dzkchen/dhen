@@ -113,7 +113,7 @@ internal object LoadingSplash {
 			SplashLayout.MARK_HEIGHT,
 			SplashLayout.MARK_WIDTH,
 			SplashLayout.MARK_HEIGHT,
-			GlassGui.withAlpha(
+			GlassGui.scaleAlpha(
 				DhenPalette.SPLASH_INK,
 				SplashLayout.contentOpacity(fadeOut, fadeIn, fadesIn, reduced)
 			)
@@ -147,14 +147,14 @@ internal object LoadingSplash {
 	) {
 		if (opacity <= 0f) return
 		val bottom = top + height
-		FlatGui.fill(graphics, left, top, left + width, bottom, GlassGui.withAlpha(DhenPalette.SPLASH_TRACK, opacity))
+		FlatGui.fill(graphics, left, top, left + width, bottom, GlassGui.scaleAlpha(DhenPalette.SPLASH_TRACK, opacity))
 		FlatGui.fill(
 			graphics,
 			left,
 			top,
 			left + SplashLayout.filledWidth(width, progress),
 			bottom,
-			GlassGui.withAlpha(DhenPalette.SPLASH_INK, opacity)
+			GlassGui.scaleAlpha(DhenPalette.SPLASH_INK, opacity)
 		)
 	}
 

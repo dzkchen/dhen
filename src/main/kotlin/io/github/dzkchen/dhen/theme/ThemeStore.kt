@@ -13,6 +13,7 @@ internal object ThemeStore {
 	const val DEFAULT_ID = "Default"
 	const val LIGHT_ID = "Light"
 	const val MAX_THEMES = 64
+	const val MAX_NAME = 32
 
 	private const val MAX_MANIFEST_BYTES = 64L * 1024L
 
@@ -42,6 +43,9 @@ internal object ThemeStore {
 
 	fun reserved(id: String): Boolean = builtIn.any { it.id.equals(id, ignoreCase = true) }
 
+	fun legal(id: String): Boolean =
+		id.length in 1..MAX_NAME && id.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' || it == '_' }
+
 	private fun discover(root: Path): List<ThemeEntry> {
 		if (!Files.isDirectory(root)) return emptyList()
 		val found = ArrayList<ThemeEntry>()
@@ -51,6 +55,10 @@ internal object ThemeStore {
 				break
 			}
 			val id = folder.fileName.toString()
+			if (!legal(id)) {
+				log.warn("Ignoring the theme folder '{}': a theme is named in up to {} letters, digits, '-' or '_'", id, MAX_NAME)
+				continue
+			}
 			if (claimed(found, id)) {
 				log.warn("Ignoring the theme folder '{}': another theme already answers to that name", id)
 				continue

@@ -57,27 +57,19 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				feedback(
-					context.source,
-					"Dhen commands: /$name module <name> toggle | debug | edit | reset-all | effects | theme"
-				)
-				Command.SINGLE_SUCCESS
+				report(context.source, "Dhen commands: /$name module <name> toggle | debug | edit | reset-all | effects | theme")
 			}
 			.then(
 				literal<S>("module").then(
 					argument<S, String>("name", StringArgumentType.word())
-						.suggests(suggesting { manager.modules.map { module -> module.name.replace(' ', '_') } })
+						.suggests(suggesting { manager.modules.map { module -> wireName(module.name) } })
 						.then(
 							literal<S>("toggle").executes { context ->
 								val raw = StringArgumentType.getString(context, "name")
-								val module = manager.modules.firstOrNull { it.name.replace(' ', '_').equals(raw, ignoreCase = true) }
-								if (module == null) {
-									feedback(context.source, "No module named '$raw'.")
-								} else {
-									manager.toggle(module)
-									feedback(context.source, "Toggled ${module.name}: ${if (module.enabled) "enabled" else "disabled"}")
-								}
-								Command.SINGLE_SUCCESS
+								val module = manager.modules.firstOrNull { wireName(it.name).equals(raw, ignoreCase = true) }
+								if (module == null) return@executes report(context.source, "No module named '$raw'.")
+								manager.toggle(module)
+								report(context.source, "Toggled ${module.name}: ${if (module.enabled) "enabled" else "disabled"}")
 							}
 						)
 				)
@@ -85,8 +77,7 @@ class CommandRegistry<S>(
 			.then(
 				literal<S>("edit").executes { context ->
 					openHudEditor()
-					feedback(context.source, "Opening the HUD editor.")
-					Command.SINGLE_SUCCESS
+					report(context.source, "Opening the HUD editor.")
 				}
 			)
 			.then(resetAllCommand())
@@ -96,10 +87,7 @@ class CommandRegistry<S>(
 
 	private fun resetAllCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("reset-all")
-			.executes { context ->
-				feedback(context.source, resetSummary(resetHudLayout()))
-				Command.SINGLE_SUCCESS
-			}
+			.executes { context -> report(context.source, resetSummary(resetHudLayout())) }
 
 	private fun resetSummary(reset: Int): String = when (reset) {
 		0 -> "Every HUD element is already at its declared layout."
@@ -116,8 +104,7 @@ class CommandRegistry<S>(
 	private fun applyEffects(source: S, reduced: Boolean): Int {
 		Effects.reduced = reduced
 		persistEffects()
-		feedback(source, "Glass effects ${if (reduced) "disabled" else "enabled"}.")
-		return Command.SINGLE_SUCCESS
+		return report(source, "Glass effects ${if (reduced) "disabled" else "enabled"}.")
 	}
 
 	private fun themeCommand(): LiteralArgumentBuilder<S> =
@@ -177,9 +164,10 @@ class CommandRegistry<S>(
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
 		literal<S>(name).executes { context ->
 			diagnostics.deepMode = enabled
-			feedback(context.source, "Deep profiling ${if (enabled) "enabled" else "disabled"}.")
-			Command.SINGLE_SUCCESS
+			report(context.source, "Deep profiling ${if (enabled) "enabled" else "disabled"}.")
 		}
+
+	private fun wireName(name: String): String = name.replace(' ', '_')
 
 	private companion object {
 		private val RESERVED = setOf("dhen", "dh")

@@ -65,6 +65,18 @@ class ThemeRuntimeTest {
 	}
 
 	@Test
+	fun `reload names the theme it ends up drawing, not the one it fell back from`() {
+		ClientPrefs.theme.value = "ocean"
+		ClientPrefs.adopt()
+		assertEquals(ThemeStore.DEFAULT_ID, ClientPrefs.theme.value)
+		ThemeFixture.write(config, "ocean", """{"colors":{"canvas":"#112233"}}""")
+
+		themes.reload { said += it }
+
+		assertTrue(said.single().endsWith("drawing 'ocean'."), said.single())
+	}
+
+	@Test
 	fun `use switches the theme, persists it, and names the one it switched to`() {
 		ThemeFixture.write(config, "ocean", """{"colors":{"canvas":"#112233"}}""")
 		themes.reload()

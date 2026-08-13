@@ -140,7 +140,7 @@ class ClientPrefsTest {
 		ClientPrefs.read(document("""{"client":{"Accent color":$TEAL}}"""))
 
 		assertEquals(TEAL, DhenPalette.accent)
-		assertEquals(DhenPalette.TEXT_ON_ACCENT, DhenPalette.textOnAccent)
+		assertEquals(DhenTheme.DEFAULT.withAccent(TEAL).accentForeground, DhenPalette.accentForeground)
 	}
 
 	@Test

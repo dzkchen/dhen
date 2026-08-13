@@ -113,10 +113,10 @@ class GlassGuiTest {
 	fun `alpha scaling keeps the color channels and clamps the alpha`() {
 		val color = 0x80336699u.toInt()
 
-		assertEquals(0x40336699u.toInt(), GlassGui.withAlpha(color, 0.5f))
-		assertEquals(0x00336699, GlassGui.withAlpha(color, 0f))
-		assertEquals(0xFF336699u.toInt(), GlassGui.withAlpha(color, 4f))
-		assertEquals(0x00336699, GlassGui.withAlpha(color, -1f))
+		assertEquals(0x40336699u.toInt(), GlassGui.scaleAlpha(color, 0.5f))
+		assertEquals(0x00336699, GlassGui.scaleAlpha(color, 0f))
+		assertEquals(0xFF336699u.toInt(), GlassGui.scaleAlpha(color, 4f))
+		assertEquals(0x00336699, GlassGui.scaleAlpha(color, -1f))
 	}
 
 	private companion object {

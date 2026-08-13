@@ -8,6 +8,7 @@ internal object GlassGui {
 	val ENTRY_RISE: Float get() = DhenTheme.active.entryRise
 	val TAB_MILLIS: Long get() = DhenTheme.active.tabMillis
 	val TAB_SLIDE: Float get() = DhenTheme.active.tabSlide
+	val TOGGLE_MILLIS: Long get() = DhenTheme.active.toggleMillis
 	const val SETTLED = 1f
 	private const val SHADOW_LAYERS = 3
 	private const val SHEEN_CORNER_CLEARANCE = 0.5f
@@ -42,7 +43,7 @@ internal object GlassGui {
 	private fun roundedShadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
 		if (Effects.reduced) return
 		for (layer in SHADOW_LAYERS downTo 1) {
-			val color = withAlpha(DhenPalette.GLASS_SHADOW, 1f / layer)
+			val color = scaleAlpha(DhenPalette.GLASS_SHADOW, 1f / layer)
 			RoundedGui.border(graphics, left - layer, top - layer, right + layer, bottom + layer, radius + layer, RoundedGui.HAIRLINE, color)
 		}
 	}
@@ -67,7 +68,7 @@ internal object GlassGui {
 	}
 
 	private fun tint(graphics: GuiGraphicsExtractor, width: Int, height: Int, color: Int, factor: Float) {
-		val tinted = withAlpha(color, factor)
+		val tinted = scaleAlpha(color, factor)
 		if (tinted ushr 24 == 0) return
 		FlatGui.fill(graphics, 0, 0, width, height, tinted)
 	}
@@ -92,7 +93,7 @@ internal object GlassGui {
 		return SETTLED - remaining * remaining * remaining
 	}
 
-	fun withAlpha(color: Int, factor: Float): Int {
+	fun scaleAlpha(color: Int, factor: Float): Int {
 		val alpha = ((color ushr 24) * factor).toInt().coerceIn(0, 0xFF)
 		return (alpha shl 24) or (color and 0xFFFFFF)
 	}
