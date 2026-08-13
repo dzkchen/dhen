@@ -46,8 +46,8 @@ class ConfigStore(
 		return doc
 	}
 
-	fun save(snapshot: JsonObject): Job = synchronized(lock) {
-		pending = snapshot.deepCopy()
+	fun save(owned: JsonObject): Job = synchronized(lock) {
+		pending = owned
 		writer?.takeIf { it.isActive }?.let { return it }
 		scope.launch { drain() }.also { writer = it }
 	}
