@@ -5,6 +5,7 @@ import com.google.gson.JsonParser
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -82,8 +83,45 @@ class ConfigStoreTest {
 		job.join()
 
 		assertEquals(1, store.writeCount)
-		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
-		assertEquals(3, written.get("n").asInt)
+		assertEquals(3, writtenNumber(path))
+	}
+
+	@Test
+	fun `flush writes the pending snapshot without waiting for the debounce`(@TempDir dir: Path) {
+		val path = dir.resolve("core.json")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), debounce = { awaitCancellation() })
+		store.save(numberDoc(7))
+
+		store.flush()
+
+		assertEquals(1, store.writeCount)
+		assertEquals(7, writtenNumber(path))
+	}
+
+	@Test
+	fun `flush with nothing pending writes nothing`(@TempDir dir: Path) {
+		val path = dir.resolve("core.json")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), debounce = {})
+
+		store.flush()
+
+		assertEquals(0, store.writeCount)
+		assertFalse(Files.exists(path))
+	}
+
+	@Test
+	fun `flush after the debounced write landed does not write twice`(@TempDir dir: Path) = runBlocking {
+		val gate = CompletableDeferred<Unit>()
+		val path = dir.resolve("core.json")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), debounce = { gate.await() })
+
+		val job = store.save(numberDoc(4))
+		gate.complete(Unit)
+		job.join()
+		store.flush()
+
+		assertEquals(1, store.writeCount)
+		assertEquals(4, writtenNumber(path))
 	}
 
 	@Test
@@ -138,6 +176,9 @@ class ConfigStoreTest {
 	}
 
 	private fun unusable(path: Path): Path = path.resolveSibling(path.fileName.toString() + ".unusable")
+
+	private fun writtenNumber(path: Path): Int =
+		JsonParser.parseString(Files.readString(path)).asJsonObject.get("n").asInt
 
 	private fun numberDoc(n: Int): JsonObject = JsonObject().apply { addProperty("n", n) }
 }

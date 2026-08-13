@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen
 
+import com.google.gson.JsonObject
 import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
@@ -21,9 +22,11 @@ import io.github.dzkchen.dhen.util.Failsafe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
@@ -39,6 +42,7 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
+import java.nio.file.Path
 import kotlin.coroutines.EmptyCoroutineContext
 
 object Dhen : ClientModInitializer {
@@ -53,6 +57,7 @@ object Dhen : ClientModInitializer {
 	private val hudRuntime = HudRuntime(modules)
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private val stores = mutableListOf<ConfigStore>()
 	private val failsafe = Failsafe()
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
@@ -65,8 +70,8 @@ object Dhen : ClientModInitializer {
 
 	private fun initialize() {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
-		coreStore = ConfigStore(configRoot.resolve("core.json"), configScope, CorePersistence.migrations)
-		moduleStore = ConfigStore(configRoot.resolve("modules.json"), configScope, ModulePersistence.migrations)
+		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
+		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
 		clickGuiView = CorePersistence.apply(coreStore.load())
 		val themes = ThemeRuntime(configRoot, configScope, clientThread, ::persistCore, ::announce) {
 			Util.getPlatform().openPath(it)
@@ -125,6 +130,10 @@ object Dhen : ClientModInitializer {
 			if (failsafe.failed) clientThread.shutdown()
 			else failsafe.guard("client tick") { tick(client, openGuiKey) }
 		}
+		ClientLifecycleEvents.CLIENT_STOPPING.register {
+			stores.forEach { it.flush() }
+			configScope.cancel()
+		}
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -157,6 +166,9 @@ object Dhen : ClientModInitializer {
 		if (reset > 0) persistModules()
 		return reset
 	}
+
+	private fun flushedOnStop(path: Path, migrations: List<(JsonObject) -> Unit>): ConfigStore =
+		ConfigStore(path, configScope, migrations).also { stores += it }
 
 	private fun persistModules() {
 		moduleStore.save(ModulePersistence.snapshot(modules))

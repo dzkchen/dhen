@@ -25,6 +25,7 @@ class ConfigStore(
 	private val version: Int get() = migrations.size
 
 	private val lock = Any()
+	private val writeLock = Any()
 	private var pending: JsonObject? = null
 	private var writer: Job? = null
 
@@ -51,15 +52,17 @@ class ConfigStore(
 		scope.launch { drain() }.also { writer = it }
 	}
 
+	fun flush(): Boolean = synchronized(writeLock) {
+		val snapshot = synchronized(lock) { pending.also { pending = null } }
+		snapshot?.let(::write)
+		snapshot != null
+	}
+
 	private suspend fun drain() {
 		while (true) {
 			debounce()
-			val snapshot = synchronized(lock) { pending.also { pending = null } }
-			if (snapshot == null) {
-				synchronized(lock) { if (pending == null) { writer = null; return } }
-				continue
-			}
-			write(snapshot)
+			if (flush()) continue
+			synchronized(lock) { if (pending == null) { writer = null; return } }
 		}
 	}
 
