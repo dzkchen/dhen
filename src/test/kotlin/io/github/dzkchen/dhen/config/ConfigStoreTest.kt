@@ -38,6 +38,49 @@ class ConfigStoreTest {
 	}
 
 	@Test
+	fun `a config from a newer build keeps its version and runs no migration`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("core.json")
+		Files.writeString(path, """{"version":5,"known":1,"future":{"keep":"yes"}}""")
+		val ran = mutableListOf<String>()
+		val store = ConfigStore(
+			path,
+			CoroutineScope(Dispatchers.IO),
+			migrations = listOf({ ran += "first" }, { ran += "second" }),
+			debounce = {}
+		)
+
+		val doc = store.load()
+		store.save(JsonObject().apply { addProperty("known", 2) }).join()
+
+		assertTrue(ran.isEmpty())
+		assertEquals(5, doc.get("version").asInt)
+		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
+		assertEquals(5, written.get("version").asInt)
+		assertEquals(2, written.get("known").asInt)
+		assertEquals("yes", written.getAsJsonObject("future").get("keep").asString)
+	}
+
+	@Test
+	fun `an upgrade replays only the migrations above the file's version`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("core.json")
+		Files.writeString(path, """{"version":1,"known":1}""")
+		val ran = mutableListOf<String>()
+		val store = ConfigStore(
+			path,
+			CoroutineScope(Dispatchers.IO),
+			migrations = listOf({ ran += "first" }, { ran += "second" }, { ran += "third" }),
+			debounce = {}
+		)
+
+		val doc = store.load()
+		store.save(JsonObject().apply { addProperty("known", 2) }).join()
+
+		assertEquals(listOf("second", "third"), ran)
+		assertEquals(3, doc.get("version").asInt)
+		assertEquals(3, JsonParser.parseString(Files.readString(path)).asJsonObject.get("version").asInt)
+	}
+
+	@Test
 	fun `a non-numeric version falls back instead of crashing load`(@TempDir dir: Path) {
 		val path = dir.resolve("core.json")
 		Files.writeString(path, """{"version":"garbage","known":1}""")

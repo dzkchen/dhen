@@ -35,13 +35,17 @@ class ConfigStore(
 	@Volatile
 	private var writes = 0
 
+	@Volatile
+	private var stampedVersion = version
+
 	internal val writeCount: Int get() = writes
 
 	fun load(): JsonObject {
 		val doc = read() ?: JsonObject()
 		val from = doc.get("version")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt ?: 0
 		for (v in from until version) migrations.getOrNull(v)?.invoke(doc)
-		doc.addProperty("version", version)
+		stampedVersion = maxOf(from, version)
+		doc.addProperty("version", stampedVersion)
 		base = doc.deepCopy()
 		return doc
 	}
@@ -68,7 +72,7 @@ class ConfigStore(
 
 	private fun write(snapshot: JsonObject) {
 		val merged = deepMerge(base, snapshot)
-		merged.addProperty("version", version)
+		merged.addProperty("version", stampedVersion)
 		base = merged
 		try {
 			JsonFile.writeAtomic(path, gson.toJson(merged))
