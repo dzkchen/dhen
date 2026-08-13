@@ -2,8 +2,8 @@ package io.github.dzkchen.dhen.config
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.JsonFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import kotlin.time.Duration.Companion.seconds
 
 class ConfigStore(
@@ -33,7 +34,6 @@ class ConfigStore(
 	@Volatile
 	private var writes = 0
 
-	// Completed atomic writes; a diagnostic, also read by tests to assert coalescing.
 	internal val writeCount: Int get() = writes
 
 	fun load(): JsonObject {
@@ -77,13 +77,25 @@ class ConfigStore(
 
 	private fun read(): JsonObject? {
 		if (!Files.exists(path)) return null
-		val text = Files.readString(path)
-		if (text.isBlank()) return null
-		return try {
+		val parsed = try {
+			val text = Files.readString(path)
+			if (text.isBlank()) return null
 			JsonParser.parseString(text) as? JsonObject
-		} catch (e: JsonParseException) {
-			log.warn("Ignoring unparseable config {}", path, e)
+		} catch (e: Exception) {
+			log.error("Could not read config {}", path, e)
 			null
+		}
+		if (parsed == null) setAsideUnusable()
+		return parsed
+	}
+
+	private fun setAsideUnusable() {
+		val unusable = path.resolveSibling(path.fileName.toString() + UNUSABLE)
+		try {
+			Files.move(path, unusable, StandardCopyOption.REPLACE_EXISTING)
+			log.warn("Moved unusable config {} to {}", path, unusable)
+		} catch (e: Exception) {
+			log.error("Could not set aside unusable config {}", path, e)
 		}
 	}
 
@@ -98,7 +110,8 @@ class ConfigStore(
 	}
 
 	private companion object {
-		private val log = LoggerFactory.getLogger(ConfigStore::class.java)
+		private const val UNUSABLE = ".unusable"
+		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		private val DEFAULT_DEBOUNCE = 1.seconds
 	}
 }

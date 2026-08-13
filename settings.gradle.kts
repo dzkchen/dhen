@@ -13,7 +13,6 @@ pluginManagement {
 	}
 }
 
-// Should match your modid
 rootProject.name = "dhen"
 
 file("addons")

@@ -13,10 +13,10 @@ internal class KeybindRuntime(eventBus: EventBus) {
 
 	init {
 		eventBus.subscribe<KeyInputEvent> { event ->
-			if (event.action == InputAction.PRESS) activateKey(event.key)
+			if (event.action == InputAction.PRESS && event.key > GLFW.GLFW_MOUSE_BUTTON_LAST) activate(event.key)
 		}
 		eventBus.subscribe<MouseInputEvent> { event ->
-			if (event.action == InputAction.PRESS) activateMouseButton(event.button)
+			if (event.action == InputAction.PRESS && event.button in MOUSE_BUTTONS) activate(event.button)
 		}
 	}
 
@@ -34,28 +34,18 @@ internal class KeybindRuntime(eventBus: EventBus) {
 		return count
 	}
 
-	private fun activateKey(key: Int) {
+	private fun activate(code: Int) {
 		val bindings = bindings
 		var index = 0
 		while (index < bindings.size) {
 			val binding = bindings[index]
-			if (binding.setting.value == key && key > GLFW.GLFW_MOUSE_BUTTON_LAST) {
-				binding.module.activateKeybind(binding.setting)
-			}
+			if (binding.setting.value == code) binding.module.activateKeybind(binding.setting)
 			index++
 		}
 	}
 
-	private fun activateMouseButton(button: Int) {
-		val bindings = bindings
-		var index = 0
-		while (index < bindings.size) {
-			val binding = bindings[index]
-			if (binding.setting.value == button && button in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST) {
-				binding.module.activateKeybind(binding.setting)
-			}
-			index++
-		}
+	private companion object {
+		private val MOUSE_BUTTONS = GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
 	}
 
 	private class Binding(

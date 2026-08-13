@@ -16,10 +16,11 @@ import java.util.Locale
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
 	private val openHudEditor: () -> Unit = {},
-	private val persistEffects: () -> Unit = {},
+	private val persistCore: () -> Unit = {},
 	private val resetHudLayout: () -> Int = { 0 },
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
+	private val available: () -> Boolean = { true },
 	private val feedback: (S, String) -> Unit
 ) {
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
@@ -45,11 +46,11 @@ class CommandRegistry<S>(
 	}
 
 	fun install(dispatcher: CommandDispatcher<S>) {
-		dispatcher.register(core("dhen"))
-		dispatcher.register(core("dh"))
+		dispatcher.register(core("dhen").requires { available() })
+		dispatcher.register(core("dh").requires { available() })
 		for (registration in registrations.values) {
 			for (lit in registration.literals) {
-				dispatcher.register(literal<S>(lit).apply(registration.build))
+				dispatcher.register(literal<S>(lit).apply(registration.build).requires { available() })
 			}
 		}
 	}
@@ -103,7 +104,7 @@ class CommandRegistry<S>(
 
 	private fun applyEffects(source: S, reduced: Boolean): Int {
 		Effects.reduced = reduced
-		persistEffects()
+		persistCore()
 		return report(source, "Glass effects ${if (reduced) "disabled" else "enabled"}.")
 	}
 
@@ -153,6 +154,7 @@ class CommandRegistry<S>(
 		literal<S>("debug")
 			.executes { context ->
 				for (line in diagnostics.lines()) feedback(context.source, line)
+				for (registration in registrations.values) feedback(context.source, ownerLine(registration))
 				Command.SINGLE_SUCCESS
 			}
 			.then(
@@ -166,6 +168,9 @@ class CommandRegistry<S>(
 			diagnostics.deepMode = enabled
 			report(context.source, "Deep profiling ${if (enabled) "enabled" else "disabled"}.")
 		}
+
+	private fun ownerLine(registration: RegisteredCommand<S>): String =
+		(listOf(registration.name) + registration.aliases).joinToString(", ") { "/$it" } + " — ${registration.owner}"
 
 	private fun wireName(name: String): String = name.replace(' ', '_')
 

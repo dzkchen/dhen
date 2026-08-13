@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.command
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.Event
@@ -93,6 +94,33 @@ class CommandRegistryTest {
 		dispatcher.execute("dhen", Any())
 
 		assertTrue(captured.single().contains("Dhen commands"))
+	}
+
+	@Test
+	fun `commands stop parsing once the registry reports unavailable`() {
+		var available = true
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			available = { available }
+		) { _, message -> captured += message }
+		var runs = 0
+		registry.register("greet", owner = "test") {
+			executes { runs++; Command.SINGLE_SUCCESS }
+		}
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen", Any())
+		dispatcher.execute("greet", Any())
+		assertEquals(1, runs)
+		assertEquals(1, captured.size)
+
+		available = false
+
+		assertThrows(CommandSyntaxException::class.java) { dispatcher.execute("dhen", Any()) }
+		assertThrows(CommandSyntaxException::class.java) { dispatcher.execute("greet", Any()) }
+		assertEquals(1, runs)
+		assertEquals(1, captured.size)
 	}
 
 	@Test
@@ -326,13 +354,24 @@ class CommandRegistryTest {
 
 		dispatcher.execute("dhen debug", Any())
 
-		assertEquals("Dhen debug: deep profiling off", captured[0])
 		assertEquals(
-			"Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1, " +
-				"config=modules:v${ModulePersistence.version}",
-			captured[1]
+			"Dhen debug: deep profiling off, modules.json v${ModulePersistence.version}",
+			captured[0]
 		)
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[1])
 		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[2])
+	}
+
+	@Test
+	fun `debug lists every registered command with its owner`() {
+		val registry = CommandRegistry<Any>(ModuleManager()) { _, message -> captured += message }
+		registry.register("waypoints", "wp", owner = "dhen-dungeons") { }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug", Any())
+
+		assertEquals("/waypoints, /wp — dhen-dungeons", captured.last())
 	}
 
 	@Test

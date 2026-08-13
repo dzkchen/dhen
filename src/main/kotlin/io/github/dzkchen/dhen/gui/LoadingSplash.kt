@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import com.mojang.blaze3d.platform.NativeImage
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.Failsafe
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -13,7 +14,6 @@ import net.minecraft.client.resources.metadata.texture.TextureMetadataSection
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.resources.ReloadInstance
 import net.minecraft.server.packs.resources.ResourceManager
-import org.slf4j.LoggerFactory
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -22,16 +22,15 @@ internal object LoadingSplash {
 	private const val MARK_PATH = "textures/gui/splash_mark.png"
 	private const val MARK_JAR_ENTRY = "assets/${Dhen.MOD_ID}/$MARK_PATH"
 
-	private val LOGGER = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val MARK: Identifier = Dhen.id(MARK_PATH)
 	private val MARK_METADATA = TextureMetadataSection(false, true, MipmapStrategy.MEAN, 0f)
+	private val failsafe = Failsafe("Dhen {} failed, falling back to the vanilla overlay")
 
 	private var markReady = false
-	private var failed = false
 	private var progress = 0f
 
 	@JvmStatic
-	fun enabled(): Boolean = !failed && ClientPrefs.splash.value
+	fun enabled(): Boolean = !failsafe.failed && ClientPrefs.splash.value
 
 	@JvmStatic
 	fun paint(
@@ -45,8 +44,8 @@ internal object LoadingSplash {
 		now: Long,
 		partialTick: Float
 	): Boolean {
-		if (!enabled()) return false
-		return try {
+		if (!ClientPrefs.splash.value) return false
+		return failsafe.guard("loading splash") {
 			val minecraft = Minecraft.getInstance()
 			ensureMark(minecraft)
 			draw(
@@ -61,11 +60,7 @@ internal object LoadingSplash {
 				partialTick
 			)
 			true
-		} catch (throwable: Throwable) {
-			failed = true
-			LOGGER.error("Loading splash failed, falling back to the vanilla overlay", throwable)
-			false
-		}
+		} ?: false
 	}
 
 	private fun draw(

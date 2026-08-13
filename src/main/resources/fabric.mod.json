@@ -32,13 +32,13 @@
 		"dhen.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.19.3",
-		"minecraft": "~26.2",
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
 		"java": ">=25",
-		"fabric-api": "*",
-		"fabric-language-kotlin": "*"
+		"fabric-api": ">=${fabric_api_floor}",
+		"fabric-language-kotlin": ">=${fabric_kotlin_floor}"
 	},
 	"breaks": {
-		"modmenu": "<20.0.0-alpha.1"
+		"modmenu": "<${modmenu_version}"
 	}
 }

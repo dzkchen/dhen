@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.config
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.ui.hud.HudPersistence
 import org.slf4j.LoggerFactory
@@ -13,7 +14,7 @@ object ModulePersistence {
 	internal val version: Int
 		get() = migrations.size
 
-	private val log = LoggerFactory.getLogger(ModulePersistence::class.java)
+	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	fun snapshot(manager: ModuleManager): JsonObject {
 		val modules = JsonObject()
@@ -32,7 +33,8 @@ object ModulePersistence {
 		for ((name, element) in modules.entrySet()) {
 			val module = manager[name] ?: continue
 			val entry = element as? JsonObject ?: continue
-			(entry.get("enabled") as? JsonPrimitive)?.let {
+			SettingCodec.readInto(entry.get("settings") as? JsonObject, module.settings, name)
+			(entry.get("enabled") as? JsonPrimitive)?.takeIf { it.isBoolean }?.let {
 				if (it.asBoolean) manager.enable(name) else manager.disable(name)
 			}
 			(entry.get(HUD) as? JsonObject)?.let {
@@ -42,7 +44,6 @@ object ModulePersistence {
 					log.warn("Skipping bad HUD layout in module '{}'", name, e)
 				}
 			}
-			SettingCodec.readInto(entry.get("settings") as? JsonObject, module.settings, name)
 		}
 	}
 }

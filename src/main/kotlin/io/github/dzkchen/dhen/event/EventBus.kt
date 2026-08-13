@@ -15,30 +15,21 @@ class EventBus(
 
 	fun <T : Event> type(type: Class<T>): EventType<T> {
 		@Suppress("UNCHECKED_CAST")
-		val existing = types[type] as EventType<T>?
-		if (existing != null) return existing
-
-		return synchronized(lock) {
-			@Suppress("UNCHECKED_CAST")
-			val lockedExisting = types[type] as EventType<T>?
-			if (lockedExisting != null) lockedExisting else {
-				val created = EventType<T>(this, DeepProfiledEvent::class.java.isAssignableFrom(type))
-				types[type] = created
-				created
-			}
-		}
+		return types.computeIfAbsent(type) {
+			EventType<T>(this, DeepProfiledEvent::class.java.isAssignableFrom(type))
+		} as EventType<T>
 	}
 
 	inline fun <reified T : Event> subscribe(priority: Int = 0, noinline handler: (T) -> Unit): Handle =
 		type<T>().subscribe(priority, handler)
 
-	fun <T : Event> subscribe(type: EventType<T>, priority: Int = 0, handler: (T) -> Unit): Handle =
-		type.subscribe(priority, handler)
-
 	class EventType<T : Event> internal constructor(
 		private val bus: EventBus,
 		private val deepOnly: Boolean
 	) {
+		private val profiler = bus.profiler
+		private val clock = profiler.clock
+
 		@Volatile
 		private var listeners = noListeners
 
@@ -103,16 +94,16 @@ class EventBus(
 
 		private fun dispatch(listener: Listener, event: Event) {
 			val timing = listener.timing
-			if (timing == null || (deepOnly && !bus.profiler.deepMode)) {
+			if (timing == null || (deepOnly && !profiler.deepMode)) {
 				listener.handler(event)
 				return
 			}
 
-			val started = bus.profiler.clock.nanoTime()
+			val started = clock.nanoTime()
 			try {
 				listener.handler(event)
 			} finally {
-				timing.record(bus.profiler.clock.nanoTime() - started)
+				timing.record(clock.nanoTime() - started)
 			}
 		}
 

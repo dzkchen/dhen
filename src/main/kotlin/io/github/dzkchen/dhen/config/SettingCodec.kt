@@ -3,11 +3,12 @@ package io.github.dzkchen.dhen.config
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.Color
 import org.slf4j.LoggerFactory
 
 internal object SettingCodec {
-	private val log = LoggerFactory.getLogger(SettingCodec::class.java)
+	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	fun writeInto(block: JsonObject, settings: List<Setting<*>>): JsonObject {
 		for (i in settings.indices) {

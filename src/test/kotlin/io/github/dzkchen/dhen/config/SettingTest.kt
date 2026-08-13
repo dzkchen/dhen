@@ -267,7 +267,6 @@ class SettingTest {
 		val run by runSetting
 	}
 
-	// The `by` properties are never read; declaring them is what registers each setting on the module.
 	@Suppress("unused")
 	private object AutoSprintFixture : Module(
 		name = "Auto Sprint",

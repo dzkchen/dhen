@@ -3,15 +3,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	id("net.fabricmc.fabric-loom")
 	`maven-publish`
-	id("org.jetbrains.kotlin.jvm") version "2.4.0"
+	id("org.jetbrains.kotlin.jvm") version "2.4.10"
 }
 
 version = providers.gradleProperty("mod_version").get()
 group = providers.gradleProperty("maven_group").get()
 
 repositories {
-	// Loom adds the Minecraft/Fabric mavens automatically; Maven Central covers
-	// the JUnit test framework.
 	mavenCentral()
 	maven {
 		name = "Terraformers"
@@ -23,13 +21,10 @@ repositories {
 }
 
 dependencies {
-	// To change the versions see the gradle.properties file
 	minecraft("com.mojang:minecraft:${providers.gradleProperty("minecraft_version").get()}")
 	implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
-
-	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
-    implementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
+	implementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
 
 	val modMenu = "com.terraformersmc:modmenu:${providers.gradleProperty("modmenu_version").get()}"
 	compileOnly(modMenu)
@@ -41,11 +36,20 @@ dependencies {
 }
 
 tasks.processResources {
-	val version = version
-	inputs.property("version", version)
+	fun floor(property: String) = providers.gradleProperty(property).get().substringBefore('+')
+
+	val metadata = mapOf(
+		"version" to version.toString(),
+		"minecraft_version" to floor("minecraft_version"),
+		"loader_version" to floor("loader_version"),
+		"fabric_api_floor" to floor("fabric_api_version"),
+		"fabric_kotlin_floor" to floor("fabric_kotlin_version"),
+		"modmenu_version" to floor("modmenu_version")
+	)
+	inputs.properties(metadata)
 
 	filesMatching("fabric.mod.json") {
-		expand("version" to version)
+		expand(metadata)
 	}
 }
 
@@ -64,9 +68,6 @@ kotlin {
 }
 
 java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
 	toolchain {
@@ -76,26 +77,16 @@ java {
 
 tasks.jar {
 	val projectName = project.name
-	inputs.property("projectName", projectName)
 
 	from("LICENSE") {
 		rename { "${it}_$projectName" }
 	}
 }
 
-// configure the maven publication
 publishing {
 	publications {
 		register<MavenPublication>("mavenJava") {
 			from(components["java"])
 		}
-	}
-
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
 	}
 }

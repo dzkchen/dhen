@@ -23,7 +23,6 @@ class EventProfiler internal constructor(
 	var deepMode: Boolean = false
 }
 
-/** Marker for packet and per-frame events that are only timed in deep mode. */
 interface DeepProfiledEvent : Event
 
 class HandlerTiming internal constructor(

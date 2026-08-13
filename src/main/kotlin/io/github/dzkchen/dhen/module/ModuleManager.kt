@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.module
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.input.KeybindRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
+import java.util.Collections
 import java.util.Locale
 
 class ModuleManager(
@@ -22,8 +23,7 @@ class ModuleManager(
 	val modules: Collection<Module>
 		get() = modulesByName.values.toList()
 
-	internal val ordered: List<Module>
-		get() = registrationOrder
+	internal val ordered: List<Module> = Collections.unmodifiableList(registrationOrder)
 
 	val categories: Map<Category, List<Module>>
 		get() = modulesByCategory.mapValues { (_, modules) -> modules.toList() }

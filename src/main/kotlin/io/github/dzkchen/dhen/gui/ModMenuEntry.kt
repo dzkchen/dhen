@@ -6,5 +6,5 @@ import io.github.dzkchen.dhen.Dhen
 
 object ModMenuEntry : ModMenuApi {
 	override fun getModConfigScreenFactory(): ConfigScreenFactory<*> =
-		ConfigScreenFactory { parent -> Dhen.clickGuiScreen(parent) }
+		ConfigScreenFactory { parent -> Dhen.clickGuiScreen(parent) ?: parent }
 }

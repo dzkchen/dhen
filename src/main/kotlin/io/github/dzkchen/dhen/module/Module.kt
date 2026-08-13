@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.event.Event
@@ -69,11 +70,9 @@ abstract class Module(
 		return element
 	}
 
-	// Launches on the current enable's scope; a no-op returning null while disabled.
 	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
 		moduleScope?.launch(block = block)
 
-	/** Returns true only for the call that actually flipped the state, so callers can act once. */
 	internal fun setEnabled(enabled: Boolean): Boolean {
 		synchronized(stateLock) {
 			if (this.enabled == enabled) return false
@@ -128,6 +127,7 @@ abstract class Module(
 	}
 
 	internal fun <T> registerSetting(setting: Setting<T>): ReadWriteProperty<Module, T> {
+		require(!bound) { "Module '$name' settings must be registered before manager registration." }
 		settingList += setting
 		return setting
 	}
@@ -205,7 +205,7 @@ abstract class Module(
 	}
 
 	companion object {
-		private val log = LoggerFactory.getLogger(Module::class.java)
+		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		internal const val ERROR_THRESHOLD = 5
 		internal const val ERROR_WINDOW_MS = 10_000L
 	}

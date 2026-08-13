@@ -15,14 +15,22 @@ class InputRuntime(eventBus: EventBus) {
 	private val keyReleaseEvents = Array(keyStates.size) { KeyInputEvent(it, InputAction.RELEASE) }
 	private val mousePressEvents = Array(mouseStates.size) { MouseInputEvent(it, InputAction.PRESS) }
 	private val mouseReleaseEvents = Array(mouseStates.size) { MouseInputEvent(it, InputAction.RELEASE) }
+	private var resyncPending = true
+
+	fun pause() {
+		resyncPending = true
+	}
 
 	fun poll(source: InputSource, window: Long) {
+		val resync = resyncPending
+		resyncPending = false
+
 		var key = GLFW.GLFW_KEY_SPACE
 		while (key <= GLFW.GLFW_KEY_LAST) {
 			val pressed = source.isKeyPressed(window, key)
 			if (pressed != keyStates[key]) {
 				keyStates[key] = pressed
-				keyEvents.dispatch(if (pressed) keyPressEvents[key] else keyReleaseEvents[key])
+				if (!resync) keyEvents.dispatch(if (pressed) keyPressEvents[key] else keyReleaseEvents[key])
 			}
 			key++
 		}
@@ -32,7 +40,7 @@ class InputRuntime(eventBus: EventBus) {
 			val pressed = source.isMouseButtonPressed(window, button)
 			if (pressed != mouseStates[button]) {
 				mouseStates[button] = pressed
-				mouseEvents.dispatch(if (pressed) mousePressEvents[button] else mouseReleaseEvents[button])
+				if (!resync) mouseEvents.dispatch(if (pressed) mousePressEvents[button] else mouseReleaseEvents[button])
 			}
 			button++
 		}

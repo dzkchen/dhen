@@ -63,7 +63,50 @@ class ModulePersistenceTest {
 		assertEquals(0, after.ran)
 	}
 
-	// The `by` properties are never read; declaring them is what registers each setting on the module.
+	@Test
+	fun `wrong-typed values are skipped and their neighbours still load`() {
+		val manager = ModuleManager()
+		val module = SampleModule().also { manager.register(it) }
+		manager.enable(module.name)
+		val doc = JsonParser.parseString(
+			"""{"modules":{"Sample":{"enabled":"yes","settings":{"Speed":"fast","Label":"kept"}}}}"""
+		).asJsonObject
+
+		ModulePersistence.apply(manager, doc)
+
+		assertTrue(module.enabled)
+		assertEquals(3.0, module.numberSetting.value)
+		assertEquals("kept", module.stringSetting.value)
+	}
+
+	@Test
+	fun `a stored value outside the current range is clamped on load`() {
+		val manager = ModuleManager()
+		val module = SampleModule().also { manager.register(it) }
+		val doc = JsonParser.parseString(
+			"""{"modules":{"Sample":{"enabled":false,"settings":{"Speed":99.0}}}}"""
+		).asJsonObject
+		manager.enable(module.name)
+
+		ModulePersistence.apply(manager, doc)
+
+		assertFalse(module.enabled)
+		assertEquals(10.0, module.numberSetting.value)
+	}
+
+	@Test
+	fun `an unknown module in the file is ignored`() {
+		val manager = ModuleManager()
+		val module = SampleModule().also { manager.register(it) }
+		val doc = JsonParser.parseString(
+			"""{"modules":{"Gone":{"enabled":true},"Sample":{"enabled":true}}}"""
+		).asJsonObject
+
+		ModulePersistence.apply(manager, doc)
+
+		assertTrue(module.enabled)
+	}
+
 	@Suppress("unused")
 	private class SampleModule : Module(
 		name = "Sample",

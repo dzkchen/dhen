@@ -7,7 +7,6 @@ import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
-import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
@@ -17,6 +16,8 @@ import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
+import io.github.dzkchen.dhen.util.ClientThreadDispatcher
+import io.github.dzkchen.dhen.util.Failsafe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,35 +39,46 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
-import java.nio.file.Path
+import kotlin.coroutines.EmptyCoroutineContext
 
 object Dhen : ClientModInitializer {
 	const val MOD_ID: String = "dhen"
 
 	private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
-	val modules: ModuleManager = ModuleManager()
+	private val clientThread = ClientThreadDispatcher()
+
+	val modules: ModuleManager = ModuleManager(clientDispatcher = clientThread)
 	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-	private lateinit var commands: CommandRegistry<FabricClientCommandSource>
-	private lateinit var themes: ThemeRuntime
-	private lateinit var configRoot: Path
+	private val failsafe = Failsafe()
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
 	private lateinit var clickGuiView: ClickGuiState
-	private var hudEditorRequested = false
 
 	override fun onInitializeClient() {
-		configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
+		failsafe.guard("initialization", ::initialize)
+		if (failsafe.failed) clientThread.shutdown()
+	}
+
+	private fun initialize() {
+		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = ConfigStore(configRoot.resolve("core.json"), configScope, CorePersistence.migrations)
 		moduleStore = ConfigStore(configRoot.resolve("modules.json"), configScope, ModulePersistence.migrations)
 		clickGuiView = CorePersistence.apply(coreStore.load())
-		themes = ThemeRuntime(configRoot, configScope, modules.clientDispatcher, ::persistCore, ::announce) {
+		val themes = ThemeRuntime(configRoot, configScope, clientThread, ::persistCore, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
-		commands = CommandRegistry(modules, ::openHudEditor, ::persistCore, ::resetHudLayout, themes) { source, message ->
+		val commands = CommandRegistry<FabricClientCommandSource>(
+			modules,
+			openHudEditor = ::openHudEditor,
+			persistCore = ::persistCore,
+			resetHudLayout = ::resetHudLayout,
+			themes = themes,
+			available = { !failsafe.failed }
+		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
@@ -90,13 +102,15 @@ object Dhen : ClientModInitializer {
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
-		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ -> commands.install(dispatcher) }
+		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
+			failsafe.guard("command registration") { commands.install(dispatcher) }
+		}
 		HudElementRegistry.attachElementAfter(VanillaHudElements.SUBTITLES, id("hud")) { graphics, _ ->
-			hudRuntime.render(graphics, Minecraft.getInstance().font)
+			failsafe.guard("HUD render") { hudRuntime.render(graphics, Minecraft.getInstance().font) }
 		}
 		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
 			id("text_measurements"),
-			ResourceManagerReloadListener { invalidateTextMeasurements() }
+			ResourceManagerReloadListener { failsafe.guard("resource reload") { invalidateTextMeasurements() } }
 		)
 
 		val openGuiKey = KeyMappingHelper.registerKeyMapping(
@@ -108,26 +122,25 @@ object Dhen : ClientModInitializer {
 			)
 		)
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
-			modules.clientDispatcher.drainQueue()
-			val options = client.options
-			if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
-				invalidateTextMeasurements()
-			}
-			if (!ownsKeyboard(client.gui.screen())) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
-			if (openGuiKey.consumeClick() && client.level != null) client.gui.setScreen(clickGuiScreen())
-			if (hudEditorRequested) {
-				hudEditorRequested = false
-				client.gui.setScreen(HudEditorScreen(modules, ::persistModules))
-			}
+			if (failsafe.failed) clientThread.shutdown()
+			else failsafe.guard("client tick") { tick(client, openGuiKey) }
 		}
 		LOGGER.info("Dhen initialized")
 	}
 
-	private fun ownsKeyboard(screen: Screen?): Boolean =
-		screen is ClickGuiShellScreen || screen is HudEditorScreen
+	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
+		clientThread.drainQueue()
+		val options = client.options
+		if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
+			invalidateTextMeasurements()
+		}
+		if (client.gui.screen() == null) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
+		else inputRuntime.pause()
+		if (openGuiKey.consumeClick() && client.level != null) clickGuiScreen()?.let(client.gui::setScreen)
+	}
 
-	private fun openHudEditor() {
-		hudEditorRequested = true
+	private fun openHudEditor() = clientThread.dispatch(EmptyCoroutineContext) {
+		Minecraft.getInstance().gui.setScreen(HudEditorScreen(modules, ::persistModules))
 	}
 
 	private fun announce(message: String) {
@@ -153,14 +166,16 @@ object Dhen : ClientModInitializer {
 		coreStore.save(CorePersistence.snapshot(clickGuiView))
 	}
 
-	internal fun clickGuiScreen(parent: Screen? = null): Screen = ClickGuiShellScreen(
-		Category.entries.toList(),
-		modules,
-		clickGuiView,
-		persistCore = ::persistCore,
-		persistModules = ::persistModules,
-		parent = parent
-	)
+	internal fun clickGuiScreen(parent: Screen? = null): Screen? = failsafe.guard("click GUI open") {
+		ClickGuiShellScreen(
+			Category.entries.toList(),
+			modules,
+			clickGuiView,
+			persistCore = ::persistCore,
+			persistModules = ::persistModules,
+			parent = parent
+		)
+	}
 
 	fun id(path: String): Identifier
 		= Identifier.fromNamespaceAndPath(MOD_ID, path)

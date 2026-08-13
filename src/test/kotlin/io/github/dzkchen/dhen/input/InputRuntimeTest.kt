@@ -38,6 +38,32 @@ class InputRuntimeTest {
 		)
 	}
 
+	@Test
+	fun `a key held while polling is paused fires no press when polling resumes`() {
+		val bus = EventBus()
+		val runtime = InputRuntime(bus)
+		val source = FakeInputSource()
+		val keys = mutableListOf<Pair<Int, InputAction>>()
+		bus.subscribe<KeyInputEvent> { keys += it.key to it.action }
+
+		runtime.poll(source, 0L)
+		runtime.pause()
+		source.key = GLFW.GLFW_KEY_K
+		runtime.poll(source, 0L)
+
+		assertEquals(emptyList<Pair<Int, InputAction>>(), keys)
+
+		source.key = null
+		runtime.poll(source, 0L)
+		source.key = GLFW.GLFW_KEY_K
+		runtime.poll(source, 0L)
+
+		assertEquals(
+			listOf(GLFW.GLFW_KEY_K to InputAction.RELEASE, GLFW.GLFW_KEY_K to InputAction.PRESS),
+			keys
+		)
+	}
+
 	private class FakeInputSource(
 		var key: Int? = null,
 		var button: Int? = null

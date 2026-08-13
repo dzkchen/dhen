@@ -53,6 +53,19 @@ class ClientThreadDispatcherTest {
 	}
 
 	@Test
+	fun `shutdown discards queued tasks and drops later dispatches`() {
+		val dispatcher = ClientThreadDispatcher()
+		var runs = 0
+
+		dispatcher.dispatch(EmptyCoroutineContext) { runs++ }
+		dispatcher.shutdown()
+		dispatcher.dispatch(EmptyCoroutineContext) { runs++ }
+		dispatcher.drainQueue()
+
+		assertEquals(0, runs)
+	}
+
+	@Test
 	fun `tasks dispatched from another thread run on the draining thread`() {
 		val dispatcher = ClientThreadDispatcher()
 		val ranOn = AtomicReference<Thread>()
