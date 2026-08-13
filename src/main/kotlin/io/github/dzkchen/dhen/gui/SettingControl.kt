@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
-internal const val CONTROL_TEXT_INSET = 2
+private const val CONTROL_TEXT_INSET = 2
 internal const val PILL_MIN_WIDTH = 26
 private const val WIDGET_HEIGHT = 14
 private const val WIDGET_PAD = 3
@@ -42,20 +42,20 @@ private const val SLIDER_KNOB_RADIUS = 3
 private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
 private const val DROPDOWN_GLYPH = "⌄"
-internal const val PRINTABLE_MIN = 32
-internal const val PRINTABLE_MAX = 0xFFFF
-internal const val DELETE_CODE = 127
+private const val PRINTABLE_MIN = 32
+private const val PRINTABLE_MAX = 0xFFFF
+private const val DELETE_CODE = 127
 
 private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
 
-internal enum class ControlPress { NONE, CHANGED, TRACK, FOCUS, INVOKED }
+internal enum class ControlPress { CHANGED, TRACK, FOCUS, INVOKED }
 
 internal enum class ControlKey { IGNORED, CONSUMED, COMMITTED, CANCELLED }
 
 internal sealed class SettingControl(val setting: Setting<*>) {
 	abstract fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, height: Int, hovered: Boolean)
 
-	open fun press(localX: Int, width: Int): ControlPress = ControlPress.NONE
+	abstract fun press(localX: Int, width: Int): ControlPress
 
 	open fun drag(localX: Int, width: Int) = Unit
 
@@ -182,8 +182,7 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 internal abstract class EditableControl(setting: Setting<*>) : SettingControl(setting) {
 	protected var editing = false
 		private set
-	protected var draft = ""
-		private set
+	private var draft = ""
 
 	protected abstract val maxLength: Int
 	protected abstract fun committedText(): String
@@ -282,7 +281,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		return cachedHex
 	}
 
-	override fun accepts(codepoint: Int): Boolean = Character.digit(codepoint, 16) >= 0
+	override fun accepts(codepoint: Int): Boolean = isPrintable(codepoint) && Character.digit(codepoint, 16) >= 0
 
 	override fun commit(text: String): Boolean {
 		val parsed = parseColor(text, color.allowAlpha) ?: return false
@@ -370,7 +369,8 @@ internal class ActionControl(private val action: ActionSetting) : SettingControl
 		RoundedGui.pill(graphics, x, top, x + width, top + WIDGET_HEIGHT, if (hovered) DhenPalette.accent else DhenPalette.accentMuted)
 		val label = action.name
 		val labelTint = if (hovered) DhenPalette.accentForeground else DhenPalette.TEXT_PRIMARY
-		DhenType.text(graphics, font, label, x + (width - DhenType.width(font, label)) / 2, textTop(font, y, height), labelTint)
+		val labelLeft = x + ClickGuiShell.centeredLeft(width, DhenType.width(font, label))
+		DhenType.text(graphics, font, label, labelLeft, textTop(font, y, height), labelTint)
 	}
 
 	override fun press(localX: Int, width: Int): ControlPress {
@@ -418,7 +418,7 @@ private fun pillRow(
 }
 
 internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int) {
-	FlatGui.fill(graphics, x, top, x + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
+	SharpGui.fill(graphics, x, top, x + CARET_WIDTH, top + DhenType.lineHeight(font), DhenPalette.TEXT_PRIMARY)
 }
 
 internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
@@ -434,7 +434,7 @@ internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	else -> null
 }
 
-internal fun parseColor(text: String, allowAlpha: Boolean): Color? {
+private fun parseColor(text: String, allowAlpha: Boolean): Color? {
 	if (text.length != 6 && !(allowAlpha && text.length == 8)) return null
 	val red = text.substring(0, 2).toIntOrNull(16) ?: return null
 	val green = text.substring(2, 4).toIntOrNull(16) ?: return null
@@ -443,7 +443,7 @@ internal fun parseColor(text: String, allowAlpha: Boolean): Color? {
 	return Color.rgba(red, green, blue, alpha)
 }
 
-internal fun hex(color: Color, allowAlpha: Boolean): String {
+private fun hex(color: Color, allowAlpha: Boolean): String {
 	val body = "%02X%02X%02X".format(color.red, color.green, color.blue)
 	return if (allowAlpha) body + "%02X".format(color.alpha) else body
 }

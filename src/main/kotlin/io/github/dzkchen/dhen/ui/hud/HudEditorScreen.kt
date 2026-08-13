@@ -2,10 +2,10 @@ package io.github.dzkchen.dhen.ui.hud
 
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.gui.FlatGui
 import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.RoundedQuad
+import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -18,7 +18,7 @@ internal class HudEditorScreen(
 	manager: ModuleManager,
 	private val persist: () -> Unit
 ) : Screen(Component.literal("Dhen HUD Editor")) {
-	private val editor = HudEditor(HudEditor.targetsOf(manager), ::measure)
+	private val editor = HudEditor(manager, ::measure)
 	private var hovered: HudTarget? = null
 	private var labelled: HudTarget? = null
 	private var labelledScale = 0.0f
@@ -38,15 +38,9 @@ internal class HudEditorScreen(
 		drawGuides(graphics)
 		for (i in targets.indices) drawTarget(graphics, targets[i])
 		val step = bannerHeight() + BANNER_GAP
-		var top = BANNER_TOP
-		drawBanner(graphics, if (targets.isEmpty()) EMPTY_HINT else HINT, top)
-		if (targets.isNotEmpty()) {
-			top += step
-			drawBanner(graphics, MODIFIER_HINT, top)
-			top += step
-			drawBanner(graphics, ACTION_HINT, top)
-		}
-		if (editor.selected != null) drawBanner(graphics, label(), top + step)
+		val hints = if (targets.isEmpty()) EMPTY_HINTS else HINTS
+		for (i in hints.indices) drawBanner(graphics, hints[i], BANNER_TOP + i * step)
+		if (editor.selected != null) drawBanner(graphics, label(), BANNER_TOP + hints.size * step)
 	}
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
@@ -67,7 +61,7 @@ internal class HudEditorScreen(
 	}
 
 	override fun mouseReleased(event: MouseButtonEvent): Boolean {
-		if (!editor.dragging) return super.mouseReleased(event)
+		if (!editor.dragging || event.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseReleased(event)
 		if (editor.release()) persist()
 		return true
 	}
@@ -123,13 +117,13 @@ internal class HudEditorScreen(
 		if (!editor.dragging) return
 		val guideX = editor.guideX
 		if (guideX != HudEditor.NO_GUIDE) {
-			val left = guideX.coerceIn(0, maxOf(0, width - 1))
-			FlatGui.fill(graphics, left, 0, left + 1, height, DhenPalette.accent)
+			val left = HudLayout.clamp(guideX, GUIDE_THICKNESS, width)
+			SharpGui.fill(graphics, left, 0, left + GUIDE_THICKNESS, height, DhenPalette.accent)
 		}
 		val guideY = editor.guideY
 		if (guideY != HudEditor.NO_GUIDE) {
-			val top = guideY.coerceIn(0, maxOf(0, height - 1))
-			FlatGui.fill(graphics, 0, top, width, top + 1, DhenPalette.accent)
+			val top = HudLayout.clamp(guideY, GUIDE_THICKNESS, height)
+			SharpGui.fill(graphics, 0, top, width, top + GUIDE_THICKNESS, DhenPalette.accent)
 		}
 	}
 
@@ -188,15 +182,18 @@ internal class HudEditorScreen(
 
 	private companion object {
 		const val PLACEHOLDER_PAD = 2
+		const val GUIDE_THICKNESS = 1
 		const val OUTLINE_RADIUS = 3f
 		const val BANNER_PAD_X = 12
 		const val BANNER_PAD_Y = 4
 		const val BANNER_TOP = 8
 		const val BANNER_GAP = 4
 		const val NUDGE = 1
-		const val HINT = "Drag to move, scroll to scale, arrows to nudge"
-		const val MODIFIER_HINT = "Alt: no snap   Right-click: reset one"
-		const val ACTION_HINT = "Esc: close   Reset all: /dhen reset-all"
-		const val EMPTY_HINT = "No HUD elements are registered"
+		val HINTS = arrayOf(
+			"Drag to move, scroll to scale, arrows to nudge",
+			"Alt: no snap   Right-click: reset one",
+			"Esc: close   Reset all: /dhen reset-all"
+		)
+		val EMPTY_HINTS = arrayOf("No HUD elements are registered")
 	}
 }

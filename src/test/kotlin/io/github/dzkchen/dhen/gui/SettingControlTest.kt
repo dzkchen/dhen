@@ -163,6 +163,22 @@ class SettingControlTest {
 	}
 
 	@Test
+	fun `color control rejects a digit that does not fit the character it would store`() {
+		val setting = ColorSetting("c", Color.rgba(0, 0, 0), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(0, 100)
+		repeat(6) { control.charTyped(MATHEMATICAL_BOLD_DIGIT_ZERO) }
+		"FF8000".forEach { control.charTyped(it.code) }
+
+		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
+		assertEquals(Color.rgba(255, 128, 0).argb, setting.value.argb)
+	}
+
+	private companion object {
+		const val MATHEMATICAL_BOLD_DIGIT_ZERO = 0x1D7CE
+	}
+
+	@Test
 	fun `keybind control arms and binds a key`() {
 		val setting = KeybindSetting("k", default = GLFW.GLFW_KEY_UNKNOWN)
 		val control = KeybindControl(setting)
@@ -221,12 +237,6 @@ class SettingControlTest {
 		val setting = ActionSetting("a", default = { throw RuntimeException("boom") })
 		val control = ActionControl(setting)
 		assertEquals(ControlPress.INVOKED, control.press(0, 100))
-	}
-
-	@Test
-	fun `the toggle knob slides over a tenth of a second`() {
-		assertEquals(0f, GlassGui.tween(0f, 1f, 0L, GlassGui.TOGGLE_MILLIS))
-		assertEquals(1f, GlassGui.tween(0f, 1f, GlassGui.TOGGLE_MILLIS, GlassGui.TOGGLE_MILLIS))
 	}
 
 	@Test

@@ -82,7 +82,7 @@ internal object LoadingSplash {
 
 		val width = graphics.guiWidth()
 		val height = graphics.guiHeight()
-		FlatGui.fill(
+		SharpGui.fill(
 			graphics,
 			0,
 			0,
@@ -142,8 +142,8 @@ internal object LoadingSplash {
 	) {
 		if (opacity <= 0f) return
 		val bottom = top + height
-		FlatGui.fill(graphics, left, top, left + width, bottom, GlassGui.scaleAlpha(DhenPalette.SPLASH_TRACK, opacity))
-		FlatGui.fill(
+		SharpGui.fill(graphics, left, top, left + width, bottom, GlassGui.scaleAlpha(DhenPalette.SPLASH_TRACK, opacity))
+		SharpGui.fill(
 			graphics,
 			left,
 			top,

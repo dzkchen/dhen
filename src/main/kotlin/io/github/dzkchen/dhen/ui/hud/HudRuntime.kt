@@ -21,16 +21,8 @@ class HudRuntime(private val manager: ModuleManager) {
 				val scale = element.scale
 				val width = HudLayout.scaled(element.width(font), scale)
 				val height = HudLayout.scaled(element.height(font), scale)
-				val x = HudLayout.clamp(
-					HudLayout.place(element.anchor.horizontal, screenWidth, width, element.offsetX),
-					width,
-					screenWidth
-				)
-				val y = HudLayout.clamp(
-					HudLayout.place(element.anchor.vertical, screenHeight, height, element.offsetY),
-					height,
-					screenHeight
-				)
+				val x = HudLayout.placeOnScreen(element.anchor.horizontal, screenWidth, width, element.offsetX)
+				val y = HudLayout.placeOnScreen(element.anchor.vertical, screenHeight, height, element.offsetY)
 				if (element.background) {
 					drawPlate(graphics, x, y, width, height, scale, screenWidth, screenHeight)
 				}

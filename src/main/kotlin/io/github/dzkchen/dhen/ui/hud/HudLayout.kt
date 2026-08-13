@@ -20,4 +20,7 @@ object HudLayout {
 
 	fun clamp(position: Int, size: Int, screen: Int): Int =
 		position.coerceIn(0, maxOf(0, screen - size))
+
+	fun placeOnScreen(fraction: Float, screen: Int, size: Int, offset: Int): Int =
+		clamp(place(fraction, screen, size, offset), size, screen)
 }

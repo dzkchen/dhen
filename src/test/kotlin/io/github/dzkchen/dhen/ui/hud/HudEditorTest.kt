@@ -106,7 +106,7 @@ class HudEditorTest {
 		anchored.element.offsetY = 100
 		moving.element.offsetX = 500
 		moving.element.offsetY = 300
-		val editor = HudEditor(HudEditor.targetsOf(manager), metrics)
+		val editor = HudEditor(manager, metrics)
 		editor.layout(WIDTH, HEIGHT)
 
 		editor.press(500, 300)
@@ -349,11 +349,29 @@ class HudEditorTest {
 	}
 
 	@Test
+	fun `scrolling mid-drag is ignored so the grab point stays true to the size`() {
+		val module = OverlayModule()
+		val editor = editorFor(module, enabled = true)
+		editor.layout(WIDTH, HEIGHT)
+
+		editor.press(5, 3)
+		editor.drag(105, 53, snap = false)
+
+		assertFalse(editor.rescale(105, 53, 1.0))
+		assertEquals(HudElement.DEFAULT_SCALE, module.element.scale)
+
+		editor.release()
+		assertTrue(editor.rescale(105, 53, 1.0))
+		assertEquals(1.1f, module.element.scale)
+	}
+
+	@Test
 	fun `scrolling away from every element falls back to the selection`() {
 		val module = OverlayModule()
 		val editor = editorFor(module, enabled = true)
 		editor.layout(WIDTH, HEIGHT)
 		editor.press(5, 3)
+		editor.release()
 
 		assertTrue(editor.rescale(WIDTH - 1, HEIGHT - 1, 1.0))
 		assertEquals(1.1f, module.element.scale)
@@ -367,7 +385,7 @@ class HudEditorTest {
 		manager.registerAll(first, second)
 		manager.enable(first)
 		manager.enable(second)
-		val editor = HudEditor(HudEditor.targetsOf(manager), metrics)
+		val editor = HudEditor(manager, metrics)
 		editor.layout(WIDTH, HEIGHT)
 
 		editor.press(5, 3)
@@ -421,7 +439,7 @@ class HudEditorTest {
 		val manager = ModuleManager()
 		manager.register(module)
 		if (enabled) manager.enable(module)
-		return HudEditor(HudEditor.targetsOf(manager), metrics)
+		return HudEditor(manager, metrics)
 	}
 
 	private val metrics = HudMetrics { target ->

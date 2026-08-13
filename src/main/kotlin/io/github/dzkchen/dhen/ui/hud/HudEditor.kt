@@ -8,7 +8,9 @@ internal fun interface HudMetrics {
 	fun measure(target: HudTarget)
 }
 
-internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudMetrics) {
+internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics) {
+	val targets: List<HudTarget> = targetsOf(manager)
+
 	var selected: HudTarget? = null
 		private set
 
@@ -39,8 +41,8 @@ internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudM
 			val scale = target.element.scale
 			target.width = HudLayout.scaled(target.contentWidth, scale)
 			target.height = HudLayout.scaled(target.contentHeight, scale)
-			target.x = resolve(target.element.anchor.horizontal, screenWidth, target.width, target.element.offsetX)
-			target.y = resolve(target.element.anchor.vertical, screenHeight, target.height, target.element.offsetY)
+			target.x = HudLayout.placeOnScreen(target.element.anchor.horizontal, screenWidth, target.width, target.element.offsetX)
+			target.y = HudLayout.placeOnScreen(target.element.anchor.vertical, screenHeight, target.height, target.element.offsetY)
 		}
 	}
 
@@ -93,6 +95,7 @@ internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudM
 	}
 
 	fun rescale(x: Int, y: Int, scroll: Double): Boolean {
+		if (dragging) return false
 		scrolled += scroll
 		val steps = scrolled.toInt()
 		scrolled -= steps
@@ -181,9 +184,6 @@ internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudM
 		verticalSnap.clear()
 	}
 
-	private fun resolve(fraction: Float, screen: Int, size: Int, offset: Int): Int =
-		HudLayout.clamp(HudLayout.place(fraction, screen, size, offset), size, screen)
-
 	private fun quantize(scale: Float): Float = (scale * SCALE_PRECISION).roundToInt() / SCALE_PRECISION
 
 	private class SnapSolver {
@@ -223,7 +223,7 @@ internal class HudEditor(val targets: List<HudTarget>, private val metrics: HudM
 		private const val SNAP_LIMIT = 5
 		private const val EDGES = 2
 
-		fun targetsOf(manager: ModuleManager): List<HudTarget> {
+		private fun targetsOf(manager: ModuleManager): List<HudTarget> {
 			val targets = mutableListOf<HudTarget>()
 			for (module in manager.ordered) {
 				for (element in module.hudElements) targets += HudTarget(module, element)

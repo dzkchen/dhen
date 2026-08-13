@@ -14,7 +14,6 @@ class GlassGuiTest {
 	}
 
 	@Test
-	// The palette constant is the expectation; the inspection misreads the property read as the actual.
 	@Suppress("KotlinMisorderedAssertEqualsArguments")
 	fun `reduced effects resolve every surface to its opaque flat color`() {
 		Effects.reduced = true

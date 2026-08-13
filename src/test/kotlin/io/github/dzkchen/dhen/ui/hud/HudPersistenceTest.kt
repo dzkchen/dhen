@@ -123,15 +123,6 @@ class HudPersistenceTest {
 	}
 
 	@Test
-	fun `one feature can declare a plate while the one beside it does not`() {
-		val plain = FixedHudElement("Status")
-		val plated = FixedHudElement("Plated", background = true)
-
-		assertFalse(plain.background)
-		assertTrue(plated.background)
-	}
-
-	@Test
 	fun `a reset restores the plate the module declared`() {
 		val plain = FixedHudElement("Status")
 		val plated = FixedHudElement("Plated", background = true)

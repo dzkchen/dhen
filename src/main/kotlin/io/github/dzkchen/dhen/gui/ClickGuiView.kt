@@ -9,7 +9,7 @@ internal class ClickGuiState(val collapsed: MutableSet<String> = linkedSetOf()) 
 		if (!collapsed.remove(category)) collapsed.add(category)
 	}
 
-	fun isBodyHidden(category: String): Boolean = category in collapsed
+	fun isCollapsed(category: String): Boolean = category in collapsed
 }
 
 internal object ClickGuiView {

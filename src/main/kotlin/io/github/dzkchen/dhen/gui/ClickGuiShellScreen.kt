@@ -585,8 +585,8 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun drawHeaderRule(graphics: GuiGraphicsExtractor, left: Int, right: Int, bottom: Int, fill: Int) {
-		FlatGui.fill(graphics, left, bottom - COLUMN_RADIUS.toInt(), right, bottom, fill)
-		FlatGui.fill(graphics, left + HEADER_RULE_INSET, bottom - 1, right - HEADER_RULE_INSET, bottom, DhenPalette.accent)
+		SharpGui.fill(graphics, left, bottom - COLUMN_RADIUS.toInt(), right, bottom, fill)
+		SharpGui.fill(graphics, left + HEADER_RULE_INSET, bottom - 1, right - HEADER_RULE_INSET, bottom, DhenPalette.accent)
 	}
 
 	private fun drawSearch(graphics: GuiGraphicsExtractor) {
@@ -682,7 +682,7 @@ internal class ClickGuiShellScreen(
 			get() = ClickGuiShell.columnHeight(isCollapsed, HEADER_HEIGHT, BODY_PAD, visibleCount, ROW_HEIGHT, settingsHeightAt)
 
 		private val isCollapsed: Boolean
-			get() = view.isBodyHidden(category.name)
+			get() = view.isCollapsed(category.name)
 		private val maxScroll: Int
 			get() = naturalHeight.let { it - shownHeight(it) }
 
@@ -813,8 +813,8 @@ internal class ClickGuiShellScreen(
 			val hovered = pointerY in rowTop until rowBottom
 			val navigated = module === navFocus
 			val active = hovered || navigated
-			if (active) FlatGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, GlassGui.interactive())
-			if (module.enabled) FlatGui.fill(graphics, left + 1, rowTop, left + 1 + ROW_RAIL_WIDTH, rowBottom, DhenPalette.accent)
+			if (active) SharpGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, GlassGui.interactive())
+			if (module.enabled) SharpGui.fill(graphics, left + 1, rowTop, left + 1 + ROW_RAIL_WIDTH, rowBottom, DhenPalette.accent)
 			if (navigated) {
 				RoundedGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, FOCUS_RADIUS, RoundedGui.HAIRLINE, DhenPalette.accent)
 			}
@@ -851,7 +851,7 @@ internal class ClickGuiShellScreen(
 			mouseX: Int,
 			pointerY: Int
 		) {
-			FlatGui.fill(graphics, left + 1, top, left + COLUMN_WIDTH - 1, top + areaHeight, GlassGui.canvas())
+			SharpGui.fill(graphics, left + 1, top, left + COLUMN_WIDTH - 1, top + areaHeight, GlassGui.canvas())
 			val controlsLeft = left + CONTENT_PAD
 			val overControls = mouseX in controlsLeft until controlsLeft + CONTROLS_WIDTH
 			var y = top + SETTINGS_PAD

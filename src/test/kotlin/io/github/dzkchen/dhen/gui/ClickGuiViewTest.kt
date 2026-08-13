@@ -44,8 +44,8 @@ class ClickGuiViewTest {
 	fun `a category shows its rows until it is listed as collapsed`() {
 		val state = ClickGuiState(linkedSetOf("DEV"))
 
-		assertTrue(state.isBodyHidden("DEV"))
-		assertFalse(state.isBodyHidden("MISC"))
+		assertTrue(state.isCollapsed("DEV"))
+		assertFalse(state.isCollapsed("MISC"))
 	}
 
 	@Test

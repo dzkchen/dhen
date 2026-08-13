@@ -59,18 +59,14 @@ internal object GlassGui {
 
 	fun scrim(graphics: GuiGraphicsExtractor, width: Int, height: Int) {
 		if (Effects.reduced) return
-		FlatGui.fill(graphics, 0, 0, width, height, DhenPalette.GLASS_SCRIM)
+		SharpGui.fill(graphics, 0, 0, width, height, DhenPalette.GLASS_SCRIM)
 	}
 
 	fun veil(graphics: GuiGraphicsExtractor, width: Int, height: Int, progress: Float) {
 		if (Effects.reduced) return
-		tint(graphics, width, height, DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
-	}
-
-	private fun tint(graphics: GuiGraphicsExtractor, width: Int, height: Int, color: Int, factor: Float) {
-		val tinted = scaleAlpha(color, factor)
+		val tinted = scaleAlpha(DhenPalette.GLASS_VEIL, (SETTLED - progress) * VEIL_STRENGTH)
 		if (tinted ushr 24 == 0) return
-		FlatGui.fill(graphics, 0, 0, width, height, tinted)
+		SharpGui.fill(graphics, 0, 0, width, height, tinted)
 	}
 
 	fun entryProgress(openedAt: Long): Float = tweenSince(0f, SETTLED, openedAt, ENTRY_MILLIS)

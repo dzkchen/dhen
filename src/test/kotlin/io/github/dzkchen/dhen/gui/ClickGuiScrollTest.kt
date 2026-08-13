@@ -185,12 +185,25 @@ class ClickGuiScrollTest {
 		val field = scrolledTo(120)
 
 		field.refilter(maxScroll = 0)
-		// The order a search pass runs in: refilter, then focus the matched row.
 		field.refilter(maxScroll = 148)
 		field.reveal(spanStart = 12, extent = 13, window = 100, maxScroll = 148)
 
 		assertEquals(12, field.offset)
 		assertEquals(ClickGuiScroll.TOP, field.stashed)
+	}
+
+	@Test
+	fun `a reveal leaves the stash for the search to give back`() {
+		val field = scrolledTo(120)
+
+		field.refilter(maxScroll = 0)
+		field.refilter(maxScroll = 20)
+		field.reveal(spanStart = 0, extent = 13, window = 100, maxScroll = 20)
+
+		assertEquals(120, field.stashed)
+
+		field.refilter(maxScroll = 148)
+		assertEquals(120, field.offset)
 	}
 
 	@Test
@@ -205,10 +218,8 @@ class ClickGuiScrollTest {
 		assertEquals(ClickGuiScroll.TOP, field.stashed)
 	}
 
-	/** A state already parked at [offset], as a user scroll through that much content would leave it. */
 	private fun scrolledTo(offset: Int) = ScrollState().apply { scrollTo(offset, maxScroll = offset) }
 
-	/** A reveal against a 100px window already scrolled to [PARKED], so the window spans 40..139. */
 	private fun reveal(spanStart: Int, extent: Int): Int =
 		ClickGuiScroll.reveal(PARKED, spanStart, extent, window = 100, maxScroll = 148)
 

@@ -48,14 +48,12 @@ internal class ScrollState {
 	var stashed = ClickGuiScroll.TOP
 		private set
 
-	/** A query changed which rows are visible: stash what is about to be truncated away, and give back what a widening query makes room for again. */
 	fun refilter(maxScroll: Int) {
 		val next = ClickGuiScroll.stash(offset, stashed, maxScroll)
 		offset = ClickGuiScroll.restore(offset, stashed, maxScroll)
 		stashed = next
 	}
 
-	/** A direct user scroll — the user has overruled whatever the search was holding. */
 	fun scrollTo(target: Int, maxScroll: Int) {
 		offset = ClickGuiScroll.clampOffset(target, maxScroll)
 		stashed = ClickGuiScroll.TOP
@@ -65,9 +63,5 @@ internal class ScrollState {
 		offset = ClickGuiScroll.reveal(offset, spanStart, extent, window, maxScroll)
 	}
 
-	/** The content extent moved under a direct user action, so re-clamp and drop the stash. */
-	fun reclamp(maxScroll: Int) {
-		offset = ClickGuiScroll.clampOffset(offset, maxScroll)
-		stashed = ClickGuiScroll.TOP
-	}
+	fun reclamp(maxScroll: Int) = scrollTo(offset, maxScroll)
 }

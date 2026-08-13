@@ -2,7 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
-internal object FlatGui {
+internal object SharpGui {
 	fun fill(
 		graphics: GuiGraphicsExtractor,
 		left: Int,

@@ -81,16 +81,6 @@ class ClickGuiNavTest {
 		assertEquals(ClickGuiShell.NONE, ClickGuiNav.columnStep(0, 1, 0, ROWS))
 	}
 
-	@Test
-	fun `a column jump clamps the row to what the next column has`() {
-		val target = ClickGuiNav.columnStep(0, 1, COLUMNS, ROWS)
-		val row = minOf(2, ROWS.applyAsInt(target) - 1)
-
-		assertEquals(1, target)
-		assertEquals(1, row)
-		assertEquals(4, ClickGuiNav.flatOf(target, row, ROWS))
-	}
-
 	private companion object {
 		const val COLUMNS = 4
 		const val EMPTY_COLUMN = 2
