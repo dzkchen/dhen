@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.io.File
 import java.lang.reflect.Modifier
 import java.util.Locale
 import kotlin.reflect.KVisibility
@@ -159,9 +158,9 @@ class DhenThemeTest {
 
 	@Test
 	fun `no color literal lives outside the token table`() {
-		val scanned = SourceScan.files(SOURCE_ROOT, SOURCES)
-		assertTrue(scanned.any { it.name == TOKENS }) { "scan missed the sources at ${SOURCE_ROOT.absolutePath}" }
-		assertTrue(scanned.any { it.extension == "java" }) { "scan missed the mixins at ${SOURCE_ROOT.absolutePath}" }
+		val scanned = SourceScan.files()
+		assertTrue(scanned.any { it.name == TOKENS }) { "scan missed the sources at ${SourceScan.MAIN.absolutePath}" }
+		assertTrue(scanned.any { it.extension == "java" }) { "scan missed the mixins at ${SourceScan.MAIN.absolutePath}" }
 
 		val offenders = SourceScan.offenders(scanned, TOKENS, ARGB)
 
@@ -177,8 +176,6 @@ class DhenThemeTest {
 		const val PROBE_ID = "probe"
 		val DERIVED = setOf("accentMuted", "accentForeground")
 		val TEAL = 0xFF55D6C2u.toInt()
-		val SOURCE_ROOT = File("src/main")
-		val SOURCES = setOf("kt", "java")
 		val ARGB = Regex("""0[xX][0-9A-Fa-f]{8}""")
 	}
 }

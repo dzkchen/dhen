@@ -152,8 +152,9 @@ internal class ClickGuiShellScreen(
 		for (i in prefCards.indices) {
 			val card = prefCards[i]
 			if (top >= bottom) break
-			if (top + card.height > FIELD_TOP) card.draw(graphics, font, left, top, bottom, mouseX, mouseY)
-			top += card.height + SECTION_GAP
+			val cardHeight = card.height
+			if (top + cardHeight > FIELD_TOP) card.draw(graphics, font, left, top, bottom, mouseX, mouseY)
+			top += cardHeight + SECTION_GAP
 		}
 		if (!clipped) return
 		graphics.disableScissor()
@@ -200,7 +201,7 @@ internal class ClickGuiShellScreen(
 			val result = armed.captureMouse(button)
 			if (result != ControlKey.IGNORED) {
 				focused = null
-				if (result == ControlKey.COMMITTED) persistArmed(armed)
+				commitOrReflow(armed, result == ControlKey.COMMITTED)
 				return true
 			}
 		}
@@ -254,7 +255,7 @@ internal class ClickGuiShellScreen(
 				if (result != ControlKey.CONSUMED) {
 					focused = null
 					swallowCharKey = event.key()
-					if (result == ControlKey.COMMITTED) persistArmed(control)
+					commitOrReflow(control, result == ControlKey.COMMITTED)
 				}
 				return true
 			}
@@ -290,7 +291,11 @@ internal class ClickGuiShellScreen(
 
 	override fun charTyped(event: CharacterEvent): Boolean {
 		val codepoint = event.codepoint()
-		if (liveFocus?.charTyped(codepoint) == true) return true
+		val armed = liveFocus
+		if (armed != null && armed.charTyped(codepoint)) {
+			reflowQuarantined(armed)
+			return true
+		}
 		if (swallowCharKey != GLFW.GLFW_KEY_UNKNOWN) return true
 		if (activeTab != FEATURES_TAB || !isPrintable(codepoint)) return super.charTyped(event)
 		if (query.length < SEARCH_MAX_LENGTH) {
@@ -358,6 +363,10 @@ internal class ClickGuiShellScreen(
 	private fun reflowQuarantined(control: SettingControl) {
 		if (!control.failed) return
 		if (control.clientOwned) prefs.reclamp() else reflowAll()
+	}
+
+	private fun commitOrReflow(control: SettingControl, committed: Boolean) {
+		if (committed) persistArmed(control) else reflowQuarantined(control)
 	}
 
 	private fun pressControl(
@@ -538,7 +547,7 @@ internal class ClickGuiShellScreen(
 	private fun blurFocus() {
 		val control = focused ?: return
 		focused = null
-		if (control.blur()) persistArmed(control) else reflowQuarantined(control)
+		commitOrReflow(control, control.blur())
 	}
 
 	private val liveFocus: SettingControl?
@@ -625,23 +634,24 @@ internal class ClickGuiShellScreen(
 		val count: Int
 			get() = controls.renderableCount()
 		val height: Int
-			get() {
-				val shown = count
-				return HEADER_HEIGHT + 2 * SECTION_PAD + if (shown == 0) EMPTY_SECTION_HEIGHT else shown * CONTROL_ROW_HEIGHT
-			}
+			get() = heightOf(count)
 
 		fun control(row: Int): SettingControl? = controls.renderableAt(row)
 
+		private fun heightOf(shown: Int): Int =
+			HEADER_HEIGHT + 2 * SECTION_PAD + if (shown == 0) EMPTY_SECTION_HEIGHT else shown * CONTROL_ROW_HEIGHT
+
 		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
+			val shown = count
 			val right = left + PANEL_WIDTH
 			val headerBottom = top + HEADER_HEIGHT
 			val fill = GlassGui.raised()
-			GlassGui.roundedFrame(graphics, left, top, right, top + height, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+			GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(shown), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
 			drawHeaderBand(graphics, font, left, right, top, title, fill)
 			drawHeaderRule(graphics, left, right, headerBottom, fill)
 			val contentLeft = left + CONTENT_PAD
 			var y = headerBottom + SECTION_PAD
-			if (count == 0) {
+			if (shown == 0) {
 				DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, y, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 				return
 			}

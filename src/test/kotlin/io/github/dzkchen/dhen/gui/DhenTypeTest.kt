@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.io.File
 
 class DhenTypeTest {
 	@AfterEach
@@ -114,6 +113,17 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `a character built from two code units is dropped whole rather than halved`() {
+		val kept = elide("a${ROCKET}bc", 35, fromEnd = false, measure = ::tenPerCharacter)
+		val tail = elide("ab${ROCKET}c", 35, fromEnd = true, measure = ::tenPerCharacter)
+
+		assertEquals("a…", kept)
+		assertEquals("…c", tail)
+		assertTrue(kept.none { it.isSurrogate() })
+		assertTrue(tail.none { it.isSurrogate() })
+	}
+
+	@Test
 	fun `room for nothing but the ellipsis draws the ellipsis, and less draws nothing`() {
 		assertEquals("…", elide(FITTING, 10, fromEnd = false, measure = ::tenPerCharacter))
 		assertEquals("", elide(FITTING, 5, fromEnd = false, measure = ::tenPerCharacter))
@@ -124,8 +134,9 @@ class DhenTypeTest {
 
 	@Test
 	fun `no dhen surface draws or measures text outside the seam`() {
-		val scanned = SourceScan.files(SOURCE_ROOT, SOURCES)
-		assertTrue(scanned.any { it.name == SEAM }) { "scan missed the sources at ${SOURCE_ROOT.absolutePath}" }
+		val scanned = SourceScan.files()
+		assertTrue(scanned.any { it.name == SEAM }) { "scan missed the sources at ${SourceScan.MAIN.absolutePath}" }
+		assertTrue(scanned.any { it.extension == "java" }) { "scan missed the mixins at ${SourceScan.MAIN.absolutePath}" }
 
 		val offenders = SourceScan.offenders(scanned, SEAM, RAW_TEXT)
 
@@ -181,13 +192,12 @@ class DhenTypeTest {
 
 	private companion object {
 		const val FITTING = "abcdef"
+		const val ROCKET = "🚀"
 		const val SEAM = "DhenType.kt"
 		const val DEFINITION = "assets/dhen/font/inter.json"
 		const val FACE = "inter.ttf"
 		const val MINIMUM_FACE_BYTES = 1024
 		val TRUETYPE_TAG = byteArrayOf(0x00, 0x01, 0x00, 0x00)
-		val SOURCE_ROOT = File("src/main/kotlin")
-		val SOURCES = setOf("kt")
 		val RAW_TEXT = Regex("""graphics\.text\(|font\.width\(|font\.lineHeight""")
 	}
 }

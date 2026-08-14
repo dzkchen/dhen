@@ -3,7 +3,11 @@ package io.github.dzkchen.dhen.gui
 import java.io.File
 
 internal object SourceScan {
-	fun files(root: File, extensions: Set<String>): List<File> =
+	val MAIN = File("src/main")
+
+	private val EXTENSIONS = setOf("kt", "java")
+
+	fun files(root: File = MAIN, extensions: Set<String> = EXTENSIONS): List<File> =
 		root.walkTopDown().filter { it.isFile && it.extension in extensions }.toList()
 
 	fun offenders(files: List<File>, exempt: String, pattern: Regex): List<String> =

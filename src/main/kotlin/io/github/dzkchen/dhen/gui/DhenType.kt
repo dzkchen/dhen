@@ -16,13 +16,15 @@ internal inline fun elide(text: String, maxWidth: Int, fromEnd: Boolean, measure
 	if (measure(text) <= maxWidth) return text
 	val room = maxWidth - measure(ELLIPSIS)
 	if (room < 0) return ""
-	var kept = text.length - 1
-	while (kept > 0) {
-		val part = if (fromEnd) text.substring(text.length - kept) else text.substring(0, kept)
+	val step = if (fromEnd) 1 else -1
+	val exhausted = if (fromEnd) text.length else 0
+	var cut = if (fromEnd) 0 else text.length
+	while (true) {
+		cut = text.offsetByCodePoints(cut, step)
+		if (cut == exhausted) return ELLIPSIS
+		val part = if (fromEnd) text.substring(cut) else text.substring(0, cut)
 		if (measure(part) <= room) return if (fromEnd) ELLIPSIS + part else part + ELLIPSIS
-		kept--
 	}
-	return ELLIPSIS
 }
 
 internal object DhenType {
