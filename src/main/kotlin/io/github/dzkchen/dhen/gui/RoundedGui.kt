@@ -8,7 +8,6 @@ import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.TextureSetup
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
-import org.joml.Matrix3x2f
 import org.joml.Matrix3x2fc
 
 internal object RoundedGui {
@@ -18,8 +17,6 @@ internal object RoundedGui {
 		.withFragmentShader(Dhen.id("core/${RoundedQuad.SHADER}"))
 		.withVertexBinding(0, RoundedQuad.FORMAT)
 		.build()
-
-	private val UNTRANSFORMED_POSE: Matrix3x2fc = Matrix3x2f()
 
 	const val HAIRLINE = 1f
 	private const val OPAQUE = 0xFF
@@ -116,12 +113,9 @@ internal object RoundedGui {
 	) {
 		if (left >= right || top >= bottom || color ushr 24 == 0) return
 		graphics.guiRenderState.addGuiElement(
-			Element(pose(graphics.pose()), left, top, right, bottom, radius, border, color, graphics.scissorStack.peek())
+			Element(GuiPose.of(graphics.pose()), left, top, right, bottom, radius, border, color, graphics.scissorStack.peek())
 		)
 	}
-
-	private fun pose(stack: Matrix3x2fc): Matrix3x2fc =
-		if (RoundedQuad.isUntransformed(stack)) UNTRANSFORMED_POSE else Matrix3x2f(stack)
 
 	private class Element(
 		private val pose: Matrix3x2fc,
@@ -171,15 +165,15 @@ internal object RoundedGui {
 				.setColor(color)
 		}
 
-		private fun paddedBounds(left: Int, top: Int, right: Int, bottom: Int): ScreenRectangle? {
-			val quad = ScreenRectangle(
+		private fun paddedBounds(left: Int, top: Int, right: Int, bottom: Int): ScreenRectangle? = GuiPose.clip(
+			ScreenRectangle(
 				left - RoundedQuad.PADDING,
 				top - RoundedQuad.PADDING,
 				right - left + 2 * RoundedQuad.PADDING,
 				bottom - top + 2 * RoundedQuad.PADDING
-			)
-			val padded = if (pose === UNTRANSFORMED_POSE) quad else quad.transformMaxBounds(pose)
-			return if (scissor == null) padded else scissor.intersection(padded)
-		}
+			),
+			pose,
+			scissor
+		)
 	}
 }
