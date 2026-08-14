@@ -23,6 +23,8 @@ internal class ScrollingStack(
 
 	fun originOf(index: Int): Int = ClickGuiShell.spanOrigin(start, index, extentAt, gap, state.offset)
 
+	fun localOf(position: Int): Int = ClickGuiShell.spanLocal(start, position, state.offset)
+
 	fun slotAt(position: Int): Int =
 		ClickGuiShell.spanAt(ClickGuiShell.spanLocal(start, position, state.offset), count.asInt, extentAt, gap)
 

@@ -3,8 +3,15 @@ package io.github.dzkchen.dhen.gui
 import java.util.function.IntUnaryOperator
 
 internal object ClickGuiRows {
-	fun bodyHeight(rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
-		rowTop(rowCount, rowHeight, settingsHeightAt)
+	fun rowTops(rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator, tops: IntArray): Int {
+		var offset = 0
+		for (i in 0 until rowCount) {
+			tops[i] = offset
+			offset += rowHeight + settingsHeightAt.applyAsInt(i)
+		}
+		tops[rowCount] = offset
+		return offset
+	}
 
 	fun rowTop(rowIndex: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int {
 		var offset = 0
@@ -15,33 +22,27 @@ internal object ClickGuiRows {
 	fun settingsTop(rowIndex: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
 		rowTop(rowIndex, rowHeight, settingsHeightAt) + rowHeight
 
-	fun settingsRowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int? {
-		if (localY < 0) return null
-		var offset = 0
-		for (i in 0 until rowCount) {
-			if (localY < offset + rowHeight) return null
-			offset += rowHeight
-			val settingsHeight = settingsHeightAt.applyAsInt(i)
-			if (settingsHeight > 0) {
-				if (localY < offset + settingsHeight) return i
-				offset += settingsHeight
-			}
-		}
-		return null
-	}
+	fun rowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
+		bandAt(localY, rowCount, rowHeight, settingsHeightAt, settings = false)
 
-	fun rowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int? {
-		if (localY < 0) return null
+	fun settingsRowAt(localY: Int, rowCount: Int, rowHeight: Int, settingsHeightAt: IntUnaryOperator): Int =
+		bandAt(localY, rowCount, rowHeight, settingsHeightAt, settings = true)
+
+	private fun bandAt(
+		localY: Int,
+		rowCount: Int,
+		rowHeight: Int,
+		settingsHeightAt: IntUnaryOperator,
+		settings: Boolean
+	): Int {
+		if (localY < 0) return ClickGuiShell.NONE
 		var offset = 0
 		for (i in 0 until rowCount) {
-			if (localY < offset + rowHeight) return i
 			offset += rowHeight
-			val settingsHeight = settingsHeightAt.applyAsInt(i)
-			if (settingsHeight > 0) {
-				if (localY < offset + settingsHeight) return null
-				offset += settingsHeight
-			}
+			if (localY < offset) return if (settings) ClickGuiShell.NONE else i
+			offset += settingsHeightAt.applyAsInt(i)
+			if (localY < offset) return if (settings) i else ClickGuiShell.NONE
 		}
-		return null
+		return ClickGuiShell.NONE
 	}
 }

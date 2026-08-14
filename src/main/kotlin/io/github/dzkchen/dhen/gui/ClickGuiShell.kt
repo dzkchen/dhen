@@ -5,18 +5,6 @@ import java.util.function.IntUnaryOperator
 internal object ClickGuiShell {
 	const val NONE = -1
 
-	fun columnHeight(
-		collapsed: Boolean,
-		headerHeight: Int,
-		bodyPad: Int,
-		rowCount: Int,
-		rowHeight: Int,
-		settingsHeightAt: IntUnaryOperator
-	): Int {
-		if (collapsed) return headerHeight
-		return headerHeight + bodyPad + ClickGuiRows.bodyHeight(rowCount, rowHeight, settingsHeightAt)
-	}
-
 	fun clampedColumnHeight(naturalHeight: Int, headerHeight: Int, available: Int): Int =
 		minOf(naturalHeight, maxOf(headerHeight, available))
 
@@ -44,12 +32,6 @@ internal object ClickGuiShell {
 			if (local < offset) return NONE
 		}
 		return NONE
-	}
-
-	fun sectionRowAt(localY: Int, bodyTop: Int, rowCount: Int, rowHeight: Int): Int {
-		if (localY < bodyTop) return NONE
-		val row = (localY - bodyTop) / rowHeight
-		return if (row < rowCount) row else NONE
 	}
 
 	fun tooltipLeft(

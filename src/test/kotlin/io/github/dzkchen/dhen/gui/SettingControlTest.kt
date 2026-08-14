@@ -25,7 +25,7 @@ class SettingControlTest {
 	fun `controlFor maps every setting type to its control`() {
 		assertInstanceOf(ToggleControl::class.java, controlFor(BooleanSetting("b")))
 		assertInstanceOf(SliderControl::class.java, controlFor(NumberSetting("n", 0.0, 0.0, 10.0)))
-		assertInstanceOf(DropdownControl::class.java, controlFor(SelectorSetting("s", "A", listOf("A", "B"))))
+		assertInstanceOf(CycleControl::class.java, controlFor(SelectorSetting("s", "A", listOf("A", "B"))))
 		assertInstanceOf(TextControl::class.java, controlFor(StringSetting("s")))
 		assertInstanceOf(ColorControl::class.java, controlFor(ColorSetting("c", Color.rgba(0, 0, 0))))
 		assertInstanceOf(KeybindControl::class.java, controlFor(KeybindSetting("k")))
@@ -36,29 +36,124 @@ class SettingControlTest {
 	fun `toggle press flips the boolean and reports a change`() {
 		val setting = BooleanSetting("b", default = false)
 		val control = ToggleControl(setting)
-		assertEquals(ControlPress.CHANGED, control.press(0, 100))
+		assertEquals(ControlPress.CHANGED, control.press(0, 0, 100))
 		assertTrue(setting.value)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertFalse(setting.value)
 	}
 
 	@Test
-	fun `dropdown press cycles forward and wraps`() {
+	fun `cycle press moves forward and wraps`() {
 		val setting = SelectorSetting("s", default = "A", options = listOf("A", "B", "C"))
-		val control = DropdownControl(setting)
-		assertEquals(ControlPress.CHANGED, control.press(0, 100))
+		val control = CycleControl(setting)
+		assertEquals(ControlPress.CHANGED, control.press(0, 0, 100))
 		assertEquals("B", setting.value)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertEquals("C", setting.value)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertEquals("A", setting.value)
+	}
+
+	@Test
+	fun `option count alone decides between cycling and a list`() {
+		for (count in 1..4) {
+			val setting = SelectorSetting("s", "A", OPTIONS.take(count))
+			val control = controlFor(setting)
+			if (count < 3) assertInstanceOf(CycleControl::class.java, control)
+			else assertInstanceOf(DropdownControl::class.java, control)
+		}
+	}
+
+	@Test
+	fun `a dropdown opens on the pill, grows, picks the row clicked, and closes`() {
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val control = DropdownControl(setting)
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+
+		assertEquals(ControlPress.RESIZED, control.press(0, 0, 100))
+		assertTrue(control.expanded)
+		val listed = control.height
+		assertTrue(listed > CONTROL_ROW_HEIGHT) { "an open list must make its control taller" }
+
+		assertEquals(ControlPress.CHANGED, control.press(0, (CONTROL_ROW_HEIGHT + listed) / 2, 100))
+		assertEquals("B", setting.value)
+		assertFalse(control.expanded)
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+	}
+
+	@Test
+	fun `a dropdown closes on a second press of its pill without changing the value`() {
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val control = DropdownControl(setting)
+		control.press(0, 0, 100)
+
+		assertEquals(ControlPress.RESIZED, control.press(0, CONTROL_ROW_HEIGHT - 1, 100))
+		assertFalse(control.expanded)
+		assertEquals("A", setting.value)
+	}
+
+	@Test
+	fun `collapsing an open dropdown reports the change once`() {
+		val control = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		assertFalse(control.collapse())
+
+		control.press(0, 0, 100)
+		assertTrue(control.collapse())
+		assertFalse(control.collapse())
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+	}
+
+	@Test
+	fun `a control body stacks its controls by their own heights`() {
+		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		val body = ControlBody(listOf(ToggleControl(BooleanSetting("b")), listed, ToggleControl(BooleanSetting("c"))))
+		assertEquals(3 * CONTROL_ROW_HEIGHT, body.height)
+
+		listed.press(0, 0, 100)
+		val grown = listed.height
+		assertEquals(2 * CONTROL_ROW_HEIGHT + grown, body.height)
+		assertEquals(CONTROL_ROW_HEIGHT, body.topOf(1))
+		assertEquals(CONTROL_ROW_HEIGHT + grown, body.topOf(2))
+	}
+
+	@Test
+	fun `a click under an open list still lands on the control it looks like it hits`() {
+		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		val below = ToggleControl(BooleanSetting("b"))
+		val body = ControlBody(listOf(listed, below))
+		listed.press(0, 0, 100)
+		val grown = listed.height
+
+		assertEquals(0, body.indexAt(grown - 1))
+		assertEquals(1, body.indexAt(grown))
+		assertEquals(below, body.at(body.indexAt(grown + CONTROL_ROW_HEIGHT - 1)))
+		assertEquals(ClickGuiShell.NONE, body.indexAt(grown + CONTROL_ROW_HEIGHT))
+		assertEquals(ClickGuiShell.NONE, body.indexAt(-1))
+	}
+
+	@Test
+	fun `a hidden control takes no room and no clicks`() {
+		val gate = BooleanSetting("gate", default = false)
+		val body = ControlBody(
+			listOf(
+				controlFor(BooleanSetting("shown"))!!,
+				controlFor(BooleanSetting("gated").withDependency { gate.on })!!
+			)
+		)
+
+		assertEquals(CONTROL_ROW_HEIGHT, body.height)
+		assertEquals(ClickGuiShell.NONE, body.indexAt(CONTROL_ROW_HEIGHT))
+
+		gate.value = true
+		assertEquals(2 * CONTROL_ROW_HEIGHT, body.height)
+		assertEquals(1, body.indexAt(CONTROL_ROW_HEIGHT))
 	}
 
 	@Test
 	fun `slider press and drag set the value from mouse position and track drag`() {
 		val setting = NumberSetting("n", default = 0.0, min = 0.0, max = 10.0, step = 1.0)
 		val control = SliderControl(setting)
-		assertEquals(ControlPress.TRACK, control.press(50, 100))
+		assertEquals(ControlPress.TRACK, control.press(50, 0, 100))
 		assertEquals(5.0, setting.value)
 		control.drag(100, 100)
 		assertEquals(10.0, setting.value)
@@ -70,7 +165,7 @@ class SettingControlTest {
 	fun `slider maps mouse position onto the setting step`() {
 		val setting = NumberSetting("n", default = 0.0, min = 0.0, max = 100.0, step = 5.0)
 		val control = SliderControl(setting)
-		control.press(23, 100)
+		control.press(23, 0, 100)
 		assertEquals(25.0, setting.value)
 	}
 
@@ -88,7 +183,7 @@ class SettingControlTest {
 	fun `text control focuses, edits, and commits on enter`() {
 		val setting = StringSetting("s", default = "ab", maxLength = 5)
 		val control = TextControl(setting)
-		assertEquals(ControlPress.FOCUS, control.press(0, 100))
+		assertEquals(ControlPress.FOCUS, control.press(0, 0, 100))
 		control.charTyped('c'.code)
 		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
 		assertEquals("abc", setting.value)
@@ -98,7 +193,7 @@ class SettingControlTest {
 	fun `text control respects maxLength and backspace`() {
 		val setting = StringSetting("s", default = "", maxLength = 3)
 		val control = TextControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		"abcd".forEach { control.charTyped(it.code) }
 		control.keyPressed(GLFW.GLFW_KEY_BACKSPACE, 0)
 		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
@@ -109,7 +204,7 @@ class SettingControlTest {
 	fun `text control escape cancels without committing`() {
 		val setting = StringSetting("s", default = "keep", maxLength = 10)
 		val control = TextControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		control.charTyped('x'.code)
 		assertEquals(ControlKey.CANCELLED, control.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0))
 		assertEquals("keep", setting.value)
@@ -119,7 +214,7 @@ class SettingControlTest {
 	fun `text control commits pending edit on blur`() {
 		val setting = StringSetting("s", default = "a", maxLength = 10)
 		val control = TextControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		control.charTyped('b'.code)
 		assertTrue(control.blur())
 		assertEquals("ab", setting.value)
@@ -129,7 +224,7 @@ class SettingControlTest {
 	fun `color control parses six-digit hex on commit`() {
 		val setting = ColorSetting("c", Color.rgba(0, 0, 0), allowAlpha = false)
 		val control = ColorControl(setting)
-		assertEquals(ControlPress.FOCUS, control.press(0, 100))
+		assertEquals(ControlPress.FOCUS, control.press(0, 0, 100))
 		"FF8000".forEach { control.charTyped(it.code) }
 		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
 		assertEquals(Color.rgba(255, 128, 0).argb, setting.value.argb)
@@ -139,7 +234,7 @@ class SettingControlTest {
 	fun `color control honors allowAlpha with eight digits`() {
 		val setting = ColorSetting("c", Color.rgba(0, 0, 0, 255), allowAlpha = true)
 		val control = ColorControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		"112233AA".forEach { control.charTyped(it.code) }
 		control.keyPressed(GLFW.GLFW_KEY_ENTER, 0)
 		assertEquals(Color.rgba(0x11, 0x22, 0x33, 0xAA).argb, setting.value.argb)
@@ -149,7 +244,7 @@ class SettingControlTest {
 	fun `color control forces opaque when alpha is disallowed`() {
 		val setting = ColorSetting("c", Color.rgba(0, 0, 0), allowAlpha = false)
 		val control = ColorControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		"abcdef".forEach { control.charTyped(it.code) }
 		control.keyPressed(GLFW.GLFW_KEY_ENTER, 0)
 		assertEquals(0xFF, setting.value.alpha)
@@ -160,7 +255,7 @@ class SettingControlTest {
 		val setting = ColorSetting("c", Color.rgba(10, 20, 30), allowAlpha = false)
 		val control = ColorControl(setting)
 		val before = setting.value.argb
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		"GG".forEach { control.charTyped(it.code) }
 		"12".forEach { control.charTyped(it.code) }
 		assertEquals(ControlKey.CANCELLED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
@@ -171,7 +266,7 @@ class SettingControlTest {
 	fun `color control rejects a digit that does not fit the character it would store`() {
 		val setting = ColorSetting("c", Color.rgba(0, 0, 0), allowAlpha = false)
 		val control = ColorControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		repeat(6) { control.charTyped(MATHEMATICAL_BOLD_DIGIT_ZERO) }
 		"FF8000".forEach { control.charTyped(it.code) }
 
@@ -184,13 +279,14 @@ class SettingControlTest {
 		const val GLYPH_WIDTH = 5
 		const val SWATCH_TRAILING = 12
 		const val GLYPH_TRAILING = 9
+		val OPTIONS = listOf("A", "B", "C")
 	}
 
 	@Test
 	fun `keybind control arms and binds a key`() {
 		val setting = KeybindSetting("k", default = GLFW.GLFW_KEY_UNKNOWN)
 		val control = KeybindControl(setting)
-		assertEquals(ControlPress.FOCUS, control.press(0, 100))
+		assertEquals(ControlPress.FOCUS, control.press(0, 0, 100))
 		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_J, 0))
 		assertEquals(GLFW.GLFW_KEY_J, setting.value)
 	}
@@ -199,7 +295,7 @@ class SettingControlTest {
 	fun `keybind control unbinds on escape`() {
 		val setting = KeybindSetting("k", default = GLFW.GLFW_KEY_J)
 		val control = KeybindControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0))
 		assertEquals(GLFW.GLFW_KEY_UNKNOWN, setting.value)
 	}
@@ -208,7 +304,7 @@ class SettingControlTest {
 	fun `keybind control captures any mouse button`() {
 		val setting = KeybindSetting("k")
 		val control = KeybindControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertEquals(ControlKey.COMMITTED, control.captureMouse(GLFW.GLFW_MOUSE_BUTTON_MIDDLE))
 		assertEquals(GLFW.GLFW_MOUSE_BUTTON_MIDDLE, setting.value)
 	}
@@ -217,7 +313,7 @@ class SettingControlTest {
 	fun `keybind control reports no change when the mouse button is unchanged`() {
 		val setting = KeybindSetting("k", default = GLFW.GLFW_MOUSE_BUTTON_1)
 		val control = KeybindControl(setting)
-		control.press(0, 100)
+		control.press(0, 0, 100)
 		assertEquals(ControlKey.CANCELLED, control.captureMouse(GLFW.GLFW_MOUSE_BUTTON_1))
 		assertEquals(GLFW.GLFW_MOUSE_BUTTON_1, setting.value)
 	}
@@ -236,7 +332,7 @@ class SettingControlTest {
 		var fired = false
 		val setting = ActionSetting("a", default = { fired = true })
 		val control = ActionControl(setting)
-		assertEquals(ControlPress.INVOKED, control.press(0, 100))
+		assertEquals(ControlPress.INVOKED, control.press(0, 0, 100))
 		assertTrue(fired)
 	}
 
@@ -267,7 +363,7 @@ class SettingControlTest {
 		val control = controlFor(setting)!!
 		control.renderable()
 
-		assertNull(control.press(0, 100))
+		assertNull(control.press(0, 0, 100))
 		assertFalse(setting.value)
 		assertEquals(ControlKey.IGNORED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
 		assertEquals(ControlKey.IGNORED, control.captureMouse(GLFW.GLFW_MOUSE_BUTTON_LEFT))
@@ -282,7 +378,7 @@ class SettingControlTest {
 		val module = owning(setting)
 		val control = controlFor(setting)!!
 
-		assertNull(control.press(0, 100))
+		assertNull(control.press(0, 0, 100))
 		assertTrue(control.failed)
 		assertEquals(1, module.errorCount)
 	}

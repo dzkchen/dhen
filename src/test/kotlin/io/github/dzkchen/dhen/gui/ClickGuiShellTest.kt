@@ -6,19 +6,6 @@ import java.util.function.IntUnaryOperator
 
 class ClickGuiShellTest {
 	@Test
-	fun `an expanded category is its header plus every row and settings area`() {
-		val heights = intArrayOf(30, 0, 42)
-
-		assertEquals(18 + 4 + 3 * 13 + 72, columnHeight(collapsed = false, rowCount = 3) { heights[it] })
-		assertEquals(18 + 4, columnHeight(collapsed = false, rowCount = 0) { 0 })
-	}
-
-	@Test
-	fun `a collapsed category is its header alone and never measures its rows`() {
-		assertEquals(18, columnHeight(collapsed = true, rowCount = 3) { error("collapsed columns must not measure rows") })
-	}
-
-	@Test
 	fun `a column taller than the viewport is cut to what the viewport can show`() {
 		assertEquals(200, ClickGuiShell.clampedColumnHeight(naturalHeight = 200, headerHeight = 18, available = 260))
 		assertEquals(260, ClickGuiShell.clampedColumnHeight(naturalHeight = 400, headerHeight = 18, available = 260))
@@ -54,21 +41,6 @@ class ClickGuiShellTest {
 		assertEquals(2, ClickGuiShell.spanAt(142, 3, SECTIONS, SECTION_GAP))
 		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(143, 3, SECTIONS, SECTION_GAP))
 		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(-1, 3, SECTIONS, SECTION_GAP))
-	}
-
-	@Test
-	fun `a section hit resolves to the control row it lands on`() {
-		assertEquals(0, ClickGuiShell.sectionRowAt(localY = 22, bodyTop = 22, rowCount = 2, rowHeight = 20))
-		assertEquals(0, ClickGuiShell.sectionRowAt(localY = 41, bodyTop = 22, rowCount = 2, rowHeight = 20))
-		assertEquals(1, ClickGuiShell.sectionRowAt(localY = 42, bodyTop = 22, rowCount = 2, rowHeight = 20))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 62, bodyTop = 22, rowCount = 2, rowHeight = 20))
-	}
-
-	@Test
-	fun `a hit on a section header or an empty section reaches no control`() {
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 0, bodyTop = 22, rowCount = 2, rowHeight = 20))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 21, bodyTop = 22, rowCount = 2, rowHeight = 20))
-		assertEquals(ClickGuiShell.NONE, ClickGuiShell.sectionRowAt(localY = 30, bodyTop = 22, rowCount = 0, rowHeight = 20))
 	}
 
 	@Test
@@ -163,9 +135,6 @@ class ClickGuiShellTest {
 
 	private fun tooltipLeft(columnLeft: Int, tooltipWidth: Int): Int =
 		ClickGuiShell.tooltipLeft(columnLeft, COLUMN_WIDTH, tooltipWidth, VIEWPORT_WIDTH, TOOLTIP_GAP, MARGIN)
-
-	private fun columnHeight(collapsed: Boolean, rowCount: Int, settingsHeightAt: IntUnaryOperator): Int =
-		ClickGuiShell.columnHeight(collapsed, headerHeight = 18, bodyPad = 4, rowCount = rowCount, rowHeight = 13, settingsHeightAt = settingsHeightAt)
 
 	private companion object {
 		const val COLUMN_WIDTH = 118

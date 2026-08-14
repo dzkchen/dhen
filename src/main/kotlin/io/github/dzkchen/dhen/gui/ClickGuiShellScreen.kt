@@ -51,10 +51,16 @@ internal class ClickGuiShellScreen(
 	private var dragLeft = 0
 	private var dragWidth = 0
 	private var focused: SettingControl? = null
+	private var overlay: SettingControl? = null
+	private var hitColumn: Column? = null
+	private var hitLeft = 0
+	private var hitTop = 0
+	private var hitWidth = 0
 	private var swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
 
 	override fun init() {
 		blurFocus()
+		collapseOverlay()
 		cancelDrag()
 		if (columns.isEmpty()) {
 			val byCategory = manager.categories
@@ -212,6 +218,12 @@ internal class ClickGuiShellScreen(
 		blurFocus()
 		val x = event.x().toInt()
 		val y = event.y().toInt()
+		val listed = overlay
+		if (listed != null) {
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && controlAt(x, y) === listed) pressHostControl(listed, x, y)
+			else collapseOverlay()
+			return true
+		}
 		val tab = tabAt(x, y)
 		if (tab != ClickGuiShell.NONE) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) switchTab(tab)
@@ -219,7 +231,8 @@ internal class ClickGuiShellScreen(
 		}
 		if (activeTab == FEATURES_TAB && searchContains(x, y)) return true
 		if (activeTab != FEATURES_TAB) {
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) pressPrefControl(x, y)
+			val control = prefControlAt(x, y)
+			if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) pressHostControl(control, x, y)
 			return true
 		}
 		val slot = columnSlotAt(x, y)
@@ -240,10 +253,8 @@ internal class ClickGuiShellScreen(
 			}
 			return true
 		}
-		val control = column.controlAt(contentX, y)
-		if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
-			pressRowControl(column, control, contentX)
-		}
+		val control = columnControlAt(column, x, y)
+		if (control != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) pressHostControl(control, x, y)
 		return true
 	}
 
@@ -261,6 +272,7 @@ internal class ClickGuiShellScreen(
 				return true
 			}
 		}
+		if (event.key() == GLFW.GLFW_KEY_ESCAPE && collapseOverlay()) return true
 		if (activeTab == FEATURES_TAB && clickGuiKey(event.key())) return true
 		return super.keyPressed(event)
 	}
@@ -353,60 +365,102 @@ internal class ClickGuiShellScreen(
 		chevronWidth = maxOf(DhenType.width(font, CHEVRON_COLLAPSED), DhenType.width(font, CHEVRON_EXPANDED))
 	}
 
-	private fun pressRowControl(column: Column, control: SettingControl, contentX: Int) {
-		val controlsLeft = column.contentLeft + CONTENT_PAD
-		val press = pressControl(control, contentX - controlsLeft, controlsLeft - columnField.offset, CONTROLS_WIDTH)
-		if (press == ControlPress.CHANGED) {
-			column.reclamp()
-			persistModules()
-		}
+	private fun pressHostControl(control: SettingControl, x: Int, y: Int) {
+		if (pressControl(control, x, y) != ControlPress.CHANGED) return
+		if (control.clientOwned) persistClient() else persistModules()
 	}
 
-	private fun pressPrefControl(x: Int, y: Int) {
-		val control = prefControlAt(x, y) ?: return
-		val controlsLeft = panelLeft() + CONTENT_PAD
-		if (pressControl(control, x - controlsLeft, controlsLeft, PANEL_CONTROLS_WIDTH) == ControlPress.CHANGED) persistClient()
+	private fun reflowHost(control: SettingControl) {
+		if (control.clientOwned) prefs.reclamp() else reflowAll()
 	}
 
 	private fun reflowQuarantined(control: SettingControl) {
-		if (!control.failed) return
-		if (control.clientOwned) prefs.reclamp() else reflowAll()
+		if (control.failed) reflowHost(control)
+	}
+
+	private fun syncOverlay(control: SettingControl) {
+		if (!control.expanded) {
+			if (overlay === control) overlay = null
+			return
+		}
+		if (overlay !== control) collapseOverlay()
+		overlay = control
+	}
+
+	private fun collapseOverlay(): Boolean {
+		val control = overlay ?: return false
+		overlay = null
+		if (!control.collapse()) return false
+		reflowHost(control)
+		return true
+	}
+
+	private fun revealHit(control: SettingControl) {
+		val column = hitColumn
+		if (column == null) prefs.revealSpan(prefs.localOf(hitTop), control.height)
+		else column.revealSpan(hitTop, control.height)
 	}
 
 	private fun commitOrReflow(control: SettingControl, committed: Boolean) {
 		if (committed) persistArmed(control) else reflowQuarantined(control)
 	}
 
-	private fun pressControl(
-		control: SettingControl,
-		localX: Int,
-		screenLeft: Int,
-		width: Int
-	): ControlPress? {
-		val result = control.press(localX, width)
+	private fun pressControl(control: SettingControl, x: Int, y: Int): ControlPress? {
+		val result = control.press(x - hitLeft, y - hitTop, hitWidth)
 		when (result) {
 			ControlPress.TRACK -> {
 				dragged = control
-				dragLeft = screenLeft
-				dragWidth = width
+				dragLeft = hitLeft
+				dragWidth = hitWidth
 			}
 			ControlPress.FOCUS -> focused = control
 			else -> Unit
 		}
+		syncOverlay(control)
 		reflowQuarantined(control)
+		if (result == ControlPress.CHANGED || result == ControlPress.RESIZED) reflowHost(control)
+		if (control.expanded) revealHit(control)
 		return result
 	}
 
-	private fun prefControlAt(x: Int, y: Int): SettingControl? {
-		val controlsLeft = panelLeft() + CONTENT_PAD
-		if (x < controlsLeft || x >= controlsLeft + PANEL_CONTROLS_WIDTH) return null
-		if (y !in FIELD_TOP..<fieldBottom) return null
-		val index = prefs.slotAt(y)
+	private fun controlAt(x: Int, y: Int): SettingControl? {
+		if (activeTab != FEATURES_TAB) return prefControlAt(x, y)
+		val slot = columnSlotAt(x, y)
+		if (slot == ClickGuiShell.NONE) return null
+		return columnControlAt(visible[slot], x, y)
+	}
+
+	private fun columnControlAt(column: Column, x: Int, y: Int): SettingControl? {
+		val left = column.contentLeft + CONTENT_PAD - columnField.offset
+		if (x < left || x >= left + CONTROLS_WIDTH) return null
+		val row = column.settingsRowAt(y)
+		if (row == ClickGuiShell.NONE) return null
+		val body = column.bodyOf(row)
+		val top = column.bodyTop(row)
+		val index = body.indexAt(y - top)
 		if (index == ClickGuiShell.NONE) return null
-		val card = prefCards[index]
-		val localY = y - prefs.originOf(index)
-		val row = ClickGuiShell.sectionRowAt(localY, HEADER_HEIGHT + SECTION_PAD, card.count, CONTROL_ROW_HEIGHT)
-		return if (row == ClickGuiShell.NONE) null else card.control(row)
+		return recordHit(column, left, top + body.topOf(index), CONTROLS_WIDTH, body.at(index))
+	}
+
+	private fun prefControlAt(x: Int, y: Int): SettingControl? {
+		val left = panelLeft() + CONTENT_PAD
+		if (x < left || x >= left + PANEL_CONTROLS_WIDTH) return null
+		if (y !in FIELD_TOP..<fieldBottom) return null
+		val slot = prefs.slotAt(y)
+		if (slot == ClickGuiShell.NONE) return null
+		val body = prefCards[slot].body
+		val top = prefs.originOf(slot) + HEADER_HEIGHT + SECTION_PAD
+		val index = body.indexAt(y - top)
+		if (index == ClickGuiShell.NONE) return null
+		return recordHit(null, left, top + body.topOf(index), PANEL_CONTROLS_WIDTH, body.at(index))
+	}
+
+	private fun recordHit(column: Column?, left: Int, top: Int, width: Int, control: SettingControl): SettingControl {
+		hitColumn = column
+		hitLeft = left
+		hitTop = top
+		hitWidth = width
+		return control
 	}
 
 	private fun persistArmed(control: SettingControl) {
@@ -426,6 +480,7 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun toggleHeader(column: Column) {
+		collapseOverlay()
 		view.toggle(column.category.name)
 		column.reclamp()
 		refreshFocus()
@@ -448,6 +503,7 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun applySearch() {
+		collapseOverlay()
 		for (i in columns.indices) columns[i].applyFilter(query)
 		cancelDrag()
 		layout()
@@ -498,6 +554,7 @@ internal class ClickGuiShellScreen(
 
 	private fun toggleExpandFocus(): Boolean {
 		val module = navFocus ?: return false
+		collapseOverlay()
 		val slot = focusSlot()
 		if (slot == ClickGuiShell.NONE) return false
 		val row = visible[slot].rowOf(module)
@@ -637,49 +694,46 @@ internal class ClickGuiShellScreen(
 
 	private inner class PrefCard(section: PrefSection) {
 		private val title = section.title
-		private val controls: List<SettingControl> = section.settings.mapNotNull(::controlFor)
 
-		val count: Int
-			get() = controls.renderableCount()
+		val body = ControlBody(section.settings.mapNotNull(::controlFor))
 		val height: Int
-			get() = heightOf(count)
+			get() = heightOf(body.height)
 
-		fun control(row: Int): SettingControl? = controls.renderableAt(row)
+		fun invalidateMeasurements() = body.invalidateMeasurements()
 
-		fun invalidateMeasurements() = controls.invalidateMeasurements()
-
-		private fun heightOf(shown: Int): Int =
-			HEADER_HEIGHT + 2 * SECTION_PAD + if (shown == 0) EMPTY_SECTION_HEIGHT else shown * CONTROL_ROW_HEIGHT
+		private fun heightOf(content: Int): Int =
+			HEADER_HEIGHT + 2 * SECTION_PAD + if (content == 0) EMPTY_SECTION_HEIGHT else content
 
 		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
-			val shown = count
+			val content = body.height
 			val right = left + PANEL_WIDTH
 			val headerBottom = top + HEADER_HEIGHT
 			val fill = GlassGui.raised()
-			GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(shown), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+			GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
 			drawHeaderBand(graphics, font, left, right, top, title, fill)
 			drawHeaderRule(graphics, left, right, headerBottom, fill)
 			val contentLeft = left + CONTENT_PAD
 			var y = headerBottom + SECTION_PAD
-			if (shown == 0) {
+			if (content == 0) {
 				DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, y, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 				return
 			}
-			val overControls = mouseX in contentLeft until contentLeft + PANEL_CONTROLS_WIDTH
-			for (i in controls.indices) {
-				val control = controls[i]
-				if (!control.renderable()) continue
+			val pointerY = if (mouseX in contentLeft until contentLeft + PANEL_CONTROLS_WIDTH) mouseY else NO_POINTER
+			for (i in body.indices) {
+				val control = body.at(i)
+				val extent = control.extent
+				if (extent == 0) continue
 				if (y >= bottom) break
-				val hovered = overControls && mouseY in y until y + CONTROL_ROW_HEIGHT
-				control.draw(graphics, font, contentLeft, y, PANEL_CONTROLS_WIDTH, CONTROL_ROW_HEIGHT, hovered)
-				y += CONTROL_ROW_HEIGHT
+				control.draw(graphics, font, contentLeft, y, PANEL_CONTROLS_WIDTH, pointerY)
+				y += extent
 			}
 		}
 	}
 
 	private inner class Column(val category: Category, private val modules: List<Module>) {
-		private val controls: List<List<SettingControl>> = modules.map { module -> module.settings.mapNotNull(::controlFor) }
+		private val controls: List<ControlBody> = modules.map { module -> ControlBody(module.settings.mapNotNull(::controlFor)) }
 		private val visibleRows = IntArray(modules.size) { it }
+		private val rowTops = IntArray(modules.size + 1)
 		private var visibleCount = modules.size
 		private val settingsHeightAt = IntUnaryOperator { row -> settingsHeight(visibleRows[row]) }
 		private val scroll = ScrollState()
@@ -693,7 +747,7 @@ internal class ClickGuiShellScreen(
 		val height: Int
 			get() = shownHeight(naturalHeight)
 		val naturalHeight: Int
-			get() = ClickGuiShell.columnHeight(isCollapsed, HEADER_HEIGHT, BODY_PAD, visibleCount, ROW_HEIGHT, settingsHeightAt)
+			get() = if (isCollapsed) HEADER_HEIGHT else HEADER_HEIGHT + BODY_PAD + measureRows()
 
 		private val isCollapsed: Boolean
 			get() = view.isCollapsed(category.name)
@@ -734,28 +788,39 @@ internal class ClickGuiShellScreen(
 			return ClickGuiShell.NONE
 		}
 
+		private fun measureRows(): Int = ClickGuiRows.rowTops(visibleCount, ROW_HEIGHT, settingsHeightAt, rowTops)
+
+		private fun measuredArea(row: Int): Int = rowTops[row + 1] - rowTops[row] - ROW_HEIGHT
+
 		private fun rowTop(row: Int): Int = ClickGuiRows.rowTop(row, ROW_HEIGHT, settingsHeightAt)
 
 		private fun rowExtent(row: Int): Int = ROW_HEIGHT + settingsHeight(visibleRows[row])
 
-		fun revealRow(row: Int) = scroll.reveal(rowTop(row), rowExtent(row), height - HEADER_HEIGHT, maxScroll)
+		fun revealRow(row: Int) = revealLocal(rowTop(row), rowExtent(row))
+
+		fun revealSpan(screenTop: Int, extent: Int) = revealLocal(localOf(screenTop), extent)
+
+		private fun revealLocal(spanStart: Int, extent: Int) =
+			scroll.reveal(spanStart, extent, height - HEADER_HEIGHT, maxScroll)
 
 		fun rowAt(y: Int): Module? {
 			val localY = bodyLocal(y) ?: return null
-			val row = ClickGuiRows.rowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
-			return modules[visibleRows[row]]
+			val row = ClickGuiRows.rowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt)
+			return if (row == ClickGuiShell.NONE) null else modules[visibleRows[row]]
 		}
 
 		fun chevronContains(contentX: Int): Boolean =
 			contentX >= contentLeft + COLUMN_WIDTH - CONTENT_PAD - chevronWidth - CHEVRON_HIT_SLOP
 
-		fun controlAt(contentX: Int, y: Int): SettingControl? {
-			if (contentX < contentLeft + CONTENT_PAD || contentX >= contentLeft + CONTENT_PAD + CONTROLS_WIDTH) return null
-			val localY = bodyLocal(y) ?: return null
-			val row = ClickGuiRows.settingsRowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt) ?: return null
-			val bandTop = ClickGuiRows.settingsTop(row, ROW_HEIGHT, settingsHeightAt)
-			return renderableAt(visibleRows[row], localY - bandTop - SETTINGS_PAD)
+		fun settingsRowAt(y: Int): Int {
+			val localY = bodyLocal(y) ?: return ClickGuiShell.NONE
+			return ClickGuiRows.settingsRowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt)
 		}
+
+		fun bodyOf(row: Int): ControlBody = controls[visibleRows[row]]
+
+		fun bodyTop(row: Int): Int =
+			FIELD_TOP + HEADER_HEIGHT - scroll.offset + ClickGuiRows.settingsTop(row, ROW_HEIGHT, settingsHeightAt) + SETTINGS_PAD
 
 		fun collapseSettings(): Boolean {
 			var changed = false
@@ -766,10 +831,11 @@ internal class ClickGuiShellScreen(
 			return changed
 		}
 
+		private fun localOf(y: Int): Int = y - (FIELD_TOP + HEADER_HEIGHT) + scroll.offset
+
 		private fun bodyLocal(y: Int): Int? {
-			val bodyTop = FIELD_TOP + HEADER_HEIGHT
-			if (y < bodyTop || y >= FIELD_TOP + height) return null
-			return y - bodyTop + scroll.offset
+			if (y < FIELD_TOP + HEADER_HEIGHT || y >= FIELD_TOP + height) return null
+			return localOf(y)
 		}
 
 		fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, mouseX: Int, mouseY: Int) {
@@ -798,7 +864,7 @@ internal class ClickGuiShellScreen(
 			for (row in 0 until visibleCount) {
 				if (rowTop >= visibleBottom) break
 				val index = visibleRows[row]
-				val areaHeight = settingsHeight(index)
+				val areaHeight = measuredArea(row)
 				val nextTop = rowTop + ROW_HEIGHT + areaHeight
 				if (nextTop > visibleTop) {
 					drawRow(graphics, font, modules[index], left, rowTop, pointerY)
@@ -867,32 +933,23 @@ internal class ClickGuiShellScreen(
 		) {
 			SharpGui.fill(graphics, left + 1, top, left + COLUMN_WIDTH - 1, top + areaHeight, GlassGui.canvas())
 			val controlsLeft = left + CONTENT_PAD
-			val overControls = mouseX in controlsLeft until controlsLeft + CONTROLS_WIDTH
+			val controlPointer = if (mouseX in controlsLeft until controlsLeft + CONTROLS_WIDTH) pointerY else NO_POINTER
 			var y = top + SETTINGS_PAD
-			val list = controls[index]
-			for (i in list.indices) {
-				val control = list[i]
-				if (!control.renderable()) continue
+			val body = controls[index]
+			for (i in body.indices) {
+				val control = body.at(i)
+				val extent = control.extent
+				if (extent == 0) continue
 				if (y >= visibleBottom) break
-				if (y + CONTROL_ROW_HEIGHT > visibleTop) {
-					val hovered = overControls && pointerY in y until y + CONTROL_ROW_HEIGHT
-					control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, CONTROL_ROW_HEIGHT, hovered)
-				}
-				y += CONTROL_ROW_HEIGHT
+				if (y + extent > visibleTop) control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, controlPointer)
+				y += extent
 			}
-		}
-
-		private fun renderableAt(index: Int, localY: Int): SettingControl? {
-			if (localY < 0) return null
-			return controls[index].renderableAt(localY / CONTROL_ROW_HEIGHT)
 		}
 
 		private fun settingsHeight(index: Int): Int {
 			if (modules[index].name !in expanded) return 0
-			return 2 * SETTINGS_PAD + renderableCount(index) * CONTROL_ROW_HEIGHT
+			return 2 * SETTINGS_PAD + controls[index].height
 		}
-
-		private fun renderableCount(index: Int): Int = controls[index].renderableCount()
 
 		fun invalidateMeasurements() {
 			for (i in controls.indices) controls[i].invalidateMeasurements()
