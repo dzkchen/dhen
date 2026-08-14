@@ -10,6 +10,21 @@ import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 import net.minecraft.util.ARGB
 
+internal const val ELLIPSIS = "…"
+
+internal inline fun elide(text: String, maxWidth: Int, fromEnd: Boolean, measure: (String) -> Int): String {
+	if (measure(text) <= maxWidth) return text
+	val room = maxWidth - measure(ELLIPSIS)
+	if (room < 0) return ""
+	var kept = text.length - 1
+	while (kept > 0) {
+		val part = if (fromEnd) text.substring(text.length - kept) else text.substring(0, kept)
+		if (measure(part) <= room) return if (fromEnd) ELLIPSIS + part else part + ELLIPSIS
+		kept--
+	}
+	return ELLIPSIS
+}
+
 internal object DhenType {
 	const val CACHE_LIMIT = 512
 
@@ -68,10 +83,18 @@ internal object DhenType {
 		text(graphics, font, text, x, y, color)
 	}
 
-	fun width(font: Font, text: String): Int {
+	fun width(font: Font, text: String): Int = measured(font, cached(text))
+
+	fun fit(font: Font, text: String, maxWidth: Int, fromEnd: Boolean = false): String {
+		if (maxWidth <= 0) return ""
 		val entry = cached(text)
-		if (entry.width == UNMEASURED) entry.width = font.width(entry.component.visualOrderText)
-		return entry.width
+		if (measured(font, entry) <= maxWidth) return text
+		if (entry.fitWidth != maxWidth || entry.fitFromEnd != fromEnd) {
+			entry.fitWidth = maxWidth
+			entry.fitFromEnd = fromEnd
+			entry.fitted = elide(text, maxWidth, fromEnd) { font.width(component(it).visualOrderText) }
+		}
+		return entry.fitted
 	}
 
 	fun lineHeight(font: Font): Int = font.lineHeight
@@ -84,7 +107,15 @@ internal object DhenType {
 	}
 
 	fun invalidateMeasurements() {
-		for (entry in cache.values) entry.width = UNMEASURED
+		for (entry in cache.values) {
+			entry.width = UNMEASURED
+			entry.fitWidth = UNMEASURED
+		}
+	}
+
+	private fun measured(font: Font, entry: Styled): Int {
+		if (entry.width == UNMEASURED) entry.width = font.width(entry.component.visualOrderText)
+		return entry.width
 	}
 
 	private fun cached(text: String): Styled {
@@ -96,5 +127,8 @@ internal object DhenType {
 
 	private class Styled(val component: Component) {
 		var width = UNMEASURED
+		var fitWidth = UNMEASURED
+		var fitFromEnd = false
+		var fitted = ""
 	}
 }

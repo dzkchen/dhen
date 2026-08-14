@@ -96,6 +96,33 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `text that fits its room is left exactly as it was`() {
+		assertSame(FITTING, elide(FITTING, 60, fromEnd = false, measure = ::tenPerCharacter))
+		assertSame(FITTING, elide(FITTING, 60, fromEnd = true, measure = ::tenPerCharacter))
+	}
+
+	@Test
+	fun `text too wide for its room loses its tail to an ellipsis`() {
+		assertEquals("abc…", elide(FITTING, 40, fromEnd = false, measure = ::tenPerCharacter))
+		assertEquals("a…", elide(FITTING, 25, fromEnd = false, measure = ::tenPerCharacter))
+	}
+
+	@Test
+	fun `text being typed into keeps its end so the caret stays honest`() {
+		assertEquals("…def", elide(FITTING, 40, fromEnd = true, measure = ::tenPerCharacter))
+		assertEquals("…f", elide(FITTING, 25, fromEnd = true, measure = ::tenPerCharacter))
+	}
+
+	@Test
+	fun `room for nothing but the ellipsis draws the ellipsis, and less draws nothing`() {
+		assertEquals("…", elide(FITTING, 10, fromEnd = false, measure = ::tenPerCharacter))
+		assertEquals("", elide(FITTING, 5, fromEnd = false, measure = ::tenPerCharacter))
+		assertEquals("", elide(FITTING, 0, fromEnd = false, measure = ::tenPerCharacter))
+	}
+
+	private fun tenPerCharacter(text: String): Int = text.length * 10
+
+	@Test
 	fun `no dhen surface draws or measures text outside the seam`() {
 		val scanned = SourceScan.files(SOURCE_ROOT, SOURCES)
 		assertTrue(scanned.any { it.name == SEAM }) { "scan missed the sources at ${SOURCE_ROOT.absolutePath}" }
@@ -153,6 +180,7 @@ class DhenTypeTest {
 	}
 
 	private companion object {
+		const val FITTING = "abcdef"
 		const val SEAM = "DhenType.kt"
 		const val DEFINITION = "assets/dhen/font/inter.json"
 		const val FACE = "inter.ttf"

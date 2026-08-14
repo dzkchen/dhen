@@ -875,7 +875,7 @@ internal class ClickGuiShellScreen(
 		private fun renderableCount(index: Int): Int = controls[index].renderableCount()
 	}
 
-	private companion object {
+	internal companion object {
 		const val FEATURES_TAB = 0
 		const val MARGIN = 8
 		const val COLUMN_WIDTH = 118

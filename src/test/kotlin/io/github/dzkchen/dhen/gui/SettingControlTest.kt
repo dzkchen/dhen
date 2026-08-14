@@ -181,6 +181,9 @@ class SettingControlTest {
 
 	private companion object {
 		const val MATHEMATICAL_BOLD_DIGIT_ZERO = 0x1D7CE
+		const val GLYPH_WIDTH = 5
+		const val SWATCH_TRAILING = 12
+		const val GLYPH_TRAILING = 9
 	}
 
 	@Test
@@ -305,12 +308,41 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `a value pill hugs its content, keeps a minimum width, and never leaves its control`() {
-		assertEquals(100 - 50 - 2 * PILL_PAD, pillLeft(x = 0, width = 100, contentWidth = 50))
-		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 4))
-		assertEquals(0, pillLeft(x = 0, width = 100, contentWidth = 120))
-		assertEquals(20, pillLeft(x = 20, width = 4, contentWidth = 0))
+	fun `a value pill hugs its content, keeps a minimum width, and stops at the setting name`() {
+		assertEquals(100 - 50 - 2 * PILL_PAD, pillLeft(x = 0, width = 100, contentWidth = 50, labelWidth = 0))
+		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 4, labelWidth = 0))
+		assertEquals(CONTROL_TEXT_INSET + 30 + LABEL_GAP, pillLeft(x = 0, width = 100, contentWidth = 120, labelWidth = 30))
+		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 120, labelWidth = 90))
+		assertEquals(20, pillLeft(x = 20, width = 4, contentWidth = 0, labelWidth = 0))
 	}
+
+	@Test
+	fun `the widest value each setting type allows still clears its own name`() {
+		for (width in intArrayOf(ClickGuiShellScreen.CONTROLS_WIDTH, ClickGuiShellScreen.PANEL_CONTROLS_WIDTH)) {
+			assertRoomForName(width, "Label", "WWWWWWWWWWWWWWWW", trailing = 0, editing = true)
+			assertRoomForName(width, "Color", "FFFFFFFF", trailing = SWATCH_TRAILING, editing = true)
+			assertRoomForName(width, "Theme", "high-contrast-midnight", trailing = GLYPH_TRAILING, editing = false)
+			assertRoomForName(width, "Keybind", "Right Control", trailing = 0, editing = false)
+			assertRoomForName(width, "A setting with a very long name", "WWWWWWWWWWWWWWWW", trailing = SWATCH_TRAILING, editing = true)
+		}
+	}
+
+	private fun assertRoomForName(width: Int, name: String, value: String, trailing: Int, editing: Boolean) {
+		val label = elide(name, labelRoom(width, PILL_MIN_WIDTH + trailing), false, ::glyphs)
+		val labelWidth = glyphs(label)
+		val reserve = if (editing) CARET_WIDTH else 0
+		val shown = elide(value, pillContent(width, labelWidth, trailing) - trailing - reserve, editing, ::glyphs)
+		val left = pillLeft(0, width, glyphs(shown) + reserve + trailing, labelWidth)
+
+		assertTrue(left - CONTROL_TEXT_INSET - labelWidth >= LABEL_GAP) {
+			"'$shown' starts at $left, over '$label' which ends at ${CONTROL_TEXT_INSET + labelWidth}"
+		}
+		assertTrue(glyphs(shown) + reserve + trailing <= width - left - 2 * PILL_PAD) {
+			"'$shown' is wider than the pill it sits in"
+		}
+	}
+
+	private fun glyphs(text: String): Int = text.length * GLYPH_WIDTH
 
 	@Test
 	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
