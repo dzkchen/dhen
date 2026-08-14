@@ -16,18 +16,59 @@ private const val UNMEASURED = -1
 private const val SHADOW_PIXELS = 1f
 private const val SHADOW_DIM = 0.25f
 
-internal inline fun elide(text: String, maxWidth: Int, fromEnd: Boolean, measure: (String) -> Int): String {
-	if (measure(text) <= maxWidth) return text
-	val room = maxWidth - measure(ELLIPSIS)
-	if (room < 0) return ""
+internal class RoomBand {
+	private var shrinksBelow = 0
+	private var growsAt = 0
+
+	fun holds(room: Int): Boolean = room >= shrinksBelow && room < growsAt
+
+	fun set(shrinksBelow: Int, growsAt: Int) {
+		this.shrinksBelow = shrinksBelow
+		this.growsAt = growsAt
+	}
+
+	fun from(shrinksBelow: Int) = set(shrinksBelow, Int.MAX_VALUE)
+
+	fun only(room: Int) = set(room, room + 1)
+
+	fun clear() = set(0, 0)
+}
+
+internal inline fun elide(
+	text: String,
+	maxWidth: Int,
+	fromEnd: Boolean,
+	measure: (String) -> Int,
+	band: RoomBand? = null
+): String {
+	val sourceWidth = measure(text)
+	if (sourceWidth <= maxWidth) {
+		band?.from(sourceWidth)
+		return text
+	}
+	val ellipsisWidth = measure(ELLIPSIS)
+	val room = maxWidth - ellipsisWidth
+	if (room < 0) {
+		band?.set(0, ellipsisWidth)
+		return ""
+	}
 	val step = if (fromEnd) 1 else -1
 	val exhausted = if (fromEnd) text.length else 0
 	var cut = if (fromEnd) 0 else text.length
+	var growsAt = sourceWidth
 	while (true) {
 		cut = text.offsetByCodePoints(cut, step)
-		if (cut == exhausted) return ELLIPSIS
+		if (cut == exhausted) {
+			band?.set(ellipsisWidth, growsAt)
+			return ELLIPSIS
+		}
 		val part = if (fromEnd) text.substring(cut) else text.substring(0, cut)
-		if (measure(part) <= room) return if (fromEnd) ELLIPSIS + part else part + ELLIPSIS
+		val partWidth = measure(part)
+		if (partWidth <= room) {
+			band?.set(partWidth + ellipsisWidth, growsAt)
+			return if (fromEnd) ELLIPSIS + part else part + ELLIPSIS
+		}
+		growsAt = partWidth + ellipsisWidth
 	}
 }
 
@@ -41,8 +82,9 @@ internal class TextMemo {
 	private var shown = ""
 	private var component = BLANK
 	private var shownWidth = UNMEASURED
-	private var fitWidth = UNMEASURED
+	private var fitted = ""
 	private var fitFromEnd = false
+	private val band = RoomBand()
 
 	fun width(font: Font, text: String): Int {
 		hold(text)
@@ -55,23 +97,29 @@ internal class TextMemo {
 		if (text != source) {
 			source = text
 			sourceWidth = UNMEASURED
+			band.clear()
 		}
-		if (sourceWidth != UNMEASURED && room == fitWidth && fromEnd == fitFromEnd) return shown
+		if (band.holds(room) && fromEnd == fitFromEnd) {
+			hold(fitted)
+			return fitted
+		}
 		if (sourceWidth == UNMEASURED) sourceWidth = width(font, text)
 		when {
 			room == 0 -> {
 				hold("")
 				shownWidth = 0
+				band.only(room)
 			}
 			sourceWidth <= room -> {
 				hold(text)
 				shownWidth = sourceWidth
+				band.from(sourceWidth)
 			}
-			else -> hold(elide(text, room, fromEnd) { measure(font, it) })
+			else -> hold(elide(text, room, fromEnd, { measure(font, it) }, band))
 		}
-		fitWidth = room
+		fitted = shown
 		fitFromEnd = fromEnd
-		return shown
+		return fitted
 	}
 
 	fun text(graphics: GuiGraphicsExtractor, font: Font, text: String, x: Int, y: Int, color: Int, shadow: Boolean = false) {
@@ -92,7 +140,7 @@ internal class TextMemo {
 	fun invalidate() {
 		sourceWidth = UNMEASURED
 		shownWidth = UNMEASURED
-		fitWidth = UNMEASURED
+		band.clear()
 	}
 
 	private fun hold(text: String) {
@@ -100,7 +148,6 @@ internal class TextMemo {
 		shown = text
 		component = DhenType.component(text)
 		shownWidth = UNMEASURED
-		fitWidth = UNMEASURED
 	}
 
 	private companion object {

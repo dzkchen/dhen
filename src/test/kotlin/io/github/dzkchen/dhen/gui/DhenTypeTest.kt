@@ -135,6 +135,81 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `a memoized elision rides out a room that moves inside the band it holds for`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+		val settled = font.measurements
+
+		for (room in 4 * STUB_GLYPH_WIDTH until 5 * STUB_GLYPH_WIDTH) {
+			assertEquals("abc…", memo.fit(font, FITTING, room))
+		}
+
+		assertEquals(settled, font.measurements)
+	}
+
+	@Test
+	fun `an elision shortens and lengthens the moment the room leaves the band`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH)
+
+		assertEquals("ab…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH - 1))
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+		assertEquals("abcd…", memo.fit(font, FITTING, 5 * STUB_GLYPH_WIDTH))
+		assertEquals(FITTING, memo.fit(font, FITTING, 6 * STUB_GLYPH_WIDTH))
+	}
+
+	@Test
+	fun `a memo handed another string in between still holds the elision it answers with`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+
+		memo.width(font, FITTING)
+
+		val label = memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH)
+		assertEquals("abc…", label)
+		assertEquals(4 * STUB_GLYPH_WIDTH, memo.width(font, label))
+	}
+
+	@Test
+	fun `elide reports the rooms its answer survives, in both directions`() {
+		val band = RoomBand()
+
+		assertEquals("abc…", elide(FITTING, 45, fromEnd = false, measure = ::tenPerCharacter, band = band))
+		assertTrue(band.holds(40))
+		assertTrue(band.holds(49))
+		assertFalse(band.holds(39))
+		assertFalse(band.holds(50))
+
+		assertEquals("…def", elide(FITTING, 45, fromEnd = true, measure = ::tenPerCharacter, band = band))
+		assertTrue(band.holds(40))
+		assertFalse(band.holds(39))
+		assertFalse(band.holds(50))
+	}
+
+	@Test
+	fun `the answers at either end of the range report a band too`() {
+		val band = RoomBand()
+
+		assertSame(FITTING, elide(FITTING, 60, fromEnd = false, measure = ::tenPerCharacter, band = band))
+		assertTrue(band.holds(60))
+		assertTrue(band.holds(600))
+		assertFalse(band.holds(59))
+
+		assertEquals("…", elide(FITTING, 15, fromEnd = false, measure = ::tenPerCharacter, band = band))
+		assertTrue(band.holds(10))
+		assertFalse(band.holds(9))
+		assertFalse(band.holds(20))
+
+		assertEquals("", elide(FITTING, 5, fromEnd = false, measure = ::tenPerCharacter, band = band))
+		assertTrue(band.holds(0))
+		assertFalse(band.holds(10))
+	}
+
+	@Test
 	fun `a settled label costs nothing to fit and measure again`() {
 		val font = StubFont()
 		val memo = DhenType.memo()
