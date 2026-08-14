@@ -84,6 +84,69 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `a memo measures a string once and re-measures only when it changes`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(1, font.measurements)
+
+		assertEquals(4 * STUB_GLYPH_WIDTH, memo.width(font, "abcd"))
+		assertEquals(2, font.measurements)
+	}
+
+	@Test
+	fun `invalidating a memo buys exactly one more measurement`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		memo.width(font, "abc")
+
+		memo.invalidate()
+
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(2, font.measurements)
+	}
+
+	@Test
+	fun `a readout that changes every frame never reaches the shared cache`() {
+		val font = StubFont()
+		val stable = DhenType.styled(MEMO_NEIGHBOUR)
+		val memo = DhenType.memo()
+
+		for (tick in 1..DhenType.CACHE_LIMIT + 1) memo.width(font, "$tick.25")
+
+		assertSame(stable, DhenType.styled(MEMO_NEIGHBOUR))
+	}
+
+	@Test
+	fun `a memo keeps its elision until the text or the room moves`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+		val settled = font.measurements
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+		assertEquals(settled, font.measurements)
+
+		assertEquals(FITTING, memo.fit(font, FITTING, 6 * STUB_GLYPH_WIDTH))
+		assertEquals("abc…", memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+	}
+
+	@Test
+	fun `a settled label costs nothing to fit and measure again`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		memo.width(font, memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH))
+		val settled = font.measurements
+
+		assertEquals(4 * STUB_GLYPH_WIDTH, memo.width(font, memo.fit(font, FITTING, 4 * STUB_GLYPH_WIDTH)))
+
+		assertEquals(settled, font.measurements)
+	}
+
+	@Test
 	fun `flipping a vanilla font option asks for one invalidation`() {
 		DhenType.fontOptionsChanged(forceUnicode = false, japaneseGlyphVariants = false)
 
@@ -192,6 +255,7 @@ class DhenTypeTest {
 
 	private companion object {
 		const val FITTING = "abcdef"
+		const val MEMO_NEIGHBOUR = "Cooldown"
 		const val ROCKET = "🚀"
 		const val SEAM = "DhenType.kt"
 		const val DEFINITION = "assets/dhen/font/inter.json"

@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.RoundedQuad
 import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -24,6 +25,7 @@ internal class HudEditorScreen(
 	private var labelledScale = 0.0f
 	private var labelledAnchor = HudAnchor.TOP_LEFT
 	private var label = ""
+	private val bannerText = Array(HINTS.size + 1) { DhenType.memo() }
 
 	override fun init() {
 		editor.layout(width, height)
@@ -39,8 +41,8 @@ internal class HudEditorScreen(
 		for (i in targets.indices) drawTarget(graphics, targets[i])
 		val step = bannerHeight() + BANNER_GAP
 		val hints = if (targets.isEmpty()) EMPTY_HINTS else HINTS
-		for (i in hints.indices) drawBanner(graphics, hints[i], BANNER_TOP + i * step)
-		if (editor.selected != null) drawBanner(graphics, label(), BANNER_TOP + hints.size * step)
+		for (i in hints.indices) drawBanner(graphics, bannerText[i], hints[i], BANNER_TOP + i * step)
+		if (editor.selected != null) drawBanner(graphics, bannerText.last(), label(), BANNER_TOP + hints.size * step)
 	}
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
@@ -158,12 +160,12 @@ internal class HudEditorScreen(
 		RoundedGui.border(graphics, left, top, right, bottom, OUTLINE_RADIUS, RoundedGui.HAIRLINE, outline)
 	}
 
-	private fun drawBanner(graphics: GuiGraphicsExtractor, text: String, top: Int) {
-		val boxWidth = DhenType.width(font, text) + 2 * BANNER_PAD_X
+	private fun drawBanner(graphics: GuiGraphicsExtractor, memo: TextMemo, text: String, top: Int) {
+		val boxWidth = memo.width(font, text) + 2 * BANNER_PAD_X
 		val left = (width - boxWidth) / 2
 		val bottom = top + bannerHeight()
 		GlassGui.roundedFrame(graphics, left, top, left + boxWidth, bottom, RoundedQuad.FULL, GlassGui.surface(), DhenPalette.BORDER)
-		DhenType.text(graphics, font, text, left + BANNER_PAD_X, top + BANNER_PAD_Y, DhenPalette.TEXT_PRIMARY, shadow = true)
+		memo.text(graphics, font, text, left + BANNER_PAD_X, top + BANNER_PAD_Y, DhenPalette.TEXT_PRIMARY, shadow = true)
 	}
 
 	private fun bannerHeight(): Int = DhenType.lineHeight(font) + 2 * BANNER_PAD_Y

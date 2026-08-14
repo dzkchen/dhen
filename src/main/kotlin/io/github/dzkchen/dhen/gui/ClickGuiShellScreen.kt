@@ -33,6 +33,7 @@ internal class ClickGuiShellScreen(
 	private val columnField = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, { width }, { COLUMN_WIDTH })
 	private val prefs = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { prefCards.size }, { height }, { index -> prefCards[index].height })
 	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
+	private val queryText = DhenType.memo()
 	private var navFocus: Module? = null
 	private var query = ""
 	private var activeTab = FEATURES_TAB
@@ -337,6 +338,13 @@ internal class ClickGuiShellScreen(
 		return true
 	}
 
+	fun invalidateMeasurements() {
+		measureChrome()
+		queryText.invalidate()
+		for (i in columns.indices) columns[i].invalidateMeasurements()
+		for (i in prefCards.indices) prefCards[i].invalidateMeasurements()
+	}
+
 	private fun measureChrome() {
 		for (i in TAB_LABELS.indices) tabWidths[i] = DhenType.width(font, TAB_LABELS[i]) + 2 * TAB_PAD
 		barWidth = 2 * BAR_PAD + ClickGuiShell.segmentsWidth(tabWidths, TAB_GAP)
@@ -619,8 +627,8 @@ internal class ClickGuiShellScreen(
 			DhenType.text(graphics, font, SEARCH_PLACEHOLDER, textLeft, top, DhenPalette.TEXT_DISABLED)
 			return
 		}
-		DhenType.text(graphics, font, query, textLeft, top, DhenPalette.TEXT_PRIMARY)
-		if (liveFocus == null) caret(graphics, font, textLeft + DhenType.width(font, query), top)
+		queryText.text(graphics, font, query, textLeft, top, DhenPalette.TEXT_PRIMARY)
+		if (liveFocus == null) caret(graphics, font, textLeft + queryText.width(font, query), top)
 		if (visible.isEmpty()) {
 			val labelLeft = ClickGuiShell.centeredLeft(width, DhenType.width(font, NO_MATCH_LABEL))
 			DhenType.text(graphics, font, NO_MATCH_LABEL, labelLeft, bottom + SEARCH_PAD, DhenPalette.TEXT_SECONDARY)
@@ -637,6 +645,8 @@ internal class ClickGuiShellScreen(
 			get() = heightOf(count)
 
 		fun control(row: Int): SettingControl? = controls.renderableAt(row)
+
+		fun invalidateMeasurements() = controls.invalidateMeasurements()
 
 		private fun heightOf(shown: Int): Int =
 			HEADER_HEIGHT + 2 * SECTION_PAD + if (shown == 0) EMPTY_SECTION_HEIGHT else shown * CONTROL_ROW_HEIGHT
@@ -883,6 +893,10 @@ internal class ClickGuiShellScreen(
 		}
 
 		private fun renderableCount(index: Int): Int = controls[index].renderableCount()
+
+		fun invalidateMeasurements() {
+			for (i in controls.indices) controls[i].invalidateMeasurements()
+		}
 	}
 
 	internal companion object {

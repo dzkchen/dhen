@@ -159,6 +159,7 @@ object Dhen : ClientModInitializer {
 	private fun invalidateTextMeasurements() {
 		DhenType.invalidateMeasurements()
 		hudRuntime.invalidateMeasurements()
+		(Minecraft.getInstance().gui.screen() as? ClickGuiShellScreen)?.invalidateMeasurements()
 	}
 
 	private fun resetHudLayout(): Int {

@@ -16,12 +16,16 @@ class HudTextElement(
 	visible: Boolean = true,
 	background: Boolean = false
 ) : HudElement(name, anchor, offsetX, offsetY, scale, visible, background) {
-	override fun width(font: Font): Int = DhenType.width(font, text)
+	private val memo = DhenType.memo()
+
+	override fun width(font: Font): Int = memo.width(font, text)
 
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
 		val ink = color ?: if (background) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_ON_WORLD
-		DhenType.shadowed(graphics, font, text, 0, 0, ink, scale)
+		memo.shadowed(graphics, font, text, 0, 0, ink, scale)
 	}
+
+	override fun invalidateMeasurement() = memo.invalidate()
 }
