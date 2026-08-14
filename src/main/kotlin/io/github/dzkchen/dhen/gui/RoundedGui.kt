@@ -10,6 +10,8 @@ import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
 import org.joml.Matrix3x2fc
 
+internal const val HAIRLINE_INSET = 1
+
 internal object RoundedGui {
 	private val PIPELINE: RenderPipeline = RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
 		.withLocation(Dhen.id("pipeline/${RoundedQuad.SHADER}"))

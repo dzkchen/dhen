@@ -671,12 +671,20 @@ internal class ClickGuiShellScreen(
 		if (tab == active) DhenPalette.accentForeground else DhenPalette.TEXT_SECONDARY
 
 	private fun drawHeaderBand(graphics: GuiGraphicsExtractor, font: Font, left: Int, right: Int, top: Int, title: String, fill: Int) {
-		RoundedGui.fill(graphics, left, top, right, top + HEADER_HEIGHT, COLUMN_RADIUS, fill)
+		RoundedGui.fill(
+			graphics,
+			left + HAIRLINE_INSET,
+			top + HAIRLINE_INSET,
+			right - HAIRLINE_INSET,
+			top + HEADER_HEIGHT - HAIRLINE_INSET,
+			COLUMN_RADIUS - HAIRLINE_INSET,
+			fill
+		)
 		DhenType.text(graphics, font, title, left + CONTENT_PAD, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_PRIMARY)
 	}
 
 	private fun drawHeaderRule(graphics: GuiGraphicsExtractor, left: Int, right: Int, bottom: Int, fill: Int) {
-		SharpGui.fill(graphics, left, bottom - COLUMN_RADIUS.toInt(), right, bottom, fill)
+		SharpGui.fill(graphics, left + HAIRLINE_INSET, bottom - COLUMN_RADIUS.toInt(), right - HAIRLINE_INSET, bottom, fill)
 		SharpGui.fill(graphics, left + HEADER_RULE_INSET, bottom - 1, right - HEADER_RULE_INSET, bottom, DhenPalette.accent)
 	}
 
@@ -867,7 +875,7 @@ internal class ClickGuiShellScreen(
 			val visibleTop = maxOf(bodyTop, FIELD_TOP)
 			val visibleBottom = minOf(bottom, fieldBottom)
 			val pointerY = if (overColumn && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
-			if (clipped) graphics.enableScissor(left + 1, bodyTop, right - 1, bottom)
+			if (clipped) graphics.enableScissor(left + HAIRLINE_INSET, bodyTop, right - HAIRLINE_INSET, bottom)
 			var rowTop = bodyTop - scroll.offset
 			for (row in 0 until visibleCount) {
 				if (rowTop >= visibleBottom) break
@@ -901,10 +909,11 @@ internal class ClickGuiShellScreen(
 			val hovered = pointerY in rowTop until rowBottom
 			val navigated = module === navFocus
 			val active = hovered || navigated
-			if (active) SharpGui.fill(graphics, left + 1, rowTop, right - 1, rowBottom, GlassGui.interactive())
-			if (module.enabled) SharpGui.fill(graphics, left + 1, rowTop, left + 1 + ROW_RAIL_WIDTH, rowBottom, DhenPalette.accent)
+			val railLeft = left + HAIRLINE_INSET
+			if (active) SharpGui.fill(graphics, railLeft, rowTop, right - HAIRLINE_INSET, rowBottom, GlassGui.interactive())
+			if (module.enabled) SharpGui.fill(graphics, railLeft, rowTop, railLeft + ROW_RAIL_WIDTH, rowBottom, DhenPalette.accent)
 			if (navigated) {
-				RoundedGui.border(graphics, left + 1, rowTop, right - 1, rowBottom, FOCUS_RADIUS, RoundedGui.HAIRLINE, DhenPalette.accent)
+				RoundedGui.border(graphics, railLeft, rowTop, right - HAIRLINE_INSET, rowBottom, FOCUS_RADIUS, RoundedGui.HAIRLINE, DhenPalette.accent)
 			}
 
 			val nameColor = when {
@@ -939,7 +948,7 @@ internal class ClickGuiShellScreen(
 			mouseX: Int,
 			pointerY: Int
 		) {
-			SharpGui.fill(graphics, left + 1, top, left + COLUMN_WIDTH - 1, top + areaHeight, GlassGui.canvas())
+			SharpGui.fill(graphics, left + HAIRLINE_INSET, top, left + COLUMN_WIDTH - HAIRLINE_INSET, top + areaHeight, GlassGui.canvas())
 			val controlsLeft = left + CONTENT_PAD
 			val controlPointer = if (mouseX in controlsLeft until controlsLeft + CONTROLS_WIDTH) pointerY else NO_POINTER
 			var y = top + SETTINGS_PAD

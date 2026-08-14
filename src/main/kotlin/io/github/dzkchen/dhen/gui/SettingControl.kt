@@ -583,7 +583,15 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		val swatchLeft = swatchRight - SWATCH_SIZE
 		val swatchTop = widgetTop(y) + (WIDGET_HEIGHT - SWATCH_SIZE) / 2
 		val swatchBottom = swatchTop + SWATCH_SIZE
-		if (value.alpha != OPAQUE_ALPHA) checkerboard(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom)
+		if (value.alpha != OPAQUE_ALPHA) {
+			checkerboard(
+				graphics,
+				swatchLeft + HAIRLINE_INSET,
+				swatchTop + HAIRLINE_INSET,
+				swatchRight - HAIRLINE_INSET,
+				swatchBottom - HAIRLINE_INSET
+			)
+		}
 		RoundedGui.frame(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom, SWATCH_RADIUS, value.argb, DhenPalette.BORDER)
 		if (open) drawPanel(graphics, x, y, width, value)
 	}
@@ -605,10 +613,11 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		when (tracking) {
 			HUE_REGION -> hue = fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
 			ALPHA_REGION -> level = channelOf(fractionOf(localX - PICKER_PAD, width - 2 * PICKER_PAD))
-			else -> {
+			SQUARE_REGION -> {
 				saturation = fractionOf(localX - PICKER_PAD, pickerSquareRight(width) - PICKER_PAD)
 				brightness = 1f - fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
 			}
+			else -> return
 		}
 		color.value = Color.hsv(hue, saturation, brightness, level)
 		pickerArgb = color.value.argb
@@ -618,7 +627,10 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		PICKER_PAD + if (color.allowAlpha) PICKER_ALPHA_TOP + PICKER_ALPHA_HEIGHT else PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT
 
 	private fun regionAt(localX: Int, localY: Int, width: Int): Int = when {
-		color.allowAlpha && localY >= PICKER_ALPHA_TOP -> ALPHA_REGION
+		localY < PICKER_SQUARE_TOP -> ClickGuiShell.NONE
+		color.allowAlpha && localY >= PICKER_ALPHA_TOP ->
+			if (localY < PICKER_ALPHA_TOP + PICKER_ALPHA_HEIGHT) ALPHA_REGION else ClickGuiShell.NONE
+		localY >= PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT -> ClickGuiShell.NONE
 		localX >= pickerStripLeft(width) -> HUE_REGION
 		else -> SQUARE_REGION
 	}

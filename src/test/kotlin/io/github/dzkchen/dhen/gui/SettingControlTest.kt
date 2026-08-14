@@ -379,6 +379,37 @@ class SettingControlTest {
 	}
 
 	@Test
+	fun `a press on the picker's padding leaves the colour alone`() {
+		val setting = ColorSetting("c", Color.rgba(0, 0, 255), allowAlpha = true)
+		val control = ColorControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+
+		control.press(pickerStripLeft(WIDTH), PICKER_SQUARE_TOP - 1, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb) { "padding above the hue strip must not reset the hue" }
+
+		control.press(PICKER_PAD, PICKER_SQUARE_TOP - 1, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
+
+		control.press(PICKER_PAD, PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
+
+		control.press(PICKER_PAD, control.height - 1, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb) { "the panel's bottom padding must not set alpha" }
+	}
+
+	@Test
+	fun `a drag that begins on the padding and crosses the square still picks nothing`() {
+		val setting = ColorSetting("c", Color.rgba(0, 0, 255), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+
+		control.press(PICKER_PAD, PICKER_SQUARE_TOP - 1, WIDTH)
+		control.drag(PICKER_PAD, PICKER_SQUARE_TOP, WIDTH)
+
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
+	}
+
+	@Test
 	fun `the alpha strip exists only where the setting allows alpha`() {
 		val opaque = ColorControl(ColorSetting("c", Color.rgba(10, 20, 30), allowAlpha = false))
 		val faded = ColorSetting("c", Color.rgba(10, 20, 30, 255), allowAlpha = true)
