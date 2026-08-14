@@ -268,6 +268,33 @@ internal class ControlBody(private val controls: List<SettingControl>) {
 	}
 }
 
+internal interface ControlHost {
+	fun revealSpan(screenTop: Int, extent: Int)
+}
+
+internal class ControlHit {
+	private var host: ControlHost? = null
+
+	var left = 0
+		private set
+	var top = 0
+		private set
+	var width = 0
+		private set
+
+	fun record(host: ControlHost, left: Int, top: Int, width: Int, control: SettingControl): SettingControl {
+		this.host = host
+		this.left = left
+		this.top = top
+		this.width = width
+		return control
+	}
+
+	fun reveal(extent: Int) {
+		host?.revealSpan(top, extent)
+	}
+}
+
 internal class ToggleControl(private val boolean: BooleanSetting) : SettingControl(boolean) {
 	private var slide = if (boolean.on) GlassGui.SETTLED else 0f
 	private var slideTarget = slide
