@@ -18,6 +18,7 @@ import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import java.util.function.IntUnaryOperator
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 internal const val CONTROL_TEXT_INSET = 2
@@ -53,8 +54,24 @@ private const val LIST_ROW_RADIUS = 3f
 private const val PRINTABLE_MIN = 32
 private const val PRINTABLE_MAX = 0xFFFF
 private const val DELETE_CODE = 127
+internal const val PICKER_PAD = 4
+internal const val PICKER_SQUARE_HEIGHT = 46
+internal const val PICKER_SQUARE_TOP = CONTROL_ROW_HEIGHT + PICKER_PAD
+private const val PICKER_RADIUS = 4f
+private const val PICKER_STRIP_WIDTH = 8
+private const val PICKER_STRIP_GAP = 4
+private const val PICKER_ALPHA_HEIGHT = 8
+internal const val PICKER_ALPHA_TOP = PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT + PICKER_STRIP_GAP
+private const val PICKER_HUE_SEGMENTS = 6
+private const val MARKER_RADIUS = 3
+private const val MARKER_THICKNESS = 3
+private const val CHECKER_CELL = 4
+private const val SQUARE_REGION = 0
+private const val HUE_REGION = 1
+private const val ALPHA_REGION = 2
 
 private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
+private val OPAQUE_BLACK = Color.rgba(0, 0, 0).argb
 
 internal enum class ControlPress { CHANGED, RESIZED, TRACK, FOCUS, INVOKED }
 
@@ -87,7 +104,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	protected abstract fun onPress(localX: Int, localY: Int, width: Int): ControlPress
 
-	protected open fun onDrag(localX: Int, width: Int) = Unit
+	protected open fun onDrag(localX: Int, localY: Int, width: Int) = Unit
 
 	protected open fun onKeyPressed(key: Int, modifiers: Int): ControlKey = ControlKey.IGNORED
 
@@ -126,10 +143,10 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		}
 	}
 
-	fun drag(localX: Int, width: Int) {
+	fun drag(localX: Int, localY: Int, width: Int) {
 		if (failed) return
 		try {
-			onDrag(localX, width)
+			onDrag(localX, localY, width)
 		} catch (throwable: Throwable) {
 			quarantine(throwable)
 		}
@@ -323,7 +340,7 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 		return ControlPress.TRACK
 	}
 
-	override fun onDrag(localX: Int, width: Int) {
+	override fun onDrag(localX: Int, localY: Int, width: Int) {
 		number.value = valueAt(localX, width)
 	}
 
@@ -514,8 +531,26 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	private var cacheValid = false
 	private var cachedArgb = 0
 	private var cachedHex = ""
+	private var open = false
+	private var tracking = SQUARE_REGION
+	private var pickerArgb = color.value.argb
+	private var hue = color.value.hue
+	private var saturation = color.value.saturation
+	private var brightness = color.value.brightness
 
 	override val maxLength: Int get() = if (color.allowAlpha) 8 else 6
+
+	override val height: Int
+		get() = if (open) panelBottom() else CONTROL_ROW_HEIGHT
+
+	override val expanded: Boolean
+		get() = open
+
+	override fun collapse(): Boolean {
+		if (!open) return false
+		open = false
+		return true
+	}
 
 	override fun initialDraft(): String = ""
 
@@ -539,12 +574,102 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	}
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
+		sync()
+		val value = color.value
 		val swatchRight = pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			color.name, editText(), DhenPalette.TEXT_PRIMARY, SWATCH_GAP + SWATCH_SIZE, editing
+			color.name, editText(), DhenPalette.TEXT_PRIMARY, SWATCH_GAP + SWATCH_SIZE, editing, editing || open
 		)
+		val swatchLeft = swatchRight - SWATCH_SIZE
 		val swatchTop = widgetTop(y) + (WIDGET_HEIGHT - SWATCH_SIZE) / 2
-		RoundedGui.frame(graphics, swatchRight - SWATCH_SIZE, swatchTop, swatchRight, swatchTop + SWATCH_SIZE, SWATCH_RADIUS, color.value.argb, DhenPalette.BORDER)
+		val swatchBottom = swatchTop + SWATCH_SIZE
+		if (value.alpha != OPAQUE_ALPHA) checkerboard(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom)
+		RoundedGui.frame(graphics, swatchLeft, swatchTop, swatchRight, swatchBottom, SWATCH_RADIUS, value.argb, DhenPalette.BORDER)
+		if (open) drawPanel(graphics, x, y, width, value)
+	}
+
+	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
+		if (localY < CONTROL_ROW_HEIGHT) {
+			if (localX < swatchHit(width)) return super.onPress(localX, localY, width)
+			open = !open
+			return ControlPress.RESIZED
+		}
+		sync()
+		tracking = regionAt(localX, localY, width)
+		onDrag(localX, localY, width)
+		return ControlPress.TRACK
+	}
+
+	override fun onDrag(localX: Int, localY: Int, width: Int) {
+		var level = color.value.alpha
+		when (tracking) {
+			HUE_REGION -> hue = fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
+			ALPHA_REGION -> level = channelOf(fractionOf(localX - PICKER_PAD, width - 2 * PICKER_PAD))
+			else -> {
+				saturation = fractionOf(localX - PICKER_PAD, pickerSquareRight(width) - PICKER_PAD)
+				brightness = 1f - fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
+			}
+		}
+		color.value = Color.hsv(hue, saturation, brightness, level)
+		pickerArgb = color.value.argb
+	}
+
+	private fun panelBottom(): Int =
+		PICKER_PAD + if (color.allowAlpha) PICKER_ALPHA_TOP + PICKER_ALPHA_HEIGHT else PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT
+
+	private fun regionAt(localX: Int, localY: Int, width: Int): Int = when {
+		color.allowAlpha && localY >= PICKER_ALPHA_TOP -> ALPHA_REGION
+		localX >= pickerStripLeft(width) -> HUE_REGION
+		else -> SQUARE_REGION
+	}
+
+	private fun sync() {
+		val value = color.value
+		if (value.argb == pickerArgb) return
+		pickerArgb = value.argb
+		brightness = value.brightness
+		if (brightness == 0f) return
+		saturation = value.saturation
+		if (saturation > 0f) hue = value.hue
+	}
+
+	private fun drawPanel(graphics: GuiGraphicsExtractor, x: Int, y: Int, width: Int, value: Color) {
+		RoundedGui.frame(graphics, x, y + CONTROL_ROW_HEIGHT, x + width, y + panelBottom(), PICKER_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+		val left = x + PICKER_PAD
+		val right = x + pickerSquareRight(width)
+		val top = y + PICKER_SQUARE_TOP
+		val tint = Color.hsv(hue, 1f, 1f)
+		GradientGui.quad(graphics, left, top, right, top + PICKER_SQUARE_HEIGHT, Color.hsv(hue, 0f, 1f).argb, tint.argb, OPAQUE_BLACK, OPAQUE_BLACK)
+		val opaque = value.opaque().argb
+		val markerX = left + (saturation * (right - left)).roundToInt()
+		val markerY = top + ((1f - brightness) * PICKER_SQUARE_HEIGHT).roundToInt()
+		RoundedGui.circle(graphics, markerX, markerY, MARKER_RADIUS, inkOn(opaque))
+		RoundedGui.circle(graphics, markerX, markerY, MARKER_RADIUS - 1, opaque)
+		drawHueStrip(graphics, x + pickerStripLeft(width), top, tint.argb)
+		if (color.allowAlpha) drawAlphaStrip(graphics, left, y + PICKER_ALPHA_TOP, x + width - PICKER_PAD, value.alpha)
+	}
+
+	private fun drawHueStrip(graphics: GuiGraphicsExtractor, left: Int, top: Int, tint: Int) {
+		val right = left + PICKER_STRIP_WIDTH
+		for (segment in 0 until PICKER_HUE_SEGMENTS) {
+			GradientGui.vertical(
+				graphics,
+				left, top + PICKER_SQUARE_HEIGHT * segment / PICKER_HUE_SEGMENTS, right, top + PICKER_SQUARE_HEIGHT * (segment + 1) / PICKER_HUE_SEGMENTS,
+				Color.hsv(segment.toFloat() / PICKER_HUE_SEGMENTS, 1f, 1f).argb,
+				Color.hsv((segment + 1).toFloat() / PICKER_HUE_SEGMENTS, 1f, 1f).argb
+			)
+		}
+		val markerTop = (top + (hue * PICKER_SQUARE_HEIGHT).roundToInt()).coerceAtMost(top + PICKER_SQUARE_HEIGHT - MARKER_THICKNESS)
+		RoundedGui.pillBorder(graphics, left, markerTop, right, markerTop + MARKER_THICKNESS, RoundedGui.HAIRLINE, inkOn(tint))
+	}
+
+	private fun drawAlphaStrip(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, level: Int) {
+		val bottom = top + PICKER_ALPHA_HEIGHT
+		checkerboard(graphics, left, top, right, bottom)
+		val solid = Color.hsv(hue, saturation, brightness)
+		GradientGui.horizontal(graphics, left, top, right, bottom, solid.rgb, solid.argb)
+		val markerLeft = (left + level * (right - left) / OPAQUE_ALPHA).coerceAtMost(right - MARKER_THICKNESS)
+		RoundedGui.pillBorder(graphics, markerLeft, top, markerLeft + MARKER_THICKNESS, bottom, RoundedGui.HAIRLINE, inkOn(solid.argb))
 	}
 }
 
@@ -639,6 +764,37 @@ internal fun pillLeft(x: Int, width: Int, contentWidth: Int, labelWidth: Int): I
 	val rightmost = maxOf(x, x + width - PILL_MIN_WIDTH)
 	val clearOfLabel = (x + CONTROL_TEXT_INSET + labelWidth + LABEL_GAP).coerceIn(x, rightmost)
 	return (x + width - contentWidth - 2 * PILL_PAD).coerceIn(clearOfLabel, rightmost)
+}
+
+private fun swatchHit(width: Int): Int = width - PILL_PAD - SWATCH_GAP - SWATCH_SIZE
+
+private fun pickerSquareRight(width: Int): Int = pickerStripLeft(width) - PICKER_STRIP_GAP
+
+internal fun pickerStripLeft(width: Int): Int = width - PICKER_PAD - PICKER_STRIP_WIDTH
+
+private fun fractionOf(offset: Int, span: Int): Float =
+	if (span <= 0) 0f else (offset.toFloat() / span).coerceIn(0f, 1f)
+
+private fun channelOf(fraction: Float): Int = (fraction * OPAQUE_ALPHA).roundToInt()
+
+private fun inkOn(color: Int): Int =
+	if (DhenPalette.contrast(color, DhenPalette.TEXT_PRIMARY) >= DhenPalette.contrast(color, DhenPalette.TEXT_ON_ACCENT))
+		DhenPalette.TEXT_PRIMARY
+	else DhenPalette.TEXT_ON_ACCENT
+
+private fun checkerboard(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int) {
+	SharpGui.fill(graphics, left, top, right, bottom, DhenPalette.BORDER)
+	var cellTop = top
+	var offset = 0
+	while (cellTop < bottom) {
+		var cellLeft = left + offset
+		while (cellLeft < right) {
+			SharpGui.fill(graphics, cellLeft, cellTop, minOf(cellLeft + CHECKER_CELL, right), minOf(cellTop + CHECKER_CELL, bottom), DhenPalette.TEXT_DISABLED)
+			cellLeft += 2 * CHECKER_CELL
+		}
+		cellTop += CHECKER_CELL
+		offset = CHECKER_CELL - offset
+	}
 }
 
 internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int) {

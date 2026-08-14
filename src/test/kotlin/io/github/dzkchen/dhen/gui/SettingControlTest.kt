@@ -155,9 +155,9 @@ class SettingControlTest {
 		val control = SliderControl(setting)
 		assertEquals(ControlPress.TRACK, control.press(50, 0, 100))
 		assertEquals(5.0, setting.value)
-		control.drag(100, 100)
+		control.drag(100, 0, 100)
 		assertEquals(10.0, setting.value)
-		control.drag(-20, 100)
+		control.drag(-20, 0, 100)
 		assertEquals(0.0, setting.value)
 	}
 
@@ -279,7 +279,142 @@ class SettingControlTest {
 		const val GLYPH_WIDTH = 5
 		const val SWATCH_TRAILING = 12
 		const val GLYPH_TRAILING = 9
+		const val WIDTH = 100
+		val SQUARE_RIGHT = pickerStripLeft(WIDTH) - 1
 		val OPTIONS = listOf("A", "B", "C")
+	}
+
+	@Test
+	fun `color control opens its picker from the swatch and closes it again`() {
+		val setting = ColorSetting("c", Color.rgba(255, 128, 0), allowAlpha = false)
+		val control = ColorControl(setting)
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+
+		assertEquals(ControlPress.RESIZED, control.press(WIDTH - 1, 0, WIDTH))
+		assertTrue(control.expanded)
+		assertTrue(control.height > CONTROL_ROW_HEIGHT) { "an open picker must make its control taller" }
+
+		assertEquals(ControlPress.RESIZED, control.press(WIDTH - 1, 0, WIDTH))
+		assertFalse(control.expanded)
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+		assertEquals(Color.rgba(255, 128, 0).argb, setting.value.argb)
+	}
+
+	@Test
+	fun `the rest of the color row still opens the hex field`() {
+		val control = ColorControl(ColorSetting("c", Color.rgba(0, 0, 0)))
+
+		assertEquals(ControlPress.FOCUS, control.press(0, 0, WIDTH))
+		assertFalse(control.expanded)
+	}
+
+	@Test
+	fun `collapsing an open picker reports the change once and gives the room back`() {
+		val control = ColorControl(ColorSetting("c", Color.rgba(0, 0, 0)))
+		assertFalse(control.collapse())
+
+		control.press(WIDTH - 1, 0, WIDTH)
+		assertTrue(control.collapse())
+		assertFalse(control.collapse())
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+	}
+
+	@Test
+	fun `an open picker takes no room while its setting is hidden`() {
+		val gate = BooleanSetting("gate", default = true)
+		val control = ColorControl(ColorSetting("c", Color.rgba(0, 0, 0)).withDependency { gate.on })
+		control.press(WIDTH - 1, 0, WIDTH)
+		assertEquals(control.height, control.extent)
+
+		gate.value = false
+		assertEquals(0, control.extent)
+	}
+
+	@Test
+	fun `dragging the square sets saturation and brightness and pins at its edges`() {
+		val setting = ColorSetting("c", Color.rgba(255, 0, 0), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+
+		assertEquals(ControlPress.TRACK, control.press(SQUARE_RIGHT, PICKER_SQUARE_TOP, WIDTH))
+		assertEquals(Color.rgba(255, 0, 0).argb, setting.value.argb)
+
+		control.drag(PICKER_PAD, PICKER_SQUARE_TOP, WIDTH)
+		assertEquals(Color.rgba(255, 255, 255).argb, setting.value.argb)
+
+		control.drag(-40, PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT + 40, WIDTH)
+		assertEquals(Color.rgba(0, 0, 0).argb, setting.value.argb)
+	}
+
+	@Test
+	fun `the picker keeps the hue the user chose through white and black`() {
+		val setting = ColorSetting("c", Color.rgba(0, 0, 255), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+
+		control.press(PICKER_PAD, PICKER_SQUARE_TOP, WIDTH)
+		assertEquals(Color.rgba(255, 255, 255).argb, setting.value.argb)
+
+		control.drag(SQUARE_RIGHT, PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT, WIDTH)
+		assertEquals(Color.rgba(0, 0, 0).argb, setting.value.argb)
+
+		control.drag(SQUARE_RIGHT, PICKER_SQUARE_TOP, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
+	}
+
+	@Test
+	fun `dragging the hue strip walks the spectrum and pins at its ends`() {
+		val setting = ColorSetting("c", Color.rgba(255, 0, 0), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+
+		assertEquals(ControlPress.TRACK, control.press(pickerStripLeft(WIDTH), PICKER_SQUARE_TOP, WIDTH))
+		assertEquals(Color.rgba(255, 0, 0).argb, setting.value.argb)
+
+		control.drag(pickerStripLeft(WIDTH), PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT / 2, WIDTH)
+		assertEquals(Color.rgba(0, 255, 255).argb, setting.value.argb)
+
+		control.drag(pickerStripLeft(WIDTH), -50, WIDTH)
+		assertEquals(Color.rgba(255, 0, 0).argb, setting.value.argb)
+	}
+
+	@Test
+	fun `the alpha strip exists only where the setting allows alpha`() {
+		val opaque = ColorControl(ColorSetting("c", Color.rgba(10, 20, 30), allowAlpha = false))
+		val faded = ColorSetting("c", Color.rgba(10, 20, 30, 255), allowAlpha = true)
+		val fadedControl = ColorControl(faded)
+		opaque.press(WIDTH - 1, 0, WIDTH)
+		fadedControl.press(WIDTH - 1, 0, WIDTH)
+
+		assertTrue(opaque.height <= PICKER_ALPHA_TOP) { "a picker without alpha must not reach the alpha strip" }
+		assertTrue(fadedControl.height > opaque.height)
+
+		fadedControl.press(PICKER_PAD, PICKER_ALPHA_TOP, WIDTH)
+		assertEquals(Color.rgba(10, 20, 30, 0).argb, faded.value.argb)
+
+		fadedControl.drag(WIDTH, PICKER_ALPHA_TOP, WIDTH)
+		assertEquals(Color.rgba(10, 20, 30, 255).argb, faded.value.argb)
+	}
+
+	@Test
+	fun `the hex field and the picker agree in both directions`() {
+		val setting = ColorSetting("c", Color.rgba(0, 0, 0), allowAlpha = false)
+		val control = ColorControl(setting)
+		control.press(0, 0, WIDTH)
+		"0000FF".forEach { control.charTyped(it.code) }
+		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
+
+		control.press(WIDTH - 1, 0, WIDTH)
+		control.press(SQUARE_RIGHT, PICKER_SQUARE_TOP, WIDTH)
+		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
+
+		control.drag(PICKER_PAD + 30, PICKER_SQUARE_TOP + 17, WIDTH)
+		val picked = setting.value
+		control.press(0, 0, WIDTH)
+		"%02X%02X%02X".format(picked.red, picked.green, picked.blue).forEach { control.charTyped(it.code) }
+
+		assertEquals(ControlKey.CANCELLED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
+		assertEquals(picked.argb, setting.value.argb)
 	}
 
 	@Test

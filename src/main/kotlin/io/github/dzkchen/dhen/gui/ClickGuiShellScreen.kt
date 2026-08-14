@@ -49,6 +49,7 @@ internal class ClickGuiShellScreen(
 	private var tooltipRowTop = 0
 	private var dragged: SettingControl? = null
 	private var dragLeft = 0
+	private var dragTop = 0
 	private var dragWidth = 0
 	private var focused: SettingControl? = null
 	private var overlay: SettingControl? = null
@@ -325,7 +326,8 @@ internal class ClickGuiShellScreen(
 
 	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
 		val control = dragged ?: return super.mouseDragged(event, dragX, dragY)
-		control.drag(event.x().toInt() - dragLeft, dragWidth)
+		control.drag(event.x().toInt() - dragLeft, event.y().toInt() - dragTop, dragWidth)
+		trackClient(control)
 		return true
 	}
 
@@ -411,7 +413,9 @@ internal class ClickGuiShellScreen(
 			ControlPress.TRACK -> {
 				dragged = control
 				dragLeft = hitLeft
+				dragTop = hitTop
 				dragWidth = hitWidth
+				trackClient(control)
 			}
 			ControlPress.FOCUS -> focused = control
 			else -> Unit
@@ -470,6 +474,10 @@ internal class ClickGuiShellScreen(
 		}
 		reflowAll()
 		persistModules()
+	}
+
+	private fun trackClient(control: SettingControl) {
+		if (control.clientOwned) ClientPrefs.sync()
 	}
 
 	private fun persistClient() {
