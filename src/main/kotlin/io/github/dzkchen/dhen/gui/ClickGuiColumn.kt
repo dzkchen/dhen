@@ -263,4 +263,12 @@ internal class ClickGuiColumn(
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurements()
 	}
+
+	fun resync(): Boolean {
+		var changed = false
+		for (i in controls.indices) {
+			if (controls[i].resync()) changed = true
+		}
+		return changed
+	}
 }

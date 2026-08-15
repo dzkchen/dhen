@@ -15,7 +15,9 @@ import io.github.dzkchen.dhen.util.Color
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
@@ -129,6 +131,80 @@ class SettingControlTest {
 		assertEquals(below, body.at(body.indexAt(grown + CONTROL_ROW_HEIGHT - 1)))
 		assertEquals(ClickGuiShell.NONE, body.indexAt(grown + CONTROL_ROW_HEIGHT))
 		assertEquals(ClickGuiShell.NONE, body.indexAt(-1))
+	}
+
+	@Test
+	fun `a selector that gains a third option becomes a list without the screen being rebuilt`() {
+		val gate = BooleanSetting("gate", default = false)
+		val setting = SelectorSetting("s", "A", listOf("A", "B")).withDependency { gate.on }
+		setting.value = "B"
+		val body = ControlBody(listOf(controlFor(setting)!!))
+		assertInstanceOf(CycleControl::class.java, body.at(0))
+
+		setting.options = OPTIONS
+		assertTrue(body.resync())
+
+		assertInstanceOf(DropdownControl::class.java, body.at(0))
+		assertEquals("B", setting.value)
+		assertEquals(0, body.height) { "a rebuilt control must still answer to its setting's dependency" }
+
+		gate.value = true
+		assertEquals(CONTROL_ROW_HEIGHT, body.height)
+	}
+
+	@Test
+	fun `a selector that drops back to two options becomes a stepping pill again and gives its room back`() {
+		val setting = SelectorSetting("s", "A", OPTIONS)
+		val body = ControlBody(listOf(controlFor(setting)!!))
+		body.at(0).press(0, 0, 100)
+		assertTrue(body.height > CONTROL_ROW_HEIGHT)
+
+		setting.options = listOf("A", "B")
+		assertTrue(body.resync())
+
+		assertInstanceOf(CycleControl::class.java, body.at(0))
+		assertEquals(CONTROL_ROW_HEIGHT, body.height)
+		assertEquals("A", setting.value)
+	}
+
+	@Test
+	fun `a control the count rule discarded reports itself outdated so the screen can drop its reference`() {
+		val setting = SelectorSetting("s", "A", OPTIONS)
+		val body = ControlBody(listOf(controlFor(setting)!!))
+		val open = body.at(0)
+		open.press(0, 0, 100)
+		assertTrue(open.expanded)
+
+		setting.options = listOf("A", "B")
+
+		assertTrue(open.outdated())
+		body.resync()
+		assertNotSame(open, body.at(0))
+		assertFalse(body.at(0).outdated())
+	}
+
+	@Test
+	fun `a body whose selectors still match its controls is left alone`() {
+		val setting = SelectorSetting("s", "A", OPTIONS)
+		val body = ControlBody(listOf(controlFor(setting)!!, controlFor(BooleanSetting("b"))!!))
+		val listed = body.at(0)
+
+		setting.options = listOf("C", "B", "A")
+
+		assertFalse(body.resync())
+		assertSame(listed, body.at(0))
+	}
+
+	@Test
+	fun `only a changed option count moves the revision every open screen watches`() {
+		val setting = SelectorSetting("s", "A", listOf("A", "B"))
+		val before = SelectorSetting.optionCountRevision
+
+		setting.options = listOf("B", "A")
+		assertEquals(before, SelectorSetting.optionCountRevision)
+
+		setting.options = OPTIONS
+		assertTrue(SelectorSetting.optionCountRevision > before)
 	}
 
 	@Test

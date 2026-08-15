@@ -14,6 +14,7 @@ class SelectorSetting(
 
 	var options: List<String> = options
 		set(value) {
+			if (value.size != field.size) optionCountRevision++
 			field = value
 			cursor = cursorOnPreferred()
 		}
@@ -46,4 +47,9 @@ class SelectorSetting(
 
 	private fun cursorOnPreferred(): Int =
 		options.indexOfFirst { it.equals(preferred, ignoreCase = true) }.coerceAtLeast(0)
+
+	companion object {
+		internal var optionCountRevision = 0
+			private set
+	}
 }

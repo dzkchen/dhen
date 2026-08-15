@@ -77,7 +77,7 @@ internal enum class ControlPress { CHANGED, RESIZED, TRACK, FOCUS, INVOKED }
 
 internal enum class ControlKey { IGNORED, CONSUMED, COMMITTED, CANCELLED }
 
-internal sealed class SettingControl(private val setting: Setting<*>) {
+internal sealed class SettingControl(val setting: Setting<*>) {
 	private val memos = mutableListOf<TextMemo>()
 
 	protected val labelText = memo()
@@ -99,6 +99,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		get() = if (renderable()) height else 0
 
 	open fun collapse(): Boolean = false
+
+	open fun outdated(): Boolean = false
 
 	protected abstract fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int)
 
@@ -245,7 +247,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 	}
 }
 
-internal class ControlBody(private val controls: List<SettingControl>) {
+internal class ControlBody(built: List<SettingControl>) {
+	private val controls = built.toMutableList()
 	private val extentAt = IntUnaryOperator { index -> controls[index].extent }
 
 	val indices: IntRange
@@ -258,6 +261,17 @@ internal class ControlBody(private val controls: List<SettingControl>) {
 	fun topOf(index: Int): Int = ClickGuiShell.spanStart(index, extentAt, NO_GAP)
 
 	fun indexAt(localY: Int): Int = ClickGuiShell.spanAt(localY, controls.size, extentAt, NO_GAP)
+
+	fun resync(): Boolean {
+		var changed = false
+		for (i in controls.indices) {
+			val control = controls[i]
+			if (!control.outdated()) continue
+			controls[i] = controlFor(control.setting) ?: continue
+			changed = true
+		}
+		return changed
+	}
 
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurement()
@@ -393,6 +407,8 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 }
 
 internal class CycleControl(private val selector: SelectorSetting) : SettingControl(selector) {
+	override fun outdated(): Boolean = !failed && listable(selector)
+
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
@@ -422,6 +438,8 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 		listed = false
 		return true
 	}
+
+	override fun outdated(): Boolean = !failed && !listable(selector)
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		val glyphWidth = glyphText.width(font, DROPDOWN_GLYPH)
@@ -842,11 +860,12 @@ internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int)
 
 internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
 
+private fun listable(selector: SelectorSetting): Boolean = selector.options.size >= LISTED_FROM_OPTIONS
+
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is BooleanSetting -> ToggleControl(setting)
 	is NumberSetting -> SliderControl(setting)
-	is SelectorSetting ->
-		if (setting.options.size < LISTED_FROM_OPTIONS) CycleControl(setting) else DropdownControl(setting)
+	is SelectorSetting -> if (listable(setting)) DropdownControl(setting) else CycleControl(setting)
 	is StringSetting -> TextControl(setting)
 	is ColorSetting -> ColorControl(setting)
 	is KeybindSetting -> KeybindControl(setting)

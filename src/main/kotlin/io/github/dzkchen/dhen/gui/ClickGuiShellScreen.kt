@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -29,6 +30,7 @@ internal class ClickGuiShellScreen(
 	private var dragWidth = 0
 	private var focused: SettingControl? = null
 	private var overlay: SettingControl? = null
+	private var seenOptionCounts = SelectorSetting.optionCountRevision
 	private var swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
 
 	override fun init() {
@@ -58,8 +60,23 @@ internal class ClickGuiShellScreen(
 		if (previous == null) super.onClose() else minecraft.gui.setScreen(previous)
 	}
 
-	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) =
+	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+		resyncControls()
 		chrome.draw(graphics, font, mouseX, mouseY)
+	}
+
+	private fun resyncControls() {
+		val revision = SelectorSetting.optionCountRevision
+		if (revision == seenOptionCounts) return
+		seenOptionCounts = revision
+		overlay = surviving(overlay)
+		focused = surviving(focused)
+		dragged = surviving(dragged)
+		if (field.resync()) field.reflowAll()
+		if (panel.resync()) panel.reclamp()
+	}
+
+	private fun surviving(control: SettingControl?): SettingControl? = control?.takeIf { !it.outdated() }
 
 	private fun drawTabBody(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		if (!chrome.onFeatures) {

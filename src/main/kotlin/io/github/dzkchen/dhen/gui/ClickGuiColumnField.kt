@@ -47,6 +47,14 @@ internal class ClickGuiColumnField(
 		for (i in columns.indices) columns[i].applyFilter(query)
 	}
 
+	fun resync(): Boolean {
+		var changed = false
+		for (i in columns.indices) {
+			if (columns[i].resync()) changed = true
+		}
+		return changed
+	}
+
 	fun refilter() {
 		layout()
 		stack.refilter()
