@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
@@ -65,7 +66,7 @@ object Dhen : ClientModInitializer {
 
 	override fun onInitializeClient() {
 		failsafe.guard("initialization", ::initialize)
-		if (failsafe.failed) clientThread.shutdown()
+		if (failsafe.failed) latchOff()
 	}
 
 	private fun initialize() {
@@ -127,14 +128,20 @@ object Dhen : ClientModInitializer {
 			)
 		)
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
-			if (failsafe.failed) clientThread.shutdown()
+			if (failsafe.failed) latchOff()
 			else failsafe.guard("client tick") { tick(client, openGuiKey) }
 		}
 		ClientLifecycleEvents.CLIENT_STOPPING.register {
 			stores.forEach { it.flush() }
 			configScope.cancel()
 		}
+		NetworkHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
+	}
+
+	private fun latchOff() {
+		clientThread.shutdown()
+		NetworkHooks.uninstall()
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
