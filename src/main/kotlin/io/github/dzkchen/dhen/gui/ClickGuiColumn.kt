@@ -160,14 +160,15 @@ internal class ClickGuiColumn(
 		val overColumn = mouseX in left until right
 		GlassGui.roundedFrame(graphics, left, top, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
 		val headerColor = if (overColumn && mouseY in top until bodyTop) GlassGui.interactive() else GlassGui.raised()
-		ClickGuiPaint.headerBand(graphics, font, left, right, top, category.displayName, headerColor)
+		val bodied = !collapsedNow && bottom > bodyTop
+		ClickGuiPaint.headerBand(graphics, font, left, right, top, category.displayName, headerColor, bodied)
 		val glyph = if (collapsedNow) EXPAND_GLYPH else COLLAPSE_GLYPH
 		DhenType.text(graphics, font, glyph, right - CONTENT_PAD - glyphs.glyph, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
-		if (collapsedNow || bottom <= bodyTop) return
-		ClickGuiPaint.headerRule(graphics, left, right, bodyTop, headerColor)
+		if (!bodied) return
+		ClickGuiPaint.headerRule(graphics, left, right, bodyTop)
 		val max = natural - shown
 		val clipped = max > ClickGuiScroll.TOP
-		val visibleTop = maxOf(bodyTop, FIELD_TOP)
+		val visibleTop = bodyTop
 		val visibleBottom = minOf(bottom, fieldBottom.asInt)
 		val pointerY = if (overColumn && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
 		if (clipped) graphics.enableScissor(left + HAIRLINE_INSET, bodyTop, right - HAIRLINE_INSET, bottom)
@@ -180,7 +181,7 @@ internal class ClickGuiColumn(
 			if (nextTop > visibleTop) {
 				drawRow(graphics, font, modules[index], left, rowTop, pointerY, focus)
 				if (areaHeight > 0) {
-					drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, visibleTop, visibleBottom, mouseX, pointerY)
+					drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, visibleTop, visibleBottom, mouseX, mouseY)
 				}
 			}
 			rowTop = nextTop
@@ -238,21 +239,10 @@ internal class ClickGuiColumn(
 		visibleTop: Int,
 		visibleBottom: Int,
 		mouseX: Int,
-		pointerY: Int
+		mouseY: Int
 	) {
 		SharpGui.fill(graphics, left + HAIRLINE_INSET, top, left + COLUMN_WIDTH - HAIRLINE_INSET, top + areaHeight, GlassGui.canvas())
-		val controlsLeft = left + CONTENT_PAD
-		val controlPointer = if (mouseX in controlsLeft until controlsLeft + CONTROLS_WIDTH) pointerY else NO_POINTER
-		var y = top + SETTINGS_PAD
-		val body = controls[index]
-		for (i in body.indices) {
-			val control = body.at(i)
-			val extent = control.extent
-			if (extent == 0) continue
-			if (y >= visibleBottom) break
-			if (y + extent > visibleTop) control.draw(graphics, font, controlsLeft, y, CONTROLS_WIDTH, controlPointer)
-			y += extent
-		}
+		controls[index].draw(graphics, font, left + CONTENT_PAD, top + SETTINGS_PAD, CONTROLS_WIDTH, mouseX, mouseY, visibleTop, visibleBottom)
 	}
 
 	private fun settingsHeight(index: Int): Int {
@@ -264,11 +254,7 @@ internal class ClickGuiColumn(
 		for (i in controls.indices) controls[i].invalidateMeasurements()
 	}
 
-	fun resync(): Boolean {
-		var changed = false
-		for (i in controls.indices) {
-			if (controls[i].resync()) changed = true
-		}
-		return changed
+	fun resync() {
+		for (i in controls.indices) controls[i].resync()
 	}
 }

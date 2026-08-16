@@ -11,22 +11,26 @@ internal object ClickGuiPaint {
 		right: Int,
 		top: Int,
 		title: String,
-		fill: Int
+		fill: Int,
+		squared: Boolean
 	) {
+		val bottom = top + HEADER_HEIGHT
 		RoundedGui.fill(
 			graphics,
 			left + HAIRLINE_INSET,
 			top + HAIRLINE_INSET,
 			right - HAIRLINE_INSET,
-			top + HEADER_HEIGHT - HAIRLINE_INSET,
+			bottom - HAIRLINE_INSET,
 			COLUMN_RADIUS - HAIRLINE_INSET,
 			fill
 		)
+		if (squared) {
+			SharpGui.fill(graphics, left + HAIRLINE_INSET, bottom - COLUMN_RADIUS.toInt(), right - HAIRLINE_INSET, bottom, fill)
+		}
 		DhenType.text(graphics, font, title, left + CONTENT_PAD, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_PRIMARY)
 	}
 
-	fun headerRule(graphics: GuiGraphicsExtractor, left: Int, right: Int, bottom: Int, fill: Int) {
-		SharpGui.fill(graphics, left + HAIRLINE_INSET, bottom - COLUMN_RADIUS.toInt(), right - HAIRLINE_INSET, bottom, fill)
+	fun headerRule(graphics: GuiGraphicsExtractor, left: Int, right: Int, bottom: Int) {
 		SharpGui.fill(graphics, left + HEADER_RULE_INSET, bottom - 1, right - HEADER_RULE_INSET, bottom, DhenPalette.accent)
 	}
 

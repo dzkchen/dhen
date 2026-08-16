@@ -17,7 +17,7 @@ internal class ClickGuiColumnField(
 	private val expanded = mutableSetOf<String>()
 	private val glyphs = ColumnGlyphs()
 	private val tooltip = ClickGuiTooltip()
-	private val fieldBottom = IntSupplier { viewportHeight.asInt - MARGIN }
+	private val fieldBottom = IntSupplier { fieldBottomOf(viewportHeight.asInt) }
 	private val stack = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, viewportWidth, { COLUMN_WIDTH })
 	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
 
@@ -47,12 +47,8 @@ internal class ClickGuiColumnField(
 		for (i in columns.indices) columns[i].applyFilter(query)
 	}
 
-	fun resync(): Boolean {
-		var changed = false
-		for (i in columns.indices) {
-			if (columns[i].resync()) changed = true
-		}
-		return changed
+	fun resync() {
+		for (i in columns.indices) columns[i].resync()
 	}
 
 	fun refilter() {
@@ -112,11 +108,7 @@ internal class ClickGuiColumnField(
 		if (x < left || x >= left + CONTROLS_WIDTH) return null
 		val row = column.settingsRowAt(y)
 		if (row == ClickGuiShell.NONE) return null
-		val body = column.bodyOf(row)
-		val top = column.bodyTop(row)
-		val index = body.indexAt(y - top)
-		if (index == ClickGuiShell.NONE) return null
-		return hit.record(column, left, top + body.topOf(index), CONTROLS_WIDTH, body.at(index))
+		return column.bodyOf(row).hit(hit, column, left, column.bodyTop(row), CONTROLS_WIDTH, y)
 	}
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {

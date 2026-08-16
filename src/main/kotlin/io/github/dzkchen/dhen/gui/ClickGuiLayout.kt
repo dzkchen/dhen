@@ -48,3 +48,5 @@ internal const val COLLAPSE_GLYPH = "-"
 internal const val CHEVRON_COLLAPSED = "›"
 internal const val CHEVRON_EXPANDED = "⌄"
 internal val TAB_LABELS = arrayOf("Features", "Settings")
+
+internal fun fieldBottomOf(viewportHeight: Int): Int = viewportHeight - MARGIN

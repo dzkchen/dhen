@@ -46,8 +46,8 @@ private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
 private const val DROPDOWN_GLYPH = "⌄"
 private const val LISTED_FROM_OPTIONS = 3
-private const val LIST_PAD = 3
-private const val LIST_ROW_HEIGHT = 13
+internal const val LIST_PAD = 3
+internal const val LIST_ROW_HEIGHT = 13
 private const val LIST_TEXT_INSET = 4
 private const val LIST_RADIUS = 4f
 private const val LIST_ROW_RADIUS = 3f
@@ -72,8 +72,9 @@ private const val ALPHA_REGION = 2
 
 private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
 private val OPAQUE_BLACK = Color.rgba(0, 0, 0).argb
+private val HUE_STOPS = IntArray(PICKER_HUE_SEGMENTS + 1) { Color.hsv(it.toFloat() / PICKER_HUE_SEGMENTS, 1f, 1f).argb }
 
-internal enum class ControlPress { CHANGED, RESIZED, TRACK, FOCUS, INVOKED }
+internal enum class ControlPress { IGNORED, CHANGED, RESIZED, TRACK, FOCUS, INVOKED }
 
 internal enum class ControlKey { IGNORED, CONSUMED, COMMITTED, CANCELLED }
 
@@ -100,7 +101,7 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 
 	open fun collapse(): Boolean = false
 
-	open fun outdated(): Boolean = false
+	protected open fun onOutdated(): Boolean = false
 
 	protected abstract fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int)
 
@@ -116,81 +117,35 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 
 	protected open fun onBlur(): Boolean = false
 
-	fun renderable(): Boolean {
-		if (failed) return false
+	fun renderable(): Boolean = guarded(false, false) { setting.isVisible }
+
+	fun outdated(): Boolean = guarded(false, false) { onOutdated() }
+
+	fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) =
+		guarded(Unit, Unit) { onDraw(graphics, font, x, y, width, pointerY) }
+
+	fun press(localX: Int, localY: Int, width: Int): ControlPress? =
+		guarded(null, null) { onPress(localX, localY, width) }
+
+	fun drag(localX: Int, localY: Int, width: Int) = guarded(Unit, Unit) { onDrag(localX, localY, width) }
+
+	fun keyPressed(key: Int, modifiers: Int): ControlKey =
+		guarded(ControlKey.IGNORED, ControlKey.CANCELLED) { onKeyPressed(key, modifiers) }
+
+	fun charTyped(codepoint: Int): Boolean = guarded(false, true) { onCharTyped(codepoint) }
+
+	fun captureMouse(button: Int): ControlKey =
+		guarded(ControlKey.IGNORED, ControlKey.CANCELLED) { onCaptureMouse(button) }
+
+	fun blur(): Boolean = guarded(false, false) { onBlur() }
+
+	private inline fun <T> guarded(whenFailed: T, whenThrown: T, body: () -> T): T {
+		if (failed) return whenFailed
 		return try {
-			setting.isVisible
+			body()
 		} catch (throwable: Throwable) {
 			quarantine(throwable)
-			false
-		}
-	}
-
-	fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
-		if (failed) return
-		try {
-			onDraw(graphics, font, x, y, width, pointerY)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-		}
-	}
-
-	fun press(localX: Int, localY: Int, width: Int): ControlPress? {
-		if (failed) return null
-		return try {
-			onPress(localX, localY, width)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-			null
-		}
-	}
-
-	fun drag(localX: Int, localY: Int, width: Int) {
-		if (failed) return
-		try {
-			onDrag(localX, localY, width)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-		}
-	}
-
-	fun keyPressed(key: Int, modifiers: Int): ControlKey {
-		if (failed) return ControlKey.IGNORED
-		return try {
-			onKeyPressed(key, modifiers)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-			ControlKey.CANCELLED
-		}
-	}
-
-	fun charTyped(codepoint: Int): Boolean {
-		if (failed) return false
-		return try {
-			onCharTyped(codepoint)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-			true
-		}
-	}
-
-	fun captureMouse(button: Int): ControlKey {
-		if (failed) return ControlKey.IGNORED
-		return try {
-			onCaptureMouse(button)
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-			ControlKey.CANCELLED
-		}
-	}
-
-	fun blur(): Boolean {
-		if (failed) return false
-		return try {
-			onBlur()
-		} catch (throwable: Throwable) {
-			quarantine(throwable)
-			false
+			whenThrown
 		}
 	}
 
@@ -251,12 +206,39 @@ internal class ControlBody(built: List<SettingControl>) {
 	private val controls = built.toMutableList()
 	private val extentAt = IntUnaryOperator { index -> controls[index].extent }
 
-	val indices: IntRange
-		get() = controls.indices
 	val height: Int
 		get() = ClickGuiShell.spanTotal(controls.size, extentAt, NO_GAP)
 
 	fun at(index: Int): SettingControl = controls[index]
+
+	fun draw(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		left: Int,
+		top: Int,
+		width: Int,
+		mouseX: Int,
+		mouseY: Int,
+		visibleTop: Int,
+		visibleBottom: Int
+	) {
+		val pointerY = if (mouseX in left until left + width && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
+		var y = top
+		for (i in controls.indices) {
+			val control = controls[i]
+			val extent = control.extent
+			if (extent == 0) continue
+			if (y >= visibleBottom) break
+			if (y + extent > visibleTop) control.draw(graphics, font, left, y, width, pointerY)
+			y += extent
+		}
+	}
+
+	fun hit(record: ControlHit, host: ControlHost, left: Int, top: Int, width: Int, y: Int): SettingControl? {
+		val index = indexAt(y - top)
+		if (index == ClickGuiShell.NONE) return null
+		return record.record(host, left, top + topOf(index), width, controls[index])
+	}
 
 	fun topOf(index: Int): Int = ClickGuiShell.spanStart(index, extentAt, NO_GAP)
 
@@ -407,7 +389,7 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 }
 
 internal class CycleControl(private val selector: SelectorSetting) : SettingControl(selector) {
-	override fun outdated(): Boolean = !failed && listable(selector)
+	override fun onOutdated(): Boolean = listable(selector)
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		pillRow(
@@ -439,7 +421,7 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 		return true
 	}
 
-	override fun outdated(): Boolean = !failed && !listable(selector)
+	override fun onOutdated(): Boolean = !listable(selector)
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		val glyphWidth = glyphText.width(font, DROPDOWN_GLYPH)
@@ -573,9 +555,8 @@ internal class TextControl(private val string: StringSetting) : EditableControl(
 }
 
 internal class ColorControl(private val color: ColorSetting) : EditableControl(color) {
-	private var cacheValid = false
-	private var cachedArgb = 0
-	private var cachedHex = ""
+	private var cachedArgb = color.value.argb
+	private var cachedHex = hex(color.value, color.allowAlpha)
 	private var open = false
 	private var tracking = SQUARE_REGION
 	private var pickerArgb = color.value.argb
@@ -601,8 +582,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 
 	override fun committedText(): String {
 		val argb = color.value.argb
-		if (!cacheValid || argb != cachedArgb) {
-			cacheValid = true
+		if (argb != cachedArgb) {
 			cachedArgb = argb
 			cachedHex = hex(color.value, color.allowAlpha)
 		}
@@ -649,6 +629,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		}
 		sync()
 		tracking = regionAt(localX, localY, width)
+		if (tracking == ClickGuiShell.NONE) return ControlPress.IGNORED
 		onDrag(localX, localY, width)
 		return ControlPress.TRACK
 	}
@@ -712,8 +693,8 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 			GradientGui.vertical(
 				graphics,
 				left, top + PICKER_SQUARE_HEIGHT * segment / PICKER_HUE_SEGMENTS, right, top + PICKER_SQUARE_HEIGHT * (segment + 1) / PICKER_HUE_SEGMENTS,
-				Color.hsv(segment.toFloat() / PICKER_HUE_SEGMENTS, 1f, 1f).argb,
-				Color.hsv((segment + 1).toFloat() / PICKER_HUE_SEGMENTS, 1f, 1f).argb
+				HUE_STOPS[segment],
+				HUE_STOPS[segment + 1]
 			)
 		}
 		val markerTop = (top + (hue * PICKER_SQUARE_HEIGHT).roundToInt()).coerceAtMost(top + PICKER_SQUARE_HEIGHT - MARKER_THICKNESS)

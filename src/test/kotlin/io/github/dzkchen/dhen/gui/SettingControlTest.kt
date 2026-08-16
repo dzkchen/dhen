@@ -106,6 +106,36 @@ class SettingControlTest {
 	}
 
 	@Test
+	fun `an open list resolves every option row, and its own padding closes it instead`() {
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val control = DropdownControl(setting)
+		val firstRow = CONTROL_ROW_HEIGHT + LIST_PAD
+
+		for (option in OPTIONS.indices) {
+			assertEquals(OPTIONS[option], picked(control, setting, firstRow + option * LIST_ROW_HEIGHT))
+			assertEquals(OPTIONS[option], picked(control, setting, firstRow + (option + 1) * LIST_ROW_HEIGHT - 1))
+		}
+
+		setting.value = "A"
+		control.press(0, 0, WIDTH)
+		assertEquals(ControlPress.RESIZED, control.press(0, firstRow - 1, WIDTH))
+		assertFalse(control.expanded)
+		assertEquals("A", setting.value) { "the pad above the first option must not pick one" }
+
+		control.press(0, 0, WIDTH)
+		assertEquals(ControlPress.RESIZED, control.press(0, control.height - 1, WIDTH))
+		assertFalse(control.expanded)
+		assertEquals("A", setting.value) { "the pad below the last option must not pick one" }
+	}
+
+	private fun picked(control: DropdownControl, setting: SelectorSetting, localY: Int): String {
+		setting.value = "A"
+		control.press(0, 0, WIDTH)
+		control.press(0, localY, WIDTH)
+		return setting.value
+	}
+
+	@Test
 	fun `a control body stacks its controls by their own heights`() {
 		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS))
 		val body = ControlBody(listOf(ToggleControl(BooleanSetting("b")), listed, ToggleControl(BooleanSetting("c"))))
@@ -460,16 +490,18 @@ class SettingControlTest {
 		val control = ColorControl(setting)
 		control.press(WIDTH - 1, 0, WIDTH)
 
-		control.press(pickerStripLeft(WIDTH), PICKER_SQUARE_TOP - 1, WIDTH)
+		assertEquals(ControlPress.IGNORED, control.press(pickerStripLeft(WIDTH), PICKER_SQUARE_TOP - 1, WIDTH))
 		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb) { "padding above the hue strip must not reset the hue" }
 
-		control.press(PICKER_PAD, PICKER_SQUARE_TOP - 1, WIDTH)
+		assertEquals(ControlPress.IGNORED, control.press(PICKER_PAD, PICKER_SQUARE_TOP - 1, WIDTH))
 		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
 
-		control.press(PICKER_PAD, PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT, WIDTH)
+		assertEquals(ControlPress.IGNORED, control.press(PICKER_PAD, PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT, WIDTH))
 		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb)
 
-		control.press(PICKER_PAD, control.height - 1, WIDTH)
+		assertEquals(ControlPress.IGNORED, control.press(PICKER_PAD, control.height - 1, WIDTH)) {
+			"a press that picks nothing must not arm a drag, or releasing it writes the config"
+		}
 		assertEquals(Color.rgba(0, 0, 255).argb, setting.value.argb) { "the panel's bottom padding must not set alpha" }
 	}
 

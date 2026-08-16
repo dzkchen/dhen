@@ -72,8 +72,10 @@ internal class ClickGuiShellScreen(
 		overlay = surviving(overlay)
 		focused = surviving(focused)
 		dragged = surviving(dragged)
-		if (field.resync()) field.reflowAll()
-		if (panel.resync()) panel.reclamp()
+		field.resync()
+		panel.resync()
+		field.reflowAll()
+		panel.reclamp()
 	}
 
 	private fun surviving(control: SettingControl?): SettingControl? = control?.takeIf { !it.outdated() }
@@ -249,7 +251,7 @@ internal class ClickGuiShellScreen(
 		syncOverlay(control)
 		reflowQuarantined(control)
 		if (result == ControlPress.CHANGED || result == ControlPress.RESIZED) reflowHost(control)
-		if (control.expanded) hit.reveal(control.height)
+		if (result == ControlPress.RESIZED && control.expanded) hit.reveal(control.height)
 		return result
 	}
 

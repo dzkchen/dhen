@@ -13,32 +13,33 @@ internal class PrefCard(section: PrefSection) {
 
 	fun invalidateMeasurements() = body.invalidateMeasurements()
 
-	private fun heightOf(content: Int): Int =
+	fun heightOf(content: Int): Int =
 		HEADER_HEIGHT + 2 * SECTION_PAD + if (content == 0) EMPTY_SECTION_HEIGHT else content
 
-	fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, top: Int, bottom: Int, mouseX: Int, mouseY: Int) {
-		val content = body.height
+	fun draw(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		left: Int,
+		top: Int,
+		content: Int,
+		visibleTop: Int,
+		visibleBottom: Int,
+		mouseX: Int,
+		mouseY: Int
+	) {
 		val right = left + PANEL_WIDTH
 		val headerBottom = top + HEADER_HEIGHT
 		val fill = GlassGui.raised()
 		GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
-		ClickGuiPaint.headerBand(graphics, font, left, right, top, title, fill)
-		ClickGuiPaint.headerRule(graphics, left, right, headerBottom, fill)
+		ClickGuiPaint.headerBand(graphics, font, left, right, top, title, fill, squared = true)
+		ClickGuiPaint.headerRule(graphics, left, right, headerBottom)
 		val contentLeft = left + CONTENT_PAD
-		var y = headerBottom + SECTION_PAD
+		val contentTop = headerBottom + SECTION_PAD
 		if (content == 0) {
-			DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, y, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
+			DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, contentTop, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 			return
 		}
-		val pointerY = if (mouseX in contentLeft until contentLeft + PANEL_CONTROLS_WIDTH) mouseY else NO_POINTER
-		for (i in body.indices) {
-			val control = body.at(i)
-			val extent = control.extent
-			if (extent == 0) continue
-			if (y >= bottom) break
-			control.draw(graphics, font, contentLeft, y, PANEL_CONTROLS_WIDTH, pointerY)
-			y += extent
-		}
+		body.draw(graphics, font, contentLeft, contentTop, PANEL_CONTROLS_WIDTH, mouseX, mouseY, visibleTop, visibleBottom)
 	}
 }
 
@@ -50,7 +51,7 @@ internal class ClickGuiPrefsPanel(
 	private val stack = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { cards.size }, viewportHeight, { index -> cards[index].height })
 
 	private val fieldBottom: Int
-		get() = viewportHeight.asInt - MARGIN
+		get() = fieldBottomOf(viewportHeight.asInt)
 
 	fun reclamp() = stack.reclamp()
 
@@ -60,12 +61,8 @@ internal class ClickGuiPrefsPanel(
 		for (i in cards.indices) cards[i].invalidateMeasurements()
 	}
 
-	fun resync(): Boolean {
-		var changed = false
-		for (i in cards.indices) {
-			if (cards[i].body.resync()) changed = true
-		}
-		return changed
+	fun resync() {
+		for (i in cards.indices) cards[i].body.resync()
 	}
 
 	override fun revealSpan(screenTop: Int, extent: Int) = stack.revealSpan(stack.localOf(screenTop), extent)
@@ -80,8 +77,9 @@ internal class ClickGuiPrefsPanel(
 		for (i in cards.indices) {
 			val card = cards[i]
 			if (top >= bottom) break
-			val cardHeight = card.height
-			if (top + cardHeight > FIELD_TOP) card.draw(graphics, font, left, top, bottom, mouseX, mouseY)
+			val content = card.body.height
+			val cardHeight = card.heightOf(content)
+			if (top + cardHeight > FIELD_TOP) card.draw(graphics, font, left, top, content, FIELD_TOP, bottom, mouseX, mouseY)
 			top += cardHeight + SECTION_GAP
 		}
 		if (!clipped) return
@@ -95,11 +93,8 @@ internal class ClickGuiPrefsPanel(
 		if (y !in FIELD_TOP..<fieldBottom) return null
 		val slot = stack.slotAt(y)
 		if (slot == ClickGuiShell.NONE) return null
-		val body = cards[slot].body
 		val top = stack.originOf(slot) + HEADER_HEIGHT + SECTION_PAD
-		val index = body.indexAt(y - top)
-		if (index == ClickGuiShell.NONE) return null
-		return hit.record(this, left, top + body.topOf(index), PANEL_CONTROLS_WIDTH, body.at(index))
+		return cards[slot].body.hit(hit, this, left, top, PANEL_CONTROLS_WIDTH, y)
 	}
 
 	private fun panelLeft(): Int = ClickGuiShell.centeredLeft(viewportWidth.asInt, PANEL_WIDTH)
