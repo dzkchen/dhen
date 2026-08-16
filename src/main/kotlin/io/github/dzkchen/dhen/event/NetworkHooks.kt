@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.event
 
+import io.github.dzkchen.dhen.mixin.ChatTextAccess
+import io.github.dzkchen.dhen.mixin.ServerboundChatCommandPacketAccessor
 import io.github.dzkchen.dhen.mixin.SystemChatPacketAccessor
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.network.chat.Component
@@ -33,6 +35,9 @@ internal object NetworkHooks {
 	}
 
 	@JvmStatic
+	fun beforeSend(packet: Packet<*>): Boolean = guarded("packet send") { channels -> channels.sent(packet) }
+
+	@JvmStatic
 	fun afterHandle(packet: Packet<*>) {
 		guarded("packet handled") { channels ->
 			channels.handled(packet)
@@ -56,6 +61,7 @@ internal object NetworkHooks {
 		private val receivePost = bus.type<PacketReceiveEvent.Post>()
 		private val chat = TextChannel(bus.type<ChatReceiveEvent>(), ChatReceiveEvent())
 		private val actionBar = TextChannel(bus.type<ActionBarEvent>(), ActionBarEvent())
+		private val outbound = OutboundChannel(bus.type<PacketSendEvent>(), bus.type<MessageSendEvent>())
 		private val preEvent = PacketReceiveEvent.Pre()
 		private val postEvent = PacketReceiveEvent.Post()
 
@@ -71,8 +77,45 @@ internal object NetworkHooks {
 			receivePost.dispatch(postEvent)
 		}
 
+		fun sent(packet: Packet<*>): Boolean = outbound.publish(packet)
+
 		fun chatLine(content: Component, overlay: Boolean): Component? =
 			(if (overlay) actionBar else chat).publish(content)
+	}
+
+	private class OutboundChannel(
+		private val packets: EventBus.EventType<PacketSendEvent>,
+		private val messages: EventBus.EventType<MessageSendEvent>
+	) {
+		private val sendEvent = PacketSendEvent()
+		private val messageEvent = MessageSendEvent()
+		private var sharedEventsInUse = false
+
+		fun publish(packet: Packet<*>): Boolean {
+			if (sharedEventsInUse) return publish(packet, PacketSendEvent(), MessageSendEvent())
+			sharedEventsInUse = true
+			return try {
+				publish(packet, sendEvent, messageEvent)
+			} finally {
+				sharedEventsInUse = false
+			}
+		}
+
+		private fun publish(packet: Packet<*>, send: PacketSendEvent, message: MessageSendEvent): Boolean {
+			send.packet = packet
+			send.cancelled = false
+			packets.dispatch(send)
+			if (send.cancelled) return true
+			val outgoing = packet as? ChatTextAccess ?: return false
+			val text = outgoing.chatText()
+			message.cancelled = false
+			message.isCommand = outgoing is ServerboundChatCommandPacketAccessor
+			message.message = text
+			messages.dispatch(message)
+			if (message.cancelled) return true
+			if (message.message !== text) outgoing.chatText(message.message)
+			return false
+		}
 	}
 
 	private class TextChannel<T : TextEvent>(

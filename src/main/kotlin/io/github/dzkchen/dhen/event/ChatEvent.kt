@@ -31,6 +31,15 @@ class ChatReceiveEvent internal constructor() : TextEvent()
 
 class ActionBarEvent internal constructor() : TextEvent()
 
+class MessageSendEvent internal constructor() : Event, Cancellable {
+	override var cancelled: Boolean = false
+
+	var message: String = ""
+
+	var isCommand: Boolean = false
+		internal set
+}
+
 private val LEGACY_COLORS: Map<TextColor, ChatFormatting> = ChatFormatting.entries
 	.mapNotNull { format -> TextColor.fromLegacyFormat(format)?.let { color -> color to format } }
 	.toMap()

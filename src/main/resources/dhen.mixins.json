@@ -5,8 +5,11 @@
 	"mixins": [],
 	"client": [
 		"ClientPacketListenerMixin",
+		"ConnectionMixin",
 		"LoadingOverlayMixin",
 		"PacketProcessorMixin",
+		"ServerboundChatCommandPacketAccessor",
+		"ServerboundChatPacketAccessor",
 		"SystemChatPacketAccessor"
 	],
 	"injectors": {

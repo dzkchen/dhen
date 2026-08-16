@@ -1,5 +1,8 @@
 package io.github.dzkchen.dhen.event
 
+import io.github.dzkchen.dhen.mixin.ChatTextAccess
+import io.github.dzkchen.dhen.mixin.ServerboundChatCommandPacketAccessor
+import io.github.dzkchen.dhen.mixin.ServerboundChatPacketAccessor
 import io.github.dzkchen.dhen.mixin.SystemChatPacketAccessor
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
@@ -114,6 +117,99 @@ class NetworkHooksTest {
 	}
 
 	@Test
+	fun `a sent packet reaches the handlers watching for it`() {
+		val packet = FakePacket()
+		var seen: Packet<*>? = null
+		bus.subscribe<PacketSendEvent> { seen = it.packet }
+
+		assertFalse(NetworkHooks.beforeSend(packet))
+
+		assertSame(packet, seen)
+	}
+
+	@Test
+	fun `cancelling an outgoing packet stops it before its message is raised`() {
+		var raised = false
+		bus.subscribe<PacketSendEvent> { it.cancel() }
+		bus.subscribe<MessageSendEvent> { raised = true }
+
+		assertTrue(NetworkHooks.beforeSend(FakeChatSendPacket("hidden")))
+		assertFalse(raised)
+	}
+
+	@Test
+	fun `an outgoing chat packet raises a message that is not a command`() {
+		var event: MessageSendEvent? = null
+		bus.subscribe<MessageSendEvent> { event = it }
+
+		assertFalse(NetworkHooks.beforeSend(FakeChatSendPacket("hello there")))
+
+		assertEquals("hello there", event?.message)
+		assertFalse(event?.isCommand ?: true)
+	}
+
+	@Test
+	fun `an outgoing command packet raises a message that knows it is a command`() {
+		var event: MessageSendEvent? = null
+		bus.subscribe<MessageSendEvent> { event = it }
+
+		assertFalse(NetworkHooks.beforeSend(FakeCommandSendPacket("party warp")))
+
+		assertEquals("party warp", event?.message)
+		assertTrue(event?.isCommand ?: false)
+	}
+
+	@Test
+	fun `a packet carrying no message raises none`() {
+		var raised = false
+		bus.subscribe<MessageSendEvent> { raised = true }
+
+		assertFalse(NetworkHooks.beforeSend(FakePacket()))
+		assertFalse(raised)
+	}
+
+	@Test
+	fun `rewriting an outgoing message replaces the text the packet carries`() {
+		bus.subscribe<MessageSendEvent> { it.message = "party warp" }
+		val packet = FakeCommandSendPacket("pw")
+
+		assertFalse(NetworkHooks.beforeSend(packet))
+
+		assertEquals("party warp", packet.chatText())
+	}
+
+	@Test
+	fun `cancelling an outgoing message stops the packet that carried it`() {
+		bus.subscribe<MessageSendEvent> { it.cancel() }
+
+		assertTrue(NetworkHooks.beforeSend(FakeChatSendPacket("blocked")))
+	}
+
+	@Test
+	fun `a handler that sends another packet while handling keeps the outer verdict`() {
+		bus.subscribe<PacketSendEvent> { event ->
+			if (event.packet is FakeChatSendPacket) {
+				event.cancel()
+				NetworkHooks.beforeSend(FakePacket())
+			}
+		}
+
+		assertTrue(NetworkHooks.beforeSend(FakeChatSendPacket("cancelled")))
+	}
+
+	@Test
+	fun `a message handler that sends a replacement keeps the outer verdict`() {
+		bus.subscribe<MessageSendEvent> { event ->
+			if (event.isCommand) {
+				event.cancel()
+				NetworkHooks.beforeSend(FakeChatSendPacket("party warp"))
+			}
+		}
+
+		assertTrue(NetworkHooks.beforeSend(FakeCommandSendPacket("pw")))
+	}
+
+	@Test
 	fun `a handler that throws turns the hooks off instead of failing the packet`() {
 		bus.subscribe<PacketReceiveEvent.Pre> { throw IllegalStateException("boom") }
 
@@ -126,8 +222,10 @@ class NetworkHooksTest {
 		NetworkHooks.uninstall()
 		var seen = false
 		bus.subscribe<PacketReceiveEvent.Pre> { seen = true }
+		bus.subscribe<PacketSendEvent> { seen = true }
 
 		assertFalse(NetworkHooks.beforeHandle(FakePacket()))
+		assertFalse(NetworkHooks.beforeSend(FakePacket()))
 		assertFalse(seen)
 	}
 }
@@ -139,6 +237,18 @@ private open class FakePacket : Packet<ClientGamePacketListener> {
 	override fun handle(listener: ClientGamePacketListener) =
 		throw UnsupportedOperationException()
 }
+
+private open class FakeSendPacket(private var text: String) : FakePacket(), ChatTextAccess {
+	override fun chatText(): String = text
+
+	override fun chatText(text: String) {
+		this.text = text
+	}
+}
+
+private class FakeChatSendPacket(text: String) : FakeSendPacket(text), ServerboundChatPacketAccessor
+
+private class FakeCommandSendPacket(text: String) : FakeSendPacket(text), ServerboundChatCommandPacketAccessor
 
 private class FakeChatPacket(
 	private var content: Component,

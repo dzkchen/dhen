@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
+import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.module.PlaceholderModule
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
@@ -53,7 +54,10 @@ object Dhen : ClientModInitializer {
 
 	private val clientThread = ClientThreadDispatcher()
 
-	val modules: ModuleManager = ModuleManager(clientDispatcher = clientThread)
+	val modules: ModuleManager = ModuleManager(
+		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announce),
+		clientDispatcher = clientThread
+	)
 	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 

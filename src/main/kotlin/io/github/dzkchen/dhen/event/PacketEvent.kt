@@ -12,3 +12,10 @@ sealed class PacketReceiveEvent : DeepProfiledEvent {
 
 	class Post internal constructor() : PacketReceiveEvent()
 }
+
+class PacketSendEvent internal constructor() : DeepProfiledEvent, Cancellable {
+	lateinit var packet: Packet<*>
+		internal set
+
+	override var cancelled: Boolean = false
+}
