@@ -15,18 +15,18 @@ internal object ClickGuiPaint {
 		squared: Boolean
 	) {
 		val bottom = top + HEADER_HEIGHT
+		val curveBottom = if (squared) bottom + COLUMN_RADIUS.toInt() else bottom - HAIRLINE_INSET
+		if (squared) graphics.enableScissor(left, top, right, bottom)
 		RoundedGui.fill(
 			graphics,
 			left + HAIRLINE_INSET,
 			top + HAIRLINE_INSET,
 			right - HAIRLINE_INSET,
-			bottom - HAIRLINE_INSET,
+			curveBottom,
 			COLUMN_RADIUS - HAIRLINE_INSET,
 			fill
 		)
-		if (squared) {
-			SharpGui.fill(graphics, left + HAIRLINE_INSET, bottom - COLUMN_RADIUS.toInt(), right - HAIRLINE_INSET, bottom, fill)
-		}
+		if (squared) graphics.disableScissor()
 		DhenType.text(graphics, font, title, left + CONTENT_PAD, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_PRIMARY)
 	}
 
