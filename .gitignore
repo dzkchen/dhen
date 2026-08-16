@@ -1,8 +1,12 @@
 docs/
 CLAUDE.md
 .claude
+AGENTS.md
+.agents
+.codex
 ref/
 .mcp.json
+.agents
 
 # gradle
 
