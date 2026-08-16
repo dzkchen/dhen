@@ -145,6 +145,54 @@ class ScrollingStackTest {
 		assertEquals(0, stack.offset)
 	}
 
+	@Test
+	fun `a column's rows stack under one another with no gap`() {
+		val column = column()
+
+		assertEquals(0, column.startOf(0))
+		assertEquals(43, column.startOf(1))
+		assertEquals(56, column.startOf(2))
+		assertEquals(3 * ROW_HEIGHT + 30 + 42, column.total())
+	}
+
+	@Test
+	fun `an empty column measures nothing and takes no room`() {
+		val column = ScrollingStack(BODY_TOP, NO_GAP, BODY_PAD, { 0 }, { FIELD_BOTTOM }, { error("no rows to measure") })
+
+		assertEquals(0, column.total())
+		assertEquals(0, column.max())
+	}
+
+	@Test
+	fun `a column scrolls by whatever its height overruns the field by`() {
+		val column = column()
+		val naturalHeight = HEADER_HEIGHT + BODY_PAD + column.total()
+
+		assertEquals(naturalHeight - (FIELD_BOTTOM - FIELD_TOP), column.max())
+		assertEquals(0, column(fieldBottom = 400).max())
+	}
+
+	@Test
+	fun `a settings area starts directly under the row it belongs to`() {
+		val column = column()
+		column.scrollBy(-20)
+
+		assertEquals(BODY_TOP - 20 + ROW_HEIGHT, column.originOf(0) + ROW_HEIGHT)
+		assertEquals(BODY_TOP - 20 + 69, column.originOf(2) + ROW_HEIGHT)
+	}
+
+	@Test
+	fun `revealing the last row leaves the column's bottom pad below it`() {
+		val column = column()
+
+		column.reveal(2)
+
+		assertEquals(BODY_PAD, FIELD_BOTTOM - (column.originOf(2) + ROW_EXTENTS.applyAsInt(2)))
+	}
+
+	private fun column(fieldBottom: Int = FIELD_BOTTOM): ScrollingStack =
+		ScrollingStack(BODY_TOP, NO_GAP, BODY_PAD, { ROW_AREAS.size }, { fieldBottom }, ROW_EXTENTS)
+
 	private fun ScrollingStack.refilterAt(matches: Int) {
 		stackCount = matches
 		refilter()
@@ -168,6 +216,13 @@ class ScrollingStackTest {
 		const val TALL_SLOT = 2
 		const val TALL_HEIGHT = 100
 		const val VIEWPORT = 240
+		const val NO_GAP = 0
+		const val ROW_HEIGHT = 13
+		const val BODY_PAD = 6
+		const val BODY_TOP = FIELD_TOP + HEADER_HEIGHT
+		const val FIELD_BOTTOM = 160
 		val VARYING = IntUnaryOperator { index -> if (index == TALL_SLOT) TALL_HEIGHT else HEADER_HEIGHT }
+		val ROW_AREAS = intArrayOf(30, 0, 42)
+		val ROW_EXTENTS = IntUnaryOperator { index -> ROW_HEIGHT + ROW_AREAS[index] }
 	}
 }

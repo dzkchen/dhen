@@ -30,32 +30,26 @@ internal class ClickGuiColumn(
 ) : ControlHost {
 	private val controls: List<ControlBody> = modules.map { module -> ControlBody(module.settings.mapNotNull(::controlFor)) }
 	private val visibleRows = IntArray(modules.size) { it }
-	private val rowTops = IntArray(modules.size + 1)
 	private var visibleCount = modules.size
 	private var filtering = false
 	private val settingsHeightAt = IntUnaryOperator { row -> settingsHeight(visibleRows[row]) }
-	private val scroll = ScrollState()
-
-	var contentLeft = 0
+	private val rowExtentAt = IntUnaryOperator { row -> ROW_HEIGHT + settingsHeightAt.applyAsInt(row) }
+	private val rows = ScrollingStack(FIELD_TOP + HEADER_HEIGHT, NO_GAP, BODY_PAD, { rowCount }, fieldBottom, rowExtentAt)
 
 	val hidden: Boolean
 		get() = filtering && visibleCount == 0
-	val navCount: Int
+	val rowCount: Int
 		get() = if (isCollapsed) 0 else visibleCount
 	val height: Int
 		get() = shownHeight(naturalHeight)
 
 	private val naturalHeight: Int
-		get() = if (isCollapsed) HEADER_HEIGHT else HEADER_HEIGHT + BODY_PAD + measureRows()
+		get() = if (isCollapsed) HEADER_HEIGHT else HEADER_HEIGHT + BODY_PAD + rows.total()
 	private val isCollapsed: Boolean
 		get() = view.isCollapsed(category.name)
-	private val maxScroll: Int
-		get() = naturalHeight.let { it - shownHeight(it) }
-	private val columnViewport: Int
-		get() = fieldBottom.asInt - FIELD_TOP
 
 	private fun shownHeight(natural: Int): Int =
-		ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, columnViewport)
+		ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, fieldBottom.asInt - FIELD_TOP)
 
 	fun applyFilter(query: String) {
 		filtering = query.isNotEmpty()
@@ -67,17 +61,12 @@ internal class ClickGuiColumn(
 			count++
 		}
 		visibleCount = count
-		scroll.refilter(maxScroll)
+		rows.refilter()
 	}
 
-	fun reclamp() = scroll.reclamp(maxScroll)
+	fun reclamp() = rows.reclamp()
 
-	fun scrollBy(delta: Int): Boolean {
-		val max = maxScroll
-		if (max <= ClickGuiScroll.TOP) return false
-		scroll.scrollTo(scroll.offset - delta, max)
-		return true
-	}
+	fun scrollBy(delta: Int): Boolean = rows.scrollBy(delta)
 
 	fun moduleAt(row: Int): Module = modules[visibleRows[row]]
 
@@ -89,20 +78,9 @@ internal class ClickGuiColumn(
 		return ClickGuiShell.NONE
 	}
 
-	private fun measureRows(): Int = ClickGuiRows.rowTops(visibleCount, ROW_HEIGHT, settingsHeightAt, rowTops)
+	fun revealRow(row: Int) = rows.reveal(row)
 
-	private fun measuredArea(row: Int): Int = rowTops[row + 1] - rowTops[row] - ROW_HEIGHT
-
-	private fun rowTop(row: Int): Int = ClickGuiRows.rowTop(row, ROW_HEIGHT, settingsHeightAt)
-
-	private fun rowExtent(row: Int): Int = ROW_HEIGHT + settingsHeight(visibleRows[row])
-
-	fun revealRow(row: Int) = revealLocal(rowTop(row), rowExtent(row))
-
-	override fun revealSpan(screenTop: Int, extent: Int) = revealLocal(localOf(screenTop), extent)
-
-	private fun revealLocal(spanStart: Int, extent: Int) =
-		scroll.reveal(spanStart, extent, height - HEADER_HEIGHT, maxScroll)
+	override fun revealSpan(screenTop: Int, extent: Int) = rows.revealSpan(rows.localOf(screenTop), extent)
 
 	fun rowAt(y: Int): Module? {
 		val localY = bodyLocal(y) ?: return null
@@ -110,8 +88,8 @@ internal class ClickGuiColumn(
 		return if (row == ClickGuiShell.NONE) null else modules[visibleRows[row]]
 	}
 
-	fun chevronContains(contentX: Int): Boolean =
-		contentX >= contentLeft + COLUMN_WIDTH - CONTENT_PAD - glyphs.chevron - CHEVRON_HIT_SLOP
+	fun chevronContains(localX: Int): Boolean =
+		localX >= COLUMN_WIDTH - CONTENT_PAD - glyphs.chevron - CHEVRON_HIT_SLOP
 
 	fun settingsRowAt(y: Int): Int {
 		val localY = bodyLocal(y) ?: return ClickGuiShell.NONE
@@ -120,8 +98,7 @@ internal class ClickGuiColumn(
 
 	fun bodyOf(row: Int): ControlBody = controls[visibleRows[row]]
 
-	fun bodyTop(row: Int): Int =
-		FIELD_TOP + HEADER_HEIGHT - scroll.offset + ClickGuiRows.settingsTop(row, ROW_HEIGHT, settingsHeightAt) + SETTINGS_PAD
+	fun bodyTop(row: Int): Int = rows.originOf(row) + ROW_HEIGHT + SETTINGS_PAD
 
 	fun toggleCollapsed() {
 		view.toggle(category.name)
@@ -142,19 +119,16 @@ internal class ClickGuiColumn(
 		return changed
 	}
 
-	private fun localOf(y: Int): Int = y - (FIELD_TOP + HEADER_HEIGHT) + scroll.offset
-
 	private fun bodyLocal(y: Int): Int? {
 		if (y < FIELD_TOP + HEADER_HEIGHT || y >= FIELD_TOP + height) return null
-		return localOf(y)
+		return rows.localOf(y)
 	}
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, left: Int, mouseX: Int, mouseY: Int, focus: Module?) {
 		val right = left + COLUMN_WIDTH
 		val collapsedNow = isCollapsed
 		val top = FIELD_TOP
-		val natural = naturalHeight
-		val shown = shownHeight(natural)
+		val shown = shownHeight(naturalHeight)
 		val bodyTop = top + HEADER_HEIGHT
 		val bottom = top + shown
 		val overColumn = mouseX in left until right
@@ -166,17 +140,17 @@ internal class ClickGuiColumn(
 		DhenType.text(graphics, font, glyph, right - CONTENT_PAD - glyphs.glyph, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
 		if (!bodied) return
 		ClickGuiPaint.headerRule(graphics, left, right, bodyTop)
-		val max = natural - shown
+		val max = rows.max()
 		val clipped = max > ClickGuiScroll.TOP
 		val visibleTop = bodyTop
 		val visibleBottom = minOf(bottom, fieldBottom.asInt)
 		val pointerY = if (overColumn && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
 		if (clipped) graphics.enableScissor(left + HAIRLINE_INSET, bodyTop, right - HAIRLINE_INSET, bottom)
-		var rowTop = bodyTop - scroll.offset
+		var rowTop = bodyTop - rows.offset
 		for (row in 0 until visibleCount) {
 			if (rowTop >= visibleBottom) break
 			val index = visibleRows[row]
-			val areaHeight = measuredArea(row)
+			val areaHeight = settingsHeight(index)
 			val nextTop = rowTop + ROW_HEIGHT + areaHeight
 			if (nextTop > visibleTop) {
 				drawRow(graphics, font, modules[index], left, rowTop, pointerY, focus)
@@ -188,7 +162,7 @@ internal class ClickGuiColumn(
 		}
 		if (clipped) {
 			graphics.disableScissor()
-			ClickGuiPaint.scrollbar(graphics, right, bodyTop, shown - HEADER_HEIGHT, scroll.offset, max)
+			ClickGuiPaint.scrollbar(graphics, right, bodyTop, shown - HEADER_HEIGHT, rows.offset, max)
 		}
 	}
 

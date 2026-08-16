@@ -19,7 +19,7 @@ internal class ClickGuiColumnField(
 	private val tooltip = ClickGuiTooltip()
 	private val fieldBottom = IntSupplier { fieldBottomOf(viewportHeight.asInt) }
 	private val stack = ScrollingStack(MARGIN, COLUMN_GAP, MARGIN, { visible.size }, viewportWidth, { COLUMN_WIDTH })
-	private val navRowsAt = IntUnaryOperator { index -> visible[index].navCount }
+	private val navRowsAt = IntUnaryOperator { index -> visible[index].rowCount }
 
 	var focus: Module? = null
 		private set
@@ -84,7 +84,7 @@ internal class ClickGuiColumnField(
 		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE
 	}
 
-	fun onChevron(column: ClickGuiColumn, x: Int): Boolean = column.chevronContains(x + stack.offset)
+	fun onChevron(slot: Int, x: Int): Boolean = visible[slot].chevronContains(x - stack.originOf(slot))
 
 	fun toggleCollapsed(column: ClickGuiColumn) {
 		column.toggleCollapsed()
@@ -100,12 +100,13 @@ internal class ClickGuiColumnField(
 	fun controlAt(hit: ControlHit, x: Int, y: Int): SettingControl? {
 		val slot = slotAt(x, y)
 		if (slot == ClickGuiShell.NONE) return null
-		return controlAt(hit, visible[slot], x, y)
+		return controlAt(hit, slot, x, y)
 	}
 
-	fun controlAt(hit: ControlHit, column: ClickGuiColumn, x: Int, y: Int): SettingControl? {
-		val left = column.contentLeft + CONTENT_PAD - stack.offset
+	fun controlAt(hit: ControlHit, slot: Int, x: Int, y: Int): SettingControl? {
+		val left = stack.originOf(slot) + CONTENT_PAD
 		if (x < left || x >= left + CONTROLS_WIDTH) return null
+		val column = visible[slot]
 		val row = column.settingsRowAt(y)
 		if (row == ClickGuiShell.NONE) return null
 		return column.bodyOf(row).hit(hit, column, left, column.bodyTop(row), CONTROLS_WIDTH, y)
@@ -115,9 +116,8 @@ internal class ClickGuiColumnField(
 		tooltip.clear()
 		val width = viewportWidth.asInt
 		for (i in visible.indices) {
-			val column = visible[i]
-			val left = column.contentLeft - stack.offset
-			if (left + COLUMN_WIDTH > 0 && left < width) column.draw(graphics, font, left, mouseX, mouseY, focus)
+			val left = stack.originOf(i)
+			if (left + COLUMN_WIDTH > 0 && left < width) visible[i].draw(graphics, font, left, mouseX, mouseY, focus)
 		}
 		tooltip.draw(graphics, font, width, viewportHeight.asInt)
 	}
@@ -139,7 +139,7 @@ internal class ClickGuiColumnField(
 		if (slot == ClickGuiShell.NONE) return moveFocus(delta)
 		val next = ClickGuiNav.columnStep(slot, delta, visible.size, navRowsAt)
 		if (next == ClickGuiShell.NONE) return true
-		focusAt(next, minOf(visible[slot].rowOf(focus), visible[next].navCount - 1))
+		focusAt(next, minOf(visible[slot].rowOf(focus), visible[next].rowCount - 1))
 		return true
 	}
 
@@ -156,13 +156,9 @@ internal class ClickGuiColumnField(
 
 	private fun layout() {
 		visible.clear()
-		var left = MARGIN
 		for (i in columns.indices) {
 			val column = columns[i]
-			if (column.hidden) continue
-			column.contentLeft = left
-			left += COLUMN_WIDTH + COLUMN_GAP
-			visible += column
+			if (!column.hidden) visible += column
 		}
 	}
 

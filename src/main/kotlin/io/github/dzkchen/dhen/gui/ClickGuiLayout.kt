@@ -19,6 +19,7 @@ internal const val TOOLTIP_PAD = 5
 internal const val TOOLTIP_GAP = 6
 internal const val TOOLTIP_RADIUS = 4f
 internal const val NO_POINTER = Int.MIN_VALUE
+internal const val NO_GAP = 0
 internal const val SETTINGS_PAD = 3
 internal const val CONTENT_PAD = 6
 internal const val CONTROLS_WIDTH = COLUMN_WIDTH - 2 * CONTENT_PAD

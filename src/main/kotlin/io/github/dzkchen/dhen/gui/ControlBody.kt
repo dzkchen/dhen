@@ -64,10 +64,6 @@ internal class ControlBody(built: List<SettingControl>) {
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurement()
 	}
-
-	private companion object {
-		const val NO_GAP = 0
-	}
 }
 
 internal interface ControlHost {

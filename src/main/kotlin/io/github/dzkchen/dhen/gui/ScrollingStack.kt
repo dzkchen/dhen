@@ -16,8 +16,9 @@ internal class ScrollingStack(
 	val offset: Int
 		get() = state.offset
 
-	fun max(): Int =
-		ClickGuiScroll.maxScroll(start + ClickGuiShell.spanTotal(count.asInt, extentAt, gap), viewport.asInt, margin)
+	fun total(): Int = ClickGuiShell.spanTotal(count.asInt, extentAt, gap)
+
+	fun max(): Int = ClickGuiScroll.maxScroll(start + total(), viewport.asInt, margin)
 
 	fun startOf(index: Int): Int = ClickGuiShell.spanStart(index, extentAt, gap)
 
