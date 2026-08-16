@@ -109,6 +109,25 @@ class GlassGuiTest {
 	}
 
 	@Test
+	fun `an unbanded container highlights the row under its own top border`() {
+		assertEquals(101, GlassGui.sheenTop(top = 100, bottom = 140, bandHeight = GlassGui.NO_BAND))
+		assertEquals(101, GlassGui.sheenTop(top = 100, bottom = 103, bandHeight = GlassGui.NO_BAND))
+	}
+
+	@Test
+	fun `a banded container highlights the first row of its body instead`() {
+		assertEquals(118, GlassGui.sheenTop(top = 100, bottom = 200, bandHeight = HEADER_HEIGHT))
+		assertEquals(118, GlassGui.sheenTop(top = 100, bottom = 120, bandHeight = HEADER_HEIGHT))
+	}
+
+	@Test
+	fun `a container with no room under its band keeps the highlight off`() {
+		assertEquals(GlassGui.NO_SHEEN, GlassGui.sheenTop(top = 100, bottom = 118, bandHeight = HEADER_HEIGHT))
+		assertEquals(GlassGui.NO_SHEEN, GlassGui.sheenTop(top = 100, bottom = 119, bandHeight = HEADER_HEIGHT))
+		assertEquals(GlassGui.NO_SHEEN, GlassGui.sheenTop(top = 100, bottom = 102, bandHeight = GlassGui.NO_BAND))
+	}
+
+	@Test
 	fun `alpha scaling keeps the color channels and clamps the alpha`() {
 		val color = 0x80336699u.toInt()
 

@@ -30,7 +30,7 @@ internal class PrefCard(section: PrefSection) {
 		val right = left + PANEL_WIDTH
 		val headerBottom = top + HEADER_HEIGHT
 		val fill = GlassGui.raised()
-		GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+		GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER, HEADER_HEIGHT)
 		ClickGuiPaint.headerBand(graphics, font, left, right, top, title, fill, squared = true)
 		ClickGuiPaint.headerRule(graphics, left, right, headerBottom)
 		val contentLeft = left + CONTENT_PAD

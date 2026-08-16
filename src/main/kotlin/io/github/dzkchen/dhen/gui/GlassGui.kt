@@ -10,8 +10,11 @@ internal object GlassGui {
 	val TAB_SLIDE: Float get() = DhenTheme.activeOnRenderThread.tabSlide
 	val TOGGLE_MILLIS: Long get() = DhenTheme.activeOnRenderThread.toggleMillis
 	const val SETTLED = 1f
+	const val NO_BAND = 0
+	const val NO_SHEEN = Int.MIN_VALUE
 	private const val SHADOW_LAYERS = 3
 	private const val SHEEN_CORNER_CLEARANCE = 0.5f
+	private const val FRAME_SHEEN_DROP = 1
 	private const val VEIL_STRENGTH = 0.9f
 
 	fun canvas(): Int = if (Effects.reduced) DhenPalette.CANVAS else DhenPalette.GLASS_CANVAS
@@ -33,11 +36,12 @@ internal object GlassGui {
 		bottom: Int,
 		radius: Float,
 		fill: Int,
-		border: Int
+		border: Int,
+		bandHeight: Int = NO_BAND
 	) {
 		roundedShadow(graphics, left, top, right, bottom, radius)
 		RoundedGui.frame(graphics, left, top, right, bottom, radius, fill, border)
-		roundedSheen(graphics, left, top, right, bottom, radius)
+		roundedSheen(graphics, left, top, right, bottom, radius, bandHeight)
 	}
 
 	private fun roundedShadow(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
@@ -48,10 +52,25 @@ internal object GlassGui {
 		}
 	}
 
-	private fun roundedSheen(graphics: GuiGraphicsExtractor, left: Int, top: Int, right: Int, bottom: Int, radius: Float) {
+	private fun roundedSheen(
+		graphics: GuiGraphicsExtractor,
+		left: Int,
+		top: Int,
+		right: Int,
+		bottom: Int,
+		radius: Float,
+		bandHeight: Int
+	) {
 		if (Effects.reduced) return
-		val inset = sheenInset(right - left, bottom - top, radius)
-		RoundedGui.pill(graphics, left + inset, top + 1, right - inset, top + 2, DhenPalette.GLASS_SHEEN)
+		val row = sheenTop(top, bottom, bandHeight)
+		if (row == NO_SHEEN) return
+		val inset = if (bandHeight > NO_BAND) HAIRLINE_INSET else sheenInset(right - left, bottom - top, radius)
+		RoundedGui.pill(graphics, left + inset, row, right - inset, row + 1, DhenPalette.GLASS_SHEEN)
+	}
+
+	fun sheenTop(top: Int, bottom: Int, bandHeight: Int): Int {
+		val row = top + if (bandHeight > NO_BAND) bandHeight else FRAME_SHEEN_DROP
+		return if (row < bottom - HAIRLINE_INSET) row else NO_SHEEN
 	}
 
 	fun sheenInset(width: Int, height: Int, radius: Float): Int =

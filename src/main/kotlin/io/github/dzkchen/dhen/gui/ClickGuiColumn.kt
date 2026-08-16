@@ -132,7 +132,7 @@ internal class ClickGuiColumn(
 		val bodyTop = top + HEADER_HEIGHT
 		val bottom = top + shown
 		val overColumn = mouseX in left until right
-		GlassGui.roundedFrame(graphics, left, top, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+		GlassGui.roundedFrame(graphics, left, top, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER, HEADER_HEIGHT)
 		val headerColor = if (overColumn && mouseY in top until bodyTop) GlassGui.interactive() else GlassGui.raised()
 		val bodied = !collapsedNow && bottom > bodyTop
 		ClickGuiPaint.headerBand(graphics, font, left, right, top, category.displayName, headerColor, bodied)
