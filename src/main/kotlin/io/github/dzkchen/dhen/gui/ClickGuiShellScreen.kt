@@ -61,24 +61,17 @@ internal class ClickGuiShellScreen(
 	}
 
 	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
-		resyncControls()
+		reflowResizedLists()
 		chrome.draw(graphics, font, mouseX, mouseY)
 	}
 
-	private fun resyncControls() {
+	private fun reflowResizedLists() {
 		val revision = SelectorSetting.optionCountRevision
 		if (revision == seenOptionCounts) return
 		seenOptionCounts = revision
-		overlay = surviving(overlay)
-		focused = surviving(focused)
-		dragged = surviving(dragged)
-		field.resync()
-		panel.resync()
 		field.reflowAll()
 		panel.reclamp()
 	}
-
-	private fun surviving(control: SettingControl?): SettingControl? = control?.takeIf { !it.outdated() }
 
 	private fun drawTabBody(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
 		if (!chrome.onFeatures) {

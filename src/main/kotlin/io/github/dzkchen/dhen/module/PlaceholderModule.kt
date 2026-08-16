@@ -62,6 +62,7 @@ class PlaceholderModule(
 		name = "Mode",
 		default = "One",
 		options = listOf("One", "Two", "Three"),
+		listed = true,
 		description = "Example dropdown."
 	)
 

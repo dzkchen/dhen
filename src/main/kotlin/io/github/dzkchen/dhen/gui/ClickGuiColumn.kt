@@ -227,8 +227,4 @@ internal class ClickGuiColumn(
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurements()
 	}
-
-	fun resync() {
-		for (i in controls.indices) controls[i].resync()
-	}
 }

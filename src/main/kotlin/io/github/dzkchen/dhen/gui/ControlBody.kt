@@ -50,17 +50,6 @@ internal class ControlBody(built: List<SettingControl>) {
 
 	fun indexAt(localY: Int): Int = ClickGuiShell.spanAt(localY, controls.size, extentAt, NO_GAP)
 
-	fun resync(): Boolean {
-		var changed = false
-		for (i in controls.indices) {
-			val control = controls[i]
-			if (!control.outdated()) continue
-			controls[i] = controlFor(control.setting) ?: continue
-			changed = true
-		}
-		return changed
-	}
-
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurement()
 	}

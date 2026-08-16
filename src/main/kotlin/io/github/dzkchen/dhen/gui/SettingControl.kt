@@ -26,11 +26,10 @@ internal const val CARET_WIDTH = 1
 private const val PRINTABLE_MIN = 32
 private const val PRINTABLE_MAX = 0xFFFF
 private const val DELETE_CODE = 127
-private const val LISTED_FROM_OPTIONS = 3
 
 private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
 
-internal sealed class SettingControl(val setting: Setting<*>) {
+internal sealed class SettingControl(private val setting: Setting<*>) {
 	private val memos = mutableListOf<TextMemo>()
 
 	protected val labelText = memo()
@@ -53,8 +52,6 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 
 	open fun collapse(): Boolean = false
 
-	protected open fun onOutdated(): Boolean = false
-
 	protected abstract fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int)
 
 	protected abstract fun onPress(localX: Int, localY: Int, width: Int): ControlPress
@@ -70,8 +67,6 @@ internal sealed class SettingControl(val setting: Setting<*>) {
 	protected open fun onBlur(): Boolean = false
 
 	fun renderable(): Boolean = guarded(false, false) { setting.isVisible }
-
-	fun outdated(): Boolean = guarded(false, false) { onOutdated() }
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) =
 		guarded(Unit, Unit) { onDraw(graphics, font, x, y, width, pointerY) }
@@ -179,12 +174,10 @@ internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int)
 
 internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..PRINTABLE_MAX && codepoint != DELETE_CODE
 
-internal fun listable(selector: SelectorSetting): Boolean = selector.options.size >= LISTED_FROM_OPTIONS
-
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is BooleanSetting -> ToggleControl(setting)
 	is NumberSetting -> SliderControl(setting)
-	is SelectorSetting -> if (listable(setting)) DropdownControl(setting) else CycleControl(setting)
+	is SelectorSetting -> if (setting.listed) DropdownControl(setting) else CycleControl(setting)
 	is StringSetting -> TextControl(setting)
 	is ColorSetting -> ColorControl(setting)
 	is KeybindSetting -> KeybindControl(setting)

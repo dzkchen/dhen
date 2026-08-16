@@ -61,10 +61,6 @@ internal class ClickGuiPrefsPanel(
 		for (i in cards.indices) cards[i].invalidateMeasurements()
 	}
 
-	fun resync() {
-		for (i in cards.indices) cards[i].body.resync()
-	}
-
 	override fun revealSpan(screenTop: Int, extent: Int) = stack.revealSpan(stack.localOf(screenTop), extent)
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {

@@ -23,6 +23,7 @@ internal object ClientPrefs {
 		"Theme",
 		ThemeStore.DEFAULT_ID,
 		ThemeStore.ids,
+		listed = true,
 		description = "Palette every Dhen surface draws from."
 	)
 

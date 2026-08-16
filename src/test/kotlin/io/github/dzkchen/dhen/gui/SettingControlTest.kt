@@ -15,9 +15,7 @@ import io.github.dzkchen.dhen.util.Color
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
@@ -57,18 +55,17 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `option count alone decides between cycling and a list`() {
-		for (count in 1..4) {
-			val setting = SelectorSetting("s", "A", OPTIONS.take(count))
-			val control = controlFor(setting)
-			if (count < 3) assertInstanceOf(CycleControl::class.java, control)
-			else assertInstanceOf(DropdownControl::class.java, control)
+	fun `the selector's own declaration decides between cycling and a list, whatever its option count`() {
+		for (count in intArrayOf(1, 2, 5)) {
+			val options = OPTION_POOL.take(count)
+			assertInstanceOf(CycleControl::class.java, controlFor(SelectorSetting("s", "A", options)))
+			assertInstanceOf(DropdownControl::class.java, controlFor(SelectorSetting("s", "A", options, listed = true)))
 		}
 	}
 
 	@Test
 	fun `a dropdown opens on the pill, grows, picks the row clicked, and closes`() {
-		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS, listed = true)
 		val control = DropdownControl(setting)
 		assertEquals(CONTROL_ROW_HEIGHT, control.height)
 
@@ -85,7 +82,7 @@ class SettingControlTest {
 
 	@Test
 	fun `a dropdown closes on a second press of its pill without changing the value`() {
-		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS, listed = true)
 		val control = DropdownControl(setting)
 		control.press(0, 0, 100)
 
@@ -96,7 +93,7 @@ class SettingControlTest {
 
 	@Test
 	fun `collapsing an open dropdown reports the change once`() {
-		val control = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		val control = DropdownControl(SelectorSetting("s", "A", OPTIONS, listed = true))
 		assertFalse(control.collapse())
 
 		control.press(0, 0, 100)
@@ -107,7 +104,7 @@ class SettingControlTest {
 
 	@Test
 	fun `an open list resolves every option row, and its own padding closes it instead`() {
-		val setting = SelectorSetting("s", default = "A", options = OPTIONS)
+		val setting = SelectorSetting("s", default = "A", options = OPTIONS, listed = true)
 		val control = DropdownControl(setting)
 		val firstRow = CONTROL_ROW_HEIGHT + LIST_PAD
 
@@ -137,7 +134,7 @@ class SettingControlTest {
 
 	@Test
 	fun `a control body stacks its controls by their own heights`() {
-		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS, listed = true))
 		val body = ControlBody(listOf(ToggleControl(BooleanSetting("b")), listed, ToggleControl(BooleanSetting("c"))))
 		assertEquals(3 * CONTROL_ROW_HEIGHT, body.height)
 
@@ -150,7 +147,7 @@ class SettingControlTest {
 
 	@Test
 	fun `a click under an open list still lands on the control it looks like it hits`() {
-		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS))
+		val listed = DropdownControl(SelectorSetting("s", "A", OPTIONS, listed = true))
 		val below = ToggleControl(BooleanSetting("b"))
 		val body = ControlBody(listOf(listed, below))
 		listed.press(0, 0, 100)
@@ -164,65 +161,20 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `a selector that gains a third option becomes a list without the screen being rebuilt`() {
-		val gate = BooleanSetting("gate", default = false)
-		val setting = SelectorSetting("s", "A", listOf("A", "B")).withDependency { gate.on }
-		setting.value = "B"
+	fun `a list that stays open while its selector loses options hands the scroll room back`() {
+		val setting = SelectorSetting("s", "A", OPTION_POOL, listed = true)
 		val body = ControlBody(listOf(controlFor(setting)!!))
-		assertInstanceOf(CycleControl::class.java, body.at(0))
+		body.at(0).press(0, 0, WIDTH)
+		val host = ScrollingStack(0, NO_GAP, 0, { 1 }, { CONTROL_ROW_HEIGHT }, { body.height })
+		host.scrollBy(-body.height)
+		val scrolled = host.offset
+		assertTrue(scrolled > ClickGuiScroll.TOP)
 
-		setting.options = OPTIONS
-		assertTrue(body.resync())
+		setting.options = OPTION_POOL.take(1)
+		host.reclamp()
 
-		assertInstanceOf(DropdownControl::class.java, body.at(0))
-		assertEquals("B", setting.value)
-		assertEquals(0, body.height) { "a rebuilt control must still answer to its setting's dependency" }
-
-		gate.value = true
-		assertEquals(CONTROL_ROW_HEIGHT, body.height)
-	}
-
-	@Test
-	fun `a selector that drops back to two options becomes a stepping pill again and gives its room back`() {
-		val setting = SelectorSetting("s", "A", OPTIONS)
-		val body = ControlBody(listOf(controlFor(setting)!!))
-		body.at(0).press(0, 0, 100)
-		assertTrue(body.height > CONTROL_ROW_HEIGHT)
-
-		setting.options = listOf("A", "B")
-		assertTrue(body.resync())
-
-		assertInstanceOf(CycleControl::class.java, body.at(0))
-		assertEquals(CONTROL_ROW_HEIGHT, body.height)
-		assertEquals("A", setting.value)
-	}
-
-	@Test
-	fun `a control the count rule discarded reports itself outdated so the screen can drop its reference`() {
-		val setting = SelectorSetting("s", "A", OPTIONS)
-		val body = ControlBody(listOf(controlFor(setting)!!))
-		val open = body.at(0)
-		open.press(0, 0, 100)
-		assertTrue(open.expanded)
-
-		setting.options = listOf("A", "B")
-
-		assertTrue(open.outdated())
-		body.resync()
-		assertNotSame(open, body.at(0))
-		assertFalse(body.at(0).outdated())
-	}
-
-	@Test
-	fun `a body whose selectors still match its controls is left alone`() {
-		val setting = SelectorSetting("s", "A", OPTIONS)
-		val body = ControlBody(listOf(controlFor(setting)!!, controlFor(BooleanSetting("b"))!!))
-		val listed = body.at(0)
-
-		setting.options = listOf("C", "B", "A")
-
-		assertFalse(body.resync())
-		assertSame(listed, body.at(0))
+		assertTrue(host.offset < scrolled) { "a shorter list cannot leave the offset it needed when it was tall" }
+		assertEquals(host.max(), host.offset)
 	}
 
 	@Test
@@ -388,6 +340,7 @@ class SettingControlTest {
 		const val WIDTH = 100
 		val SQUARE_RIGHT = pickerStripLeft(WIDTH) - 1
 		val OPTIONS = listOf("A", "B", "C")
+		val OPTION_POOL = listOf("A", "B", "C", "D", "E")
 	}
 
 	@Test

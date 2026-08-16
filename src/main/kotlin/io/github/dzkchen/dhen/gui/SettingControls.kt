@@ -130,8 +130,6 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 }
 
 internal class CycleControl(private val selector: SelectorSetting) : SettingControl(selector) {
-	override fun onOutdated(): Boolean = listable(selector)
-
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
@@ -148,40 +146,38 @@ internal class CycleControl(private val selector: SelectorSetting) : SettingCont
 internal class DropdownControl(private val selector: SelectorSetting) : SettingControl(selector) {
 	private val glyphText = memo()
 	private val optionText = mutableListOf<TextMemo>()
-	private var listed = false
+	private var open = false
 
 	override val height: Int
-		get() = if (listed) CONTROL_ROW_HEIGHT + listHeight() else CONTROL_ROW_HEIGHT
+		get() = if (open) CONTROL_ROW_HEIGHT + listHeight() else CONTROL_ROW_HEIGHT
 
 	override val expanded: Boolean
-		get() = listed
+		get() = open
 
 	override fun collapse(): Boolean {
-		if (!listed) return false
-		listed = false
+		if (!open) return false
+		open = false
 		return true
 	}
-
-	override fun onOutdated(): Boolean = !listable(selector)
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		val glyphWidth = glyphText.width(font, DROPDOWN_GLYPH)
 		val contentRight = pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			selector.name, selector.value, DhenPalette.TEXT_PRIMARY, PILL_GAP + glyphWidth, active = listed
+			selector.name, selector.value, DhenPalette.TEXT_PRIMARY, PILL_GAP + glyphWidth, active = open
 		)
 		glyphText.text(graphics, font, DROPDOWN_GLYPH, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
-		if (listed) drawOptions(graphics, font, x, y + CONTROL_ROW_HEIGHT, width, pointerY)
+		if (open) drawOptions(graphics, font, x, y + CONTROL_ROW_HEIGHT, width, pointerY)
 	}
 
 	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
 		val option = optionAt(localY)
 		if (option == ClickGuiShell.NONE) {
-			listed = !listed
+			open = !open
 			return ControlPress.RESIZED
 		}
 		selector.index = option
-		listed = false
+		open = false
 		return ControlPress.CHANGED
 	}
 
@@ -189,7 +185,7 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 
 	private fun optionAt(localY: Int): Int {
 		val top = CONTROL_ROW_HEIGHT + LIST_PAD
-		if (!listed || localY < top) return ClickGuiShell.NONE
+		if (!open || localY < top) return ClickGuiShell.NONE
 		val option = (localY - top) / LIST_ROW_HEIGHT
 		return if (option < selector.options.size) option else ClickGuiShell.NONE
 	}

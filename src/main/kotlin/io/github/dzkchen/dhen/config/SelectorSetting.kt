@@ -4,6 +4,7 @@ class SelectorSetting(
 	name: String,
 	override val default: String,
 	options: List<String>,
+	val listed: Boolean = false,
 	description: String = ""
 ) : Setting<String>(name, description) {
 
