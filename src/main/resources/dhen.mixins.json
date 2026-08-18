@@ -5,9 +5,11 @@
 	"mixins": [],
 	"client": [
 		"AbstractContainerScreenMixin",
+		"BossHealthOverlayMixin",
 		"ClientLevelEntityCallbacksMixin",
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
+		"EntityRenderDispatcherMixin",
 		"GuiMixin",
 		"KeyboardHandlerMixin",
 		"LevelChunkMixin",

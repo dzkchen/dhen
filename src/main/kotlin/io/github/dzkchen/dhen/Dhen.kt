@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
+import io.github.dzkchen.dhen.event.RenderHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
@@ -152,6 +153,7 @@ object Dhen : ClientModInitializer {
 		ContainerHooks.install(modules.eventBus)
 		InputHooks.install(modules.eventBus)
 		WorldHooks.install(modules.eventBus)
+		RenderHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -162,6 +164,7 @@ object Dhen : ClientModInitializer {
 		ContainerHooks.uninstall()
 		InputHooks.uninstall()
 		WorldHooks.uninstall()
+		RenderHooks.uninstall()
 	}
 
 	private fun worldChanged(phase: WorldChange) {
