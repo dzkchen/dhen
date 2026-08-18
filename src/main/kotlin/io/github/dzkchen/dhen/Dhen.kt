@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
@@ -142,6 +143,7 @@ object Dhen : ClientModInitializer {
 		}
 		NetworkHooks.install(modules.eventBus)
 		ScreenHooks.install(modules.eventBus)
+		ContainerHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -149,10 +151,12 @@ object Dhen : ClientModInitializer {
 		clientThread.shutdown()
 		NetworkHooks.uninstall()
 		ScreenHooks.uninstall()
+		ContainerHooks.uninstall()
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
 		clientThread.drainQueue()
+		ContainerHooks.tick()
 		val options = client.options
 		if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
 			invalidateTextMeasurements()
