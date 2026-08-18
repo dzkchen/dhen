@@ -9,7 +9,10 @@ import io.github.dzkchen.dhen.event.MouseInputEvent
 import io.github.dzkchen.dhen.module.Module
 import org.lwjgl.glfw.GLFW
 
-internal class KeybindRuntime(eventBus: EventBus) {
+internal class KeybindRuntime(
+	eventBus: EventBus,
+	private val anyScreenOpen: () -> Boolean
+) {
 	private var bindings = emptyArray<Binding>()
 
 	init {
@@ -37,6 +40,7 @@ internal class KeybindRuntime(eventBus: EventBus) {
 	}
 
 	private fun activate(code: Int) {
+		if (anyScreenOpen()) return
 		val bindings = bindings
 		var index = 0
 		while (index < bindings.size) {

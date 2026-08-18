@@ -7,12 +7,12 @@ import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.ContainerHooks
+import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.input.InputRuntime
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
@@ -58,9 +58,9 @@ object Dhen : ClientModInitializer {
 
 	val modules: ModuleManager = ModuleManager(
 		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announce),
-		clientDispatcher = clientThread
+		clientDispatcher = clientThread,
+		anyScreenOpen = { Minecraft.getInstance().gui.screen() != null }
 	)
-	private val inputRuntime = InputRuntime(modules.eventBus)
 	private val hudRuntime = HudRuntime(modules)
 
 	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -144,6 +144,7 @@ object Dhen : ClientModInitializer {
 		NetworkHooks.install(modules.eventBus)
 		ScreenHooks.install(modules.eventBus)
 		ContainerHooks.install(modules.eventBus)
+		InputHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -152,6 +153,7 @@ object Dhen : ClientModInitializer {
 		NetworkHooks.uninstall()
 		ScreenHooks.uninstall()
 		ContainerHooks.uninstall()
+		InputHooks.uninstall()
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
@@ -161,8 +163,6 @@ object Dhen : ClientModInitializer {
 		if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
 			invalidateTextMeasurements()
 		}
-		if (client.gui.screen() == null) inputRuntime.poll(InputRuntime.Glfw, client.window.handle())
-		else inputRuntime.pause()
 		if (openGuiKey.consumeClick() && client.level != null) clickGuiScreen()?.let(client.gui::setScreen)
 	}
 

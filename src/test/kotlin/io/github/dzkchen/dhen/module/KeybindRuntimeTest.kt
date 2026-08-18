@@ -20,10 +20,48 @@ class KeybindRuntimeTest {
 		manager.register(module)
 		val keys = bus.type<KeyInputEvent>()
 
-		keys.dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+		keys.dispatch(key(GLFW.GLFW_KEY_K))
 		manager.enable(module)
-		keys.dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.RELEASE))
-		keys.dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+		keys.dispatch(key(GLFW.GLFW_KEY_K, InputAction.RELEASE))
+		keys.dispatch(key(GLFW.GLFW_KEY_K))
+
+		assertEquals(1, module.activations)
+	}
+
+	@Test
+	fun `a held key repeating does not activate its binding again`() {
+		val bus = EventBus()
+		val manager = ModuleManager(bus)
+		val module = KeybindModule()
+		manager.register(module)
+		manager.enable(module)
+		val keys = bus.type<KeyInputEvent>()
+
+		keys.dispatch(key(GLFW.GLFW_KEY_K))
+		repeat(5) { keys.dispatch(key(GLFW.GLFW_KEY_K, InputAction.REPEAT)) }
+		keys.dispatch(key(GLFW.GLFW_KEY_K, InputAction.RELEASE))
+
+		assertEquals(1, module.activations)
+	}
+
+	@Test
+	fun `no binding fires while a screen is open`() {
+		val bus = EventBus()
+		var screenOpen = false
+		val manager = ModuleManager(bus, anyScreenOpen = { screenOpen })
+		val module = KeybindModule()
+		manager.register(module)
+		manager.enable(module)
+		val keys = bus.type<KeyInputEvent>()
+
+		screenOpen = true
+		keys.dispatch(key(GLFW.GLFW_KEY_K))
+		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_MOUSE_BUTTON_4, InputAction.PRESS, 0))
+
+		assertEquals(0, module.activations)
+
+		screenOpen = false
+		keys.dispatch(key(GLFW.GLFW_KEY_K))
 
 		assertEquals(1, module.activations)
 	}
@@ -37,11 +75,11 @@ class KeybindRuntimeTest {
 		manager.enable(module)
 
 		module.rebind(GLFW.GLFW_MOUSE_BUTTON_4)
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_MOUSE_BUTTON_4, InputAction.PRESS))
-		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_MOUSE_BUTTON_4, InputAction.PRESS))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_MOUSE_BUTTON_4))
+		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_MOUSE_BUTTON_4, InputAction.PRESS, 0))
 		module.rebind(GLFW.GLFW_KEY_L)
-		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_KEY_L, InputAction.PRESS))
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_L, InputAction.PRESS))
+		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_KEY_L, InputAction.PRESS, 0))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_L))
 
 		assertEquals(2, module.activations)
 	}
@@ -54,11 +92,11 @@ class KeybindRuntimeTest {
 		manager.register(module)
 		manager.enable(module)
 
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_F8, InputAction.PRESS))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_F8))
 
 		assertFalse(module.enabled)
 
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_F8, InputAction.PRESS))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_F8))
 
 		assertTrue(module.enabled)
 	}
@@ -70,10 +108,10 @@ class KeybindRuntimeTest {
 		val module = KeybindModule()
 		manager.register(module)
 		manager.enable(module)
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_K))
 		manager.disable(module)
 
-		bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+		bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_K))
 
 		assertEquals(1, module.activations)
 	}
@@ -87,12 +125,14 @@ class KeybindRuntimeTest {
 		manager.enable(module)
 
 		repeat(Module.ERROR_THRESHOLD) {
-			bus.type<KeyInputEvent>().dispatch(KeyInputEvent(GLFW.GLFW_KEY_K, InputAction.PRESS))
+			bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_K))
 		}
 
 		assertFalse(module.enabled)
 		assertEquals(Module.ERROR_THRESHOLD, module.errorCount)
 	}
+
+	private fun key(code: Int, action: InputAction = InputAction.PRESS) = KeyInputEvent(code, action, 0, 0)
 
 	private class KeybindModule : Module(
 		name = "Keybind Module",

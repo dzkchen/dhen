@@ -31,7 +31,7 @@ class ModuleUnregisterTest {
 		}
 		module.setEnabled(true)
 		manager.eventBus.type<TestEvent>().dispatch(TestEvent())
-		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS))
+		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS, 0, 0))
 
 		assertEquals(0, module.calls)
 		assertEquals(0, module.activations)
@@ -45,12 +45,12 @@ class ModuleUnregisterTest {
 		manager.register(module)
 		manager.enable(module)
 		manager.eventBus.type<TestEvent>().dispatch(TestEvent())
-		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS))
+		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS, 0, 0))
 
 		manager.unregister(module)
 		module.setEnabled(true)
 		manager.eventBus.type<TestEvent>().dispatch(TestEvent())
-		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS))
+		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS, 0, 0))
 
 		assertEquals(1, module.calls)
 		assertEquals(1, module.activations)
@@ -98,7 +98,7 @@ class ModuleUnregisterTest {
 		assertSame(module, manager.register(module))
 		manager.enable(module)
 		manager.eventBus.type<TestEvent>().dispatch(TestEvent())
-		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS))
+		manager.eventBus.type<KeyInputEvent>().dispatch(KeyInputEvent(TOGGLE_KEY, InputAction.PRESS, 0, 0))
 
 		assertEquals(2, module.calls)
 		assertEquals(1, module.activations)

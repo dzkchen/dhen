@@ -11,10 +11,11 @@ class ModuleManager(
 	private val notifier: ModuleNotifier = ModuleNotifier.LogBacked,
 	private val clock: () -> Long = System::currentTimeMillis,
 	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher(),
-	nanoClock: NanoClock = NanoClock.SYSTEM
+	nanoClock: NanoClock = NanoClock.SYSTEM,
+	anyScreenOpen: () -> Boolean = { false }
 ) {
 	val profiler = HandlerProfiler(nanoClock)
-	private val keybindRuntime = KeybindRuntime(eventBus)
+	private val keybindRuntime = KeybindRuntime(eventBus, anyScreenOpen)
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
 	private val registrationOrder = mutableListOf<Module>()
