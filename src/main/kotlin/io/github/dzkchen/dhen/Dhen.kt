@@ -10,6 +10,8 @@ import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
+import io.github.dzkchen.dhen.event.WorldChange
+import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
@@ -33,6 +35,7 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader
@@ -137,6 +140,9 @@ object Dhen : ClientModInitializer {
 			if (failsafe.failed) latchOff()
 			else failsafe.guard("client tick") { tick(client, openGuiKey) }
 		}
+		ClientPlayConnectionEvents.INIT.register { _, _ -> worldChanged(WorldChange.INIT) }
+		ClientPlayConnectionEvents.JOIN.register { _, _, _ -> worldChanged(WorldChange.JOIN) }
+		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
 		ClientLifecycleEvents.CLIENT_STOPPING.register {
 			stores.forEach { it.flush() }
 			configScope.cancel()
@@ -145,6 +151,7 @@ object Dhen : ClientModInitializer {
 		ScreenHooks.install(modules.eventBus)
 		ContainerHooks.install(modules.eventBus)
 		InputHooks.install(modules.eventBus)
+		WorldHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -154,6 +161,13 @@ object Dhen : ClientModInitializer {
 		ScreenHooks.uninstall()
 		ContainerHooks.uninstall()
 		InputHooks.uninstall()
+		WorldHooks.uninstall()
+	}
+
+	private fun worldChanged(phase: WorldChange) {
+		val client = Minecraft.getInstance()
+		if (client.isSameThread()) failsafe.guard("world change") { WorldHooks.worldChanged(phase) }
+		else client.execute { worldChanged(phase) }
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {

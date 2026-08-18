@@ -52,7 +52,8 @@ internal object ContainerHooks {
 		channels = Channels(bus)
 		subscriptions = arrayOf(
 			bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) },
-			bus.subscribe<PacketSendEvent> { sent(it.packet) }
+			bus.subscribe<PacketSendEvent> { sent(it.packet) },
+			bus.subscribe<WorldChangeEvent> { forgetTrackedContainer() }
 		)
 	}
 
@@ -65,6 +66,8 @@ internal object ContainerHooks {
 	fun active(): Boolean = channels != null
 
 	fun tick() = guarded("container tick") { it.flush() }
+
+	private fun forgetTrackedContainer() = guarded("container world change") { it.forget() }
 
 	private fun received(packet: Packet<*>) = guarded("container packet") { it.received(packet) }
 
@@ -101,6 +104,13 @@ internal object ContainerHooks {
 
 		fun sent(packet: Packet<*>) {
 			if (packet is ServerboundContainerClosePacket) closed(packet.containerId, false)
+		}
+
+		fun forget() {
+			tracker.reset()
+			title = Component.empty()
+			stacks = ArrayList()
+			updated = null
 		}
 
 		fun flush() {

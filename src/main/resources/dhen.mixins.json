@@ -5,10 +5,12 @@
 	"mixins": [],
 	"client": [
 		"AbstractContainerScreenMixin",
+		"ClientLevelEntityCallbacksMixin",
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
 		"GuiMixin",
 		"KeyboardHandlerMixin",
+		"LevelChunkMixin",
 		"LoadingOverlayMixin",
 		"MouseHandlerMixin",
 		"PacketProcessorMixin",

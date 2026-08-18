@@ -22,6 +22,8 @@ class EventBus {
 		@Volatile
 		private var listeners = noListeners
 
+		val hasSubscribers: Boolean get() = listeners.isNotEmpty()
+
 		fun subscribe(priority: Int = 0, handler: (T) -> Unit): Handle {
 			val listener = synchronized(bus.lock) {
 				@Suppress("UNCHECKED_CAST")

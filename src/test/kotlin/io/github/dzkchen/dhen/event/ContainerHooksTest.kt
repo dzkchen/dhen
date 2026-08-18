@@ -95,6 +95,39 @@ class ContainerHooksTest {
 	}
 
 	@Test
+	fun `a world change forgets the container it was tracking`() {
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+
+		changeWorld()
+		receive(ClientboundContainerClosePacket(WINDOW))
+
+		assertTrue(closed.isEmpty())
+	}
+
+	@Test
+	fun `a window id reused after a world change is not matched against the stale menu`() {
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+
+		changeWorld()
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+
+		assertTrue(closed.isEmpty())
+	}
+
+	@Test
+	fun `a container opened after a world change is tracked again`() {
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+		changeWorld()
+
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+		receive(ClientboundContainerClosePacket(WINDOW))
+
+		assertEquals(1, closed.size)
+		assertEquals(WINDOW, closed[0].windowId)
+		assertFalse(closed[0].reopening)
+	}
+
+	@Test
 	fun `uninstalling drops the packet subscriptions`() {
 		ContainerHooks.uninstall()
 
@@ -103,6 +136,11 @@ class ContainerHooksTest {
 
 		assertTrue(closed.isEmpty())
 		assertFalse(ContainerHooks.active())
+		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
+	}
+
+	private fun changeWorld() {
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
 	}
 
 	private fun receive(packet: Packet<*>) {
