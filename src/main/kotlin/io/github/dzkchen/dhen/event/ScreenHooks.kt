@@ -6,7 +6,9 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
+import net.minecraft.world.item.ItemStack
 
 internal object ScreenHooks {
 	private val failsafe = Failsafe("Dhen {} failed, its screen events are off until restart")
@@ -52,15 +54,66 @@ internal object ScreenHooks {
 	fun beforeContainerKey(screen: AbstractContainerScreen<*>, key: KeyEvent, hovered: Slot?): Boolean =
 		guarded("container key") { it.pressed(screen, key, hovered) }
 
+	@JvmStatic
+	fun beforeContainerScroll(
+		screen: AbstractContainerScreen<*>,
+		mouseX: Double,
+		mouseY: Double,
+		scrollX: Double,
+		scrollY: Double,
+		hovered: Slot?
+	): Boolean = guarded("container scroll") { it.scrolled(screen, mouseX, mouseY, scrollX, scrollY, hovered) }
+
+	@JvmStatic
+	fun beforeSlotRender(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot): Boolean =
+		guarded("slot render") { it.slotRendering(screen, graphics, slot) }
+
+	@JvmStatic
+	fun afterSlotRender(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot) {
+		guarded("slot rendered") { channels ->
+			channels.slotRendered(screen, graphics, slot)
+			false
+		}
+	}
+
+	@JvmStatic
+	fun beforeTooltip(
+		screen: AbstractContainerScreen<*>,
+		graphics: GuiGraphicsExtractor,
+		hovered: Slot?,
+		stack: ItemStack,
+		lines: List<Component>,
+		x: Int,
+		y: Int
+	): TooltipEvent? {
+		if (hovered == null || stack.isEmpty || lines.isEmpty()) return null
+		val channels = channels ?: return null
+		return try {
+			channels.tooltip(screen, graphics, hovered, stack, lines, x, y)
+		} catch (throwable: Throwable) {
+			latchOff("tooltip", throwable)
+			null
+		}
+	}
+
+	@JvmStatic
+	fun releaseTooltip(event: TooltipEvent) {
+		channels?.releaseTooltip(event)
+	}
+
 	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
 		val channels = channels ?: return false
 		return try {
 			block(channels)
 		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail(label, throwable)
+			latchOff(label, throwable)
 			false
 		}
+	}
+
+	private fun latchOff(label: String, throwable: Throwable) {
+		channels = null
+		failsafe.fail(label, throwable)
 	}
 
 	private class Channels(bus: EventBus) {
@@ -68,10 +121,17 @@ internal object ScreenHooks {
 		private val closes = bus.type<GuiCloseEvent>()
 		private val clicks = bus.type<ContainerClickEvent>()
 		private val keys = bus.type<ContainerKeyEvent>()
+		private val scrolls = bus.type<ContainerScrollEvent>()
 		private val renderPre = bus.type<ScreenRenderEvent.Pre>()
 		private val renderPost = bus.type<ScreenRenderEvent.Post>()
+		private val slotPre = bus.type<SlotRenderEvent.Pre>()
+		private val slotPost = bus.type<SlotRenderEvent.Post>()
+		private val tooltips = bus.type<TooltipEvent>()
 		private val preEvents = ReusableEvent(ScreenRenderEvent::Pre)
 		private val postEvents = ReusableEvent(ScreenRenderEvent::Post)
+		private val slotPreEvents = ReusableEvent(SlotRenderEvent::Pre)
+		private val slotPostEvents = ReusableEvent(SlotRenderEvent::Post)
+		private val tooltipEvents = ReusableEvent(::TooltipEvent)
 
 		fun changed(closing: Screen?, opening: Screen?) {
 			if (closing != null) closes.dispatch(GuiCloseEvent(closing))
@@ -85,12 +145,12 @@ internal object ScreenHooks {
 			event.graphics = graphics
 			event.mouseX = mouseX
 			event.mouseY = mouseY
-			try {
+			return try {
 				renderPre.dispatch(event)
+				event.cancelled
 			} finally {
 				preEvents.release(event)
 			}
-			return event.cancelled
 		}
 
 		fun rendered(screen: Screen, graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
@@ -116,6 +176,70 @@ internal object ScreenHooks {
 			val event = ContainerKeyEvent(screen, key, hovered)
 			keys.dispatch(event)
 			return event.cancelled
+		}
+
+		fun scrolled(
+			screen: AbstractContainerScreen<*>,
+			mouseX: Double,
+			mouseY: Double,
+			scrollX: Double,
+			scrollY: Double,
+			hovered: Slot?
+		): Boolean {
+			val event = ContainerScrollEvent(screen, mouseX, mouseY, scrollX, scrollY, hovered)
+			scrolls.dispatch(event)
+			return event.cancelled
+		}
+
+		fun slotRendering(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot): Boolean {
+			val event = slotPreEvents.borrow()
+			event.cancelled = false
+			event.screen = screen
+			event.graphics = graphics
+			event.slot = slot
+			return try {
+				slotPre.dispatch(event)
+				event.cancelled
+			} finally {
+				slotPreEvents.release(event)
+			}
+		}
+
+		fun slotRendered(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot) {
+			val event = slotPostEvents.borrow()
+			event.screen = screen
+			event.graphics = graphics
+			event.slot = slot
+			try {
+				slotPost.dispatch(event)
+			} finally {
+				slotPostEvents.release(event)
+			}
+		}
+
+		fun tooltip(
+			screen: AbstractContainerScreen<*>,
+			graphics: GuiGraphicsExtractor,
+			hovered: Slot,
+			stack: ItemStack,
+			lines: List<Component>,
+			x: Int,
+			y: Int
+		): TooltipEvent {
+			val event = tooltipEvents.borrow()
+			event.screen = screen
+			event.graphics = graphics
+			event.hoveredSlot = hovered
+			event.stack = stack
+			event.x = x
+			event.y = y
+			event.reuse(lines)
+			tooltips.dispatch(event)
+			return event
+		}
+
+		fun releaseTooltip(event: TooltipEvent) {
+			tooltipEvents.release(event)
 		}
 	}
 }
