@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.NetworkHooks
+import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
@@ -140,12 +141,14 @@ object Dhen : ClientModInitializer {
 			configScope.cancel()
 		}
 		NetworkHooks.install(modules.eventBus)
+		ScreenHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
 	private fun latchOff() {
 		clientThread.shutdown()
 		NetworkHooks.uninstall()
+		ScreenHooks.uninstall()
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
