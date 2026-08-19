@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
+import io.github.dzkchen.dhen.event.InteractionHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.RenderHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
@@ -39,6 +40,12 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+import net.fabricmc.fabric.api.event.client.player.ClientPreAttackCallback
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback
+import net.fabricmc.fabric.api.event.player.UseBlockCallback
+import net.fabricmc.fabric.api.event.player.UseEntityCallback
+import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
@@ -48,6 +55,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import net.minecraft.util.Util
+import net.minecraft.world.InteractionResult
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -141,6 +149,24 @@ object Dhen : ClientModInitializer {
 			if (failsafe.failed) latchOff()
 			else failsafe.guard("client tick") { tick(client, openGuiKey) }
 		}
+		UseBlockCallback.EVENT.register { player, _, hand, hit ->
+			interacted("use block") { InteractionHooks.useBlock(player, hand, hit) }
+		}
+		UseEntityCallback.EVENT.register { player, _, hand, entity, _ ->
+			interacted("use entity") { InteractionHooks.useEntity(player, hand, entity) }
+		}
+		UseItemCallback.EVENT.register { player, _, hand ->
+			interacted("use item") { InteractionHooks.useItem(player, hand) }
+		}
+		AttackBlockCallback.EVENT.register { player, _, _, pos, _ ->
+			interacted("attack block") { InteractionHooks.attackBlock(player, pos) }
+		}
+		AttackEntityCallback.EVENT.register { player, _, _, entity, _ ->
+			interacted("attack entity") { InteractionHooks.attackEntity(player, entity) }
+		}
+		ClientPreAttackCallback.EVENT.register { _, _, _ ->
+			failsafe.guard("attack") { InteractionHooks.attack() } ?: false
+		}
 		ClientPlayConnectionEvents.INIT.register { _, _ -> worldChanged(WorldChange.INIT) }
 		ClientPlayConnectionEvents.JOIN.register { _, _, _ -> worldChanged(WorldChange.JOIN) }
 		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
@@ -154,6 +180,7 @@ object Dhen : ClientModInitializer {
 		InputHooks.install(modules.eventBus)
 		WorldHooks.install(modules.eventBus)
 		RenderHooks.install(modules.eventBus)
+		InteractionHooks.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -165,7 +192,11 @@ object Dhen : ClientModInitializer {
 		InputHooks.uninstall()
 		WorldHooks.uninstall()
 		RenderHooks.uninstall()
+		InteractionHooks.uninstall()
 	}
+
+	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =
+		failsafe.guard(label, interaction) ?: InteractionResult.PASS
 
 	private fun worldChanged(phase: WorldChange) {
 		val client = Minecraft.getInstance()
