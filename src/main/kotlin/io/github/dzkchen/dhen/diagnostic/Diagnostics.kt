@@ -14,6 +14,8 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
+import io.github.dzkchen.dhen.data.price.PriceSource
+import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
@@ -32,6 +34,7 @@ class Diagnostics(
 	private val heldItem: () -> ItemStack? = { Minecraft.getInstance().player?.mainHandItem }
 ) {
 	private var forcedRequirement: Handle? = null
+	private var forcedPrices: Handle? = null
 
 	var deepMode: Boolean
 		get() = manager.profiler.deepMode
@@ -110,6 +113,43 @@ class Diagnostics(
 		forcedRequirement = if (held == null) ItemRepo.require() else null.also { held.unsubscribe() }
 		return if (held == null) "Item repo: asked for, downloading in the background."
 		else "Item repo: no longer asked for by this toggle."
+	}
+
+	fun priceLines(toggle: Boolean): List<String> = buildList {
+		if (toggle) add(togglePrices())
+		add("Prices: needed by ${Prices.required}, bazaar snapshot=${Prices.bazaar?.lastUpdated ?: 0L}")
+		for (feed in Prices.feeds) {
+			add("  ${feed.name}: entries=${feed.size}, age=${Prices.ageSeconds(feed)}s, failedRefreshes=${feed.failures}")
+		}
+	}
+
+	private fun togglePrices(): String {
+		val held = forcedPrices
+		forcedPrices = if (held == null) Prices.require() else null.also { held.unsubscribe() }
+		return if (held == null) "Prices: asked for, fetching in the background."
+		else "Prices: no longer asked for by this toggle."
+	}
+
+	fun marketLines(query: String): List<String> = buildList {
+		val marketId = query.trim().uppercase(Locale.ROOT)
+		add("Price of '$marketId':")
+		for (source in PriceSource.entries) add("  $source=${Prices.price(marketId, source) ?: "unknown"}")
+		val product = Prices.product(marketId)
+		if (product == null) {
+			add("  not a bazaar product")
+			return@buildList
+		}
+		add("  bazaar id=${product.productId}, instantBuy=${product.instantBuy}, instantSell=${product.instantSell}")
+		val status = product.quickStatus
+		add("  book=${product.buySummary.size} buy / ${product.sellSummary.size} sell")
+		add("  buy: price=${status.buyPrice}, volume=${status.buyVolume}, orders=${status.buyOrders}, week=${status.buyMovingWeek}")
+		add("  sell: price=${status.sellPrice}, volume=${status.sellVolume}, orders=${status.sellOrders}, week=${status.sellMovingWeek}")
+		for (order in product.buySummary.take(TOP_ORDERS)) {
+			add("  buy ${order.pricePerUnit} x${order.amount} in ${order.orders} order(s)")
+		}
+		for (order in product.sellSummary.take(TOP_ORDERS)) {
+			add("  sell ${order.pricePerUnit} x${order.amount} in ${order.orders} order(s)")
+		}
 	}
 
 	fun itemLines(query: String): List<String> = buildList {
@@ -191,6 +231,7 @@ class Diagnostics(
 				"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
 		)
 		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}")
+		add("Prices: needed by ${Prices.required}, bazaar=${Prices.bazaar?.size ?: 0} products")
 		for (module in manager.modules) {
 			add(
 				"${module.name}: subscriptions=${module.subscriptionCount}, " +
@@ -206,5 +247,9 @@ class Diagnostics(
 				)
 			}
 		}
+	}
+
+	private companion object {
+		private const val TOP_ORDERS = 3
 	}
 }

@@ -419,8 +419,9 @@ class CommandRegistryTest {
 		assertEquals("Tab list widgets: no feed, the tab list widget hooks are not installed", captured[5])
 		assertEquals("Player stats: no feed, the action bar hooks are not installed", captured[6])
 		assertEquals("Item repo: state=IDLE, items=0, needed by 0", captured[7])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[8])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[9])
+		assertEquals("Prices: needed by 0, bazaar=0 products", captured[8])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[9])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[10])
 	}
 
 	@Test

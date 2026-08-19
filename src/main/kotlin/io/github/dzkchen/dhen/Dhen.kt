@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
@@ -214,6 +215,7 @@ object Dhen : ClientModInitializer {
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
+		Prices.install(ioScope, modules.eventBus, clientThread)
 		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
@@ -238,6 +240,7 @@ object Dhen : ClientModInitializer {
 		PartyHooks.uninstall()
 		PlayerStatsHooks.uninstall()
 		ItemRepo.uninstall()
+		Prices.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

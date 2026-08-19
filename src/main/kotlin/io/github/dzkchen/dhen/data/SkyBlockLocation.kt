@@ -5,6 +5,7 @@ object SkyBlockLocation {
 
 	private var unconfirmedIsland: Island? = null
 
+	@Volatile
 	var onHypixel: Boolean = false
 		private set
 

@@ -2,10 +2,9 @@ package io.github.dzkchen.dhen.data.repo
 
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.WebClient
+import io.github.dzkchen.dhen.util.WebSource
 import org.slf4j.LoggerFactory
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
@@ -25,40 +24,18 @@ internal enum class SyncResult {
 	UNREADABLE
 }
 
-internal interface RepoTransport {
-	fun text(url: String): String?
-
+internal interface RepoTransport : WebSource {
 	fun download(url: String, destination: Path): Boolean
 }
 
 internal class HttpRepoTransport(
-	private val client: HttpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()
+	private val web: WebClient = WebClient(mapOf("Accept" to "application/vnd.github+json"))
 ) : RepoTransport {
-	override fun text(url: String): String? = send(url, HttpResponse.BodyHandlers.ofString())
+	override fun text(url: String): String? = web.text(url)
 
 	override fun download(url: String, destination: Path): Boolean {
 		destination.parent?.let(Files::createDirectories)
-		return send(url, HttpResponse.BodyHandlers.ofFile(destination)) != null
-	}
-
-	private fun <T> send(url: String, body: HttpResponse.BodyHandler<T>): T? = try {
-		val request = HttpRequest.newBuilder(URI.create(url))
-			.header("User-Agent", Dhen.MOD_ID)
-			.header("Accept", "application/vnd.github+json")
-			.build()
-		val response = client.send(request, body)
-		if (response.statusCode() == OK) response.body() else {
-			log.warn("Dhen repo request to {} answered {}", url, response.statusCode())
-			null
-		}
-	} catch (throwable: Throwable) {
-		log.warn("Dhen repo request to {} failed", url, throwable)
-		null
-	}
-
-	private companion object {
-		private const val OK = 200
-		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
+		return web.send(url, HttpResponse.BodyHandlers.ofFile(destination)) != null
 	}
 }
 
