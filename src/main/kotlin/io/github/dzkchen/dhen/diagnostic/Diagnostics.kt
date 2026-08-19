@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.diagnostic
 
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
@@ -23,6 +25,14 @@ class Diagnostics(private val manager: ModuleManager) {
 			else "Server tick: tps=${String.format(Locale.ROOT, "%.1f", ServerClock.tps)}, " +
 				"serverTicks=${ServerClock.ticks}, " +
 				"clientTicksSincePing=${ServerClock.clientTicksSinceServerTick}"
+		)
+		add(
+			if (!HypixelLocationHooks.active()) "Location: no feed, the Hypixel Mod API hooks are not installed"
+			else "Location: hypixel=${SkyBlockLocation.onHypixel}, skyblock=${SkyBlockLocation.inSkyBlock}, " +
+				"island=${SkyBlockLocation.island}, area=${SkyBlockLocation.area ?: "none"}, " +
+				"mode=${SkyBlockLocation.mode ?: "none"}, server=${SkyBlockLocation.serverName ?: "none"}, " +
+				"islandChanges=${HypixelLocationHooks.islandChanges}, " +
+				"areaChanges=${HypixelLocationHooks.areaChanges}"
 		)
 		for (module in manager.modules) {
 			add(

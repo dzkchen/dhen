@@ -6,6 +6,8 @@ import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.HypixelModApi
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
@@ -199,6 +201,8 @@ object Dhen : ClientModInitializer {
 		InteractionHooks.install(modules.eventBus)
 		WorldRenderHooks.install(modules.eventBus)
 		TickHooks.install(modules.eventBus)
+		HypixelLocationHooks.install(modules.eventBus)
+		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
@@ -215,6 +219,7 @@ object Dhen : ClientModInitializer {
 		InteractionHooks.uninstall()
 		WorldRenderHooks.uninstall()
 		TickHooks.uninstall()
+		HypixelLocationHooks.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

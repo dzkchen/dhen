@@ -18,6 +18,20 @@ repositories {
 			includeGroup("com.terraformersmc")
 		}
 	}
+	maven {
+		name = "Hypixel"
+		url = uri("https://repo.hypixel.net/repository/Hypixel")
+		content {
+			includeGroup("net.hypixel")
+		}
+	}
+	maven {
+		name = "Modrinth"
+		url = uri("https://api.modrinth.com/maven")
+		content {
+			includeGroup("maven.modrinth")
+		}
+	}
 }
 
 dependencies {
@@ -25,6 +39,12 @@ dependencies {
 	implementation("net.fabricmc:fabric-loader:${providers.gradleProperty("loader_version").get()}")
 	implementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
 	implementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
+
+	val hypixelModApiVersion = providers.gradleProperty("hypixel_mod_api_version").get()
+	val hypixelModApiMod = "maven.modrinth:hypixel-mod-api:$hypixelModApiVersion"
+	implementation("net.hypixel:mod-api:${hypixelModApiVersion.substringBefore('+')}")
+	localRuntime(hypixelModApiMod)
+	include(hypixelModApiMod)
 
 	val modMenu = "com.terraformersmc:modmenu:${providers.gradleProperty("modmenu_version").get()}"
 	compileOnly(modMenu)
@@ -37,6 +57,7 @@ dependencies {
 
 tasks.processResources {
 	fun floor(property: String) = providers.gradleProperty(property).get().substringBefore('+')
+	fun nextMajor(property: String) = "${floor(property).substringBefore('.').toInt() + 1}.0.0"
 
 	val metadata = mapOf(
 		"version" to version.toString(),
@@ -44,6 +65,8 @@ tasks.processResources {
 		"loader_version" to floor("loader_version"),
 		"fabric_api_floor" to floor("fabric_api_version"),
 		"fabric_kotlin_floor" to floor("fabric_kotlin_version"),
+		"hypixel_mod_api_floor" to floor("hypixel_mod_api_version"),
+		"hypixel_mod_api_ceiling" to nextMajor("hypixel_mod_api_version"),
 		"modmenu_version" to floor("modmenu_version")
 	)
 	inputs.properties(metadata)

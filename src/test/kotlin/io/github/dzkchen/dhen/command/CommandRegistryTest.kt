@@ -5,6 +5,8 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
@@ -376,8 +378,32 @@ class CommandRegistryTest {
 			captured[0]
 		)
 		assertEquals("Server tick: no feed, the tick hooks are not installed", captured[1])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[2])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[3])
+		assertEquals("Location: no feed, the Hypixel Mod API hooks are not installed", captured[2])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[3])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[4])
+	}
+
+	@Test
+	fun `debug reports the island and area the location feed is holding`() {
+		val manager = ModuleManager()
+		HypixelLocationHooks.install(manager.eventBus)
+		try {
+			HypixelLocationHooks.located("mini1A", skyBlock = true, mode = "dungeon", map = "Dungeon")
+			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val dispatcher = CommandDispatcher<Any>()
+			registry.install(dispatcher)
+
+			dispatcher.execute("dhen debug", Any())
+		} finally {
+			HypixelLocationHooks.uninstall()
+			SkyBlockLocation.reset()
+		}
+
+		assertEquals(
+			"Location: hypixel=true, skyblock=true, island=CATACOMBS, area=Dungeon, " +
+				"mode=dungeon, server=mini1A, islandChanges=1, areaChanges=1",
+			captured[2]
+		)
 	}
 
 	@Test
