@@ -15,6 +15,7 @@
 		"LevelChunkMixin",
 		"LoadingOverlayMixin",
 		"MouseHandlerMixin",
+		"MultiPlayerGameModeMixin",
 		"PacketProcessorMixin",
 		"ScreenMixin",
 		"ServerboundChatCommandPacketAccessor",

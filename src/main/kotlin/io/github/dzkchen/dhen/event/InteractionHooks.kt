@@ -41,6 +41,11 @@ internal object InteractionHooks {
 
 	fun attack(): Boolean = guarded("attack") { it.attack() }
 
+	@JvmStatic
+	fun usedBlock(hand: InteractionHand, hit: BlockHitResult, result: InteractionResult) {
+		guardedUnit("used block") { it.usedBlock(hand, hit, result) }
+	}
+
 	private inline fun interaction(player: Player, label: String, block: (Channels) -> Boolean): InteractionResult =
 		if (player.isLocalPlayer && guarded(label, block)) InteractionResult.FAIL else InteractionResult.PASS
 
@@ -49,10 +54,23 @@ internal object InteractionHooks {
 		return try {
 			block(channels)
 		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail(label, throwable)
+			latchOff(label, throwable)
 			false
 		}
+	}
+
+	private inline fun guardedUnit(label: String, block: (Channels) -> Unit) {
+		val channels = channels ?: return
+		try {
+			block(channels)
+		} catch (throwable: Throwable) {
+			latchOff(label, throwable)
+		}
+	}
+
+	private fun latchOff(label: String, throwable: Throwable) {
+		channels = null
+		failsafe.fail(label, throwable)
 	}
 
 	private class Channels(bus: EventBus) {
@@ -62,6 +80,7 @@ internal object InteractionHooks {
 		private val attackBlocks = bus.type<InteractionEvent.AttackBlock>()
 		private val attackEntities = bus.type<InteractionEvent.AttackEntity>()
 		private val attacks = bus.type<InteractionEvent.Attack>()
+		private val usedBlocks = bus.type<InteractionEvent.UsedBlock>()
 
 		fun useBlock(player: Player, hand: InteractionHand, pos: BlockPos): Boolean =
 			useBlocks.publish { InteractionEvent.UseBlock(pos, hand, player.getItemInHand(hand)) }
@@ -78,10 +97,14 @@ internal object InteractionHooks {
 			attackEntities.publish { InteractionEvent.AttackEntity(entity) }
 
 		fun attack(): Boolean = attacks.publish { InteractionEvent.Attack() }
+
+		fun usedBlock(hand: InteractionHand, hit: BlockHitResult, result: InteractionResult) {
+			if (usedBlocks.hasSubscribers) usedBlocks.dispatch(InteractionEvent.UsedBlock(hand, hit, result))
+		}
 	}
 }
 
-private inline fun <T : InteractionEvent> EventBus.EventType<T>.publish(event: () -> T): Boolean {
+private inline fun <T : InteractionEvent.Pre> EventBus.EventType<T>.publish(event: () -> T): Boolean {
 	if (!hasSubscribers) return false
 	return event().also { dispatch(it) }.cancelled
 }
