@@ -35,6 +35,7 @@ class ModuleScopeTest {
 		ModuleManager().register(module)
 
 		assertNull(module.start(CompletableDeferred()))
+		assertTrue(module.handlerTimings.isEmpty())
 	}
 
 	@Test

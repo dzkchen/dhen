@@ -12,28 +12,35 @@ internal object TickHooks {
 	private val failsafe = Failsafe("Dhen {} failed, its tick events are off until restart")
 
 	@Volatile
-	private var channels: Channels? = null
+	private var serverChannels: ServerChannels? = null
+	private var clientChannels: ClientChannels? = null
 
-	private var subscriptions: Array<Handle> = emptyArray()
+	private var serverSubscriptions: Array<Handle> = emptyArray()
+	private var resetSubscription: Handle? = null
 
 	fun install(bus: EventBus, clock: NanoClock = NanoClock.SYSTEM) {
 		uninstall()
-		channels = Channels(bus, clock)
-		subscriptions = arrayOf(
-			bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) },
-			bus.subscribe<WorldChangeEvent> { worldChanged() }
-		)
+		serverChannels = ServerChannels(bus, clock)
+		clientChannels = ClientChannels(bus)
+		serverSubscriptions = arrayOf(bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) })
+		resetSubscription = bus.subscribe<WorldChangeEvent> { worldChanged() }
 	}
 
 	fun uninstall() {
-		subscriptions.forEach(Handle::unsubscribe)
-		subscriptions = emptyArray()
-		channels = null
+		disableServerChannels()
+		resetSubscription?.unsubscribe()
+		resetSubscription = null
+		clientChannels = null
 	}
 
-	fun active(): Boolean = channels != null
+	fun active(): Boolean = serverChannels != null
 
-	fun clientTicked() = TickClock.clientTicked()
+	fun clientTickStarted() = clientChannels?.started()
+
+	fun clientTicked(publish: Boolean = true) {
+		TickClock.clientTicked()
+		if (publish) clientChannels?.ended()
+	}
 
 	private fun received(packet: Packet<*>) = guarded("server tick") { channels ->
 		when (packet) {
@@ -43,19 +50,42 @@ internal object TickHooks {
 		}
 	}
 
-	private fun worldChanged() = guarded("tick clock reset") { it.reset() }
+	private fun worldChanged() {
+		try {
+			ServerClock.reset()
+			TickClock.cancelWorldScopedWaits()
+		} catch (throwable: Throwable) {
+			uninstall()
+			failsafe.fail("tick clock reset", throwable)
+		}
+	}
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
+	private inline fun guarded(label: String, block: (ServerChannels) -> Unit) {
+		val channels = serverChannels ?: return
 		try {
 			block(channels)
 		} catch (throwable: Throwable) {
-			uninstall()
+			disableServerChannels()
 			failsafe.fail(label, throwable)
 		}
 	}
 
-	private class Channels(bus: EventBus, private val clock: NanoClock) {
+	private fun disableServerChannels() {
+		serverSubscriptions.forEach(Handle::unsubscribe)
+		serverSubscriptions = emptyArray()
+		serverChannels = null
+	}
+
+	private class ClientChannels(bus: EventBus) {
+		private val starts = bus.type<ClientTickEvent.Start>()
+		private val ends = bus.type<ClientTickEvent.End>()
+
+		fun started() = starts.dispatch(ClientTickEvent.Start)
+
+		fun ended() = ends.dispatch(ClientTickEvent.End)
+	}
+
+	private class ServerChannels(bus: EventBus, private val clock: NanoClock) {
 		private val ticks = bus.type<ServerTickEvent>()
 
 		fun serverTicked() {
@@ -65,10 +95,5 @@ internal object TickHooks {
 		}
 
 		fun timeSynced() = ServerClock.timeSynced(clock.nanoTime())
-
-		fun reset() {
-			ServerClock.reset()
-			TickClock.cancelWorldScopedWaits()
-		}
 	}
 }

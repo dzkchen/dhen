@@ -26,6 +26,21 @@ class ModuleTickTest {
 	}
 
 	@Test
+	fun `scheduled tick work is listed and timed in deep profiling`() {
+		module.repeatedly(1) { }
+		dispatcher.drainQueue()
+		val timing = module.handlerTimings.single { it.eventName == "ClientTickTask" }
+
+		clientTick()
+		assertEquals(0, timing.snapshot().totalInvocations)
+
+		manager.profiler.deepMode = true
+		clientTick()
+
+		assertEquals(1, timing.snapshot().totalInvocations)
+	}
+
+	@Test
 	fun `a twenty-tick delay fires on the twentieth client tick`() {
 		var fired = false
 		module.after(20) { fired = true }

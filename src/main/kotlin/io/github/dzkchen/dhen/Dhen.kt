@@ -151,6 +151,10 @@ object Dhen : ClientModInitializer {
 				KeyMapping.Category.MISC
 			)
 		)
+		ClientTickEvents.START_CLIENT_TICK.register { client ->
+			if (failsafe.failed) latchOff()
+			else if (client.level != null) failsafe.guard("client tick start") { TickHooks.clientTickStarted() }
+		}
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			if (failsafe.failed) latchOff()
 			else failsafe.guard("client tick") { tick(client, openGuiKey) }
@@ -223,7 +227,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
-		TickHooks.clientTicked()
+		TickHooks.clientTicked(client.level != null)
 		clientThread.drainQueue()
 		ContainerHooks.tick()
 		val options = client.options
