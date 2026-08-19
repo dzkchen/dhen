@@ -1,6 +1,10 @@
 package io.github.dzkchen.dhen.data
 
 object SkyBlockLocation {
+	private const val GUEST_TITLE = "GUEST"
+
+	private var unconfirmedIsland: Island? = null
+
 	var onHypixel: Boolean = false
 		private set
 
@@ -8,6 +12,9 @@ object SkyBlockLocation {
 		private set
 
 	var island: Island = Island.NONE
+		private set
+
+	var isGuest: Boolean = false
 		private set
 
 	var area: String? = null
@@ -19,6 +26,8 @@ object SkyBlockLocation {
 	var mode: String? = null
 		private set
 
+	val awaitingGuestTitle: Boolean get() = unconfirmedIsland != null
+
 	internal fun greeted() {
 		onHypixel = true
 	}
@@ -28,19 +37,31 @@ object SkyBlockLocation {
 		this.serverName = serverName
 		this.mode = mode
 		inSkyBlock = skyBlock
+		isGuest = false
+		unconfirmedIsland = null
 		if (!skyBlock) {
 			island = Island.NONE
 			area = null
 		} else if (mode != null) {
-			island = Island.ofMode(mode)
+			val located = Island.ofMode(mode)
 			area = map
+			if (located.guest != null) unconfirmedIsland = located else island = located
 		}
+	}
+
+	internal fun titled(title: String) {
+		val located = unconfirmedIsland ?: return
+		unconfirmedIsland = null
+		isGuest = title.trim().endsWith(GUEST_TITLE)
+		island = if (isGuest) located.guest ?: located else located
 	}
 
 	internal fun reset() {
 		onHypixel = false
 		inSkyBlock = false
 		island = Island.NONE
+		isGuest = false
+		unconfirmedIsland = null
 		area = null
 		serverName = null
 		mode = null

@@ -9,6 +9,8 @@ import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.util.Failsafe
 
 internal object HypixelLocationHooks {
+	private const val SKYBLOCK_OBJECTIVE = "SBScoreboard"
+
 	private val failsafe = Failsafe("Dhen {} failed, its island events are off until restart")
 
 	@Volatile
@@ -42,6 +44,11 @@ internal object HypixelLocationHooks {
 	fun located(serverName: String, skyBlock: Boolean, mode: String?, map: String?) =
 		guarded("Hypixel location") { it.located(serverName, skyBlock, mode, map) }
 
+	fun scoreboardTitled(objective: String, title: String) {
+		if (objective != SKYBLOCK_OBJECTIVE || !SkyBlockLocation.awaitingGuestTitle) return
+		guarded("Hypixel scoreboard title") { it.titled(title) }
+	}
+
 	private fun disconnected() = guarded("Hypixel disconnect") { it.disconnected() }
 
 	private inline fun guarded(label: String, block: (Channels) -> Unit) {
@@ -66,8 +73,12 @@ internal object HypixelLocationHooks {
 
 		fun greeted() = SkyBlockLocation.greeted()
 
-		fun located(serverName: String, skyBlock: Boolean, mode: String?, map: String?) =
-			publishing { SkyBlockLocation.located(serverName, skyBlock, mode, map) }
+		fun located(serverName: String, skyBlock: Boolean, mode: String?, map: String?) = publishing {
+			SkyBlockLocation.located(serverName, skyBlock, mode, map)
+			if (ScoreboardState.objective == SKYBLOCK_OBJECTIVE) SkyBlockLocation.titled(ScoreboardState.strippedTitle)
+		}
+
+		fun titled(title: String) = publishing { SkyBlockLocation.titled(title) }
 
 		fun disconnected() = publishing(SkyBlockLocation::reset)
 

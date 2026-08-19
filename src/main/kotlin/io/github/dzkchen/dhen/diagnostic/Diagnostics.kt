@@ -2,7 +2,11 @@ package io.github.dzkchen.dhen.diagnostic
 
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.ScoreboardHooks
+import io.github.dzkchen.dhen.data.ScoreboardState
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.TablistHooks
+import io.github.dzkchen.dhen.data.TablistState
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.event.TickHooks
@@ -33,6 +37,22 @@ class Diagnostics(private val manager: ModuleManager) {
 		}
 	}
 
+	fun scoreboardLines(): List<String> = buildList {
+		if (!ScoreboardHooks.active()) {
+			add("Scoreboard: no feed, the scoreboard hooks are not installed")
+		} else {
+			add("Scoreboard title: '${ScoreboardState.strippedTitle}' (objective ${ScoreboardState.objective.ifEmpty { "none" }})")
+			for (line in ScoreboardState.stripped) add("  $line")
+		}
+		if (!TablistHooks.active()) {
+			add("Tab list: no feed, the tab list hooks are not installed")
+			return@buildList
+		}
+		add("Tab list header: '${TablistState.strippedHeader}'")
+		add("Tab list footer: '${TablistState.strippedFooter}'")
+		for (line in TablistState.stripped) add("  $line")
+	}
+
 	fun lines(): List<String> = buildList {
 		add(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
@@ -50,7 +70,19 @@ class Diagnostics(private val manager: ModuleManager) {
 				"island=${SkyBlockLocation.island}, area=${SkyBlockLocation.area ?: "none"}, " +
 				"mode=${SkyBlockLocation.mode ?: "none"}, server=${SkyBlockLocation.serverName ?: "none"}, " +
 				"islandChanges=${HypixelLocationHooks.islandChanges}, " +
-				"areaChanges=${HypixelLocationHooks.areaChanges}"
+				"areaChanges=${HypixelLocationHooks.areaChanges}, " +
+				"guest=${SkyBlockLocation.isGuest}, " +
+				"awaitingGuestTitle=${SkyBlockLocation.awaitingGuestTitle}"
+		)
+		add(
+			if (!ScoreboardHooks.active()) "Scoreboard: no feed, the scoreboard hooks are not installed"
+			else "Scoreboard: title='${ScoreboardState.strippedTitle}', lines=${ScoreboardState.lines.size}, " +
+				"scoreboardArea=${ScoreboardState.area ?: "none"}"
+		)
+		add(
+			if (!TablistHooks.active()) "Tab list: no feed, the tab list hooks are not installed"
+			else "Tab list: lines=${TablistState.lines.size}, header=${TablistState.strippedHeader.isNotEmpty()}, " +
+				"footer=${TablistState.strippedFooter.isNotEmpty()}"
 		)
 		for (module in manager.modules) {
 			add(

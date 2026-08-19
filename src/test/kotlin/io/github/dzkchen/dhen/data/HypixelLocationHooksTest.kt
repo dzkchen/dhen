@@ -156,6 +156,54 @@ class HypixelLocationHooksTest {
 	}
 
 	@Test
+	fun `an island with a guest variant waits for the scoreboard title`() {
+		hub()
+		HypixelLocationHooks.located("mini1A", skyBlock = true, mode = "garden", map = "Garden")
+
+		assertEquals(Island.HUB, SkyBlockLocation.island)
+		assertTrue(SkyBlockLocation.awaitingGuestTitle)
+		assertEquals(1, islands.size)
+		assertEquals("Garden", areas.last().area)
+
+		HypixelLocationHooks.scoreboardTitled("SBScoreboard", "SKYBLOCK GUEST")
+
+		assertEquals(Island.GARDEN_GUEST, SkyBlockLocation.island)
+		assertEquals(Island.HUB to Island.GARDEN_GUEST, islands.last().let { it.previous to it.island })
+	}
+
+	@Test
+	fun `a title nothing is waiting on changes nothing`() {
+		hub()
+		HypixelLocationHooks.scoreboardTitled("SBScoreboard", "SKYBLOCK GUEST")
+
+		assertEquals(Island.HUB, SkyBlockLocation.island)
+		assertFalse(SkyBlockLocation.isGuest)
+		assertEquals(1, islands.size)
+	}
+
+	@Test
+	fun `leaving skyblock while waiting drops the island it was holding`() {
+		HypixelLocationHooks.located("mini1A", skyBlock = true, mode = "dynamic", map = "Private Island")
+		HypixelLocationHooks.located("lobby3", skyBlock = false, mode = null, map = null)
+
+		assertFalse(SkyBlockLocation.awaitingGuestTitle)
+		assertEquals(Island.NONE, SkyBlockLocation.island)
+
+		HypixelLocationHooks.scoreboardTitled("SBScoreboard", "SKYBLOCK GUEST")
+
+		assertEquals(Island.NONE, SkyBlockLocation.island)
+	}
+
+	@Test
+	fun `every island with a guest variant has one of its own`() {
+		val guests = Island.entries.mapNotNull { it.guest }
+
+		assertEquals(listOf(Island.PRIVATE_ISLAND_GUEST, Island.GARDEN_GUEST), guests)
+		assertEquals(guests.size, guests.toSet().size)
+		assertTrue(guests.all { it.modeId == null })
+	}
+
+	@Test
 	fun `no two islands claim the same mode id`() {
 		val mapped = Island.entries.filter { it.modeId != null }
 

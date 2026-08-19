@@ -44,7 +44,7 @@ private val LEGACY_COLORS: Map<TextColor, ChatFormatting> = ChatFormatting.entri
 	.mapNotNull { format -> TextColor.fromLegacyFormat(format)?.let { color -> color to format } }
 	.toMap()
 
-private fun legacyCodes(text: Component): String {
+internal fun legacyCodes(text: Component): String {
 	val codes = StringBuilder()
 	var carried = false
 	text.visit({ style, literal ->
@@ -63,5 +63,5 @@ private fun legacyCodes(text: Component): String {
 	return codes.toString()
 }
 
-private fun withoutCodes(text: String): String =
+internal fun withoutCodes(text: String): String =
 	if (text.indexOf(ChatFormatting.PREFIX_CODE) < 0) text else StringUtil.stripColor(text)

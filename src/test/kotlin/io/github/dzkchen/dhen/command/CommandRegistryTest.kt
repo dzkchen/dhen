@@ -6,7 +6,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
 import io.github.dzkchen.dhen.event.Event
@@ -14,6 +16,7 @@ import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -381,8 +384,10 @@ class CommandRegistryTest {
 		)
 		assertEquals("Server tick: no feed, the tick hooks are not installed", captured[1])
 		assertEquals("Location: no feed, the Hypixel Mod API hooks are not installed", captured[2])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[3])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[4])
+		assertEquals("Scoreboard: no feed, the scoreboard hooks are not installed", captured[3])
+		assertEquals("Tab list: no feed, the tab list hooks are not installed", captured[4])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[5])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[6])
 	}
 
 	@Test
@@ -403,8 +408,37 @@ class CommandRegistryTest {
 
 		assertEquals(
 			"Location: hypixel=true, skyblock=true, island=CATACOMBS, area=Dungeon, " +
-				"mode=dungeon, server=mini1A, islandChanges=1, areaChanges=1",
+				"mode=dungeon, server=mini1A, islandChanges=1, areaChanges=1, " +
+				"guest=false, awaitingGuestTitle=false",
 			captured[2]
+		)
+	}
+
+	@Test
+	fun `debug scoreboard reports the sidebar and tab list the parsers are holding`() {
+		val manager = ModuleManager()
+		ScoreboardHooks.install(manager.eventBus) { null }
+		TablistHooks.install(manager.eventBus) { listOf(Component.literal("Info")) }
+		try {
+			TablistHooks.refresh()
+			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val dispatcher = CommandDispatcher<Any>()
+			registry.install(dispatcher)
+
+			dispatcher.execute("dhen debug scoreboard", Any())
+		} finally {
+			ScoreboardHooks.uninstall()
+			TablistHooks.uninstall()
+		}
+
+		assertEquals(
+			listOf(
+				"Scoreboard title: '' (objective none)",
+				"Tab list header: ''",
+				"Tab list footer: ''",
+				"  Info"
+			),
+			captured
 		)
 	}
 

@@ -4,11 +4,13 @@ enum class Island(val modeId: String?) {
 	NONE(null),
 	UNKNOWN(null),
 	PRIVATE_ISLAND("dynamic"),
+	PRIVATE_ISLAND_GUEST(null),
 	HUB("hub"),
 	DARK_AUCTION("dark_auction"),
 	JERRYS_WORKSHOP("winter"),
 	THE_FARMING_ISLANDS("farming_1"),
 	GARDEN("garden"),
+	GARDEN_GUEST(null),
 	GOLD_MINE("mining_1"),
 	DEEP_CAVERNS("mining_2"),
 	DWARVEN_MINES("mining_3"),
@@ -27,6 +29,13 @@ enum class Island(val modeId: String?) {
 	KUUDRA("kuudra"),
 	THE_RIFT("rift"),
 	CRITTER_SAFARI("safari");
+
+	val guest: Island?
+		get() = when (this) {
+			PRIVATE_ISLAND -> PRIVATE_ISLAND_GUEST
+			GARDEN -> GARDEN_GUEST
+			else -> null
+		}
 
 	companion object {
 		private val byModeId: Map<String, Island> =
