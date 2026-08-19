@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
@@ -210,6 +211,7 @@ object Dhen : ClientModInitializer {
 		TablistHooks.install(modules.eventBus)
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
+		PlayerStatsHooks.install(modules.eventBus)
 		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
@@ -232,6 +234,7 @@ object Dhen : ClientModInitializer {
 		TablistHooks.uninstall()
 		TabWidgetHooks.uninstall()
 		PartyHooks.uninstall()
+		PlayerStatsHooks.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

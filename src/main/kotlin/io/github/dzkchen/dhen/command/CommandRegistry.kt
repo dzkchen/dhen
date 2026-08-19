@@ -186,6 +186,12 @@ class CommandRegistry<S>(
 					Command.SINGLE_SUCCESS
 				}
 			)
+			.then(
+				literal<S>("stats").executes { context ->
+					for (line in diagnostics.statsLines()) feedback(context.source, line)
+					Command.SINGLE_SUCCESS
+				}
+			)
 
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
 		literal<S>(name).executes { context ->

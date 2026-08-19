@@ -13,6 +13,9 @@ import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
+import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
+import io.github.dzkchen.dhen.event.ActionBarEvent
+import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
@@ -389,8 +392,9 @@ class CommandRegistryTest {
 		assertEquals("Scoreboard: no feed, the scoreboard hooks are not installed", captured[3])
 		assertEquals("Tab list: no feed, the tab list hooks are not installed", captured[4])
 		assertEquals("Tab list widgets: no feed, the tab list widget hooks are not installed", captured[5])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[6])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[7])
+		assertEquals("Player stats: no feed, the action bar hooks are not installed", captured[6])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[7])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[8])
 	}
 
 	@Test
@@ -440,6 +444,36 @@ class CommandRegistryTest {
 				"Tab list header: ''",
 				"Tab list footer: ''",
 				"  Info"
+			),
+			captured
+		)
+	}
+
+	@Test
+	fun `debug stats reports the action bar stats the parser is holding`() {
+		val manager = ModuleManager()
+		PlayerStatsHooks.install(manager.eventBus, { true }, { false }, { -1f }, { 0.4 })
+		try {
+			val event = ActionBarEvent()
+			event.text = Component.literal("§c1,530/1,530❤     §a1,204❈ Defense     §b1,050/1,050✎ Mana")
+			manager.eventBus.type<ActionBarEvent>().dispatch(event)
+			manager.eventBus.type<ClientTickEvent.End>().dispatch(ClientTickEvent.End)
+			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val dispatcher = CommandDispatcher<Any>()
+			registry.install(dispatcher)
+
+			dispatcher.execute("dhen debug stats", Any())
+		} finally {
+			PlayerStatsHooks.uninstall()
+		}
+
+		assertEquals(
+			listOf(
+				"Player stats: health=1530/1530, defense=1204, ehp=19890",
+				"  mana=1050/1050, overflow=0, speed=400",
+				"  vitality=0/0, shown=false",
+				"  stacks=0, salvation=0, secrets=0/0",
+				"  hidden from the action bar: nothing"
 			),
 			captured
 		)

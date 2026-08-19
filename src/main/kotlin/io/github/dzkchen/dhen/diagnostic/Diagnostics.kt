@@ -12,6 +12,9 @@ import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.TablistState
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
+import io.github.dzkchen.dhen.data.stats.ActionBarSegment
+import io.github.dzkchen.dhen.data.stats.PlayerStats
+import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
@@ -69,6 +72,21 @@ class Diagnostics(private val manager: ModuleManager) {
 		}
 	}
 
+	fun statsLines(): List<String> = buildList {
+		if (!PlayerStatsHooks.active()) {
+			add("Player stats: no feed, the action bar hooks are not installed")
+			return@buildList
+		}
+		add("Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, defense=${PlayerStats.defense}, ehp=${PlayerStats.effectiveHp}")
+		add("  mana=${PlayerStats.mana}/${PlayerStats.maxMana}, overflow=${PlayerStats.overflowMana}, speed=${PlayerStats.speed}")
+		add("  vitality=${PlayerStats.vitality}/${PlayerStats.maxVitality}, shown=${PlayerStats.vitalityShown}")
+		add("  stacks=${PlayerStats.netherArmorStacks}${PlayerStats.stackSymbol}, salvation=${PlayerStats.salvation}, secrets=${PlayerStats.secrets}/${PlayerStats.maxSecrets}")
+		add("  hidden from the action bar: ${hiddenSegments()}")
+	}
+
+	private fun hiddenSegments(): String =
+		ActionBarSegment.entries.filter(PlayerStats::hidden).joinToString().ifEmpty { "nothing" }
+
 	fun lines(): List<String> = buildList {
 		add(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
@@ -103,6 +121,11 @@ class Diagnostics(private val manager: ModuleManager) {
 		add(
 			if (!TabWidgetHooks.active()) "Tab list widgets: no feed, the tab list widget hooks are not installed"
 			else "Tab list widgets: active=${TabWidget.entries.count(TabWidgetState::active)} of ${TabWidget.entries.size}"
+		)
+		add(
+			if (!PlayerStatsHooks.active()) "Player stats: no feed, the action bar hooks are not installed"
+			else "Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, mana=${PlayerStats.mana}/${PlayerStats.maxMana}, " +
+				"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
 		)
 		for (module in manager.modules) {
 			add(
