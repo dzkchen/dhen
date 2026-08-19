@@ -168,6 +168,12 @@ class CommandRegistry<S>(
 					report(context.source, "World-render probe ${if (toggleWorldRender()) "on" else "off"}.")
 				}
 			)
+			.then(
+				literal<S>("party").executes { context ->
+					for (line in diagnostics.partyLines()) feedback(context.source, line)
+					Command.SINGLE_SUCCESS
+				}
+			)
 
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
 		literal<S>(name).executes { context ->

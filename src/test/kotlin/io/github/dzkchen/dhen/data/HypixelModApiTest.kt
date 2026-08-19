@@ -1,7 +1,11 @@
 package io.github.dzkchen.dhen.data
 
+import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.party.PartyRole
+import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.event.EventBus
 import net.hypixel.data.type.GameType
+import net.hypixel.modapi.packet.impl.clientbound.ClientboundPartyInfoPacket
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -10,16 +14,21 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.UUID
 
 class HypixelModApiTest {
+	private val bus = EventBus()
+
 	@BeforeEach
 	fun install() {
-		HypixelLocationHooks.install(EventBus())
+		HypixelLocationHooks.install(bus)
+		PartyHooks.install(bus, self = { "Me" }, request = {})
 	}
 
 	@AfterEach
 	fun uninstall() {
 		HypixelLocationHooks.uninstall()
+		PartyHooks.uninstall()
 	}
 
 	@Test
@@ -51,5 +60,59 @@ class HypixelModApiTest {
 		assertFalse(SkyBlockLocation.inSkyBlock)
 		assertEquals(Island.NONE, SkyBlockLocation.island)
 		assertEquals("lobby3", SkyBlockLocation.serverName)
+	}
+
+	@Test
+	fun `a party packet lands the leader, the members and their roles`() {
+		val leader = UUID.fromString("00000000-0000-0000-0000-00000000000a")
+		val member = UUID.fromString("00000000-0000-0000-0000-00000000000b")
+
+		HypixelModApi.partyInfo(partyOf(leader to PartyRole.LEADER, member to PartyRole.MOD)) {
+			if (it == leader) "Alice" else "Bob"
+		}
+
+		assertTrue(PartyState.inParty)
+		assertEquals("Alice", PartyState.leader)
+		assertEquals(listOf("Alice", "Bob"), PartyState.members)
+		assertEquals(mapOf("Alice" to PartyRole.LEADER, "Bob" to PartyRole.MOD), PartyState.roles)
+	}
+
+	@Test
+	fun `a member the tab list cannot name is left to the chat roster`() {
+		val leader = UUID.fromString("00000000-0000-0000-0000-00000000000a")
+		val member = UUID.fromString("00000000-0000-0000-0000-00000000000b")
+
+		HypixelModApi.partyInfo(partyOf(leader to PartyRole.LEADER, member to PartyRole.MEMBER)) {
+			if (it == leader) "Alice" else null
+		}
+
+		assertEquals(listOf("Alice"), PartyState.members)
+		assertEquals(mapOf("Alice" to PartyRole.LEADER), PartyState.roles)
+	}
+
+	@Test
+	fun `a packet saying we are in no party clears the roster`() {
+		val leader = UUID.fromString("00000000-0000-0000-0000-00000000000a")
+		HypixelModApi.partyInfo(partyOf(leader to PartyRole.LEADER)) { "Alice" }
+
+		HypixelModApi.partyInfo(ClientboundPartyInfoPacket(2, false, emptyMap())) { "Alice" }
+
+		assertFalse(PartyState.inParty)
+		assertTrue(PartyState.members.isEmpty())
+	}
+
+	private fun partyOf(vararg members: Pair<UUID, PartyRole>): ClientboundPartyInfoPacket =
+		ClientboundPartyInfoPacket(
+			2,
+			true,
+			members.associate { (uuid, role) ->
+				uuid to ClientboundPartyInfoPacket.PartyMember(uuid, packetRole(role))
+			}
+		)
+
+	private fun packetRole(role: PartyRole): ClientboundPartyInfoPacket.PartyRole = when (role) {
+		PartyRole.LEADER -> ClientboundPartyInfoPacket.PartyRole.LEADER
+		PartyRole.MOD -> ClientboundPartyInfoPacket.PartyRole.MOD
+		PartyRole.MEMBER -> ClientboundPartyInfoPacket.PartyRole.MEMBER
 	}
 }

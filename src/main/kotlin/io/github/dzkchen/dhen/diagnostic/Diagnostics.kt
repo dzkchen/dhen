@@ -3,6 +3,8 @@ package io.github.dzkchen.dhen.diagnostic
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
@@ -14,6 +16,22 @@ class Diagnostics(private val manager: ModuleManager) {
 		set(value) {
 			manager.profiler.deepMode = value
 		}
+
+	fun partyLines(): List<String> = buildList {
+		if (!PartyHooks.active()) {
+			add("Party: no feed, the party hooks are not installed")
+			return@buildList
+		}
+		add(
+			"Party: inParty=${PartyState.inParty}, leader=${PartyState.leader ?: "none"}, " +
+				"members=${PartyState.members.size}, you=${PartyState.self ?: "unknown"}, " +
+				"youLead=${PartyState.isLeader}, " +
+				"packet=${if (PartyHooks.requesting) "available" else "refused"}"
+		)
+		for (member in PartyState.members) {
+			add("  $member: role=${PartyState.roles[member] ?: "unconfirmed"}")
+		}
+	}
 
 	fun lines(): List<String> = buildList {
 		add(

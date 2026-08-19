@@ -7,6 +7,8 @@ import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.party.PartyRole
 import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
@@ -403,6 +405,31 @@ class CommandRegistryTest {
 			"Location: hypixel=true, skyblock=true, island=CATACOMBS, area=Dungeon, " +
 				"mode=dungeon, server=mini1A, islandChanges=1, areaChanges=1",
 			captured[2]
+		)
+	}
+
+	@Test
+	fun `debug party reports the roster the party feed is holding`() {
+		val manager = ModuleManager()
+		PartyHooks.install(manager.eventBus, self = { "Me" }, request = {})
+		try {
+			PartyHooks.reconciled(true, "Alice", mapOf("Alice" to PartyRole.LEADER, "Me" to PartyRole.MEMBER), 2)
+			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val dispatcher = CommandDispatcher<Any>()
+			registry.install(dispatcher)
+
+			dispatcher.execute("dhen debug party", Any())
+		} finally {
+			PartyHooks.uninstall()
+		}
+
+		assertEquals(
+			listOf(
+				"Party: inParty=true, leader=Alice, members=2, you=Me, youLead=false, packet=available",
+				"  Alice: role=LEADER",
+				"  Me: role=MEMBER"
+			),
+			captured
 		)
 	}
 
