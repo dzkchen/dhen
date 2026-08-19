@@ -8,6 +8,8 @@ import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.TabWidget
+import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
@@ -386,8 +388,9 @@ class CommandRegistryTest {
 		assertEquals("Location: no feed, the Hypixel Mod API hooks are not installed", captured[2])
 		assertEquals("Scoreboard: no feed, the scoreboard hooks are not installed", captured[3])
 		assertEquals("Tab list: no feed, the tab list hooks are not installed", captured[4])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[5])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[6])
+		assertEquals("Tab list widgets: no feed, the tab list widget hooks are not installed", captured[5])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[6])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[7])
 	}
 
 	@Test
@@ -437,6 +440,37 @@ class CommandRegistryTest {
 				"Tab list header: ''",
 				"Tab list footer: ''",
 				"  Info"
+			),
+			captured
+		)
+	}
+
+	@Test
+	fun `debug tablist reports the widgets the grouping is holding`() {
+		val manager = ModuleManager()
+		TablistHooks.install(manager.eventBus) {
+			listOf(Component.literal("Info"), Component.literal(" Area: Hub"))
+		}
+		TabWidgetHooks.install(manager.eventBus) { true }
+		try {
+			TablistHooks.refresh()
+			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val dispatcher = CommandDispatcher<Any>()
+			registry.install(dispatcher)
+
+			dispatcher.execute("dhen debug tablist", Any())
+		} finally {
+			TabWidgetHooks.uninstall()
+			TablistHooks.uninstall()
+		}
+
+		assertEquals(
+			listOf(
+				"Tab list widgets: 2 active of ${TabWidget.entries.size}",
+				"  INFO",
+				"    Info",
+				"  AREA",
+				"     Area: Hub"
 			),
 			captured
 		)

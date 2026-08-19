@@ -5,6 +5,9 @@ import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.ScoreboardState
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.TabWidget
+import io.github.dzkchen.dhen.data.TabWidgetHooks
+import io.github.dzkchen.dhen.data.TabWidgetState
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.TablistState
 import io.github.dzkchen.dhen.data.party.PartyHooks
@@ -53,6 +56,19 @@ class Diagnostics(private val manager: ModuleManager) {
 		for (line in TablistState.stripped) add("  $line")
 	}
 
+	fun tablistWidgetLines(): List<String> = buildList {
+		if (!TabWidgetHooks.active()) {
+			add("Tab list widgets: no feed, the tab list widget hooks are not installed")
+			return@buildList
+		}
+		val active = TabWidget.entries.filter(TabWidgetState::active)
+		add("Tab list widgets: ${active.size} active of ${TabWidget.entries.size}")
+		for (widget in active) {
+			add("  ${widget.name}")
+			for (line in TabWidgetState.stripped(widget)) add("    $line")
+		}
+	}
+
 	fun lines(): List<String> = buildList {
 		add(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
@@ -83,6 +99,10 @@ class Diagnostics(private val manager: ModuleManager) {
 			if (!TablistHooks.active()) "Tab list: no feed, the tab list hooks are not installed"
 			else "Tab list: lines=${TablistState.lines.size}, header=${TablistState.strippedHeader.isNotEmpty()}, " +
 				"footer=${TablistState.strippedFooter.isNotEmpty()}"
+		)
+		add(
+			if (!TabWidgetHooks.active()) "Tab list widgets: no feed, the tab list widget hooks are not installed"
+			else "Tab list widgets: active=${TabWidget.entries.count(TabWidgetState::active)} of ${TabWidget.entries.size}"
 		)
 		for (module in manager.modules) {
 			add(

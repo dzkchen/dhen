@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.HypixelModApi
 import io.github.dzkchen.dhen.data.ScoreboardHooks
+import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
@@ -207,6 +208,7 @@ object Dhen : ClientModInitializer {
 		HypixelLocationHooks.install(modules.eventBus)
 		ScoreboardHooks.install(modules.eventBus)
 		TablistHooks.install(modules.eventBus)
+		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
 		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
@@ -228,6 +230,7 @@ object Dhen : ClientModInitializer {
 		HypixelLocationHooks.uninstall()
 		ScoreboardHooks.uninstall()
 		TablistHooks.uninstall()
+		TabWidgetHooks.uninstall()
 		PartyHooks.uninstall()
 	}
 
