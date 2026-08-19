@@ -15,6 +15,7 @@ import io.github.dzkchen.dhen.event.RenderHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
+import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.DhenType
@@ -171,7 +172,7 @@ object Dhen : ClientModInitializer {
 			failsafe.guard("attack") { InteractionHooks.attack() } ?: false
 		}
 		LevelRenderEvents.COLLECT_SUBMITS.register { context ->
-			failsafe.guard("world render probe at collect submits") { WorldRenderProbe.collectSubmits(context) }
+			failsafe.guard("world render") { WorldRenderHooks.render(context) }
 		}
 		LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register { context ->
 			failsafe.guard("world render probe after translucent terrain") { WorldRenderProbe.afterTranslucentTerrain(context) }
@@ -190,6 +191,8 @@ object Dhen : ClientModInitializer {
 		WorldHooks.install(modules.eventBus)
 		RenderHooks.install(modules.eventBus)
 		InteractionHooks.install(modules.eventBus)
+		WorldRenderHooks.install(modules.eventBus)
+		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -202,6 +205,7 @@ object Dhen : ClientModInitializer {
 		WorldHooks.uninstall()
 		RenderHooks.uninstall()
 		InteractionHooks.uninstall()
+		WorldRenderHooks.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

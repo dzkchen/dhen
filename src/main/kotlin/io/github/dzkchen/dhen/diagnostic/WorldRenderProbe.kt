@@ -4,6 +4,9 @@ import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
@@ -18,10 +21,13 @@ import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.state.level.CameraRenderState
+import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.phys.Vec3
 import java.util.Optional
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 internal object WorldRenderProbe {
@@ -35,6 +41,9 @@ internal object WorldRenderProbe {
 	private const val LINE_WIDTH = 3f
 	private const val BEAM_HEIGHT = 64
 	private const val BEAM_PERIOD = 40L
+	private const val QUAD_LIFT = 2.0
+	private const val QUAD_HALF = 0.5f
+	private const val QUAD_TOWARD_CAMERA = 180.0
 
 	private val LINES_THROUGH_WALLS: RenderPipeline = RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
 		.withLocation(Dhen.id("pipeline/lines_through_walls"))
@@ -74,28 +83,55 @@ internal object WorldRenderProbe {
 		0, 1, 5, 4, 6, 7, 3, 2
 	)
 
-	private var enabled = false
+	private lateinit var bus: EventBus
+	private var subscription: Handle? = null
 
-	fun toggle(): Boolean {
-		enabled = !enabled
-		return enabled
+	fun install(bus: EventBus) {
+		this.bus = bus
 	}
 
-	fun collectSubmits(context: LevelRenderContext) = draw(context, -SPREAD, "collect submits")
+	fun toggle(): Boolean {
+		val current = subscription
+		subscription = if (current == null) {
+			bus.subscribe<WorldRenderEvent> {
+				draw(it.collector, it.pose, it.camera, it.gameTime, -SPREAD, "collect submits")
+			}
+		} else {
+			current.unsubscribe()
+			null
+		}
+		return subscription != null
+	}
 
-	fun afterTranslucentTerrain(context: LevelRenderContext) = draw(context, SPREAD, "after translucent terrain")
+	fun afterTranslucentTerrain(context: LevelRenderContext) {
+		if (subscription == null) return
+		val level = context.levelState()
+		draw(
+			context.submitNodeCollector(),
+			context.poseStack(),
+			level.cameraRenderState,
+			level.gameTime,
+			SPREAD,
+			"after translucent terrain"
+		)
+	}
 
-	private fun draw(context: LevelRenderContext, sideways: Double, stage: String) {
-		if (!enabled) return
-		val camera = context.levelState().cameraRenderState
-		val pose = context.poseStack()
-		val collector = context.submitNodeCollector()
+	private fun draw(
+		collector: SubmitNodeCollector,
+		pose: PoseStack,
+		camera: CameraRenderState,
+		gameTime: Long,
+		sideways: Double,
+		stage: String
+	) {
 		val wire = blockCorner(camera, sideways)
+		val filled = blockCorner(camera, sideways + FILL_OFFSET)
 
 		wireBox(collector, pose, wire, DhenPalette.accent)
-		filledBox(collector, pose, blockCorner(camera, sideways + FILL_OFFSET), translucentAccent())
+		filledBox(collector, pose, filled, translucentAccent())
+		texturedQuad(collector, pose, camera, filled.add(0.5, QUAD_LIFT, 0.5))
 		tracer(collector, pose, camera, wire.add(0.5, 0.5, 0.5), DhenPalette.accentMuted)
-		beacon(collector, pose, blockCorner(camera, sideways + BEAM_OFFSET), context.levelState().gameTime)
+		beacon(collector, pose, blockCorner(camera, sideways + BEAM_OFFSET), gameTime)
 		label(collector, pose, camera, wire.add(0.5, LABEL_HEIGHT, 0.5), stage)
 	}
 
@@ -162,6 +198,37 @@ internal object WorldRenderProbe {
 				color
 			)
 		}
+	}
+
+	private fun texturedQuad(collector: SubmitNodeCollector, pose: PoseStack, camera: CameraRenderState, at: Vec3) {
+		val facing = Math.toRadians(camera.yRot + QUAD_TOWARD_CAMERA)
+		val rightX = cos(facing).toFloat()
+		val rightZ = sin(facing).toFloat()
+		val x = at.x.toFloat()
+		val y = at.y.toFloat()
+		val z = at.z.toFloat()
+		val color = DhenPalette.accent
+		collector.submitCustomGeometry(pose, RenderTypes.entityCutout(BeaconRenderer.BEAM_LOCATION)) { _, buffer ->
+			quadVertex(buffer, x - rightX * QUAD_HALF, y - QUAD_HALF, z - rightZ * QUAD_HALF, 0f, 1f, -rightZ, rightX, color)
+			quadVertex(buffer, x - rightX * QUAD_HALF, y + QUAD_HALF, z - rightZ * QUAD_HALF, 0f, 0f, -rightZ, rightX, color)
+			quadVertex(buffer, x + rightX * QUAD_HALF, y + QUAD_HALF, z + rightZ * QUAD_HALF, 1f, 0f, -rightZ, rightX, color)
+			quadVertex(buffer, x + rightX * QUAD_HALF, y - QUAD_HALF, z + rightZ * QUAD_HALF, 1f, 1f, -rightZ, rightX, color)
+		}
+	}
+
+	private fun quadVertex(
+		buffer: VertexConsumer,
+		x: Float, y: Float, z: Float,
+		u: Float, v: Float,
+		normalX: Float, normalZ: Float,
+		color: Int
+	) {
+		buffer.addVertex(x, y, z)
+			.setColor(color)
+			.setUv(u, v)
+			.setOverlay(OverlayTexture.NO_OVERLAY)
+			.setLight(LightCoordsUtil.FULL_BRIGHT)
+			.setNormal(normalX, 0f, normalZ)
 	}
 
 	private fun beacon(collector: SubmitNodeCollector, pose: PoseStack, at: Vec3, gameTime: Long) {
