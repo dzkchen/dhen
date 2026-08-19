@@ -8,6 +8,10 @@ import io.github.dzkchen.dhen.event.Event
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.ui.hud.HudElement
+import io.github.dzkchen.dhen.util.delayServerTicks
+import io.github.dzkchen.dhen.util.delayTicks
+import io.github.dzkchen.dhen.util.repeatServerTicks
+import io.github.dzkchen.dhen.util.repeatTicks
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +78,26 @@ abstract class Module(
 	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
 		moduleScope?.launch(block = block)
 
+	protected fun inTicks(ticks: Int, block: () -> Unit): Job? =
+		launch { delayTicks(ticks); block() }
+
+	protected fun inServerTicks(ticks: Int, block: () -> Unit): Job? =
+		launch { delayServerTicks(ticks); block() }
+
+	protected fun everyTicks(ticks: Int, block: () -> Unit): Job? =
+		launch { repeatTicks(ticks) { isolated(block) } }
+
+	protected fun everyServerTicks(ticks: Int, block: () -> Unit): Job? =
+		launch { repeatServerTicks(ticks) { isolated(block) } }
+
+	private fun isolated(block: () -> Unit) {
+		try {
+			block()
+		} catch (throwable: Throwable) {
+			onHandlerError(throwable)
+		}
+	}
+
 	internal fun setEnabled(enabled: Boolean): Boolean {
 		synchronized(stateLock) {
 			if (this.enabled == enabled) return false
@@ -100,11 +124,7 @@ abstract class Module(
 
 	internal fun activateKeybind(setting: KeybindSetting) {
 		if (!enabled && !setting.firesWhileDisabled) return
-		try {
-			setting.activate()
-		} catch (throwable: Throwable) {
-			onHandlerError(throwable)
-		}
+		isolated(setting::activate)
 	}
 
 	internal fun bind(

@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.event.InteractionHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.RenderHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
+import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
@@ -29,6 +30,7 @@ import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
 import io.github.dzkchen.dhen.util.Failsafe
+import io.github.dzkchen.dhen.util.TickClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -192,12 +194,14 @@ object Dhen : ClientModInitializer {
 		RenderHooks.install(modules.eventBus)
 		InteractionHooks.install(modules.eventBus)
 		WorldRenderHooks.install(modules.eventBus)
+		TickHooks.install(modules.eventBus)
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
 
 	private fun latchOff() {
 		clientThread.shutdown()
+		TickClock.shutdown()
 		NetworkHooks.uninstall()
 		ScreenHooks.uninstall()
 		ContainerHooks.uninstall()
@@ -206,6 +210,7 @@ object Dhen : ClientModInitializer {
 		RenderHooks.uninstall()
 		InteractionHooks.uninstall()
 		WorldRenderHooks.uninstall()
+		TickHooks.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =
@@ -218,6 +223,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
+		TickHooks.clientTicked()
 		clientThread.drainQueue()
 		ContainerHooks.tick()
 		val options = client.options

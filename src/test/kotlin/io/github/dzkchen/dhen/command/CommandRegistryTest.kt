@@ -375,8 +375,9 @@ class CommandRegistryTest {
 			"Dhen debug: deep profiling off, modules.json v${ModulePersistence.version}",
 			captured[0]
 		)
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[1])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[2])
+		assertEquals("Server tick: no feed, the tick hooks are not installed", captured[1])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[2])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[3])
 	}
 
 	@Test

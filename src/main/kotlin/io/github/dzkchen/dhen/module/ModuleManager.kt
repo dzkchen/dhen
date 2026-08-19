@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.module
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.input.KeybindRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
+import io.github.dzkchen.dhen.util.NanoClock
 import java.util.Collections
 import java.util.Locale
 

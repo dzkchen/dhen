@@ -1,16 +1,9 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.util.NanoClock
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicLongArray
 import kotlin.math.min
-
-fun interface NanoClock {
-	fun nanoTime(): Long
-
-	companion object {
-		val SYSTEM: NanoClock = NanoClock(System::nanoTime)
-	}
-}
 
 class HandlerProfiler internal constructor(
 	internal val clock: NanoClock
