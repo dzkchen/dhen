@@ -193,6 +193,12 @@ class CommandRegistry<S>(
 				}
 			)
 			.then(
+				literal<S>("item").executes { context ->
+					for (line in diagnostics.heldItemLines()) feedback(context.source, line)
+					Command.SINGLE_SUCCESS
+				}
+			)
+			.then(
 				literal<S>("repo")
 					.executes { context ->
 						for (line in diagnostics.repoLines(toggle = false)) feedback(context.source, line)

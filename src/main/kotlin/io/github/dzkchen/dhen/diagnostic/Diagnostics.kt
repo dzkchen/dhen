@@ -10,6 +10,8 @@ import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TabWidgetState
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.TablistState
+import io.github.dzkchen.dhen.data.item.SkyBlockItem
+import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -18,11 +20,17 @@ import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TickHooks
+import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
+import net.minecraft.client.Minecraft
+import net.minecraft.world.item.ItemStack
 import java.util.Locale
 
-class Diagnostics(private val manager: ModuleManager) {
+class Diagnostics(
+	private val manager: ModuleManager,
+	private val heldItem: () -> ItemStack? = { Minecraft.getInstance().player?.mainHandItem }
+) {
 	private var forcedRequirement: Handle? = null
 
 	var deepMode: Boolean
@@ -113,6 +121,33 @@ class Diagnostics(private val manager: ModuleManager) {
 		add("${item.id}: '${item.displayName}'")
 		add("  vanilla=${item.itemId}, damage=${item.damage}, loreLines=${item.lore.size}")
 		for (line in item.lore) add("  $line")
+	}
+
+	fun heldItemLines(): List<String> = buildList {
+		val stack = heldItem()
+		if (stack == null || stack.isEmpty) {
+			add("Held item: nothing in your main hand")
+			return@buildList
+		}
+		add("Held item: '${withoutCodes(stack.hoverName.string)}'")
+		val item = SkyBlockItems.of(stack)
+		if (item === SkyBlockItem.NONE) {
+			add("  no SkyBlock data on this item")
+			return@buildList
+		}
+		add("  id=${item.id.ifEmpty { "none" }}, marketId=${item.marketId.ifEmpty { "none" }}, uuid=${item.uuid.ifEmpty { "none" }}")
+		val rarity = SkyBlockItems.rarity(stack)
+		add("  rarity=$rarity (magicalPower=${rarity.magicalPower}), upgradeLevel=${item.upgradeLevel}, " +
+			"rarityUpgrades=${item.rarityUpgrades}, reforge=${item.reforge.ifEmpty { "none" }}")
+		add("  hotPotato=${item.hotPotatoCount}, artOfWar=${item.artOfWar}, tunedTransmission=${item.tunedTransmission}, " +
+			"ethermerge=${item.ethermerge}, museum=${item.donatedMuseum}, timestamp=${item.timestamp}")
+		add("  enchantments=${item.enchantments}, runes=${item.runes}, attributes=${item.attributes}, gems=${item.gems != null}")
+		item.pet?.let {
+			add("  pet: type=${it.type}, tier=${it.tier}, exp=${it.exp}, heldItem=${it.heldItem ?: "none"}, " +
+				"candy=${it.candyUsed}, skin=${it.skin ?: "none"}")
+		}
+		add("  loreLines=${SkyBlockItems.lore(stack).size}, skull=${SkyBlockItems.skullTexture(stack) != null}, " +
+			"glint=${SkyBlockItems.hasGlint(stack)}, recordsCached=${SkyBlockItems.cachedRecords}")
 	}
 
 	fun lines(): List<String> = buildList {

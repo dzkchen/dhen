@@ -17,7 +17,9 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoSource
 import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.data.repo.RepoTransport
+import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
+import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.event.ActionBarEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.Event
@@ -27,7 +29,9 @@ import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.world.item.component.ItemLore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -49,6 +53,8 @@ class CommandRegistryTest {
 	}
 
 	private val NEU_SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
+
+	private val HELD_UUID = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
 
 	private fun registry(): CommandRegistry<Any> =
 		CommandRegistry(ModuleManager()) { _, message -> captured += message }
@@ -513,6 +519,57 @@ class CommandRegistryTest {
 		dispatcher.execute("dhen debug repo ASPECT_OF_THE_END", Any())
 
 		assertEquals(listOf("Item repo: nothing named 'ASPECT_OF_THE_END' (state=IDLE, items=0)"), captured)
+	}
+
+	@Test
+	fun `debug item reports an empty hand rather than reading a stack`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug item", Any())
+
+		assertEquals(listOf("Held item: nothing in your main hand"), captured)
+	}
+
+	@Test
+	fun `debug item reports the SkyBlock attributes of the held stack`() {
+		ItemFixture.bootstrap()
+		val stack = ItemFixture.stack {
+			putString("id", "SPIRIT_SCEPTRE")
+			putString("uuid", HELD_UUID)
+			putInt("upgrade_level", 5)
+			putInt("rarity_upgrades", 1)
+		}
+		stack.set(DataComponents.LORE, ItemLore(listOf(Component.literal("§d§lMYTHIC DUNGEON SWORD"))))
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug item", Any())
+
+		assertTrue(captured.any { it.contains("id=SPIRIT_SCEPTRE") && it.contains("marketId=SPIRIT_SCEPTRE") && it.contains("uuid=$HELD_UUID") })
+		assertTrue(captured.any { it.contains("rarity=MYTHIC") && it.contains("upgradeLevel=5") && it.contains("rarityUpgrades=1") })
+	}
+
+	@Test
+	fun `debug item reports the type and tier of a held pet`() {
+		ItemFixture.bootstrap()
+		val stack = ItemFixture.stack {
+			putString("id", "PET")
+			putString("petInfo", """{"type":"GOLDEN_DRAGON","tier":"LEGENDARY","candyUsed":2}""")
+		}
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug item", Any())
+
+		assertTrue(captured.any { it.contains("marketId=PET-GOLDEN_DRAGON-LEGENDARY") })
+		assertTrue(captured.any { it.contains("pet: type=GOLDEN_DRAGON, tier=LEGENDARY") && it.contains("candy=2") })
 	}
 
 	@Test
