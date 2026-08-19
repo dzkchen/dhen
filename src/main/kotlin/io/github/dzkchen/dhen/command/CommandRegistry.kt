@@ -20,6 +20,7 @@ class CommandRegistry<S>(
 	private val resetHudLayout: () -> Int = { 0 },
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
+	private val toggleWorldRender: () -> Boolean = { false },
 	private val available: () -> Boolean = { true },
 	private val feedback: (S, String) -> Unit
 ) {
@@ -161,6 +162,11 @@ class CommandRegistry<S>(
 				literal<S>("deep")
 					.then(deepMode("on", true))
 					.then(deepMode("off", false))
+			)
+			.then(
+				literal<S>("worldrender").executes { context ->
+					report(context.source, "World-render probe ${if (toggleWorldRender()) "on" else "off"}.")
+				}
 			)
 
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =

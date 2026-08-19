@@ -234,6 +234,25 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `the world-render probe reports the state the toggle returns`() {
+		var probe = false
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			toggleWorldRender = { probe = !probe; probe }
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug worldrender", Any())
+		assertTrue(probe)
+		assertEquals("World-render probe on.", captured.last())
+
+		dispatcher.execute("dh debug worldrender", Any())
+		assertFalse(probe)
+		assertEquals("World-render probe off.", captured.last())
+	}
+
+	@Test
 	fun `effects toggles the glass tier and persists every change`() {
 		var persisted = 0
 		val registry = CommandRegistry<Any>(ModuleManager(), {}, { persisted++ }) { _, message -> captured += message }

@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.command.CommandRegistry
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
 import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.InteractionHooks
@@ -40,6 +41,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
 import net.fabricmc.fabric.api.event.client.player.ClientPreAttackCallback
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback
@@ -101,6 +103,7 @@ object Dhen : ClientModInitializer {
 			persistCore = ::persistCore,
 			resetHudLayout = ::resetHudLayout,
 			themes = themes,
+			toggleWorldRender = WorldRenderProbe::toggle,
 			available = { !failsafe.failed }
 		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
@@ -166,6 +169,12 @@ object Dhen : ClientModInitializer {
 		}
 		ClientPreAttackCallback.EVENT.register { _, _, _ ->
 			failsafe.guard("attack") { InteractionHooks.attack() } ?: false
+		}
+		LevelRenderEvents.COLLECT_SUBMITS.register { context ->
+			failsafe.guard("world render probe at collect submits") { WorldRenderProbe.collectSubmits(context) }
+		}
+		LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register { context ->
+			failsafe.guard("world render probe after translucent terrain") { WorldRenderProbe.afterTranslucentTerrain(context) }
 		}
 		ClientPlayConnectionEvents.INIT.register { _, _ -> worldChanged(WorldChange.INIT) }
 		ClientPlayConnectionEvents.JOIN.register { _, _, _ -> worldChanged(WorldChange.JOIN) }
