@@ -192,6 +192,26 @@ class CommandRegistry<S>(
 					Command.SINGLE_SUCCESS
 				}
 			)
+			.then(
+				literal<S>("repo")
+					.executes { context ->
+						for (line in diagnostics.repoLines(toggle = false)) feedback(context.source, line)
+						Command.SINGLE_SUCCESS
+					}
+					.then(
+						literal<S>("download").executes { context ->
+							for (line in diagnostics.repoLines(toggle = true)) feedback(context.source, line)
+							Command.SINGLE_SUCCESS
+						}
+					)
+					.then(
+						argument<S, String>("item", StringArgumentType.greedyString()).executes { context ->
+							val query = StringArgumentType.getString(context, "item")
+							for (line in diagnostics.itemLines(query)) feedback(context.source, line)
+							Command.SINGLE_SUCCESS
+						}
+					)
+			)
 
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
 		literal<S>(name).executes { context ->

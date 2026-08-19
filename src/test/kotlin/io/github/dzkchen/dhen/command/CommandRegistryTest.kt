@@ -13,6 +13,10 @@ import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
+import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.RepoSource
+import io.github.dzkchen.dhen.data.repo.RepoSync
+import io.github.dzkchen.dhen.data.repo.RepoTransport
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.event.ActionBarEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
@@ -21,6 +25,8 @@ import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,13 +37,26 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
+	private object DeadTransport : RepoTransport {
+		override fun text(url: String): String? = null
+
+		override fun download(url: String, destination: Path): Boolean = false
+	}
+
+	private val NEU_SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
+
 	private fun registry(): CommandRegistry<Any> =
 		CommandRegistry(ModuleManager()) { _, message -> captured += message }
 
 	private val captured = mutableListOf<String>()
+
+	@TempDir
+	lateinit var repo: Path
 
 	@BeforeEach
 	@AfterEach
@@ -393,8 +412,9 @@ class CommandRegistryTest {
 		assertEquals("Tab list: no feed, the tab list hooks are not installed", captured[4])
 		assertEquals("Tab list widgets: no feed, the tab list widget hooks are not installed", captured[5])
 		assertEquals("Player stats: no feed, the action bar hooks are not installed", captured[6])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[7])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[8])
+		assertEquals("Item repo: state=IDLE, items=0, needed by 0", captured[7])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[8])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[9])
 	}
 
 	@Test
@@ -447,6 +467,52 @@ class CommandRegistryTest {
 			),
 			captured
 		)
+	}
+
+	@Test
+	fun `debug repo reports the item repo without downloading anything`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug repo", Any())
+
+		assertEquals(listOf("Item repo: state=IDLE, items=0, needed by 0, commit=none"), captured)
+	}
+
+	@Test
+	fun `debug repo download toggles the requirement on and back off`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+		ItemRepo.install(CoroutineScope(Dispatchers.Unconfined), repo, RepoSync(NEU_SOURCE, repo, DeadTransport))
+		try {
+			dispatcher.execute("dhen debug repo download", Any())
+			val asked = ItemRepo.required
+			dispatcher.execute("dhen debug repo download", Any())
+
+			assertEquals(1, asked)
+			assertEquals(0, ItemRepo.required)
+		} finally {
+			ItemRepo.uninstall()
+		}
+
+		assertEquals("Item repo: asked for, downloading in the background.", captured[0])
+		assertEquals("Item repo: no longer asked for by this toggle.", captured[2])
+	}
+
+	@Test
+	fun `debug repo with an id reports that an unloaded repo has no such item`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug repo ASPECT_OF_THE_END", Any())
+
+		assertEquals(listOf("Item repo: nothing named 'ASPECT_OF_THE_END' (state=IDLE, items=0)"), captured)
 	}
 
 	@Test

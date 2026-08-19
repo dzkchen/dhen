@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
@@ -87,7 +88,7 @@ object Dhen : ClientModInitializer {
 	)
 	private val hudRuntime = HudRuntime(modules)
 
-	private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private val stores = mutableListOf<ConfigStore>()
 	private val failsafe = Failsafe()
 	private lateinit var coreStore: ConfigStore
@@ -104,7 +105,7 @@ object Dhen : ClientModInitializer {
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
 		clickGuiView = CorePersistence.apply(coreStore.load())
-		val themes = ThemeRuntime(configRoot, configScope, clientThread, ::persistCore, ::announce) {
+		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
 		val commands = CommandRegistry<FabricClientCommandSource>(
@@ -195,7 +196,7 @@ object Dhen : ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
 		ClientLifecycleEvents.CLIENT_STOPPING.register {
 			stores.forEach { it.flush() }
-			configScope.cancel()
+			ioScope.cancel()
 		}
 		NetworkHooks.install(modules.eventBus)
 		ScreenHooks.install(modules.eventBus)
@@ -212,6 +213,7 @@ object Dhen : ClientModInitializer {
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
+		ItemRepo.install(ioScope, configRoot.resolve("repo"))
 		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
@@ -235,6 +237,7 @@ object Dhen : ClientModInitializer {
 		TabWidgetHooks.uninstall()
 		PartyHooks.uninstall()
 		PlayerStatsHooks.uninstall()
+		ItemRepo.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =
@@ -278,7 +281,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun flushedOnStop(path: Path, migrations: List<(JsonObject) -> Unit>): ConfigStore =
-		ConfigStore(path, configScope, migrations).also { stores += it }
+		ConfigStore(path, ioScope, migrations).also { stores += it }
 
 	private fun persistModules() {
 		moduleStore.save(ModulePersistence.snapshot(modules))

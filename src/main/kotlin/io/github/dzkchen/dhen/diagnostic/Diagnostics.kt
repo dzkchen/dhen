@@ -12,15 +12,19 @@ import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.TablistState
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
+import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
+import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
 import java.util.Locale
 
 class Diagnostics(private val manager: ModuleManager) {
+	private var forcedRequirement: Handle? = null
+
 	var deepMode: Boolean
 		get() = manager.profiler.deepMode
 		set(value) {
@@ -87,6 +91,30 @@ class Diagnostics(private val manager: ModuleManager) {
 	private fun hiddenSegments(): String =
 		ActionBarSegment.entries.filter(PlayerStats::hidden).joinToString().ifEmpty { "nothing" }
 
+	fun repoLines(toggle: Boolean): List<String> = buildList {
+		if (toggle) add(toggleRequirement())
+		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}, " +
+			"commit=${ItemRepo.commit ?: "none"}")
+	}
+
+	private fun toggleRequirement(): String {
+		val held = forcedRequirement
+		forcedRequirement = if (held == null) ItemRepo.require() else null.also { held.unsubscribe() }
+		return if (held == null) "Item repo: asked for, downloading in the background."
+		else "Item repo: no longer asked for by this toggle."
+	}
+
+	fun itemLines(query: String): List<String> = buildList {
+		val item = ItemRepo.item(query) ?: ItemRepo.idFor(query)?.let(ItemRepo::item)
+		if (item == null) {
+			add("Item repo: nothing named '$query' (state=${ItemRepo.state}, items=${ItemRepo.size})")
+			return@buildList
+		}
+		add("${item.id}: '${item.displayName}'")
+		add("  vanilla=${item.itemId}, damage=${item.damage}, loreLines=${item.lore.size}")
+		for (line in item.lore) add("  $line")
+	}
+
 	fun lines(): List<String> = buildList {
 		add(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
@@ -127,6 +155,7 @@ class Diagnostics(private val manager: ModuleManager) {
 			else "Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, mana=${PlayerStats.mana}/${PlayerStats.maxMana}, " +
 				"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
 		)
+		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}")
 		for (module in manager.modules) {
 			add(
 				"${module.name}: subscriptions=${module.subscriptionCount}, " +
