@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.event
 
-import io.github.dzkchen.dhen.mixin.ChatTextAccess
 import io.github.dzkchen.dhen.mixin.ServerboundChatCommandPacketAccessor
 import io.github.dzkchen.dhen.mixin.ServerboundChatPacketAccessor
 import io.github.dzkchen.dhen.mixin.SystemChatPacketAccessor
