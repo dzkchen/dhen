@@ -16,7 +16,8 @@ data class RepoItem(
 	val itemId: String,
 	val displayName: String,
 	val damage: Int,
-	val lore: List<String>
+	val lore: List<String>,
+	val recipes: List<ItemRecipe>
 )
 
 class ItemCatalog private constructor(
@@ -63,7 +64,8 @@ class ItemCatalog private constructor(
 					itemId = json.text("itemid").orEmpty(),
 					displayName = json.text("displayname").orEmpty(),
 					damage = json.get("damage")?.takeIf(JsonElement::isJsonPrimitive)?.asInt ?: 0,
-					lore = json.getAsJsonArray("lore")?.map { it.asString } ?: emptyList()
+					lore = json.getAsJsonArray("lore")?.map { it.asString } ?: emptyList(),
+					recipes = recipes(json)
 				)
 			} catch (throwable: Throwable) {
 				log.warn("Dhen could not read the repo item {}", name, throwable)

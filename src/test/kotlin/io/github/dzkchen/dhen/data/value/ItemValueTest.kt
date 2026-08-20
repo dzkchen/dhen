@@ -41,6 +41,7 @@ class ItemValueTest {
 		Files.createDirectories(root.resolve("items"))
 		Files.createDirectories(root.resolve("constants"))
 		Files.writeString(root.resolve("items/HYPERION.json"), "{\"internalname\":\"HYPERION\",\"displayname\":\"§6Hyperion\"}")
+		for ((name, json) in CRAFTABLES) Files.writeString(root.resolve("items/$name.json"), json)
 		Files.writeString(root.resolve("constants/reforgestones.json"), ConstantsFixture.REFORGE_STONES)
 		Files.writeString(root.resolve("constants/essencecosts.json"), ConstantsFixture.ESSENCE_COSTS)
 		Files.writeString(root.resolve("constants/gemstonecosts.json"), ConstantsFixture.GEMSTONE_COSTS)
@@ -438,6 +439,47 @@ class ItemValueTest {
 		assertEquals("PET-AMMONITE-LEGENDARY level 100", valuation.breakdown.single().label)
 	}
 
+	@Test
+	fun `an item only the NPC buys is worth its recipe when crafting it costs more`() {
+		val valuation = value(item { putString("id", "NPC_ONLY") })
+
+		assertEquals(20.0, valuation.total)
+		assertEquals(listOf("Npc Only"), valuation.breakdown.map { it.label })
+	}
+
+	@Test
+	fun `an item whose recipe is cheaper than the NPC keeps the NPC price`() {
+		assertEquals(100.0, value(item { putString("id", "NPC_RICH") }).total)
+	}
+
+	@Test
+	fun `a recipe that makes nine at a time is priced by the one`() {
+		assertEquals(10.0, value(item { putString("id", "BULK") }).total)
+	}
+
+	@Test
+	fun `a recipe that leads back to itself is cut and the other recipe wins`() {
+		assertEquals(15.0, value(item { putString("id", "LOOPY") }).total)
+	}
+
+	@Test
+	fun `an item nobody crafts keeps the only price it has`() {
+		assertEquals(7.0, value(item { putString("id", "NO_RECIPE") }).total)
+	}
+
+	@Test
+	fun `asked for a lowest BIN and given none, an item stays unpriced instead of falling to its recipe`() {
+		val valuation = value(item { putString("id", "NPC_ONLY") }, PriceSource.LOWEST_BIN)
+
+		assertEquals(0.0, valuation.total)
+		assertFalse(valuation.breakdown.single().priced)
+	}
+
+	@Test
+	fun `an item the market prices is never dropped to its recipe`() {
+		assertEquals(1000.0, value(item { putString("id", "HYPERION") }).total)
+	}
+
 	private fun value(
 		item: SkyBlockItem,
 		source: PriceSource = PriceSource.BAZAAR_INSTANT_SELL
@@ -478,7 +520,7 @@ class ItemValueTest {
 			url.contains("bazaar") -> BAZAAR
 			url.contains("tricked") -> LOWEST_BINS
 			url.contains("eliteskyblock") -> "{\"SPARE_ONLY\":1}"
-			else -> "{\"items\":[{\"id\":\"MANDRAA_NPC\",\"npc_sell_price\":1}]}"
+			else -> NPC_PRICES
 		}
 	}
 
@@ -489,9 +531,25 @@ class ItemValueTest {
 
 		private val SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
+		private val CRAFTABLES = mapOf(
+			"NPC_ONLY" to "{\"internalname\":\"NPC_ONLY\",\"displayname\":\"§7Npc Only\"," +
+				"\"recipe\":{\"A1\":\"CRAFT_PART:2\",\"A2\":\"CRAFT_PART:2\",\"A3\":\"\"}}",
+			"NPC_RICH" to "{\"internalname\":\"NPC_RICH\",\"recipe\":{\"A1\":\"CRAFT_PART:2\"}}",
+			"BULK" to "{\"internalname\":\"BULK\",\"recipes\":[" +
+				"{\"type\":\"crafting\",\"A1\":\"CRAFT_PART:9\",\"count\":9}," +
+				"{\"type\":\"npc_shop\",\"cost\":[\"SKYBLOCK_COIN:1\"]}]}",
+			"LOOPY" to "{\"internalname\":\"LOOPY\",\"recipe\":{\"A1\":\"RING_A\"}}",
+			"RING_A" to "{\"internalname\":\"RING_A\",\"recipe\":{\"A1\":\"RING_B:1\"}}",
+			"RING_B" to "{\"internalname\":\"RING_B\",\"recipes\":[" +
+				"{\"type\":\"crafting\",\"A1\":\"RING_A:1\"}," +
+				"{\"type\":\"crafting\",\"A1\":\"CRAFT_PART:3\"}]}",
+			"NO_RECIPE" to "{\"internalname\":\"NO_RECIPE\"}"
+		)
+
 		private val LOWEST_BINS = """
 			{
 			  "HYPERION": 1000.0,
+			  "CRAFT_PART": 5.0,
 			  "SPIRIT_STONE": 200.0,
 			  "RECOMBOBULATOR_3000": 5000.0,
 			  "THE_ART_OF_WAR": 400.0,
@@ -541,6 +599,19 @@ class ItemValueTest {
 			  "TITANIUM_SINKER": 63.0,
 			  "MITHRIL_BOOSTER": 64.0,
 			  "TALISMAN_ENRICHMENT_STRENGTH": 70.0
+			}
+		""".trimIndent()
+
+		private val NPC_PRICES = """
+			{
+			  "items": [
+			    {"id": "MANDRAA_NPC", "npc_sell_price": 1},
+			    {"id": "NPC_ONLY", "npc_sell_price": 10},
+			    {"id": "NPC_RICH", "npc_sell_price": 100},
+			    {"id": "BULK", "npc_sell_price": 10},
+			    {"id": "LOOPY", "npc_sell_price": 1},
+			    {"id": "NO_RECIPE", "npc_sell_price": 7}
+			  ]
 			}
 		""".trimIndent()
 

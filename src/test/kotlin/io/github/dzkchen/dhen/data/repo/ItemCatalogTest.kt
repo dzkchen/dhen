@@ -85,6 +85,40 @@ class ItemCatalogTest {
 	}
 
 	@Test
+	fun `a crafting recipe is read with its ingredients merged and what it makes`() {
+		write("ENCHANTED_LAPIS_LAZULI.json", enchantedLapis)
+
+		val recipe = read().item("ENCHANTED_LAPIS_LAZULI")?.recipes?.single()
+
+		assertEquals(mapOf("INK_SACK-4" to 160), recipe?.ingredients)
+		assertEquals(1, recipe?.output)
+	}
+
+	@Test
+	fun `an ingredient written without an amount counts as one`() {
+		write("ONE_OF_EACH.json", "{\"internalname\":\"ONE_OF_EACH\",\"recipe\":{\"A1\":\"STICK\",\"A2\":\"\"}}")
+
+		assertEquals(mapOf("STICK" to 1), read().item("ONE_OF_EACH")?.recipes?.single()?.ingredients)
+	}
+
+	@Test
+	fun `a bulk recipe keeps how many it makes and a shop recipe is not a recipe at all`() {
+		write("LAPIS_LAZULI.json", bulkAndShop)
+
+		val recipes = read().item("LAPIS_LAZULI")?.recipes
+
+		assertEquals(1, recipes?.size)
+		assertEquals(9, recipes?.single()?.output)
+	}
+
+	@Test
+	fun `an item nobody crafts carries no recipe`() {
+		write("ASPECT_OF_THE_END.json", aspectOfTheEnd)
+
+		assertEquals(emptyList<ItemRecipe>(), read().item("ASPECT_OF_THE_END")?.recipes)
+	}
+
+	@Test
 	fun `a repo that was never downloaded reads as an empty catalog`() {
 		assertEquals(0, ItemCatalog.read(items.resolve("missing")).size)
 	}
@@ -97,6 +131,32 @@ class ItemCatalogTest {
 
 	private fun item(id: String, displayName: String): String =
 		"{\"itemid\":\"minecraft:skull\",\"displayname\":\"$displayName\",\"internalname\":\"$id\"}"
+
+	private val enchantedLapis = """
+		{
+			"internalname": "ENCHANTED_LAPIS_LAZULI",
+			"displayname": "§aEnchanted Lapis Lazuli",
+			"recipes": [
+				{
+					"type": "crafting",
+					"A1": "", "A2": "INK_SACK-4:32", "A3": "",
+					"B1": "INK_SACK-4:32", "B2": "INK_SACK-4:32", "B3": "INK_SACK-4:32",
+					"C1": "", "C2": "INK_SACK-4:32", "C3": "",
+					"count": 1
+				}
+			]
+		}
+	""".trimIndent()
+
+	private val bulkAndShop = """
+		{
+			"internalname": "LAPIS_LAZULI",
+			"recipes": [
+				{"type": "crafting", "A1": "LAPIS_BLOCK:32", "count": 9},
+				{"type": "npc_shop", "cost": ["SKYBLOCK_COIN:12"], "result": "LAPIS_LAZULI"}
+			]
+		}
+	""".trimIndent()
 
 	private val aspectOfTheEnd = """
 		{

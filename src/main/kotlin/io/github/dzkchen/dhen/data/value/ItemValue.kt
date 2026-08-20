@@ -94,8 +94,11 @@ object ItemValue {
 	fun of(stack: ItemStack, source: PriceSource): Valuation =
 		of(SkyBlockItems.of(stack), SkyBlockItems.rarity(stack), source)
 
-	fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource): Valuation {
-		val fold = Fold(item, rarity, source)
+	fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource): Valuation =
+		of(item, rarity, source, CraftCost(source))
+
+	internal fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource, crafts: CraftCost): Valuation {
+		val fold = Fold(item, rarity, source, crafts)
 		val base = baseItem(fold)
 		var total = if (item.id == ENCHANTED_BOOK) 0.0 else base
 		for (modifier in MODIFIERS) total += modifier(fold)
@@ -109,11 +112,11 @@ object ItemValue {
 			val price = fold.price(marketId)
 			return if (price.isNaN()) 0.0 else price
 		}
-		val pet = fold.item.pet ?: return fold.entry(marketId)
+		val pet = fold.item.pet ?: return fold.base(marketId, displayName(marketId))
 		val level = ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp)
 		val leveled = marketId + levelSuffix(level)
 		val listed = if (leveled != marketId && !fold.price(leveled).isNaN()) leveled else marketId
-		return fold.entry(listed, label = "${displayName(marketId)} level $level")
+		return fold.base(listed, "${displayName(marketId)} level $level")
 	}
 
 	private fun levelSuffix(level: Int): String = when {
@@ -332,22 +335,38 @@ object ItemValue {
 
 	private fun bookId(enchantment: String, level: Int): String = "$ENCHANTED_BOOK-$enchantment-$level"
 
-	private fun displayName(id: String): String =
+	internal fun displayName(id: String): String =
 		ItemRepo.item(id)?.displayName?.let(::withoutCodes)?.takeIf(String::isNotEmpty) ?: id
 
-	private class Fold(val item: SkyBlockItem, val rarity: ItemRarity, val source: PriceSource) {
+	private class Fold(
+		val item: SkyBlockItem,
+		val rarity: ItemRarity,
+		val source: PriceSource,
+		val crafts: CraftCost
+	) {
 		val lines = ArrayList<ValueLine>()
 
 		fun price(marketId: String): Double = Prices.priceOr(marketId, source, Double.NaN)
 
-		fun entry(marketId: String, count: Int = 1, label: String = displayName(marketId)): Double {
-			val counted = if (count > 1) "$label x$count" else label
+		fun entry(marketId: String, count: Int = 1, label: String = displayName(marketId)): Double =
+			priced(if (count > 1) "$label x$count" else label, price(marketId) * count)
+
+		fun base(marketId: String, label: String): Double = priced(label, floored(marketId))
+
+		private fun floored(marketId: String): Double {
+			val npc = Prices.priceOr(marketId, PriceSource.NPC_SELL, Double.NaN)
 			val price = price(marketId)
-			if (price.isNaN()) {
-				lines += ValueLine(counted, 0.0, false)
+			if (npc.isNaN() || price != npc) return price
+			val craft = crafts.of(marketId)
+			return if (craft > npc) craft else price
+		}
+
+		private fun priced(label: String, amount: Double): Double {
+			if (amount.isNaN()) {
+				lines += ValueLine(label, 0.0, false)
 				return 0.0
 			}
-			return coins(counted, price * count)
+			return coins(label, amount)
 		}
 
 		fun once(present: Boolean, marketId: String): Double = if (!present) 0.0 else entry(marketId)

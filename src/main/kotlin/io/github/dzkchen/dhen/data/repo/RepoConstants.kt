@@ -130,18 +130,6 @@ class RepoConstants private constructor(
 			return items
 		}
 
-		private fun ingredients(array: JsonArray?): Map<String, Int> {
-			if (array == null || array.isEmpty) return emptyMap()
-			val amounts = LinkedHashMap<String, Int>(array.size())
-			for (element in array) {
-				if (!element.isJsonPrimitive) continue
-				val raw = element.asString
-				val amount = raw.substringAfter(':', "").toIntOrNull() ?: continue
-				amounts.merge(raw.substringBefore(':').uppercase(Locale.ROOT), amount, Int::plus)
-			}
-			return amounts
-		}
-
 		private fun customPets(json: JsonObject?): Map<String, PetLeveling> {
 			if (json == null) return emptyMap()
 			val pets = HashMap<String, PetLeveling>(json.size())

@@ -30,9 +30,9 @@ enum class ItemRarity(val baseColor: ChatFormatting, val magicalPower: Int) {
 
 		private val petNamePattern: Pattern = Pattern.compile("§7\\[Lvl \\d+](?: §8\\[.*])? (§[0-9a-fk-or]).+")
 
-		private val loreMatcher = lorePattern.matcher("")
+		private val loreMatcher = ThreadLocal.withInitial { lorePattern.matcher("") }
 
-		private val petNameMatcher = petNamePattern.matcher("")
+		private val petNameMatcher = ThreadLocal.withInitial { petNamePattern.matcher("") }
 
 		internal fun byColorCode(code: String): ItemRarity? = entries.find { it.colorCode == code }
 
@@ -43,14 +43,14 @@ enum class ItemRarity(val baseColor: ChatFormatting, val magicalPower: Int) {
 		}
 
 		internal fun fromLoreLine(line: String): ItemRarity? {
-			val matcher = loreMatcher.reset(line)
+			val matcher = loreMatcher.get().reset(line)
 			if (!matcher.find()) return null
 			for (group in 1..matcher.groupCount()) if (matcher.start(group) >= 0) return entries[group - 1]
 			return null
 		}
 
 		internal fun fromPetName(name: String): ItemRarity? {
-			val matcher = petNameMatcher.reset(name)
+			val matcher = petNameMatcher.get().reset(name)
 			if (!matcher.find()) return null
 			return byColorCode(name.substring(matcher.start(1), matcher.end(1)))
 		}
