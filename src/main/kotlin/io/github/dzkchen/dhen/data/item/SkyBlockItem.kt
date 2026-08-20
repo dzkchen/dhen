@@ -5,6 +5,8 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.text
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.CustomData
@@ -218,9 +220,9 @@ class SkyBlockItem internal constructor(
 			return PetInfo(
 				type = type,
 				tier = tier,
-				exp = json.number("exp"),
+				exp = json.number("exp") ?: 0.0,
 				heldItem = json.text("heldItem"),
-				candyUsed = json.number("candyUsed").toInt(),
+				candyUsed = (json.number("candyUsed") ?: 0.0).toInt(),
 				skin = json.text("skin")
 			)
 		}
@@ -240,11 +242,5 @@ class SkyBlockItem internal constructor(
 		}
 
 		private fun named(raw: String): String? = raw.takeIf(String::isNotEmpty)?.uppercase(Locale.ROOT)
-
-		private fun JsonObject.text(member: String): String? =
-			get(member)?.takeIf(JsonElement::isJsonPrimitive)?.asString?.takeIf(String::isNotEmpty)
-
-		private fun JsonObject.number(member: String): Double =
-			get(member)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asDouble ?: 0.0
 	}
 }

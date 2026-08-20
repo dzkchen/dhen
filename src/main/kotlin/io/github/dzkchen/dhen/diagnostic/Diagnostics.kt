@@ -183,12 +183,13 @@ class Diagnostics(
 		return "Cleared the profile proxy address."
 	}
 
-	fun profileProxy(address: String): String {
+	fun profileProxy(address: String, save: () -> Unit = {}): String {
 		val wanted = address.trim()
 		val limit = ClientPrefs.profileProxy.maxLength
 		if (wanted.length > limit) return "A proxy address can be at most $limit characters, so that one was not saved."
 		val site = named(wanted) ?: return "A proxy address has to look like https://example.com, so '$wanted' was not saved."
 		ClientPrefs.profileProxy.value = wanted
+		save()
 		PlayerProfiles.clearCaches()
 		return "Profile proxy set to $site."
 	}

@@ -3,6 +3,11 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.obj
+import io.github.dzkchen.dhen.util.text
 import net.minecraft.nbt.NbtAccounter
 import net.minecraft.nbt.NbtIo
 import java.io.ByteArrayInputStream

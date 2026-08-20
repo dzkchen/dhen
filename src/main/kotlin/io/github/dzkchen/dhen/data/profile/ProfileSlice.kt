@@ -1,10 +1,14 @@
 package io.github.dzkchen.dhen.data.profile
 
-import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.obj
+import io.github.dzkchen.dhen.util.text
 
 private val COMPLETED_FLOORS = 1..7
+private val DUNGEON_CLASSES = listOf("healer", "mage", "berserk", "archer", "tank")
 
 enum class OnlineReading { ONLINE, OFFLINE, UNKNOWN }
 
@@ -107,7 +111,7 @@ internal object ProfileSlices {
 			catacombsExperience = experience,
 			catacombsLevel = CatacombsLevels.of(experience),
 			classLevels = classLevels,
-			classAverage = if (classLevels.isEmpty()) 0.0 else classLevels.values.sum().toDouble() / classLevels.size,
+			classAverage = DUNGEON_CLASSES.sumOf { classLevels[it] ?: 0 }.toDouble() / DUNGEON_CLASSES.size,
 			selectedClass = dungeons.text("selected_dungeon_class"),
 			secrets = dungeons.number("secrets")?.toLong() ?: 0L,
 			bloodMobKills = bloodMobKills(member),
@@ -145,17 +149,3 @@ internal object ProfileSlices {
 		return values
 	}
 }
-
-internal fun JsonObject.obj(member: String): JsonObject? = get(member) as? JsonObject
-
-internal fun JsonObject.array(member: String): JsonArray? = get(member) as? JsonArray
-
-internal fun JsonObject.flag(member: String): Boolean = primitive(member) { isBoolean }?.asBoolean == true
-
-internal fun JsonObject.text(member: String): String? =
-	primitive(member) { isString }?.asString?.takeIf(String::isNotBlank)
-
-internal fun JsonObject.number(member: String): Double? = primitive(member) { isNumber }?.asDouble
-
-private inline fun JsonObject.primitive(member: String, kind: JsonPrimitive.() -> Boolean) =
-	(get(member) as? JsonPrimitive)?.takeIf(kind)

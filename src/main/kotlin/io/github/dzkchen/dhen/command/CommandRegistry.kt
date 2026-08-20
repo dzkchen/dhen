@@ -273,7 +273,7 @@ class CommandRegistry<S>(
 							.then(
 								argument<S, String>("address", StringArgumentType.greedyString()).executes { context ->
 									val address = StringArgumentType.getString(context, "address")
-									persisted(context.source, diagnostics.profileProxy(address))
+									report(context.source, diagnostics.profileProxy(address, persistCore))
 								}
 							)
 					)

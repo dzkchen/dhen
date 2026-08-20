@@ -5,6 +5,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -68,7 +70,7 @@ class RepoConstants private constructor(
 				stars = stars(read(constants, "essencecosts")),
 				gemstoneSlots = gemstoneSlots(read(constants, "gemstonecosts")),
 				petLevels = pets.getAsJsonArray("pet_levels").ints(),
-				petRarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it) ?: 0 }.orEmpty(),
+				petRarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it)?.toInt() ?: 0 }.orEmpty(),
 				customPets = customPets(pets.getAsJsonObject("custom_pet_leveling"))
 			)
 		}
@@ -112,7 +114,7 @@ class RepoConstants private constructor(
 				val tiers = ArrayList<StarTier>()
 				while (true) {
 					val tier = (tiers.size + 1).toString()
-					val amount = entry.number(tier) ?: break
+					val amount = entry.number(tier)?.toInt() ?: break
 					tiers += StarTier(essence, amount, ingredients(extras?.getAsJsonArray(tier)))
 				}
 				if (tiers.isNotEmpty()) stars[id.uppercase(Locale.ROOT)] = tiers
@@ -138,8 +140,8 @@ class RepoConstants private constructor(
 				val offsets = entry.getAsJsonObject("rarity_offset")
 				pets[type.uppercase(Locale.ROOT)] = PetLeveling(
 					extraLevels = entry.getAsJsonArray("pet_levels").ints(),
-					maxLevel = entry.number("max_level") ?: DEFAULT_PET_MAX_LEVEL,
-					rarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it) ?: 0 }.orEmpty()
+					maxLevel = entry.number("max_level")?.toInt() ?: DEFAULT_PET_MAX_LEVEL,
+					rarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it)?.toInt() ?: 0 }.orEmpty()
 				)
 			}
 			return pets
@@ -149,11 +151,5 @@ class RepoConstants private constructor(
 			if (this == null || isEmpty) return emptyList()
 			return mapNotNull { it.takeIf(JsonElement::isJsonPrimitive)?.asInt }
 		}
-
-		private fun JsonObject.text(member: String): String? =
-			get(member)?.takeIf(JsonElement::isJsonPrimitive)?.asString?.takeIf(String::isNotEmpty)
-
-		private fun JsonObject.number(member: String): Int? =
-			get(member)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt
 	}
 }

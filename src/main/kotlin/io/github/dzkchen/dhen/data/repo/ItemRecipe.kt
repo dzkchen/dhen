@@ -3,6 +3,8 @@ package io.github.dzkchen.dhen.data.repo
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.text
 import java.util.Locale
 
 class ItemRecipe internal constructor(val ingredients: Map<String, Int>, val output: Int)
@@ -27,12 +29,12 @@ internal fun recipes(json: JsonObject): List<ItemRecipe> {
 
 private fun crafting(element: JsonElement?): ItemRecipe? {
 	val json = element as? JsonObject ?: return null
-	val type = json.get("type")?.takeIf(JsonElement::isJsonPrimitive)?.asString
+	val type = json.text("type")
 	if (type != null && type != CRAFTING) return null
 	val ingredients = LinkedHashMap<String, Int>(SLOTS.size)
 	for (slot in SLOTS) ingredients.add(json.get(slot))
 	if (ingredients.isEmpty()) return null
-	val output = json.get("count")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt ?: IMPLIED_AMOUNT
+	val output = json.number("count")?.toInt() ?: IMPLIED_AMOUNT
 	return ItemRecipe(ingredients, output.coerceAtLeast(IMPLIED_AMOUNT))
 }
 

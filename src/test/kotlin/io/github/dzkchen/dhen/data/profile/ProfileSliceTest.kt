@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.obj
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
@@ -24,7 +25,7 @@ class ProfileSliceTest {
 		assertEquals(1000.0, dungeons.catacombsExperience)
 		assertEquals(6, dungeons.catacombsLevel)
 		assertEquals(mapOf("healer" to 1, "mage" to 2), dungeons.classLevels)
-		assertEquals(1.5, dungeons.classAverage)
+		assertEquals(0.6, dungeons.classAverage)
 		assertEquals("healer", dungeons.selectedClass)
 		assertEquals(42L, dungeons.secrets)
 		assertEquals(15, dungeons.bloodMobKills)

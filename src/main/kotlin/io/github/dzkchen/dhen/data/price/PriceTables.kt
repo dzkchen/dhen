@@ -1,8 +1,8 @@
 package io.github.dzkchen.dhen.data.price
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.text
 
 internal object PriceTables {
 	private const val POTION = "POTION_"
@@ -20,8 +20,8 @@ internal object PriceTables {
 		val prices = HashMap<String, Double>(items.size())
 		for (element in items) {
 			val item = element.asJsonObject
-			val id = item.get("id")?.takeIf(JsonElement::isJsonPrimitive)?.asString ?: continue
-			prices[id.replace(':', '-')] = item.numeric(NPC_SELL_PRICE) ?: continue
+			val id = item.text("id") ?: continue
+			prices[id.replace(':', '-')] = item.number(NPC_SELL_PRICE) ?: continue
 		}
 		return prices
 	}
@@ -41,16 +41,12 @@ internal object PriceTables {
 	private inline fun cheapest(body: String, marketId: (String) -> String?): Map<String, Double> {
 		val json = JsonParser.parseString(body).asJsonObject
 		val prices = HashMap<String, Double>(json.size())
-		for ((key, element) in json.entrySet()) {
-			if (!element.isJsonPrimitive || !element.asJsonPrimitive.isNumber) continue
+		for (key in json.keySet()) {
+			val price = json.number(key) ?: continue
 			val id = marketId(key) ?: continue
-			val price = element.asDouble
 			val held = prices[id]
 			if (held == null || price < held) prices[id] = price
 		}
 		return prices
 	}
-
-	private fun JsonObject.numeric(member: String): Double? =
-		get(member)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asDouble
 }

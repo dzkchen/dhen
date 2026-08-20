@@ -9,6 +9,8 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebSource
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.text
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -170,8 +172,11 @@ object PlayerProfiles {
 		"${dungeons.secrets} secrets over ${dungeons.runs} runs on this profile (${rounded(dungeons.secretsPerRun)} a run), " +
 			"${accountSecrets ?: "an unknown number"} on the whole account, and ${dungeons.bloodMobKills} blood-mob kills."
 
-	private fun powerLine(slice: ProfileSlice): String = slice.magicalPower?.let { "Magical power $it." }
-		?: "Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
+	private fun powerLine(slice: ProfileSlice): String = when (slice.magicalPower) {
+		null -> "Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
+		0 -> "Magical power ${slice.assumedMagicalPower}, assumed from tuning points because the talisman bag is empty."
+		else -> "Magical power ${slice.magicalPower}."
+	}
 
 	private fun onlineLine(status: ProfileStatus): String = when (status.reading) {
 		OnlineReading.ONLINE -> "Right now they are online${status.gameType?.let { " in $it" } ?: ""}${placeOf(status)}."

@@ -1,8 +1,10 @@
 package io.github.dzkchen.dhen.data.price
 
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.text
 
 class BazaarOrder internal constructor(val pricePerUnit: Double, val amount: Long, val orders: Long)
 
@@ -40,11 +42,11 @@ class BazaarSnapshot internal constructor(
 
 		fun parse(body: String): BazaarSnapshot? {
 			val json = JsonParser.parseString(body).asJsonObject
-			if (json.get("success")?.asBoolean != true) return null
+			if (!json.flag("success")) return null
 			val products = json.getAsJsonObject("products") ?: return null
 			val parsed = HashMap<String, BazaarProduct>(products.size())
 			for ((key, element) in products.entrySet()) parsed[marketId(key)] = product(key, element.asJsonObject)
-			return BazaarSnapshot(json.get("lastUpdated")?.asLong ?: 0L, parsed)
+			return BazaarSnapshot(json.number("lastUpdated")?.toLong() ?: 0L, parsed)
 		}
 
 		fun marketId(productId: String): String {
@@ -62,7 +64,7 @@ class BazaarSnapshot internal constructor(
 			val buy = summary(json, "buy_summary")
 			val sell = summary(json, "sell_summary")
 			return BazaarProduct(
-				productId = json.get("product_id")?.takeIf(JsonElement::isJsonPrimitive)?.asString ?: key,
+				productId = json.text("product_id") ?: key,
 				instantBuy = buy.minOfOrNull(BazaarOrder::pricePerUnit) ?: 0.0,
 				instantSell = sell.maxOfOrNull(BazaarOrder::pricePerUnit) ?: 0.0,
 				buySummary = buy,
@@ -75,26 +77,28 @@ class BazaarSnapshot internal constructor(
 			val array = json.getAsJsonArray(member) ?: return emptyList()
 			return array.map {
 				val order = it.asJsonObject
-				BazaarOrder(order.number("pricePerUnit"), order.long("amount"), order.long("orders"))
+				BazaarOrder(
+					order.number("pricePerUnit") ?: 0.0,
+					order.number("amount")?.toLong() ?: 0L,
+					order.number("orders")?.toLong() ?: 0L
+				)
 			}
 		}
 
-		private fun quickStatus(json: JsonObject?): BazaarQuickStatus = BazaarQuickStatus(
-			buyPrice = json.number("buyPrice"),
-			buyVolume = json.long("buyVolume"),
-			buyMovingWeek = json.long("buyMovingWeek"),
-			buyOrders = json.long("buyOrders"),
-			sellPrice = json.number("sellPrice"),
-			sellVolume = json.long("sellVolume"),
-			sellMovingWeek = json.long("sellMovingWeek"),
-			sellOrders = json.long("sellOrders")
-		)
+		private val NO_QUICK_STATUS = BazaarQuickStatus(0.0, 0L, 0L, 0L, 0.0, 0L, 0L, 0L)
 
-		private fun JsonObject?.number(member: String): Double = numeric(member)?.asDouble ?: 0.0
-
-		private fun JsonObject?.long(member: String): Long = numeric(member)?.asLong ?: 0L
-
-		private fun JsonObject?.numeric(member: String): JsonElement? =
-			this?.get(member)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }
+		private fun quickStatus(json: JsonObject?): BazaarQuickStatus {
+			if (json == null) return NO_QUICK_STATUS
+			return BazaarQuickStatus(
+				buyPrice = json.number("buyPrice") ?: 0.0,
+				buyVolume = json.number("buyVolume")?.toLong() ?: 0L,
+				buyMovingWeek = json.number("buyMovingWeek")?.toLong() ?: 0L,
+				buyOrders = json.number("buyOrders")?.toLong() ?: 0L,
+				sellPrice = json.number("sellPrice") ?: 0.0,
+				sellVolume = json.number("sellVolume")?.toLong() ?: 0L,
+				sellMovingWeek = json.number("sellMovingWeek")?.toLong() ?: 0L,
+				sellOrders = json.number("sellOrders")?.toLong() ?: 0L
+			)
+		}
 	}
 }
