@@ -14,6 +14,7 @@ import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
@@ -29,6 +30,7 @@ import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
+import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -218,6 +220,7 @@ object Dhen : ClientModInitializer {
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
 		Prices.install(ioScope, modules.eventBus, clientThread)
 		MayorService.install(ioScope, modules.eventBus, clientThread)
+		PlayerProfiles.install(ioScope, clientThread, baseUrl = { ClientPrefs.profileProxy.value })
 		HypixelModApi.install()
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
@@ -244,6 +247,7 @@ object Dhen : ClientModInitializer {
 		ItemRepo.uninstall()
 		Prices.uninstall()
 		MayorService.uninstall()
+		PlayerProfiles.uninstall()
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

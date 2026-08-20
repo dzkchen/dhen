@@ -14,21 +14,22 @@ internal fun interface WebSource {
 
 internal class WebClient(
 	private val headers: Map<String, String> = emptyMap(),
-	private val client: Lazy<HttpClient> = SHARED
+	private val client: Lazy<HttpClient> = SHARED,
+	private val logAs: String? = null
 ) : WebSource {
 	override fun text(url: String): String? = send(url, HttpResponse.BodyHandlers.ofString(), REPLY_TIMEOUT)
 
 	fun <T> send(url: String, body: HttpResponse.BodyHandler<T>, deadline: Duration? = null): T? = try {
 		val request = HttpRequest.newBuilder(URI.create(url)).header("User-Agent", Dhen.MOD_ID)
 		deadline?.let(request::timeout)
-		for ((name, value) in headers) request.header(name, value)
+		for ((name, value) in headers) request.setHeader(name, value)
 		val response = client.value.send(request.build(), body)
 		if (response.statusCode() == OK) response.body() else {
-			log.warn("Dhen request to {} answered {}", url, response.statusCode())
+			log.warn("Dhen request to {} answered {}", logAs ?: url, response.statusCode())
 			null
 		}
 	} catch (throwable: Throwable) {
-		log.warn("Dhen request to {} failed", url, throwable)
+		log.warn("Dhen request to {} failed", logAs ?: url, throwable)
 		null
 	}
 

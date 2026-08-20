@@ -17,6 +17,7 @@ import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
@@ -25,10 +26,12 @@ import io.github.dzkchen.dhen.data.value.ItemValue
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
 import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
+import java.net.URI
 import java.util.Locale
 
 class Diagnostics(
@@ -156,6 +159,37 @@ class Diagnostics(
 		forcedMayor = if (held == null) MayorService.require() else null.also { held.unsubscribe() }
 		return if (held == null) "Mayor: asked for, fetching in the background."
 		else "Mayor: no longer asked for by this toggle."
+	}
+
+	fun profileLines(): List<String> = buildList {
+		add("Profiles: ${if (PlayerProfiles.available) "available" else "unavailable"}, " +
+			"needed by ${PlayerProfiles.required}, proxy=${PlayerProfiles.proxyHost ?: "not set"}")
+		add("  caches: ${PlayerProfiles.cacheSummary()}")
+		add("  in flight=${PlayerProfiles.inFlight} of ${PlayerProfiles.maxInFlight}, " +
+			"peak=${PlayerProfiles.peakInFlight}, failedRequests=${PlayerProfiles.failures}")
+	}
+
+	fun profileLookup(name: String, notify: (String) -> Unit) = PlayerProfiles.lookup(name, notify)
+
+	fun profileProxy(address: String): String {
+		val wanted = address.trim()
+		if (wanted.isEmpty()) {
+			ClientPrefs.profileProxy.value = ""
+			PlayerProfiles.clearCaches()
+			return "Cleared the profile proxy address."
+		}
+		val limit = ClientPrefs.profileProxy.maxLength
+		if (wanted.length > limit) return "A proxy address can be at most $limit characters, so that one was not saved."
+		val site = named(wanted) ?: return "A proxy address has to look like https://example.com, so '$wanted' was not saved."
+		ClientPrefs.profileProxy.value = wanted
+		PlayerProfiles.clearCaches()
+		return "Profile proxy set to $site."
+	}
+
+	private fun named(address: String): String? {
+		val parsed = runCatching { URI(address) }.getOrNull() ?: return null
+		if (parsed.scheme?.lowercase(Locale.ROOT) !in SCHEMES) return null
+		return parsed.host?.takeIf(String::isNotEmpty)
 	}
 
 	fun marketLines(query: String): List<String> = buildList {
@@ -299,5 +333,6 @@ class Diagnostics(
 		private const val TOP_ORDERS = 3
 
 		private val VALUE_SOURCE = PriceSource.BAZAAR_INSTANT_SELL
+		private val SCHEMES = setOf("http", "https")
 	}
 }

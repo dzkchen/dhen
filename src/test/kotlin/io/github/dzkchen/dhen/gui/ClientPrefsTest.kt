@@ -3,6 +3,8 @@ package io.github.dzkchen.dhen.gui
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.config.CorePersistence
+import io.github.dzkchen.dhen.diagnostic.Diagnostics
+import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.theme.ThemeFixture
 import io.github.dzkchen.dhen.theme.ThemeFormat
 import io.github.dzkchen.dhen.theme.ThemeStore
@@ -131,8 +133,52 @@ class ClientPrefsTest {
 		assertFalse(names.contains("Arrow keys"))
 		assertEquals(
 			listOf(ClientPrefs.splash),
-			ClientPrefs.sections.single { it.title == "Client" }.settings
+			ClientPrefs.sections.single { it.title == "Client" }.settings.filter { it.isVisible }
 		)
+	}
+
+	@Test
+	fun `the profile proxy address is remembered but never drawn`() {
+		ClientPrefs.read(document("""{"client":{"Profile proxy":"https://proxy.example.com"}}"""))
+
+		assertEquals("https://proxy.example.com", ClientPrefs.profileProxy.value)
+		assertFalse(ClientPrefs.profileProxy.isVisible)
+		assertEquals(
+			"https://proxy.example.com",
+			ClientPrefs.writeInto(JsonObject()).getAsJsonObject("client").get("Profile proxy").asString
+		)
+		ClientPrefs.profileProxy.reset()
+	}
+
+	@Test
+	fun `only an address with a site behind it is accepted as the profile proxy`() {
+		val diagnostics = Diagnostics(ModuleManager())
+
+		assertEquals(
+			"A proxy address has to look like https://example.com, so 'proxy.example.com' was not saved.",
+			diagnostics.profileProxy("proxy.example.com")
+		)
+		assertEquals(
+			"A proxy address has to look like https://example.com, so 'http://' was not saved.",
+			diagnostics.profileProxy("http://")
+		)
+		assertEquals("", ClientPrefs.profileProxy.value)
+		assertEquals("Profile proxy set to proxy.example.com.", diagnostics.profileProxy("HTTPS://proxy.example.com"))
+		assertEquals("HTTPS://proxy.example.com", ClientPrefs.profileProxy.value)
+		assertEquals("Cleared the profile proxy address.", diagnostics.profileProxy("  "))
+		assertEquals("", ClientPrefs.profileProxy.value)
+	}
+
+	@Test
+	fun `an address longer than the setting holds is refused rather than clipped`() {
+		val diagnostics = Diagnostics(ModuleManager())
+		val tooLong = "https://proxy.example.com/" + "x".repeat(ClientPrefs.profileProxy.maxLength)
+
+		assertEquals(
+			"A proxy address can be at most ${ClientPrefs.profileProxy.maxLength} characters, so that one was not saved.",
+			diagnostics.profileProxy(tooLong)
+		)
+		assertEquals("", ClientPrefs.profileProxy.value)
 	}
 
 	@Test

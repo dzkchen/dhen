@@ -7,7 +7,9 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
+import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.SettingCodec
+import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.Color
 import org.slf4j.LoggerFactory
@@ -48,11 +50,17 @@ internal object ClientPrefs {
 		true,
 		description = "Show Dhen's loading screen while the game starts and reloads resources."
 	)
+	val profileProxy = StringSetting(
+		"Profile proxy",
+		"",
+		200,
+		"Base address of the profile service Dhen asks for player data."
+	).hide()
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, reload, browse)),
-		PrefSection("Client", listOf(splash))
+		PrefSection("Client", listOf(splash, profileProxy))
 	)
 
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }

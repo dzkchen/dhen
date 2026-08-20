@@ -257,6 +257,34 @@ class CommandRegistry<S>(
 						}
 					)
 			)
+			.then(
+				literal<S>("profile")
+					.executes { context ->
+						for (line in diagnostics.profileLines()) feedback(context.source, line)
+						Command.SINGLE_SUCCESS
+					}
+					.then(
+						literal<S>("url")
+							.executes { context -> setProxy(context.source, "") }
+							.then(
+								argument<S, String>("address", StringArgumentType.greedyString())
+									.executes { context -> setProxy(context.source, StringArgumentType.getString(context, "address")) }
+							)
+					)
+					.then(
+						argument<S, String>("name", StringArgumentType.word()).executes { context ->
+							val name = StringArgumentType.getString(context, "name")
+							report(context.source, "Looking up $name…")
+							answering(context.source) { notify -> diagnostics.profileLookup(name, notify) }
+						}
+					)
+			)
+
+	private fun setProxy(source: S, address: String): Int {
+		val message = diagnostics.profileProxy(address)
+		persistCore()
+		return report(source, message)
+	}
 
 	private fun deepMode(name: String, enabled: Boolean): LiteralArgumentBuilder<S> =
 		literal<S>(name).executes { context ->
