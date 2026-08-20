@@ -163,10 +163,31 @@ class ClientPrefsTest {
 			diagnostics.profileProxy("http://")
 		)
 		assertEquals("", ClientPrefs.profileProxy.value)
+		assertEquals(
+			"A proxy address has to look like https://example.com, so 'https://proxy.example.com/api?key=abc' was not saved.",
+			diagnostics.profileProxy("https://proxy.example.com/api?key=abc")
+		)
+		assertEquals("", ClientPrefs.profileProxy.value)
 		assertEquals("Profile proxy set to proxy.example.com.", diagnostics.profileProxy("HTTPS://proxy.example.com"))
 		assertEquals("HTTPS://proxy.example.com", ClientPrefs.profileProxy.value)
-		assertEquals("Cleared the profile proxy address.", diagnostics.profileProxy("  "))
+	}
+
+	@Test
+	fun `asking for the proxy address does not wipe it, and clearing it is asked for by name`() {
+		val diagnostics = Diagnostics(ModuleManager())
+		diagnostics.profileProxy("https://proxy.example.com")
+
+		assertEquals(
+			"The profile proxy address is https://proxy.example.com. Type 'url clear' to forget it.",
+			diagnostics.profileProxyShown()
+		)
+		assertEquals("https://proxy.example.com", ClientPrefs.profileProxy.value)
+		assertEquals("Cleared the profile proxy address.", diagnostics.profileProxyCleared())
 		assertEquals("", ClientPrefs.profileProxy.value)
+		assertEquals(
+			"No profile proxy address is saved. Type one after 'url' to set it.",
+			diagnostics.profileProxyShown()
+		)
 	}
 
 	@Test

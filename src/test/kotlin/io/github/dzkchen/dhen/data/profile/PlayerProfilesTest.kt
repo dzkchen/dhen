@@ -157,7 +157,28 @@ class PlayerProfilesTest {
 		PlayerProfiles.profiles(UUID)
 		source.onRequest = {}
 
-		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0", PlayerProfiles.cacheSummary())
+		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0", PlayerProfiles.cacheSummary())
+	}
+
+	@Test
+	fun `slice decodes the fetched reply`() = runBlocking {
+		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+		install()
+		PlayerProfiles.require()
+		val slice = PlayerProfiles.slice(UUID)!!
+		assertEquals("p1", slice.profileId)
+		assertEquals("Strawberry", slice.cuteName)
+	}
+
+	@Test
+	fun `a second call to slice makes no further request`() = runBlocking {
+		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+		install()
+		PlayerProfiles.require()
+		PlayerProfiles.slice(UUID)
+		assertEquals(1, source.requests.size)
+		PlayerProfiles.slice(UUID)
+		assertEquals(1, source.requests.size)
 	}
 
 	@Test
@@ -223,6 +244,8 @@ class PlayerProfilesTest {
 		private const val TWO_PROFILES =
 			"""{"success":true,"profiles":[{"profile_id":"1","cute_name":"Apple","selected":false},""" +
 				"""{"profile_id":"2","cute_name":"Banana","selected":true}]}"""
+		private const val SLICE_PROFILE =
+			"""{"success":true,"profiles":[{"profile_id":"p1","cute_name":"Strawberry","selected":true,"members":{"123e4567e89b12d3a456426614174000":{}}}]}"""
 
 		private val ELEVEN_UUIDS = "0123456789a".map { last -> UUID.dropLast(1) + last }
 	}

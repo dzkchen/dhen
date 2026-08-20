@@ -265,10 +265,16 @@ class CommandRegistry<S>(
 					}
 					.then(
 						literal<S>("url")
-							.executes { context -> setProxy(context.source, "") }
+							.executes { context -> report(context.source, diagnostics.profileProxyShown()) }
 							.then(
-								argument<S, String>("address", StringArgumentType.greedyString())
-									.executes { context -> setProxy(context.source, StringArgumentType.getString(context, "address")) }
+								literal<S>("clear")
+									.executes { context -> persisted(context.source, diagnostics.profileProxyCleared()) }
+							)
+							.then(
+								argument<S, String>("address", StringArgumentType.greedyString()).executes { context ->
+									val address = StringArgumentType.getString(context, "address")
+									persisted(context.source, diagnostics.profileProxy(address))
+								}
 							)
 					)
 					.then(
@@ -280,8 +286,7 @@ class CommandRegistry<S>(
 					)
 			)
 
-	private fun setProxy(source: S, address: String): Int {
-		val message = diagnostics.profileProxy(address)
+	private fun persisted(source: S, message: String): Int {
 		persistCore()
 		return report(source, message)
 	}

@@ -171,13 +171,20 @@ class Diagnostics(
 
 	fun profileLookup(name: String, notify: (String) -> Unit) = PlayerProfiles.lookup(name, notify)
 
+	fun profileProxyShown(): String {
+		val saved = ClientPrefs.profileProxy.value
+		if (saved.isEmpty()) return "No profile proxy address is saved. Type one after 'url' to set it."
+		return "The profile proxy address is $saved. Type 'url clear' to forget it."
+	}
+
+	fun profileProxyCleared(): String {
+		ClientPrefs.profileProxy.value = ""
+		PlayerProfiles.clearCaches()
+		return "Cleared the profile proxy address."
+	}
+
 	fun profileProxy(address: String): String {
 		val wanted = address.trim()
-		if (wanted.isEmpty()) {
-			ClientPrefs.profileProxy.value = ""
-			PlayerProfiles.clearCaches()
-			return "Cleared the profile proxy address."
-		}
 		val limit = ClientPrefs.profileProxy.maxLength
 		if (wanted.length > limit) return "A proxy address can be at most $limit characters, so that one was not saved."
 		val site = named(wanted) ?: return "A proxy address has to look like https://example.com, so '$wanted' was not saved."
@@ -189,6 +196,7 @@ class Diagnostics(
 	private fun named(address: String): String? {
 		val parsed = runCatching { URI(address) }.getOrNull() ?: return null
 		if (parsed.scheme?.lowercase(Locale.ROOT) !in SCHEMES) return null
+		if (parsed.query != null || parsed.fragment != null) return null
 		return parsed.host?.takeIf(String::isNotEmpty)
 	}
 

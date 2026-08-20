@@ -52,6 +52,7 @@ object PlayerProfiles {
 	private val limiter = Semaphore(MAX_IN_FLIGHT)
 	private val uuids = Cache<String>(UUID_TTL)
 	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
+	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
 
 	@Volatile
 	private var host: Host? = null
@@ -110,10 +111,17 @@ object PlayerProfiles {
 
 	suspend fun status(uuid: String): JsonObject? = ask(Endpoint.STATUS, uuid)
 
-	suspend fun selectedProfile(uuid: String): JsonObject? = profiles(uuid)?.let(::selected)
+	suspend fun selectedProfile(uuid: String): JsonObject? = profiles(uuid)?.let(ProfileSlices::selectedProfile)
+
+	suspend fun slice(uuid: String): ProfileSlice? =
+		cached(slices, uuid) { profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) } }
+
+	suspend fun accountSecrets(uuid: String): Long? = player(uuid)?.let(ProfileSlices::secrets)
+
+	suspend fun onlineStatus(uuid: String): ProfileStatus = ProfileSlices.status(status(uuid))
 
 	fun lookup(playerName: String, report: (String) -> Unit) {
-		val host = host ?: return
+		val host = host ?: return report("Dhen's player-profile service is not running, so it cannot look anybody up.")
 		host.scope.launch {
 			val requirement = require()
 			try {
@@ -128,17 +136,53 @@ object PlayerProfiles {
 					return@launch
 				}
 				val reply = profiles(uuid)
-				say(
-					host,
-					report,
-					if (reply == null) "The profile proxy did not answer for $playerName."
-					else "$playerName has ${profileList(reply).size()} SkyBlock profiles; the selected one is '${selectedName(reply)}'."
-				)
+				if (reply == null) {
+					say(host, report, "The profile proxy did not answer for $playerName.")
+					return@launch
+				}
+				val opening = "$playerName has ${profileList(reply).size()} SkyBlock profiles; the selected one is '${selectedName(reply)}'."
+				val slice = slice(uuid)
+				val secrets = if (slice?.dungeons == null) null else accountSecrets(uuid)
+				sayAll(host, report, listOf(opening) + sliceLines(slice, secrets, onlineStatus(uuid)))
 			} finally {
 				requirement.unsubscribe()
 			}
 		}
 	}
+
+	private fun sliceLines(slice: ProfileSlice?, accountSecrets: Long?, status: ProfileStatus): List<String> = buildList {
+		if (slice == null) {
+			add("Dhen could not read that profile, so it has no stats to show.")
+		} else {
+			slice.dungeons?.also { add(dungeonLine(it)); add(secretsLine(it, accountSecrets)) }
+				?: add("That profile has no dungeon data.")
+			add(powerLine(slice))
+			add("The inventory API is ${if (slice.inventoryApi) "on" else "off"} for that profile.")
+		}
+		add(onlineLine(status))
+	}
+
+	private fun dungeonLine(dungeons: DungeonSlice): String =
+		"Catacombs ${dungeons.catacombsLevel}, class average ${rounded(dungeons.classAverage)}, " +
+			"playing ${dungeons.selectedClass ?: "no class"}."
+
+	private fun secretsLine(dungeons: DungeonSlice, accountSecrets: Long?): String =
+		"${dungeons.secrets} secrets over ${dungeons.runs} runs on this profile (${rounded(dungeons.secretsPerRun)} a run), " +
+			"${accountSecrets ?: "an unknown number"} on the whole account, and ${dungeons.bloodMobKills} blood-mob kills."
+
+	private fun powerLine(slice: ProfileSlice): String = slice.magicalPower?.let { "Magical power $it." }
+		?: "Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
+
+	private fun onlineLine(status: ProfileStatus): String = when (status.reading) {
+		OnlineReading.ONLINE -> "Right now they are online${status.gameType?.let { " in $it" } ?: ""}${placeOf(status)}."
+		OnlineReading.OFFLINE -> "Right now they are offline."
+		OnlineReading.UNKNOWN -> "Dhen could not tell whether they are online."
+	}
+
+	private fun placeOf(status: ProfileStatus): String =
+		listOfNotNull(status.mode, status.map).takeIf(List<String>::isNotEmpty)?.joinToString(", ", " (", ")") ?: ""
+
+	private fun rounded(value: Double): String = String.format(Locale.ROOT, "%.1f", value)
 
 	internal fun install(
 		scope: CoroutineScope,
@@ -165,23 +209,29 @@ object PlayerProfiles {
 	internal fun clearCaches() {
 		uuids.clear()
 		for (cache in replies.values) cache.clear()
+		slices.clear()
 	}
 
-	internal fun cacheSummary(): String =
-		Endpoint.entries.joinToString(prefix = "uuid=${uuids.size}, ") {
-			"${it.name.lowercase(Locale.ROOT)}=${replies.getValue(it).size}"
+	internal fun cacheSummary(): String = Endpoint.entries.joinToString(
+		prefix = "uuid=${uuids.size}, ",
+		postfix = ", slices=${slices.size}"
+	) { "${it.name.lowercase(Locale.ROOT)}=${replies.getValue(it).size}" }
+
+	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? =
+		cached(replies.getValue(endpoint), key) { owner, base ->
+			envelope(fetch(owner, "$base${endpoint.path}?${endpoint.parameter}=$key")).also { proxy.note(it != null) }
 		}
 
-	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? {
-		val host = host ?: return null
+	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend (Host, String) -> V?): V? {
+		val owner = host ?: return null
 		if (!idShape.matches(key) || requirements.get() == 0) return null
 		val base = syncBase() ?: return null
-		val cache = replies.getValue(endpoint)
-		cache.read(key, host.clock.nanoTime())?.let { return it.value }
-		val reply = envelope(fetch(host, "$base${endpoint.path}?${endpoint.parameter}=$key"))
-		proxy.note(reply != null)
-		return store(host, cache, key, reply, unchanged = lastBase == base)
+		cache.read(key, owner.clock.nanoTime())?.let { return it.value }
+		return store(owner, cache, key, produce(owner, base), unchanged = lastBase == base)
 	}
+
+	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend () -> V?): V? =
+		cached(cache, key) { _, _ -> produce() }
 
 	private suspend fun fetch(owner: Host, url: String): String? = withContext(Dispatchers.IO) {
 		limiter.withPermit {
@@ -197,6 +247,9 @@ object PlayerProfiles {
 
 	private suspend fun say(owner: Host, report: (String) -> Unit, line: String) =
 		withContext(owner.clientDispatcher) { report(line) }
+
+	private suspend fun sayAll(owner: Host, report: (String) -> Unit, lines: List<String>) =
+		withContext(owner.clientDispatcher) { for (line in lines) report(line) }
 
 	private fun release() = requirements.updateAndGet { held -> maxOf(0, held - 1) }
 
@@ -217,23 +270,17 @@ object PlayerProfiles {
 		return if (success.asBoolean) reply else null
 	}
 
-	private fun readId(body: String?): String? =
-		asObject(body)?.get("id")?.takeIf(JsonElement::isJsonPrimitive)?.asString?.replace("-", "")?.ifEmpty { null }
+	private fun readId(body: String?): String? = asObject(body)?.text("id")?.replace("-", "")?.ifEmpty { null }
 
 	private fun asObject(body: String?): JsonObject? {
 		if (body == null) return null
 		return runCatching { JsonParser.parseString(body) }.getOrNull()?.takeIf(JsonElement::isJsonObject)?.asJsonObject
 	}
 
-	private fun profileList(reply: JsonObject): JsonArray =
-		reply.get("profiles")?.takeIf(JsonElement::isJsonArray)?.asJsonArray ?: JsonArray()
-
-	private fun selected(reply: JsonObject): JsonObject? = profileList(reply)
-		.firstOrNull { it.isJsonObject && it.asJsonObject.get("selected")?.takeIf(JsonElement::isJsonPrimitive)?.asBoolean == true }
-		?.asJsonObject
+	private fun profileList(reply: JsonObject): JsonArray = reply.array("profiles") ?: JsonArray()
 
 	private fun selectedName(reply: JsonObject): String =
-		selected(reply)?.get("cute_name")?.takeIf(JsonElement::isJsonPrimitive)?.asString ?: NO_PROFILE
+		ProfileSlices.selectedProfile(reply)?.text("cute_name") ?: NO_PROFILE
 
 
 	private fun userAgent(): String {
