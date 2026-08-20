@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.TablistState
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.price.PriceSource
@@ -35,6 +36,7 @@ class Diagnostics(
 ) {
 	private var forcedRequirement: Handle? = null
 	private var forcedPrices: Handle? = null
+	private var forcedMayor: Handle? = null
 
 	var deepMode: Boolean
 		get() = manager.profiler.deepMode
@@ -128,6 +130,29 @@ class Diagnostics(
 		forcedPrices = if (held == null) Prices.require() else null.also { held.unsubscribe() }
 		return if (held == null) "Prices: asked for, fetching in the background."
 		else "Prices: no longer asked for by this toggle."
+	}
+
+	fun mayorLines(toggle: Boolean): List<String> = buildList {
+		if (toggle) add(toggleMayor())
+		if (!MayorService.active()) {
+			add("Mayor: no service, the mayor data layer is not installed")
+			return@buildList
+		}
+		val mayor = MayorService.mayor
+		val date = MayorService.date
+		add("Mayor: ${mayor?.name ?: "unknown"}, needed by ${MayorService.required}, failedRefreshes=${MayorService.failedRefreshes}")
+		add("  SkyBlock date: year ${date.year}, month ${date.month}, day ${date.day}")
+		add("  elected in year ${MayorService.electedYear}, next election in year ${MayorService.electedYear + 1}")
+		add("  perks: ${mayor?.perks?.joinToString()?.ifEmpty { "none" } ?: "unknown"}")
+		add("  minister: ${MayorService.minister ?: "none"}, perk=${MayorService.ministerPerk ?: "none"}")
+		add("  perkpocalypse perk: ${MayorService.perkpocalypsePerk ?: "unknown"}")
+	}
+
+	private fun toggleMayor(): String {
+		val held = forcedMayor
+		forcedMayor = if (held == null) MayorService.require() else null.also { held.unsubscribe() }
+		return if (held == null) "Mayor: asked for, fetching in the background."
+		else "Mayor: no longer asked for by this toggle."
 	}
 
 	fun marketLines(query: String): List<String> = buildList {

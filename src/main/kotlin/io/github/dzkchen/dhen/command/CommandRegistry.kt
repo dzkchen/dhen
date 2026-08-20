@@ -219,6 +219,19 @@ class CommandRegistry<S>(
 					)
 			)
 			.then(
+				literal<S>("mayor")
+					.executes { context ->
+						for (line in diagnostics.mayorLines(toggle = false)) feedback(context.source, line)
+						Command.SINGLE_SUCCESS
+					}
+					.then(
+						literal<S>("download").executes { context ->
+							for (line in diagnostics.mayorLines(toggle = true)) feedback(context.source, line)
+							Command.SINGLE_SUCCESS
+						}
+					)
+			)
+			.then(
 				literal<S>("repo")
 					.executes { context ->
 						for (line in diagnostics.repoLines(toggle = false)) feedback(context.source, line)

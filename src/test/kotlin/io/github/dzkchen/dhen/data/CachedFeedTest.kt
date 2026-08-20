@@ -1,5 +1,6 @@
-package io.github.dzkchen.dhen.data.price
+package io.github.dzkchen.dhen.data
 
+import io.github.dzkchen.dhen.data.price.PriceTables
 import io.github.dzkchen.dhen.util.WebSource
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -7,10 +8,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 
-class PriceFeedTest {
+class CachedFeedTest {
 	private val source = FakeSource()
 	private val feed =
-		PriceFeed("test", "https://example.invalid/prices", 5.minutes, Map<String, Double>::size, PriceTables::lowestBins)
+		CachedFeed("test prices", "https://example.invalid/prices", 5.minutes, Map<String, Double>::size, PriceTables::lowestBins)
 
 	@Test
 	fun `a feed is stale until its first successful fetch`() {

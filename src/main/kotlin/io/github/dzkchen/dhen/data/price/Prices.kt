@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.price
 
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.data.CachedFeed
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.BazaarUpdateEvent
 import io.github.dzkchen.dhen.event.EventBus
@@ -36,13 +37,13 @@ object Prices {
 	private val POLL = 30.seconds
 
 	private val bazaarFeed =
-		PriceFeed("bazaar", BAZAAR_URL, 2.minutes, BazaarSnapshot::size, BazaarSnapshot::parse)
+		CachedFeed("bazaar prices", BAZAAR_URL, 2.minutes, BazaarSnapshot::size, BazaarSnapshot::parse)
 	private val lowestBinFeed =
-		PriceFeed("lowest BIN", LOWEST_BIN_URL, 5.minutes, Map<String, Double>::size, PriceTables::lowestBins)
+		CachedFeed("lowest BIN prices", LOWEST_BIN_URL, 5.minutes, Map<String, Double>::size, PriceTables::lowestBins)
 	private val spareLowestBinFeed =
-		PriceFeed("spare lowest BIN", SPARE_LOWEST_BIN_URL, 5.minutes, Map<String, Double>::size, PriceTables::neuLowestBins)
+		CachedFeed("spare lowest BIN prices", SPARE_LOWEST_BIN_URL, 5.minutes, Map<String, Double>::size, PriceTables::neuLowestBins)
 	private val npcFeed =
-		PriceFeed("NPC", NPC_URL, 6.hours, Map<String, Double>::size, PriceTables::npcPrices)
+		CachedFeed("NPC prices", NPC_URL, 6.hours, Map<String, Double>::size, PriceTables::npcPrices)
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val requirements = AtomicInteger()
@@ -53,7 +54,7 @@ object Prices {
 	@Volatile
 	private var host: Host? = null
 
-	internal val feeds: Array<PriceFeed<*>> = arrayOf(bazaarFeed, lowestBinFeed, spareLowestBinFeed, npcFeed)
+	internal val feeds: Array<CachedFeed<*>> = arrayOf(bazaarFeed, lowestBinFeed, spareLowestBinFeed, npcFeed)
 
 	val required: Int get() = requirements.get()
 
@@ -92,7 +93,7 @@ object Prices {
 		}
 	}
 
-	internal fun ageSeconds(feed: PriceFeed<*>): Long {
+	internal fun ageSeconds(feed: CachedFeed<*>): Long {
 		val host = host ?: return 0L
 		return if (!feed.loaded) 0L else (host.clock.nanoTime() - feed.updatedAt).nanoseconds.inWholeSeconds
 	}
