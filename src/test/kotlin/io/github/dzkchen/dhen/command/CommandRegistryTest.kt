@@ -485,7 +485,13 @@ class CommandRegistryTest {
 
 		dispatcher.execute("dhen debug repo", Any())
 
-		assertEquals(listOf("Item repo: state=IDLE, items=0, needed by 0, commit=none"), captured)
+		assertEquals(
+			listOf(
+				"Item repo: state=IDLE, items=0, needed by 0, commit=none",
+				"  constants: reforgeStones=0, starredItems=0"
+			),
+			captured
+		)
 	}
 
 	@Test
@@ -507,7 +513,7 @@ class CommandRegistryTest {
 		}
 
 		assertEquals("Item repo: asked for, downloading in the background.", captured[0])
-		assertEquals("Item repo: no longer asked for by this toggle.", captured[2])
+		assertEquals("Item repo: no longer asked for by this toggle.", captured[3])
 	}
 
 	@Test
@@ -571,6 +577,33 @@ class CommandRegistryTest {
 
 		assertTrue(captured.any { it.contains("marketId=PET-GOLDEN_DRAGON-LEGENDARY") })
 		assertTrue(captured.any { it.contains("pet: type=GOLDEN_DRAGON, tier=LEGENDARY") && it.contains("candy=2") })
+	}
+
+	@Test
+	fun `debug value reports an empty hand rather than valuing a stack`() {
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug value", Any())
+
+		assertEquals(listOf("Held item: nothing in your main hand"), captured)
+	}
+
+	@Test
+	fun `debug value breaks a held stack down even while nothing is priced`() {
+		ItemFixture.bootstrap()
+		val stack = ItemFixture.stack { putString("id", "HYPERION"); putInt("rarity_upgrades", 1) }
+		val manager = ModuleManager()
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug value", Any())
+
+		assertTrue(captured[0].endsWith(": 0.0 from BAZAAR_INSTANT_SELL (base 0.0)"))
+		assertEquals(listOf("  HYPERION: no price", "  RECOMBOBULATOR_3000: no price"), captured.drop(1))
 	}
 
 	@Test

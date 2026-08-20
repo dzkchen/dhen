@@ -1,0 +1,251 @@
+package io.github.dzkchen.dhen.data.value
+
+import io.github.dzkchen.dhen.data.item.ItemRarity
+import io.github.dzkchen.dhen.data.item.SkyBlockItem
+import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.price.PriceSource
+import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.StarTier
+import io.github.dzkchen.dhen.event.withoutCodes
+import net.minecraft.world.item.ItemStack
+import java.util.Locale
+import java.util.regex.Pattern
+
+class ValueLine internal constructor(val label: String, val amount: Double, val priced: Boolean)
+
+class Valuation internal constructor(val total: Double, val base: Double, val breakdown: List<ValueLine>) {
+	val modified: Boolean get() = total != base
+}
+
+object ItemValue {
+	private const val ENCHANTED_BOOK = "ENCHANTED_BOOK"
+	private const val SKYBLOCK_COIN = "SKYBLOCK_COIN"
+	private const val ESSENCE = "ESSENCE_"
+	private const val GEM_SUFFIX = "_gem"
+	private const val UNLOCKED_SLOTS = "unlocked_slots"
+	private const val QUALITY = "quality"
+	private const val EFFICIENCY = "efficiency"
+	private const val KUUDRA_TIER_STARS = 10
+	private const val HOT_POTATO_CAP = 10
+	private const val FIRST_MASTER_STAR = 5
+	private const val MAX_COMBINE_STEPS = 5
+	private const val LEGENDARY_PET_LEVEL = 100
+	private const val DRAGON_PET_LEVEL = 200
+
+	private val MASTER_STARS =
+		listOf("FIRST_MASTER_STAR", "SECOND_MASTER_STAR", "THIRD_MASTER_STAR", "FOURTH_MASTER_STAR", "FIFTH_MASTER_STAR")
+	private val KUUDRA_TIERS = listOf("", "HOT", "BURNING", "FIERY", "INFERNAL")
+	private val KUUDRA_ARMOR: Pattern = Pattern.compile(
+		"(HOT|BURNING|FIERY|INFERNAL|)_?(?:AURORA|CRIMSON|TERROR|HOLLOW|FERVOR)_(?:HELMET|CHESTPLATE|LEGGINGS|BOOTS)"
+	)
+	private val GEMSTONES = setOf(
+		"JADE", "AMBER", "TOPAZ", "SAPPHIRE", "AMETHYST", "JASPER",
+		"RUBY", "OPAL", "ONYX", "AQUAMARINE", "CITRINE", "PERIDOT"
+	)
+	private val QUALITIES = setOf("ROUGH", "FLAWED", "FINE", "FLAWLESS", "PERFECT")
+
+	private val MODIFIERS: List<(Fold) -> Double> = listOf(
+		::reforgeStone,
+		::recombobulator,
+		::artOfWar,
+		::etherwarp,
+		::stars,
+		::masterStars,
+		::hotPotatoBooks,
+		::gemstoneSlotUnlockCost,
+		::gemstones,
+		::enchantments
+	)
+
+	fun of(stack: ItemStack, source: PriceSource): Valuation =
+		of(SkyBlockItems.of(stack), SkyBlockItems.rarity(stack), source)
+
+	fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource): Valuation {
+		val fold = Fold(item, rarity, source)
+		val base = baseItem(fold)
+		var total = if (item.id == ENCHANTED_BOOK) 0.0 else base
+		for (modifier in MODIFIERS) total += modifier(fold)
+		return Valuation(total, base, fold.lines)
+	}
+
+	private fun baseItem(fold: Fold): Double {
+		val marketId = fold.item.marketId
+		if (marketId.isEmpty()) return 0.0
+		if (fold.item.id == ENCHANTED_BOOK) {
+			val price = fold.price(marketId)
+			return if (price.isNaN()) 0.0 else price
+		}
+		val pet = fold.item.pet ?: return fold.entry(marketId)
+		val level = ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp)
+		val leveled = marketId + levelSuffix(level)
+		val listed = if (leveled != marketId && !fold.price(leveled).isNaN()) leveled else marketId
+		return fold.entry(listed, label = "${displayName(marketId)} level $level")
+	}
+
+	private fun levelSuffix(level: Int): String = when {
+		level >= DRAGON_PET_LEVEL -> "-$DRAGON_PET_LEVEL"
+		level >= LEGENDARY_PET_LEVEL -> "-$LEGENDARY_PET_LEVEL"
+		else -> ""
+	}
+
+	private fun reforgeStone(fold: Fold): Double {
+		val reforge = ItemRepo.constants.reforgeStone(fold.item.reforge) ?: return 0.0
+		val applyCost = applyCost(reforge.costs, fold.rarity, fold.item.isRecombobulated) ?: return 0.0
+		return fold.entry(reforge.stone, label = "Reforge: ${reforge.reforge}") +
+			fold.coins("Reforge apply cost", applyCost.toDouble())
+	}
+
+	private fun applyCost(costs: Map<String, Long>, rarity: ItemRarity, recombobulated: Boolean): Long? {
+		if (costs.isEmpty() || rarity == ItemRarity.NONE) return null
+		val applied = when {
+			!recombobulated || rarity > ItemRarity.MYTHIC -> rarity
+			else -> ItemRarity.entries[rarity.ordinal - 1].takeIf { it != ItemRarity.NONE } ?: return null
+		}
+		return costs[applied.name] ?: if (applied > ItemRarity.MYTHIC) costs[ItemRarity.LEGENDARY.name] else null
+	}
+
+	private fun recombobulator(fold: Fold): Double =
+		if (!fold.item.isRecombobulated) 0.0 else fold.entry("RECOMBOBULATOR_3000")
+
+	private fun artOfWar(fold: Fold): Double =
+		if (fold.item.artOfWar <= 0) 0.0 else fold.entry("THE_ART_OF_WAR")
+
+	private fun etherwarp(fold: Fold): Double =
+		if (!fold.item.ethermerge) 0.0
+		else fold.entry("ETHERWARP_CONDUIT") + fold.entry("ETHERWARP_MERGER")
+
+	private fun hotPotatoBooks(fold: Fold): Double {
+		val count = fold.item.hotPotatoCount
+		if (count <= 0) return 0.0
+		var total = fold.entry("HOT_POTATO_BOOK", count.coerceAtMost(HOT_POTATO_CAP))
+		if (count > HOT_POTATO_CAP) total += fold.entry("FUMING_POTATO_BOOK", count - HOT_POTATO_CAP)
+		return total
+	}
+
+	private fun stars(fold: Fold): Double {
+		val kuudraTier = kuudraTier(fold.item.id)
+		val tiers = starTiers(fold.item.id, kuudraTier)
+		if (tiers.isEmpty()) return 0.0
+		val earned = fold.item.upgradeLevel + (kuudraTier ?: 0) * KUUDRA_TIER_STARS
+		if (earned <= 0) return 0.0
+		val applied = earned.coerceAtMost(tiers.size)
+		val essence = LinkedHashMap<String, Int>()
+		val materials = LinkedHashMap<String, Int>()
+		for (index in 0 until applied) {
+			val tier = tiers[index]
+			essence.merge(ESSENCE + tier.essence, tier.essenceAmount, Int::plus)
+			for ((id, amount) in tier.materials) materials.merge(id, amount, Int::plus)
+		}
+		var total = fold.note("Stars $applied of ${tiers.size}")
+		for ((id, amount) in essence) total += fold.entry(id, amount)
+		for ((id, amount) in materials) {
+			total += if (id == SKYBLOCK_COIN) fold.coins("Star coins x$amount", amount.toDouble()) else fold.entry(id, amount)
+		}
+		return total
+	}
+
+	private fun starTiers(id: String, kuudraTier: Int?): List<StarTier> {
+		val constants = ItemRepo.constants
+		if (kuudraTier == null) return constants.starTiers(id)
+		val set = id.removePrefix(KUUDRA_TIERS[kuudraTier] + "_")
+		return KUUDRA_TIERS.flatMap { constants.starTiers(if (it.isEmpty()) set else it + "_" + set) }
+	}
+
+	private fun kuudraTier(id: String): Int? {
+		val matcher = KUUDRA_ARMOR.matcher(id)
+		return if (matcher.matches()) KUUDRA_TIERS.indexOf(matcher.group(1)) else null
+	}
+
+	private fun masterStars(fold: Fold): Double {
+		if (kuudraTier(fold.item.id) != null) return 0.0
+		val applied = (fold.item.upgradeLevel - FIRST_MASTER_STAR).coerceAtMost(MASTER_STARS.size)
+		var total = 0.0
+		for (index in 0 until applied) total += fold.entry(MASTER_STARS[index])
+		return total
+	}
+
+	private fun gemstones(fold: Fold): Double {
+		val gems = fold.item.gems ?: return 0.0
+		val applied = LinkedHashMap<String, Int>()
+		for (key in gems.keySet()) {
+			if (key == UNLOCKED_SLOTS || key.endsWith(GEM_SUFFIX)) continue
+			val quality = gems.getStringOr(key, "")
+				.ifEmpty { gems.getCompoundOrEmpty(key).getStringOr(QUALITY, "") }
+				.uppercase(Locale.ROOT)
+			if (quality !in QUALITIES) continue
+			val slot = key.substringBefore('_').uppercase(Locale.ROOT)
+			val gemstone = if (slot in GEMSTONES) slot else gems.getStringOr(key + GEM_SUFFIX, "").uppercase(Locale.ROOT)
+			if (gemstone !in GEMSTONES) continue
+			applied.merge("${quality}_${gemstone}_GEM", 1, Int::plus)
+		}
+		var total = 0.0
+		for ((id, count) in applied) total += fold.entry(id, count)
+		return total
+	}
+
+	private fun gemstoneSlotUnlockCost(fold: Fold): Double {
+		val gems = fold.item.gems ?: return 0.0
+		val unlocked = gems.getListOrEmpty(UNLOCKED_SLOTS)
+		if (unlocked.isEmpty()) return 0.0
+		val costs = LinkedHashMap<String, Int>()
+		var priced = 0
+		for (index in unlocked.indices) {
+			val slot = ItemRepo.constants.gemstoneSlotCost(fold.item.id, unlocked.getStringOr(index, ""))
+			if (slot.isEmpty()) continue
+			priced++
+			for ((id, amount) in slot) costs.merge(id, amount, Int::plus)
+		}
+		if (costs.isEmpty()) return 0.0
+		var total = fold.note("Unlocked gemstone slots: $priced")
+		for ((id, amount) in costs) {
+			total += if (id == SKYBLOCK_COIN) fold.coins("Slot coins x$amount", amount.toDouble()) else fold.entry(id, amount)
+		}
+		return total
+	}
+
+	private fun enchantments(fold: Fold): Double {
+		var total = 0.0
+		for ((raw, level) in fold.item.enchantments) {
+			if (raw == EFFICIENCY || level <= 0) continue
+			val enchantment = raw.uppercase(Locale.ROOT)
+			val listed = listedBookLevel(fold, enchantment, level) ?: continue
+			total += fold.entry(bookId(enchantment, listed), 1 shl (level - listed))
+		}
+		return total
+	}
+
+	private fun listedBookLevel(fold: Fold, enchantment: String, level: Int): Int? {
+		val floor = (level - MAX_COMBINE_STEPS).coerceAtLeast(1)
+		for (listed in level downTo floor) if (!fold.price(bookId(enchantment, listed)).isNaN()) return listed
+		return null
+	}
+
+	private fun bookId(enchantment: String, level: Int): String = "$ENCHANTED_BOOK-$enchantment-$level"
+
+	private fun displayName(id: String): String =
+		ItemRepo.item(id)?.displayName?.let(::withoutCodes)?.takeIf(String::isNotEmpty) ?: id
+
+	private class Fold(val item: SkyBlockItem, val rarity: ItemRarity, val source: PriceSource) {
+		val lines = ArrayList<ValueLine>()
+
+		fun price(marketId: String): Double = Prices.priceOr(marketId, source, Double.NaN)
+
+		fun entry(marketId: String, count: Int = 1, label: String = displayName(marketId)): Double {
+			val counted = if (count > 1) "$label x$count" else label
+			val price = price(marketId)
+			if (price.isNaN()) {
+				lines += ValueLine(counted, 0.0, false)
+				return 0.0
+			}
+			return coins(counted, price * count)
+		}
+
+		fun coins(label: String, amount: Double): Double {
+			lines += ValueLine(label, amount, true)
+			return amount
+		}
+
+		fun note(label: String): Double = coins(label, 0.0)
+	}
+}

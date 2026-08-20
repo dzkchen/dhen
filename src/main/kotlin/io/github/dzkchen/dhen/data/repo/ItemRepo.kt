@@ -18,6 +18,7 @@ enum class RepoState {
 
 object ItemRepo {
 	private const val ITEMS = "items"
+	private const val CONSTANTS = "constants"
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
@@ -30,6 +31,10 @@ object ItemRepo {
 
 	@Volatile
 	private var catalog: ItemCatalog = ItemCatalog.EMPTY
+
+	@Volatile
+	var constants: RepoConstants = RepoConstants.EMPTY
+		private set
 
 	@Volatile
 	var state: RepoState = RepoState.IDLE
@@ -69,6 +74,7 @@ object ItemRepo {
 		requirements.set(0)
 		activated.set(false)
 		catalog = ItemCatalog.EMPTY
+		constants = RepoConstants.EMPTY
 		state = RepoState.IDLE
 		commit = null
 	}
@@ -81,6 +87,7 @@ object ItemRepo {
 				log.warn("Dhen could not refresh the item repo ({}), reading whatever is already on disk", result)
 			}
 			catalog = ItemCatalog.read(host.root.resolve(ITEMS))
+			constants = RepoConstants.read(host.root.resolve(CONSTANTS))
 			commit = host.sync.syncedCommit()
 			if (catalog.size > 0) RepoState.READY else RepoState.UNAVAILABLE
 		} catch (throwable: Throwable) {

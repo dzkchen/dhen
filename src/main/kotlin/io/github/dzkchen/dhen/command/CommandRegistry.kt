@@ -199,6 +199,12 @@ class CommandRegistry<S>(
 				}
 			)
 			.then(
+				literal<S>("value").executes { context ->
+					for (line in diagnostics.valueLines()) feedback(context.source, line)
+					Command.SINGLE_SUCCESS
+				}
+			)
+			.then(
 				literal<S>("prices")
 					.executes { context ->
 						for (line in diagnostics.priceLines(toggle = false)) feedback(context.source, line)

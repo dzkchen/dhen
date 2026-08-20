@@ -21,6 +21,7 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
+import io.github.dzkchen.dhen.data.value.ItemValue
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.withoutCodes
@@ -108,6 +109,8 @@ class Diagnostics(
 		if (toggle) add(toggleRequirement())
 		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}, " +
 			"commit=${ItemRepo.commit ?: "none"}")
+		add("  constants: reforgeStones=${ItemRepo.constants.reforgeStoneCount}, " +
+			"starredItems=${ItemRepo.constants.starredItemCount}")
 	}
 
 	private fun toggleRequirement(): String {
@@ -215,6 +218,24 @@ class Diagnostics(
 			"glint=${SkyBlockItems.hasGlint(stack)}, recordsCached=${SkyBlockItems.cachedRecords}")
 	}
 
+	fun valueLines(): List<String> = buildList {
+		val stack = heldItem()
+		if (stack == null || stack.isEmpty) {
+			add("Held item: nothing in your main hand")
+			return@buildList
+		}
+		val name = withoutCodes(stack.hoverName.string)
+		if (SkyBlockItems.of(stack) === SkyBlockItem.NONE) {
+			add("Value of '$name': no SkyBlock data on this item")
+			return@buildList
+		}
+		val valuation = ItemValue.of(stack, VALUE_SOURCE)
+		add("Value of '$name': ${valuation.total} from $VALUE_SOURCE (base ${valuation.base})")
+		for (line in valuation.breakdown) {
+			add("  ${line.label}: ${if (line.priced) line.amount else "no price"}")
+		}
+	}
+
 	fun lines(): List<String> = buildList {
 		add(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
@@ -276,5 +297,7 @@ class Diagnostics(
 
 	private companion object {
 		private const val TOP_ORDERS = 3
+
+		private val VALUE_SOURCE = PriceSource.BAZAAR_INSTANT_SELL
 	}
 }
