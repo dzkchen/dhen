@@ -189,7 +189,7 @@ class ItemValueTest {
 	fun `a kuudra piece counts the stars of every tier below its own`() {
 		val valuation = value(item { putString("id", "HOT_TERROR_CHESTPLATE") })
 
-		assertEquals((10 + 20 + 30 + 40) * 3.0, valuation.total)
+		assertEquals((10 + 20 + 30 + 40) * 3.0 + 150 * 3.0 + 10 * 5.0 + 2_000_000.0, valuation.total)
 		assertTrue(valuation.breakdown.any { it.label == "Stars 4 of 4" })
 		assertFalse(valuation.breakdown.any { it.label.contains("MASTER_STAR") })
 	}
@@ -238,12 +238,87 @@ class ItemValueTest {
 
 	@Test
 	fun `an enchantment only sold lower down is priced by the books it took to combine`() {
-		val valuation = value(
-			item { putString("id", "HYPERION"); put("enchantments", CompoundTag().apply { putInt("toxophilite", 3) }) }
-		)
+		val valuation = value(enchanted("HYPERION", "sharpness", 7))
 
-		assertEquals(1000.0 + 4 * 64.0, valuation.total)
-		assertEquals("ENCHANTED_BOOK-TOXOPHILITE-1 x4", valuation.breakdown.last().label)
+		assertEquals(1000.0 + 4 * 8.0, valuation.total)
+		assertEquals("ENCHANTED_BOOK-SHARPNESS-5 x4", valuation.breakdown.last().label)
+	}
+
+	@Test
+	fun `a stacking enchantment is one tier-one book however high its level`() {
+		val valuation = value(enchanted("HYPERION", "toxophilite", 5))
+
+		assertEquals(1000.0 + 64.0, valuation.total)
+		assertEquals("ENCHANTED_BOOK-TOXOPHILITE-1", valuation.breakdown.last().label)
+	}
+
+	@Test
+	fun `an enchantment below its endcap is priced by the book alone`() {
+		val valuation = value(enchanted("HYPERION", "turbo_wheat", 5))
+
+		assertEquals(1000.0 + 80.0, valuation.total)
+		assertEquals(listOf("Hyperion", "ENCHANTED_BOOK-TURBO_WHEAT-5"), valuation.breakdown.map { it.label })
+	}
+
+	@Test
+	fun `an enchantment past its endcap adds one item per crossed threshold and stops combining`() {
+		val valuation = value(enchanted("HYPERION", "turbo_wheat", 7))
+
+		assertEquals(1000.0 + 90.0 + 900.0 + 80.0, valuation.total)
+		assertEquals(
+			listOf("Hyperion", "TURBO_GOURD", "ENCHANTED_TURBO_GOURD", "ENCHANTED_BOOK-TURBO_WHEAT-5"),
+			valuation.breakdown.map { it.label }
+		)
+	}
+
+	@Test
+	fun `an enchantment an item comes with for free is not charged for`() {
+		assertEquals(0.0, value(enchanted("CRYPT_DREADLORD_SWORD", "scavenger", 5)).total)
+	}
+
+	@Test
+	fun `the same enchantment is charged on an item that does not come with it`() {
+		assertEquals(1000.0 + 200.0, value(enchanted("HYPERION", "scavenger", 5)).total)
+	}
+
+	@Test
+	fun `an item that comes with one level of an enchantment is still charged for another`() {
+		assertEquals(100.0, value(enchanted("CRYPT_DREADLORD_SWORD", "scavenger", 4)).total)
+	}
+
+	@Test
+	fun `a book bundle is worth the books inside it and nothing for the bundle itself`() {
+		val valuation = value(enchanted("ENCHANTED_BOOK_BUNDLE_VICIOUS", "vicious", 3))
+
+		assertEquals(5 * 400.0, valuation.total)
+		assertEquals(0.0, valuation.base)
+		assertEquals(
+			listOf("ENCHANTED_BOOK_BUNDLE_VICIOUS", "ENCHANTED_BOOK-VICIOUS-3 x5"),
+			valuation.breakdown.map { it.label }
+		)
+	}
+
+	@Test
+	fun `a book bundle nobody lists an amount for holds five books`() {
+		val valuation = value(enchanted("ENCHANTED_BOOK_BUNDLE_SHARPNESS", "sharpness", 5))
+
+		assertEquals(5 * 8.0, valuation.total)
+		assertEquals("ENCHANTED_BOOK-SHARPNESS-5 x5", valuation.breakdown.last().label)
+	}
+
+	@Test
+	fun `a base tier kuudra piece pays no prestige`() {
+		val valuation = value(item { putString("id", "TERROR_CHESTPLATE") })
+
+		assertFalse(valuation.breakdown.any { it.label.startsWith("Prestige") })
+	}
+
+	@Test
+	fun `a prestiged kuudra piece pays for every tier up to its own`() {
+		val valuation = value(item { putString("id", "BURNING_TERROR_CHESTPLATE") })
+
+		assertEquals((10 + 20 + 30 + 40) * 3.0 + (150 + 800) * 3.0 + (10 + 20) * 5.0 + 7_000_000.0, valuation.total)
+		assertEquals("Prestige: BURNING", valuation.breakdown.first { it.label.startsWith("Prestige:") }.label)
 	}
 
 	@Test
@@ -321,14 +396,14 @@ class ItemValueTest {
 
 	@Test
 	fun `silex is the efficiency levels above the five an item comes with`() {
-		assertEquals(1000.0 + 3 * 30.0, value(efficient("HYPERION", 8)).total)
-		assertEquals(1000.0, value(efficient("HYPERION", 5)).total)
+		assertEquals(1000.0 + 3 * 30.0, value(enchanted("HYPERION", "efficiency", 8)).total)
+		assertEquals(1000.0, value(enchanted("HYPERION", "efficiency", 5)).total)
 	}
 
 	@Test
 	fun `a pickaxe that comes with its own efficiency is not charged for it`() {
-		assertEquals(2 * 30.0, value(efficient("STONK_PICKAXE", 8)).total)
-		assertEquals(0.0, value(efficient("PROMISING_SPADE", 10)).total)
+		assertEquals(2 * 30.0, value(enchanted("STONK_PICKAXE", "efficiency", 8)).total)
+		assertEquals(0.0, value(enchanted("PROMISING_SPADE", "efficiency", 10)).total)
 	}
 
 	@Test
@@ -490,9 +565,9 @@ class ItemValueTest {
 
 	private fun item(build: CompoundTag.() -> Unit): SkyBlockItem = SkyBlockItems.of(ItemFixture.customData(build))
 
-	private fun efficient(id: String, level: Int): SkyBlockItem = item {
+	private fun enchanted(id: String, enchantment: String, level: Int): SkyBlockItem = item {
 		putString("id", id)
-		put("enchantments", CompoundTag().apply { putInt("efficiency", level) })
+		put("enchantments", CompoundTag().apply { putInt(enchantment, level) })
 	}
 
 	private fun pet(type: String, exp: Double): SkyBlockItem = item {
@@ -570,6 +645,15 @@ class ItemValueTest {
 			  "PET-AMMONITE-LEGENDARY": 20.0,
 			  "ENCHANTED_BOOK-ULTIMATE_WISE-5": 3000.0,
 			  "ENCHANTED_BOOK-TOXOPHILITE-1": 64.0,
+			  "ENCHANTED_BOOK-SHARPNESS-5": 8.0,
+			  "ENCHANTED_BOOK-TURBO_WHEAT-5": 80.0,
+			  "ENCHANTED_BOOK-SCAVENGER-4": 100.0,
+			  "ENCHANTED_BOOK-SCAVENGER-5": 200.0,
+			  "ENCHANTED_BOOK-VICIOUS-3": 400.0,
+			  "TURBO_GOURD": 90.0,
+			  "ENCHANTED_TURBO_GOURD": 900.0,
+			  "GOLDEN_BOUNTY": 300.0,
+			  "KUUDRA_TEETH": 5.0,
 			  "THE_ART_OF_PEACE": 11.0,
 			  "WOOD_SINGULARITY": 12.0,
 			  "JALAPENO_BOOK": 13.0,

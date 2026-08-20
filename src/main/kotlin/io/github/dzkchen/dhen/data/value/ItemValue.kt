@@ -5,6 +5,8 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.repo.CuratedConstants
+import io.github.dzkchen.dhen.data.repo.EndcapEnchant
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.StarTier
 import io.github.dzkchen.dhen.event.withoutCodes
@@ -20,6 +22,7 @@ class Valuation internal constructor(val total: Double, val base: Double, val br
 
 object ItemValue {
 	private const val ENCHANTED_BOOK = "ENCHANTED_BOOK"
+	private const val BOOK_BUNDLE = "ENCHANTED_BOOK_BUNDLE_"
 	private const val SKYBLOCK_COIN = "SKYBLOCK_COIN"
 	private const val ESSENCE = "ESSENCE_"
 	private const val GEM_SUFFIX = "_gem"
@@ -67,6 +70,7 @@ object ItemValue {
 		::divanPowderCoating,
 		::mithrilInfusion,
 		::freeWill,
+		::crimsonPrestige,
 		::stars,
 		::masterStars,
 		::hotPotatoBooks,
@@ -108,6 +112,7 @@ object ItemValue {
 	private fun baseItem(fold: Fold): Double {
 		val marketId = fold.item.marketId
 		if (marketId.isEmpty()) return 0.0
+		if (fold.item.id.startsWith(BOOK_BUNDLE)) return fold.note(displayName(marketId))
 		if (fold.item.id == ENCHANTED_BOOK) {
 			val price = fold.price(marketId)
 			return if (price.isNaN()) 0.0 else price
@@ -251,9 +256,7 @@ object ItemValue {
 		}
 		var total = fold.note("Stars $applied of ${tiers.size}")
 		for ((id, amount) in essence) total += fold.entry(id, amount)
-		for ((id, amount) in materials) {
-			total += if (id == SKYBLOCK_COIN) fold.coins("Star coins x$amount", amount.toDouble()) else fold.entry(id, amount)
-		}
+		for ((id, amount) in materials) total += fold.ingredient(id, amount, "Star coins")
 		return total
 	}
 
@@ -267,6 +270,19 @@ object ItemValue {
 	private fun kuudraTier(id: String): Int? {
 		val matcher = KUUDRA_ARMOR.matcher(id)
 		return if (matcher.matches()) KUUDRA_TIERS.indexOf(matcher.group(1)) else null
+	}
+
+	private fun crimsonPrestige(fold: Fold): Double {
+		val tier = kuudraTier(fold.item.id) ?: return 0.0
+		if (tier <= 0) return 0.0
+		val costs = LinkedHashMap<String, Int>()
+		for (index in 1..tier) {
+			for ((id, amount) in CuratedConstants.crimsonPrestigeCost(KUUDRA_TIERS[index])) costs.merge(id, amount, Int::plus)
+		}
+		if (costs.isEmpty()) return 0.0
+		var total = fold.note("Prestige: ${KUUDRA_TIERS[tier]}")
+		for ((id, amount) in costs) total += fold.ingredient(id, amount, "Prestige coins")
+		return total
 	}
 
 	private fun masterStars(fold: Fold): Double {
@@ -310,21 +326,34 @@ object ItemValue {
 		}
 		if (costs.isEmpty()) return 0.0
 		var total = fold.note("Unlocked gemstone slots: $priced")
-		for ((id, amount) in costs) {
-			total += if (id == SKYBLOCK_COIN) fold.coins("Slot coins x$amount", amount.toDouble()) else fold.entry(id, amount)
-		}
+		for ((id, amount) in costs) total += fold.ingredient(id, amount, "Slot coins")
 		return total
 	}
 
 	private fun enchantments(fold: Fold): Double {
+		val bundled = fold.item.id.startsWith(BOOK_BUNDLE)
 		var total = 0.0
 		for ((raw, level) in fold.item.enchantments) {
 			if (raw == EFFICIENCY || level <= 0) continue
 			val enchantment = raw.uppercase(Locale.ROOT)
-			val listed = listedBookLevel(fold, enchantment, level) ?: continue
-			total += fold.entry(bookId(enchantment, listed), 1 shl (level - listed))
+			if (CuratedConstants.grantedFree(enchantment, level, fold.item.id)) continue
+			val endcaps = CuratedConstants.endcaps(enchantment)
+			for (endcap in endcaps) if (level > endcap.requiredLevel) total += fold.entry(endcap.endcapItem)
+			val count = if (bundled) CuratedConstants.bookBundleAmount(enchantment) else 1
+			total += bookPrice(fold, enchantment, bookLevel(enchantment, endcaps, level), count)
 		}
 		return total
+	}
+
+	private fun bookLevel(enchantment: String, endcaps: List<EndcapEnchant>, level: Int): Int = when {
+		enchantment in CuratedConstants.stackingEnchants -> 1
+		endcaps.isEmpty() -> level
+		else -> level.coerceAtMost(endcaps.minOf(EndcapEnchant::requiredLevel))
+	}
+
+	private fun bookPrice(fold: Fold, enchantment: String, level: Int, count: Int): Double {
+		val listed = listedBookLevel(fold, enchantment, level) ?: return 0.0
+		return fold.entry(bookId(enchantment, listed), count shl (level - listed))
 	}
 
 	private fun listedBookLevel(fold: Fold, enchantment: String, level: Int): Int? {
@@ -372,6 +401,9 @@ object ItemValue {
 		fun once(present: Boolean, marketId: String): Double = if (!present) 0.0 else entry(marketId)
 
 		fun counted(count: Int, marketId: String): Double = if (count <= 0) 0.0 else entry(marketId, count)
+
+		fun ingredient(marketId: String, amount: Int, coinLabel: String): Double =
+			if (marketId == SKYBLOCK_COIN) coins("$coinLabel x$amount", amount.toDouble()) else entry(marketId, amount)
 
 		fun cosmetic(kind: String, marketId: String): Double =
 			if (marketId.isEmpty()) 0.0 else entry(marketId, label = "$kind: ${displayName(marketId)}")
