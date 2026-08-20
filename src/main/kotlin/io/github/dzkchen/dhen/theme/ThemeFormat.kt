@@ -3,10 +3,15 @@ package io.github.dzkchen.dhen.theme
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.gui.DhenTheme
 import io.github.dzkchen.dhen.util.Color
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.numberOrNull
+import io.github.dzkchen.dhen.util.obj
+import io.github.dzkchen.dhen.util.text
+import io.github.dzkchen.dhen.util.textOrNull
 import org.slf4j.LoggerFactory
 import java.util.Locale
 
@@ -80,15 +85,15 @@ internal object ThemeFormat {
 
 	fun parse(id: String, document: JsonObject): ThemeEntry {
 		val authorsSchema = document.get(SCHEMA_KEY)
-		val declared = number(authorsSchema)?.toInt() ?: SCHEMA
+		val declared = authorsSchema.numberOrNull()?.toInt() ?: SCHEMA
 		if (declared > SCHEMA) log.info("Theme '{}' is written for schema {}; reading it as {}", id, authorsSchema, SCHEMA)
-		val declaredId = text(document, ID_KEY)
+		val declaredId = document.text(ID_KEY)
 		if (declaredId != null && !declaredId.equals(id, ignoreCase = true)) {
 			log.warn("Theme '{}' calls itself '{}'; a theme is named by the folder it lives in", id, declaredId)
 		}
 		val colored = readColors(id, block(id, document, COLORS_KEY), DhenTheme.DEFAULT)
 		val theme = readMotion(id, block(id, document, MOTION_KEY), colored)
-		return ThemeEntry(id, text(document, NAME_KEY) ?: id, text(document, VERSION_KEY) ?: "", authors(document), declared, theme, document)
+		return ThemeEntry(id, document.text(NAME_KEY) ?: id, document.text(VERSION_KEY) ?: "", authors(document), declared, theme, document)
 	}
 
 	fun document(id: String, metadata: ThemeEntry?, resolved: DhenTheme): JsonObject {
@@ -106,12 +111,12 @@ internal object ThemeFormat {
 	}
 
 	private fun stampSchema(document: JsonObject, declared: Int) {
-		val keepAuthorsSchema = declared > SCHEMA && number(document.get(SCHEMA_KEY))?.toInt() == declared
+		val keepAuthorsSchema = declared > SCHEMA && document.number(SCHEMA_KEY)?.toInt() == declared
 		if (!keepAuthorsSchema) document.addProperty(SCHEMA_KEY, maxOf(SCHEMA, declared))
 	}
 
 	private fun section(document: JsonObject, key: String): JsonObject =
-		(document.get(key) as? JsonObject) ?: JsonObject().also { document.add(key, it) }
+		document.obj(key) ?: JsonObject().also { document.add(key, it) }
 
 	private fun hex(argb: Int): String = String.format(Locale.ROOT, "#%08X", argb)
 
@@ -135,7 +140,7 @@ internal object ThemeFormat {
 		if (block == null) return theme
 		for ((token, element) in block.entrySet()) {
 			val slot = MOTION[token] ?: continue
-			val value = number(element)
+			val value = element.numberOrNull()
 			if (value == null || value < 0.0 || value > MOTION_MAX) {
 				log.warn("Theme '{}' has an unreadable motion value for '{}': {}", id, token, element)
 				continue
@@ -153,7 +158,7 @@ internal object ThemeFormat {
 	}
 
 	private fun argb(element: JsonElement): Int? {
-		val text = (element as? JsonPrimitive)?.takeIf { it.isString }?.asString ?: return null
+		val text = element.textOrNull() ?: return null
 		if (text.length != RGB_LENGTH && text.length != ARGB_LENGTH) return null
 		if (text[0] != HASH) return null
 		var value = 0
@@ -172,14 +177,6 @@ internal object ThemeFormat {
 		else -> -1
 	}
 
-	private fun number(element: JsonElement?): Double? =
-		(element as? JsonPrimitive)?.takeIf { it.isNumber }?.asDouble?.takeIf { it.isFinite() }
-
-	private fun text(document: JsonObject, key: String): String? =
-		(document.get(key) as? JsonPrimitive)?.takeIf { it.isString }?.asString?.takeIf { it.isNotBlank() }
-
-	private fun authors(document: JsonObject): List<String> {
-		val array = document.get(AUTHORS_KEY) as? JsonArray ?: return emptyList()
-		return array.mapNotNull { element -> (element as? JsonPrimitive)?.takeIf { it.isString }?.asString }
-	}
+	private fun authors(document: JsonObject): List<String> =
+		document.array(AUTHORS_KEY)?.mapNotNull(JsonElement::textOrNull).orEmpty()
 }

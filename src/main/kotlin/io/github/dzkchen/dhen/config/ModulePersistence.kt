@@ -1,10 +1,11 @@
 package io.github.dzkchen.dhen.config
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.ui.hud.HudPersistence
+import io.github.dzkchen.dhen.util.flagOrNull
+import io.github.dzkchen.dhen.util.obj
 import org.slf4j.LoggerFactory
 
 object ModulePersistence {
@@ -29,15 +30,15 @@ object ModulePersistence {
 	}
 
 	fun apply(manager: ModuleManager, doc: JsonObject) {
-		val modules = doc.get("modules") as? JsonObject ?: return
+		val modules = doc.obj("modules") ?: return
 		for ((name, element) in modules.entrySet()) {
 			val module = manager[name] ?: continue
 			val entry = element as? JsonObject ?: continue
-			SettingCodec.readInto(entry.get("settings") as? JsonObject, module.settings, name)
-			(entry.get("enabled") as? JsonPrimitive)?.takeIf { it.isBoolean }?.let {
-				if (it.asBoolean) manager.enable(name) else manager.disable(name)
+			SettingCodec.readInto(entry.obj("settings"), module.settings, name)
+			entry.get("enabled").flagOrNull()?.let {
+				if (it) manager.enable(name) else manager.disable(name)
 			}
-			(entry.get(HUD) as? JsonObject)?.let {
+			entry.obj(HUD)?.let {
 				try {
 					HudPersistence.apply(module.hudElements, it)
 				} catch (e: Exception) {

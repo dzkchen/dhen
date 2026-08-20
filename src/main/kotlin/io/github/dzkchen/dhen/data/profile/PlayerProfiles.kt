@@ -172,9 +172,11 @@ object PlayerProfiles {
 		"${dungeons.secrets} secrets over ${dungeons.runs} runs on this profile (${rounded(dungeons.secretsPerRun)} a run), " +
 			"${accountSecrets ?: "an unknown number"} on the whole account, and ${dungeons.bloodMobKills} blood-mob kills."
 
-	private fun powerLine(slice: ProfileSlice): String = when (slice.magicalPower) {
-		null -> "Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
-		0 -> "Magical power ${slice.assumedMagicalPower}, assumed from tuning points because the talisman bag is empty."
+	private fun powerLine(slice: ProfileSlice): String = when {
+		slice.magicalPower == null ->
+			"Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
+		slice.magicalPower == 0 && slice.assumedMagicalPower > 0 ->
+			"Magical power ${slice.assumedMagicalPower}, assumed from tuning points because the talisman bag is empty."
 		else -> "Magical power ${slice.magicalPower}."
 	}
 

@@ -1,11 +1,11 @@
 package io.github.dzkchen.dhen.data.repo
 
 import com.google.gson.JsonArray
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -149,7 +149,7 @@ class RepoConstants private constructor(
 
 		private fun JsonArray?.ints(): List<Int> {
 			if (this == null || isEmpty) return emptyList()
-			return mapNotNull { it.takeIf(JsonElement::isJsonPrimitive)?.asInt }
+			return mapNotNull { it.numberOrNull()?.toInt() }
 		}
 	}
 }

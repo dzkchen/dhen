@@ -183,7 +183,7 @@ class Diagnostics(
 		return "Cleared the profile proxy address."
 	}
 
-	fun profileProxy(address: String, save: () -> Unit = {}): String {
+	fun profileProxy(address: String, save: () -> Unit): String {
 		val wanted = address.trim()
 		val limit = ClientPrefs.profileProxy.maxLength
 		if (wanted.length > limit) return "A proxy address can be at most $limit characters, so that one was not saved."

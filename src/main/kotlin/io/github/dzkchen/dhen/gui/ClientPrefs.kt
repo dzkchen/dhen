@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.config.SettingCodec
 import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.Color
+import io.github.dzkchen.dhen.util.obj
 import org.slf4j.LoggerFactory
 
 internal class PrefSection(val title: String, val settings: List<Setting<*>>)
@@ -82,7 +83,7 @@ internal object ClientPrefs {
 	}
 
 	fun read(doc: JsonObject) {
-		SettingCodec.readInto(doc.get(CLIENT) as? JsonObject, stored, CLIENT)
+		SettingCodec.readInto(doc.obj(CLIENT), stored, CLIENT)
 		applySelection(selected())
 	}
 
@@ -94,7 +95,7 @@ internal object ClientPrefs {
 	}
 
 	fun writeInto(doc: JsonObject): JsonObject {
-		val block = doc.get(CLIENT) as? JsonObject ?: JsonObject().also { doc.add(CLIENT, it) }
+		val block = doc.obj(CLIENT) ?: JsonObject().also { doc.add(CLIENT, it) }
 		SettingCodec.writeInto(block, stored)
 		return doc
 	}

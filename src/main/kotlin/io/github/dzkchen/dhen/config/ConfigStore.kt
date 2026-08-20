@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.JsonFile
+import io.github.dzkchen.dhen.util.number
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,7 +43,7 @@ class ConfigStore(
 
 	fun load(): JsonObject {
 		val doc = read() ?: JsonObject()
-		val from = doc.get("version")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt ?: 0
+		val from = doc.number("version")?.toInt() ?: 0
 		for (v in from until version) migrations.getOrNull(v)?.invoke(doc)
 		stampedVersion = maxOf(from, version)
 		doc.addProperty("version", stampedVersion)

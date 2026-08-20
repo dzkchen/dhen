@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.util
 
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 
@@ -8,12 +9,19 @@ internal fun JsonObject.obj(member: String): JsonObject? = get(member) as? JsonO
 
 internal fun JsonObject.array(member: String): JsonArray? = get(member) as? JsonArray
 
-internal fun JsonObject.flag(member: String): Boolean = primitive(member) { isBoolean }?.asBoolean == true
+internal fun JsonObject.flag(member: String): Boolean = get(member).flagOrNull() == true
 
-internal fun JsonObject.text(member: String): String? =
-	primitive(member) { isString }?.asString?.takeIf(String::isNotBlank)
+internal fun JsonObject.text(member: String): String? = get(member).textOrNull()
 
-internal fun JsonObject.number(member: String): Double? = primitive(member) { isNumber }?.asDouble
+internal fun JsonObject.number(member: String): Double? = get(member).numberOrNull()
 
-private inline fun JsonObject.primitive(member: String, kind: JsonPrimitive.() -> Boolean) =
-	(get(member) as? JsonPrimitive)?.takeIf(kind)
+internal fun JsonElement?.flagOrNull(): Boolean? = primitive { isBoolean }?.asBoolean
+
+internal fun JsonElement?.textOrNull(): String? =
+	primitive { isString }?.asString?.takeIf(String::isNotBlank)
+
+internal fun JsonElement?.numberOrNull(): Double? =
+	primitive { isNumber }?.asDouble?.takeIf(Double::isFinite)
+
+private inline fun JsonElement?.primitive(kind: JsonPrimitive.() -> Boolean) =
+	(this as? JsonPrimitive)?.takeIf(kind)

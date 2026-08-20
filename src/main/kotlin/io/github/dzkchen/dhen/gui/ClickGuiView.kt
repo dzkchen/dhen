@@ -2,7 +2,9 @@ package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.obj
+import io.github.dzkchen.dhen.util.textOrNull
 
 internal class ClickGuiState(val collapsed: MutableSet<String> = linkedSetOf()) {
 	fun toggle(category: String) {
@@ -18,21 +20,21 @@ internal object ClickGuiView {
 	private const val COLLAPSED = "collapsed"
 
 	fun read(doc: JsonObject): ClickGuiState {
-		val block = doc.get(CLICK_GUI) as? JsonObject ?: return ClickGuiState()
+		val block = doc.obj(CLICK_GUI) ?: return ClickGuiState()
 		return ClickGuiState(collapsedIn(block))
 	}
 
 	fun writeInto(doc: JsonObject, state: ClickGuiState): JsonObject {
-		val block = doc.get(CLICK_GUI) as? JsonObject ?: JsonObject().also { doc.add(CLICK_GUI, it) }
+		val block = doc.obj(CLICK_GUI) ?: JsonObject().also { doc.add(CLICK_GUI, it) }
 		block.add(COLLAPSED, namesOf(state.collapsed))
 		return doc
 	}
 
 	private fun collapsedIn(block: JsonObject): MutableSet<String> {
 		val names = linkedSetOf<String>()
-		val stored = block.get(COLLAPSED) as? JsonArray ?: return names
+		val stored = block.array(COLLAPSED) ?: return names
 		for (element in stored) {
-			val name = (element as? JsonPrimitive)?.takeIf { it.isString }?.asString ?: continue
+			val name = element.textOrNull() ?: continue
 			names += name
 		}
 		return names

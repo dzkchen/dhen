@@ -5,10 +5,12 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.text
+import io.github.dzkchen.dhen.util.textOrNull
 import java.util.Locale
 
 class ItemRecipe internal constructor(val ingredients: Map<String, Int>, val output: Int)
 
+private const val TYPE = "type"
 private const val CRAFTING = "crafting"
 private const val IMPLIED_AMOUNT = 1
 
@@ -29,8 +31,7 @@ internal fun recipes(json: JsonObject): List<ItemRecipe> {
 
 private fun crafting(element: JsonElement?): ItemRecipe? {
 	val json = element as? JsonObject ?: return null
-	val type = json.text("type")
-	if (type != null && type != CRAFTING) return null
+	if (json.has(TYPE) && json.text(TYPE) != CRAFTING) return null
 	val ingredients = LinkedHashMap<String, Int>(SLOTS.size)
 	for (slot in SLOTS) ingredients.add(json.get(slot))
 	if (ingredients.isEmpty()) return null
@@ -39,8 +40,7 @@ private fun crafting(element: JsonElement?): ItemRecipe? {
 }
 
 private fun MutableMap<String, Int>.add(element: JsonElement?) {
-	val raw = element?.takeIf(JsonElement::isJsonPrimitive)?.asString
-	if (raw.isNullOrEmpty()) return
+	val raw = element.textOrNull() ?: return
 	val amount = raw.substringAfter(':', "").toIntOrNull() ?: IMPLIED_AMOUNT
 	merge(raw.substringBefore(':').uppercase(Locale.ROOT), amount, Int::plus)
 }
