@@ -47,6 +47,56 @@ class SkyBlockItem internal constructor(
 
 	val isStarred: Boolean get() = upgradeLevel > 0
 
+	val artOfPeace: Boolean get() = tag.getBooleanOr("artOfPeaceApplied", false)
+
+	val powerScroll: String get() = tag.getStringOr("power_ability_scroll", "")
+
+	val woodSingularities: Int get() = tag.getIntOr("wood_singularity_count", 0)
+
+	val jalapenoBooks: Int get() = tag.getIntOr("jalapeno_count", 0)
+
+	val hasStatsBook: Boolean get() = tag.contains("stats_book")
+
+	val enrichment: String get() = tag.getStringOr("talisman_enrichment", "")
+
+	val divanPowderCoating: Boolean get() = tag.getBooleanOr("divan_powder_coating", false)
+
+	val mithrilInfusion: Boolean get() = tag.getBooleanOr("mithril_infusion", false)
+
+	val freeWill: Boolean get() = tag.getBooleanOr("free_will", false)
+
+	val wetBooks: Int get() = tag.getIntOr("wet_book_count", 0)
+
+	val farmingForDummies: Int get() = tag.getIntOr("farming_for_dummies_count", 0)
+
+	val overclockers: Int get() = tag.getIntOr("levelable_overclocks", 0)
+
+	val polarvoidBooks: Int get() = tag.getIntOr("polarvoid", 0)
+
+	val bookwormBooks: Int get() = tag.getIntOr("bookworm_books", 0)
+
+	val pocketSacksInASack: Int get() = tag.getIntOr("sack_pss", 0)
+
+	val manaDisintegrators: Int get() = tag.getIntOr("mana_disintegrator_count", 0)
+
+	val helmetSkin: String get() = tag.getStringOr("skin", "")
+
+	val armorDye: String get() = tag.getStringOr("dye_item", "")
+
+	val abilityScrolls: List<String> get() = strings("ability_scroll")
+
+	val boosters: List<String> get() = strings("boosters")
+
+	val drillUpgrades: List<String> get() = DRILL_PARTS.mapNotNull { named(tag.getStringOr(it, "")) }
+
+	val rodParts: List<String> get() = ROD_PARTS.mapNotNull { named(tag.getCompoundOrEmpty(it).getStringOr("part", "")) }
+
+	private fun strings(key: String): List<String> {
+		val list = tag.getListOrEmpty(key)
+		if (list.isEmpty()) return emptyList()
+		return (0 until list.size).mapNotNull { named(list.getStringOr(it, "")) }
+	}
+
 	internal fun rarity(stack: ItemStack): ItemRarity =
 		resolvedRarity ?: ItemRarity.of(stack).also { resolvedRarity = it }
 
@@ -79,6 +129,9 @@ class SkyBlockItem internal constructor(
 		private const val POTION = "POTION"
 		private const val PET = "PET"
 		private const val ENHANCED = "-ENHANCED"
+
+		private val DRILL_PARTS = listOf("drill_part_upgrade_module", "drill_part_engine", "drill_part_fuel_tank")
+		private val ROD_PARTS = listOf("hook", "line", "sinker")
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
@@ -185,6 +238,8 @@ class SkyBlockItem internal constructor(
 			}
 			return null
 		}
+
+		private fun named(raw: String): String? = raw.takeIf(String::isNotEmpty)?.uppercase(Locale.ROOT)
 
 		private fun JsonObject.text(member: String): String? =
 			get(member)?.takeIf(JsonElement::isJsonPrimitive)?.asString?.takeIf(String::isNotEmpty)

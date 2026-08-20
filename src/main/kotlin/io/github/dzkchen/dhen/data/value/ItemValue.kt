@@ -28,8 +28,14 @@ object ItemValue {
 	private const val EFFICIENCY = "efficiency"
 	private const val KUUDRA_TIER_STARS = 10
 	private const val HOT_POTATO_CAP = 10
+	private const val FUMING_POTATO_CAP = 5
 	private const val FIRST_MASTER_STAR = 5
 	private const val MAX_COMBINE_STEPS = 5
+	private const val FREE_EFFICIENCY_LEVELS = 5
+	private const val RUNE = "RUNE"
+	private const val UNIQUE_RUNE = "UNIQUE_RUNE"
+	private const val ULTIMATE_WITHER_SCROLL = "ULTIMATE_WITHER_SCROLL"
+	private const val BOOSTER = "_BOOSTER"
 	private const val LEGENDARY_PET_LEVEL = 100
 	private const val DRAGON_PET_LEVEL = 200
 
@@ -44,15 +50,42 @@ object ItemValue {
 		"RUBY", "OPAL", "ONYX", "AQUAMARINE", "CITRINE", "PERIDOT"
 	)
 	private val QUALITIES = setOf("ROUGH", "FLAWED", "FINE", "FLAWLESS", "PERFECT")
+	private val WITHER_SCROLLS = listOf("IMPLOSION_SCROLL", "WITHER_SHIELD_SCROLL", "SHADOW_WARP_SCROLL")
+	private val BUILT_IN_SILEX = mapOf("STONK_PICKAXE" to 1, "PROMISING_SPADE" to 5)
 
 	private val MODIFIERS: List<(Fold) -> Double> = listOf(
 		::reforgeStone,
 		::recombobulator,
 		::artOfWar,
+		::artOfPeace,
 		::etherwarp,
+		::powerScroll,
+		::woodSingularity,
+		::jalapenoBook,
+		::statsBook,
+		::enrichment,
+		::divanPowderCoating,
+		::mithrilInfusion,
+		::freeWill,
 		::stars,
 		::masterStars,
 		::hotPotatoBooks,
+		::wetBook,
+		::farmingForDummies,
+		::overclocker,
+		::silex,
+		::transmissionTuners,
+		::manaDisintegrators,
+		::polarvoidBook,
+		::bookwormBook,
+		::pocketSackInASack,
+		::helmetSkin,
+		::armorDye,
+		::rune,
+		::abilityScrolls,
+		::boosters,
+		::drillUpgrades,
+		::rodParts,
 		::gemstoneSlotUnlockCost,
 		::gemstones,
 		::enchantments
@@ -105,21 +138,97 @@ object ItemValue {
 		return costs[applied.name] ?: if (applied > ItemRarity.MYTHIC) costs[ItemRarity.LEGENDARY.name] else null
 	}
 
-	private fun recombobulator(fold: Fold): Double =
-		if (!fold.item.isRecombobulated) 0.0 else fold.entry("RECOMBOBULATOR_3000")
+	private fun recombobulator(fold: Fold): Double = fold.once(fold.item.isRecombobulated, "RECOMBOBULATOR_3000")
 
-	private fun artOfWar(fold: Fold): Double =
-		if (fold.item.artOfWar <= 0) 0.0 else fold.entry("THE_ART_OF_WAR")
+	private fun artOfWar(fold: Fold): Double = fold.once(fold.item.artOfWar > 0, "THE_ART_OF_WAR")
+
+	private fun artOfPeace(fold: Fold): Double = fold.once(fold.item.artOfPeace, "THE_ART_OF_PEACE")
 
 	private fun etherwarp(fold: Fold): Double =
 		if (!fold.item.ethermerge) 0.0
 		else fold.entry("ETHERWARP_CONDUIT") + fold.entry("ETHERWARP_MERGER")
 
+	private fun powerScroll(fold: Fold): Double {
+		val scroll = fold.item.powerScroll
+		return if (scroll.isEmpty()) 0.0 else fold.entry(scroll)
+	}
+
+	private fun woodSingularity(fold: Fold): Double = fold.once(fold.item.woodSingularities > 0, "WOOD_SINGULARITY")
+
+	private fun jalapenoBook(fold: Fold): Double = fold.once(fold.item.jalapenoBooks > 0, "JALAPENO_BOOK")
+
+	private fun statsBook(fold: Fold): Double = fold.once(fold.item.hasStatsBook, "BOOK_OF_STATS")
+
+	private fun enrichment(fold: Fold): Double {
+		val enrichment = fold.item.enrichment
+		return if (enrichment.isEmpty()) 0.0 else fold.entry("TALISMAN_ENRICHMENT_$enrichment")
+	}
+
+	private fun divanPowderCoating(fold: Fold): Double =
+		fold.once(fold.item.divanPowderCoating, "DIVAN_POWDER_COATING")
+
+	private fun mithrilInfusion(fold: Fold): Double = fold.once(fold.item.mithrilInfusion, "MITHRIL_INFUSION")
+
+	private fun freeWill(fold: Fold): Double = fold.once(fold.item.freeWill, "FREE_WILL")
+
+	private fun wetBook(fold: Fold): Double = fold.counted(fold.item.wetBooks, "WET_BOOK")
+
+	private fun farmingForDummies(fold: Fold): Double =
+		fold.counted(fold.item.farmingForDummies, "FARMING_FOR_DUMMIES")
+
+	private fun overclocker(fold: Fold): Double = fold.counted(fold.item.overclockers, "OVERCLOCKER_3000")
+
+	private fun silex(fold: Fold): Double = fold.counted(silexTiers(fold.item), "SIL_EX")
+
+	private fun silexTiers(item: SkyBlockItem): Int {
+		val efficiency = item.enchantments[EFFICIENCY] ?: return 0
+		return efficiency - FREE_EFFICIENCY_LEVELS - (BUILT_IN_SILEX[item.id] ?: 0)
+	}
+
+	private fun transmissionTuners(fold: Fold): Double =
+		fold.counted(fold.item.tunedTransmission, "TRANSMISSION_TUNER")
+
+	private fun manaDisintegrators(fold: Fold): Double =
+		fold.counted(fold.item.manaDisintegrators, "MANA_DISINTEGRATOR")
+
+	private fun polarvoidBook(fold: Fold): Double = fold.counted(fold.item.polarvoidBooks, "POLARVOID_BOOK")
+
+	private fun bookwormBook(fold: Fold): Double = fold.counted(fold.item.bookwormBooks, "BOOKWORM_BOOK")
+
+	private fun pocketSackInASack(fold: Fold): Double =
+		fold.counted(fold.item.pocketSacksInASack, "POCKET_SACK_IN_A_SACK")
+
+	private fun helmetSkin(fold: Fold): Double = fold.cosmetic("Skin", fold.item.helmetSkin)
+
+	private fun armorDye(fold: Fold): Double = fold.cosmetic("Dye", fold.item.armorDye)
+
+	private fun rune(fold: Fold): Double {
+		if (fold.item.id == RUNE || fold.item.id == UNIQUE_RUNE) return 0.0
+		val applied = fold.item.runes.entries.firstOrNull() ?: return 0.0
+		if (applied.value <= 0) return 0.0
+		return fold.cosmetic("Rune", "$RUNE-${applied.key.uppercase(Locale.ROOT)}-${applied.value}")
+	}
+
+	private fun abilityScrolls(fold: Fold): Double {
+		val scrolls = LinkedHashSet<String>()
+		for (scroll in fold.item.abilityScrolls) {
+			if (scroll == ULTIMATE_WITHER_SCROLL) scrolls += WITHER_SCROLLS else scrolls += scroll
+		}
+		return fold.each(scrolls)
+	}
+
+	private fun boosters(fold: Fold): Double = fold.each(fold.item.boosters.map { it + BOOSTER })
+
+	private fun drillUpgrades(fold: Fold): Double = fold.each(fold.item.drillUpgrades)
+
+	private fun rodParts(fold: Fold): Double = fold.each(fold.item.rodParts)
+
 	private fun hotPotatoBooks(fold: Fold): Double {
 		val count = fold.item.hotPotatoCount
 		if (count <= 0) return 0.0
 		var total = fold.entry("HOT_POTATO_BOOK", count.coerceAtMost(HOT_POTATO_CAP))
-		if (count > HOT_POTATO_CAP) total += fold.entry("FUMING_POTATO_BOOK", count - HOT_POTATO_CAP)
+		val fuming = (count - HOT_POTATO_CAP).coerceAtMost(FUMING_POTATO_CAP)
+		if (fuming > 0) total += fold.entry("FUMING_POTATO_BOOK", fuming)
 		return total
 	}
 
@@ -239,6 +348,19 @@ object ItemValue {
 				return 0.0
 			}
 			return coins(counted, price * count)
+		}
+
+		fun once(present: Boolean, marketId: String): Double = if (!present) 0.0 else entry(marketId)
+
+		fun counted(count: Int, marketId: String): Double = if (count <= 0) 0.0 else entry(marketId, count)
+
+		fun cosmetic(kind: String, marketId: String): Double =
+			if (marketId.isEmpty()) 0.0 else entry(marketId, label = "$kind: ${displayName(marketId)}")
+
+		fun each(marketIds: Iterable<String>): Double {
+			var total = 0.0
+			for (marketId in marketIds) total += entry(marketId)
+			return total
 		}
 
 		fun coins(label: String, amount: Double): Double {
