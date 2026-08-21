@@ -61,6 +61,7 @@ object PlayerProfiles {
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
 	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
 	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
+	private val gardens = Cache<GardenProfile>(Endpoint.GARDEN.ttl, MAX_HELD_PROFILES, repoReady)
 
 	@Volatile
 	private var host: Host? = null
@@ -132,6 +133,9 @@ object PlayerProfiles {
 
 	suspend fun profile(uuid: String): SkyBlockProfile? =
 		cached(models, uuid) { profiles(uuid)?.let { reply -> SkyBlockProfiles.of(uuid, reply) } }
+
+	suspend fun gardenProfile(profileId: String): GardenProfile? =
+		cached(gardens, profileId) { garden(profileId)?.let(GardenProfiles::of) }
 
 	suspend fun accountSecrets(uuid: String): Long? = player(uuid)?.let(ProfileSlices::secrets)
 
@@ -234,11 +238,12 @@ object PlayerProfiles {
 		slices.clear()
 		models.clear()
 		holdings.clear()
+		gardens.clear()
 	}
 
 	internal fun cacheSummary(): String = Endpoint.entries.joinToString(
 		prefix = "uuid=${uuids.size}, ",
-		postfix = ", slices=${slices.size}, models=${models.size}, holdings=${holdings.size}"
+		postfix = ", slices=${slices.size}, models=${models.size}, holdings=${holdings.size}, gardens=${gardens.size}"
 	) { "${it.name.lowercase(Locale.ROOT)}=${replies.getValue(it).size}" }
 
 	private suspend fun decode(uuid: String): ProfileHoldings? {

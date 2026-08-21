@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.data
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoSource
@@ -28,6 +30,8 @@ internal object DataFixture {
 
 		override fun download(url: String, destination: Path): Boolean = false
 	}
+
+	fun json(body: String): JsonObject = JsonParser.parseString(body).asJsonObject
 
 	fun installRepo(
 		scope: CoroutineScope,

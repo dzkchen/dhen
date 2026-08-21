@@ -183,7 +183,7 @@ class PlayerProfilesTest {
 		PlayerProfiles.profiles(UUID)
 		source.onRequest = {}
 
-		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0, models=0, holdings=0", PlayerProfiles.cacheSummary())
+		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0, models=0, holdings=0, gardens=0", PlayerProfiles.cacheSummary())
 	}
 
 	@Test

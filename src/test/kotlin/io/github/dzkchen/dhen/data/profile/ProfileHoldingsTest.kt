@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -11,6 +12,7 @@ import io.github.dzkchen.dhen.data.profile.BagFixture.bag
 import io.github.dzkchen.dhen.data.profile.BagFixture.slot
 import io.github.dzkchen.dhen.data.value.Networth
 import io.github.dzkchen.dhen.data.value.NetworthCategory
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import net.minecraft.core.component.DataComponents
@@ -26,7 +28,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
 class ProfileHoldingsTest {
 	@TempDir
@@ -78,7 +79,7 @@ class ProfileHoldingsTest {
 	@Test
 	fun `backpack pages read in page order and a page that is not numbered is skipped`() {
 		val holdings = holdings(
-			member = json(
+			member = DataFixture.json(
 				"""{"inventory":{"backpack_contents":{
 					"2":{"data":"${bag(slot("SECOND"))}"},
 					"scrambled":{"data":"${bag(slot("NEVER"))}"},
@@ -92,7 +93,7 @@ class ProfileHoldingsTest {
 	@Test
 	fun `every inventory is priced under its own heading`() {
 		val holdings = holdings(
-			member = json(
+			member = DataFixture.json(
 				"""{"inventory":{
 					"inv_contents":{"data":"${bag(slot("INV"))}"},
 					"inv_armor":{"data":"${bag(slot("WORN"))}"},
@@ -124,7 +125,7 @@ class ProfileHoldingsTest {
 	@Test
 	fun `a sack nobody has anything in is left out`() {
 		val holdings = holdings(
-			member = json("""{"inventory":{"sacks_counts":{"ENCHANTED_DIAMOND":5,"EMPTY_SACK":0}}}""")
+			member = DataFixture.json("""{"inventory":{"sacks_counts":{"ENCHANTED_DIAMOND":5,"EMPTY_SACK":0}}}""")
 		)
 
 		assertEquals(mapOf("ENCHANTED_DIAMOND" to 5L), holdings.sacks)
@@ -133,7 +134,7 @@ class ProfileHoldingsTest {
 	@Test
 	fun `a pet reads back whole, and one missing its rarity is dropped`() {
 		val holdings = holdings(
-			member = json(
+			member = DataFixture.json(
 				"""{"pets_data":{"pets":[
 					{"type":"ENDER_DRAGON","tier":"LEGENDARY","exp":25353230,"heldItem":"PET_ITEM_TIER_BOOST","candyUsed":3},
 					{"type":"GOLDEN_DRAGON"}]}}"""
@@ -151,7 +152,7 @@ class ProfileHoldingsTest {
 	@Test
 	fun `the wardrobe and the equipment sets both count as loadout`() {
 		val holdings = holdings(
-			member = json(
+			member = DataFixture.json(
 				"""{"loadout":{
 					"armor":{"equipped_set":0,"1":{"id":1,"HELMET":{"data":"${bag(slot("HELM"))}"},"BOOTS":{"data":"${bag(slot("BOOTS"))}"}}},
 					"equipment":{"equipped_set":0,"1":{"id":1,"EQUIPMENT_SLOT_1":{"data":"${bag(slot("CLOAK"))}"}}}}}"""
@@ -164,8 +165,8 @@ class ProfileHoldingsTest {
 	@Test
 	fun `the three coin balances keep the names the networth tab shows`() {
 		val holdings = holdings(
-			profile = json("""{"banking":{"balance":300}}"""),
-			member = json("""{"currencies":{"coin_purse":100},"profile":{"bank_account":200}}""")
+			profile = DataFixture.json("""{"banking":{"balance":300}}"""),
+			member = DataFixture.json("""{"currencies":{"coin_purse":100},"profile":{"bank_account":200}}""")
 		)
 
 		assertEquals(mapOf("Purse" to 100L, "Solo Bank" to 200L, "Profile Bank" to 300L), holdings.currency())
@@ -190,7 +191,7 @@ class ProfileHoldingsTest {
 		DataFixture.installPrices(scope, LOWEST_BINS)
 
 		val holdings = holdings(
-			member = json(
+			member = DataFixture.json(
 				"""{"inventory":{
 					"inv_contents":{"data":"${bag(slot("HYPERION", "§6Hyperion"))}"},
 					"sacks_counts":{"ENCHANTED_DIAMOND":2}},
@@ -207,7 +208,7 @@ class ProfileHoldingsTest {
 	private fun installRepo(vararg items: Pair<String, String>) =
 		DataFixture.installRepo(scope, home.resolve("repo"), items.toMap())
 
-	private fun holdings(profile: JsonObject = json("""{"banking":{}}"""), member: JsonObject): ProfileHoldings =
+	private fun holdings(profile: JsonObject = DataFixture.json("""{"banking":{}}"""), member: JsonObject): ProfileHoldings =
 		ProfileHoldings.of(profile, member)
 
 	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
@@ -226,7 +227,6 @@ class ProfileHoldingsTest {
 		return slot("SKULL", "§fA Head").also { it.getCompoundOrEmpty("tag").put("SkullOwner", owner) }
 	}
 
-	private fun json(text: String): JsonObject = JsonParser.parseString(text).asJsonObject
 
 	private companion object {
 		@JvmStatic

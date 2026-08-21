@@ -130,6 +130,14 @@ class SkyBlockProfileTest {
 	}
 
 	@Test
+	fun `the long tail hangs off the same profile the spine does`() {
+		val profile = decode()
+
+		assertEquals(2, profile.mining!!.level)
+		assertEquals(2, profile.farming!!.farmingLevelCap)
+	}
+
+	@Test
 	fun `a profile with none of these sections decodes to empty rather than throwing`() {
 		installRepo()
 		val profile = SkyBlockProfiles.of(VIEWED, bareReply())!!
@@ -140,6 +148,8 @@ class SkyBlockProfileTest {
 		assertTrue(profile.collections.isEmpty())
 		assertTrue(profile.minions.isEmpty())
 		assertTrue(profile.bestiary.isEmpty())
+		assertNull(profile.mining)
+		assertNull(profile.farming)
 		assertEquals(0.0, profile.skills.getValue(Skill.FARMING).experience)
 	}
 
@@ -193,6 +203,8 @@ class SkyBlockProfileTest {
 								"crafted_generators":["COBBLESTONE_5","MAGMA_CUBE_2"]
 							},
 							"jacobs_contest":{"perks":{"farming_level_cap":2}},
+							"skill_tree":{"experience":{"mining":100}},
+							"mining_core":{"powder_mithril":40},
 							"pets_data":{"pet_care":{"pet_types_sacrificed":["ROC","HORSE"]}},
 							"collection":{"WHEAT":10},
 							"slayer":{"slayer_bosses":{

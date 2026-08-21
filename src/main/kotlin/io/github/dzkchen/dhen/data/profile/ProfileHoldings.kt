@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.value.NetworthCategory

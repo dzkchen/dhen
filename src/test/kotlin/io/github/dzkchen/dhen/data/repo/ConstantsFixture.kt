@@ -42,10 +42,19 @@ internal object ConstantsFixture {
 	const val LEVELING = """
 		{
 		  "leveling_xp": [50, 125, 200, 300, 500],
-		  "leveling_caps": {"farming": 3, "combat": 5, "runecrafting": 2, "social": 2},
+		  "leveling_caps": {"farming": 3, "combat": 5, "runecrafting": 2, "social": 2, "HOTM": 3, "HOTF": 2},
+		  "HOTM": [0, 100, 200, 400],
+		  "HOTF": [0, 50, 150],
 		  "runecrafting_xp": [50, 100],
 		  "social": [50, 100],
 		  "slayer_xp": {"zombie": [5, 15, 200], "vampire": [20, 75]}
+		}
+	"""
+
+	const val GARDEN = """
+		{
+		  "garden_exp": [0, 70, 70, 140],
+		  "crop_milestones": {"WHEAT": [30, 50, 80], "CARROT": [100, 150]}
 		}
 	"""
 

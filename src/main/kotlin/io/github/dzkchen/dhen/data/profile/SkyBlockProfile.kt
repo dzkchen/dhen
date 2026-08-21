@@ -44,7 +44,9 @@ class SkyBlockProfile internal constructor(
 	val dungeons: DungeonSlice?,
 	val collections: Map<String, Long>,
 	val minions: Map<String, Int>,
-	val bestiary: Map<String, BestiaryEntry>
+	val bestiary: Map<String, BestiaryEntry>,
+	val mining: MiningProfile?,
+	val farming: FarmingProfile?
 )
 
 internal object SkyBlockProfiles {
@@ -53,17 +55,20 @@ internal object SkyBlockProfiles {
 		val member = ProfileSlices.member(profile, uuid) ?: return null
 		val members = profile.obj("members") ?: JsonObject()
 		val everyMember = members.keySet().mapNotNull(members::obj)
+		val farming = FarmingProfiles.of(member)
 		return SkyBlockProfile(
 			profileId = profile.text("profile_id") ?: "",
 			cuteName = profile.text("cute_name") ?: "",
 			mode = mode(profile.text("game_mode")),
 			members = stillOnProfile(members),
-			skills = skills(member, everyMember),
+			skills = skills(member, everyMember, farming?.farmingLevelCap ?: 0),
 			slayers = slayers(member.obj("slayer")?.obj("slayer_bosses")),
 			dungeons = ProfileSlices.dungeons(member),
 			collections = collections(everyMember),
 			minions = minions(everyMember),
-			bestiary = bestiary(member.obj("bestiary"))
+			bestiary = bestiary(member.obj("bestiary")),
+			mining = MiningProfiles.of(member),
+			farming = farming
 		)
 	}
 
@@ -77,9 +82,8 @@ internal object SkyBlockProfiles {
 	private fun stillOnProfile(members: JsonObject): List<String> =
 		members.keySet().filter { members.obj(it)?.obj("profile")?.has("deletion_notice") != true }
 
-	private fun skills(member: JsonObject, everyMember: List<JsonObject>): Map<Skill, SkillProgress> {
+	private fun skills(member: JsonObject, everyMember: List<JsonObject>, farmingBonus: Int): Map<Skill, SkillProgress> {
 		val experience = member.obj("player_data")?.obj("experience")
-		val farmingBonus = member.obj("jacobs_contest")?.obj("perks")?.number("farming_level_cap")?.toInt() ?: 0
 		val tamingBonus = member.obj("pets_data")?.obj("pet_care")?.array("pet_types_sacrificed")?.size() ?: 0
 		val constants = ItemRepo.constants
 		val skills = LinkedHashMap<Skill, SkillProgress>(Skill.entries.size)

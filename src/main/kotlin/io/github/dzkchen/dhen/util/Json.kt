@@ -17,6 +17,11 @@ internal fun JsonObject.text(member: String): String? = get(member).textOrNull()
 
 internal fun JsonObject.number(member: String): Double? = get(member).numberOrNull()
 
+internal fun JsonObject.flagOrNull(member: String): Boolean? = get(member).flagOrNull()
+
+internal fun JsonObject?.ints(fallback: Int = 0): Map<String, Int> =
+	keys().associateWith { this?.number(it)?.toInt() ?: fallback }
+
 internal fun JsonElement?.flagOrNull(): Boolean? = primitive { isBoolean }?.asBoolean
 
 internal fun JsonElement?.textOrNull(): String? =

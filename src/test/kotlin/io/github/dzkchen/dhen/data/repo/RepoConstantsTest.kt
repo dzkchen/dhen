@@ -132,6 +132,49 @@ class RepoConstantsTest {
 	}
 
 	@Test
+	fun `a skill whose own ladder is missing falls back to the shared one rather than reading zero`() {
+		write("leveling", """{"leveling_xp": [50, 125, 200], "leveling_caps": {"runecrafting": 3}}""")
+
+		val constants = read()
+
+		assertEquals(2, constants.level("runecrafting", 200.0))
+		assertEquals(2, constants.level("social", 200.0))
+	}
+
+	@Test
+	fun `a hole in a levelling table keeps the levels above it in place rather than shifting them down`() {
+		write("leveling", """{"leveling_xp": [50, null, 200], "leveling_caps": {"combat": 3}}""")
+
+		val constants = read()
+
+		assertEquals(0, constants.level("combat", 49.0))
+		assertEquals(2, constants.level("combat", 50.0))
+		assertEquals(3, constants.level("combat", 250.0))
+	}
+
+	@Test
+	fun `heart of the mountain and heart of the forest level off the repo's own tables`() {
+		write("leveling", ConstantsFixture.LEVELING)
+
+		val constants = read()
+
+		assertEquals(1, constants.treeLevel("HOTM", 0.0))
+		assertEquals(2, constants.treeLevel("HOTM", 100.0))
+		assertEquals(3, constants.treeLevel("HOTM", 9999.0))
+		assertEquals(3, constants.treeMaxLevel("HOTM"))
+		assertEquals(2, constants.treeMaxLevel("HOTF"))
+	}
+
+	@Test
+	fun `a repo with no garden table reports no garden level and no milestone`() {
+		val constants = read()
+
+		assertEquals(0, constants.gardenLevel(9999.0))
+		assertEquals(0, constants.gardenMaxLevel)
+		assertEquals(0, constants.cropMilestone("WHEAT", 9999.0))
+	}
+
+	@Test
 	fun `a repo with no levelling table reports no level rather than a made-up one`() {
 		val constants = read()
 
