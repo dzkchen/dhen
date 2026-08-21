@@ -19,6 +19,8 @@ internal object DataFixture {
 
 	const val NO_SPARE = "{}"
 
+	const val ANY_ITEM = """{"internalname":"ASPECT_OF_THE_END","displayname":"§5Aspect of the End"}"""
+
 	val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 	val OFFLINE = object : RepoTransport {

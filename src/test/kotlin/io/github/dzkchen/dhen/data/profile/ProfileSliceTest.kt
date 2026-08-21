@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.util.Base64
+import kotlin.time.Duration.Companion.milliseconds
 
 class ProfileSliceTest {
 	@Test
@@ -29,12 +30,15 @@ class ProfileSliceTest {
 		assertEquals("healer", dungeons.selectedClass)
 		assertEquals(42L, dungeons.secrets)
 		assertEquals(15, dungeons.bloodMobKills)
-		assertEquals(mapOf(0 to 5, 1 to 2, 2 to 3), dungeons.catacombs.completions)
-		assertEquals(mapOf(1 to 1000L, 2 to 2000L), dungeons.catacombs.fastestSMillis)
-		assertEquals(mapOf(1 to 900L), dungeons.catacombs.fastestSPlusMillis)
-		assertEquals(mapOf(3 to 1), dungeons.masterCatacombs.completions)
-		assertEquals(mapOf(3 to 1500L), dungeons.masterCatacombs.fastestSMillis)
-		assertEquals(mapOf(3 to 1400L), dungeons.masterCatacombs.fastestSPlusMillis)
+		assertEquals(setOf(0, 1, 2), dungeons.catacombs.keys)
+		assertEquals(5, dungeons.catacombs.getValue(0).completions)
+		assertEquals(1000.milliseconds, dungeons.catacombs.getValue(1).bestS)
+		assertEquals(900.milliseconds, dungeons.catacombs.getValue(1).bestSPlus)
+		assertNull(dungeons.catacombs.getValue(0).bestS)
+		assertNull(dungeons.catacombs[9])
+		assertEquals(1, dungeons.masterCatacombs.getValue(3).completions)
+		assertEquals(1500.milliseconds, dungeons.masterCatacombs.getValue(3).bestS)
+		assertEquals(1400.milliseconds, dungeons.masterCatacombs.getValue(3).bestSPlus)
 	}
 
 	@Test
@@ -161,7 +165,7 @@ class ProfileSliceTest {
 		assertEquals("Apple", bare.cuteName)
 	}
 
-	private fun noFloors() = DungeonFloors(emptyMap(), emptyMap(), emptyMap())
+	private fun noFloors() = DungeonFloors(emptyMap())
 
 	private fun member(
 		talismanBag: String? = null,

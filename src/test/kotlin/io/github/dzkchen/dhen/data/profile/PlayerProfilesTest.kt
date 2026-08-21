@@ -1,5 +1,9 @@
 package io.github.dzkchen.dhen.data.profile
 
+import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.RepoState
+import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
@@ -10,13 +14,19 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
 class PlayerProfilesTest {
+	@TempDir
+	lateinit var home: Path
+
 	private val scope = CoroutineScope(Dispatchers.Unconfined)
 	private val source = FakeSource()
 	private var base = PROXY
@@ -25,6 +35,22 @@ class PlayerProfilesTest {
 	@AfterEach
 	fun uninstall() {
 		PlayerProfiles.uninstall()
+		DataFixture.uninstall()
+	}
+
+	@Test
+	fun `asking for player data starts the item repo the levels are read out of`() {
+		val root = home.resolve("repo")
+		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, DataFixture.OFFLINE))
+		install()
+		assertEquals(RepoState.IDLE, ItemRepo.state)
+
+		val requirement = PlayerProfiles.require()
+
+		assertEquals(1, ItemRepo.required)
+		assertNotEquals(RepoState.IDLE, ItemRepo.state)
+		requirement.unsubscribe()
+		assertEquals(0, ItemRepo.required)
 	}
 
 	@Test
@@ -157,7 +183,7 @@ class PlayerProfilesTest {
 		PlayerProfiles.profiles(UUID)
 		source.onRequest = {}
 
-		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0, holdings=0", PlayerProfiles.cacheSummary())
+		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0, models=0, holdings=0", PlayerProfiles.cacheSummary())
 	}
 
 	@Test
@@ -179,6 +205,29 @@ class PlayerProfilesTest {
 		assertEquals(1, source.requests.size)
 		PlayerProfiles.slice(UUID)
 		assertEquals(1, source.requests.size)
+	}
+
+	@Test
+	fun `profile decodes the fetched reply and keeps it once the item repo is ready`() = runBlocking {
+		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+		DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+		install()
+		PlayerProfiles.require()
+
+		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.cuteName)
+		assertTrue(PlayerProfiles.cacheSummary().contains("models=1"))
+	}
+
+	@Test
+	fun `a profile decoded before the item repo is ready is never kept, because its levels would be zero`() = runBlocking {
+		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+		install()
+		PlayerProfiles.require()
+
+		assertEquals(RepoState.IDLE, ItemRepo.state)
+		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.cuteName)
+
+		assertTrue(PlayerProfiles.cacheSummary().contains("models=0"))
 	}
 
 	@Test

@@ -92,6 +92,57 @@ class RepoConstantsTest {
 		assertEquals(1, read().petLevel("AMMONITE", "DIVINE", 9999.0))
 	}
 
+	@Test
+	fun `skill experience is spent one level at a time and stops at the cap the repo names`() {
+		write("leveling", ConstantsFixture.LEVELING)
+
+		val constants = read()
+
+		assertEquals(0, constants.level("combat", 49.0))
+		assertEquals(1, constants.level("combat", 50.0))
+		assertEquals(4, constants.level("combat", 675.0))
+		assertEquals(5, constants.level("combat", 9999.0))
+		assertEquals(3, constants.level("farming", 9999.0))
+		assertEquals(5, constants.skillLevel("farming", 9999.0, constants.skillCap("farming") + 2))
+	}
+
+	@Test
+	fun `runecrafting and social level off their own tables, and an unlisted skill caps at fifty`() {
+		write("leveling", ConstantsFixture.LEVELING)
+
+		val constants = read()
+
+		assertEquals(2, constants.level("runecrafting", 150.0))
+		assertEquals(1, constants.level("social", 70.0))
+		assertEquals(50, constants.skillCap("hunting"))
+	}
+
+	@Test
+	fun `slayer experience is a running total rather than a cost per level`() {
+		write("leveling", ConstantsFixture.LEVELING)
+
+		val constants = read()
+
+		assertEquals(0, constants.slayerLevel("zombie", 4.0))
+		assertEquals(1, constants.slayerLevel("zombie", 5.0))
+		assertEquals(2, constants.slayerLevel("zombie", 100.0))
+		assertEquals(3, constants.slayerLevel("zombie", 9999.0))
+		assertEquals(3, constants.slayerMaxLevel("zombie"))
+		assertEquals(2, constants.slayerMaxLevel("vampire"))
+	}
+
+	@Test
+	fun `a repo with no levelling table reports no level rather than a made-up one`() {
+		val constants = read()
+
+		assertEquals(0, constants.level("combat", 9999.0))
+		assertEquals(0, constants.slayerLevel("zombie", 9999.0))
+		assertEquals(0, constants.slayerMaxLevel("zombie"))
+	}
+
+	private fun RepoConstants.level(skill: String, experience: Double): Int =
+		skillLevel(skill, experience, skillCap(skill))
+
 	private fun read(): RepoConstants = RepoConstants.read(home.resolve("constants"))
 
 	private fun write(name: String, body: String) {

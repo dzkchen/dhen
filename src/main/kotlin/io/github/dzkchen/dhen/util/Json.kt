@@ -5,6 +5,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 
+internal fun JsonObject?.keys(): Set<String> = this?.keySet() ?: emptySet()
+
 internal fun JsonObject.obj(member: String): JsonObject? = get(member) as? JsonObject
 
 internal fun JsonObject.array(member: String): JsonArray? = get(member) as? JsonArray

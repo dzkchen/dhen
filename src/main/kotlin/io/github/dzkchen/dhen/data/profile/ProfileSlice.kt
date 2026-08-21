@@ -3,9 +3,12 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 private val COMPLETED_FLOORS = 1..7
 private val DUNGEON_CLASSES = listOf("healer", "mage", "berserk", "archer", "tank")
@@ -19,12 +22,14 @@ class ProfileStatus internal constructor(
 	val map: String?
 )
 
-class DungeonFloors internal constructor(
-	val completions: Map<Int, Int>,
-	val fastestSMillis: Map<Int, Long>,
-	val fastestSPlusMillis: Map<Int, Long>
-) {
-	val runs: Int = COMPLETED_FLOORS.sumOf { completions[it] ?: 0 }
+class DungeonFloor internal constructor(
+	val completions: Int,
+	val bestS: Duration?,
+	val bestSPlus: Duration?
+)
+
+class DungeonFloors internal constructor(floors: Map<Int, DungeonFloor>) : Map<Int, DungeonFloor> by floors {
+	val runs: Int = COMPLETED_FLOORS.sumOf { floors[it]?.completions ?: 0 }
 }
 
 class DungeonSlice internal constructor(
@@ -78,7 +83,7 @@ internal object ProfileSlices {
 		return ProfileSlice(
 			profileId = profile.text("profile_id") ?: "",
 			cuteName = profile.text("cute_name") ?: "",
-			dungeons = member.obj("dungeons")?.let { dungeonSlice(it, member) },
+			dungeons = dungeons(member),
 			magicalPower = magicalPower,
 			assumedMagicalPower = MagicalPower.assumed(member, magicalPower),
 			inventoryApi = inventoryApi(member)
@@ -104,6 +109,9 @@ internal object ProfileSlices {
 
 	internal fun member(profile: JsonObject, uuid: String): JsonObject? =
 		profile.obj("members")?.obj(uuid.replace("-", ""))
+
+	internal fun dungeons(member: JsonObject): DungeonSlice? =
+		member.obj("dungeons")?.let { dungeonSlice(it, member) }
 
 	internal fun inventoryApi(member: JsonObject): Boolean =
 		member.obj("inventory")?.obj("ender_chest_contents")?.text("data") != null
@@ -138,20 +146,19 @@ internal object ProfileSlices {
 		return ((kills.number("watcher_summon_undead") ?: 0.0) + (kills.number("master_watcher_summon_undead") ?: 0.0)).toInt()
 	}
 
-	private fun floors(type: JsonObject?): DungeonFloors = DungeonFloors(
-		completions = byFloor(type?.obj("tier_completions"), Double::toInt),
-		fastestSMillis = byFloor(type?.obj("fastest_time_s"), Double::toLong),
-		fastestSPlusMillis = byFloor(type?.obj("fastest_time_s_plus"), Double::toLong)
-	)
-
-	private fun <V> byFloor(readings: JsonObject?, read: (Double) -> V): Map<Int, V> {
-		if (readings == null) return emptyMap()
-		val values = LinkedHashMap<Int, V>(readings.size())
-		for (key in readings.keySet()) {
-			val floor = key.toIntOrNull() ?: continue
-			val reading = readings.number(key) ?: continue
-			values[floor] = read(reading)
+	private fun floors(type: JsonObject?): DungeonFloors {
+		val completions = type?.obj("tier_completions")
+		val bestS = type?.obj("fastest_time_s")
+		val bestSPlus = type?.obj("fastest_time_s_plus")
+		val floors = LinkedHashMap<Int, DungeonFloor>()
+		for (key in completions.keys() + bestS.keys() + bestSPlus.keys()) {
+			val number = key.toIntOrNull() ?: continue
+			floors[number] = DungeonFloor(
+				completions = completions?.number(key)?.toInt() ?: 0,
+				bestS = bestS?.number(key)?.toLong()?.milliseconds,
+				bestSPlus = bestSPlus?.number(key)?.toLong()?.milliseconds
+			)
 		}
-		return values
+		return DungeonFloors(floors)
 	}
 }

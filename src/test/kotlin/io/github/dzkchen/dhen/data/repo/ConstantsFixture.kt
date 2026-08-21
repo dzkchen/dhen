@@ -39,6 +39,16 @@ internal object ConstantsFixture {
 		}
 	"""
 
+	const val LEVELING = """
+		{
+		  "leveling_xp": [50, 125, 200, 300, 500],
+		  "leveling_caps": {"farming": 3, "combat": 5, "runecrafting": 2, "social": 2},
+		  "runecrafting_xp": [50, 100],
+		  "social": [50, 100],
+		  "slayer_xp": {"zombie": [5, 15, 200], "vampire": [20, 75]}
+		}
+	"""
+
 	val PETS: String = """
 		{
 		  "pet_rarity_offset": {"COMMON": 0, "LEGENDARY": 0},

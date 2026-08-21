@@ -4,8 +4,11 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numberOrNull
+import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -18,13 +21,31 @@ class StarTier internal constructor(val essence: String, val essenceAmount: Int,
 
 private class PetLeveling(val extraLevels: List<Int>, val maxLevel: Int, val rarityOffsets: Map<String, Int>)
 
+private class LevelTable(private val totals: LongArray) {
+	val maxLevel: Int get() = totals.size
+
+	fun level(experience: Double, cap: Int = maxLevel): Int {
+		var level = 0
+		while (level < cap && level < totals.size && totals[level] <= experience) level++
+		return level
+	}
+}
+
+private class Leveling(
+	val skills: LevelTable,
+	val perSkill: Map<String, LevelTable>,
+	val slayers: Map<String, LevelTable>,
+	val caps: Map<String, Int>
+)
+
 class RepoConstants private constructor(
 	private val reforgeStones: Map<String, ReforgeStone>,
 	private val stars: Map<String, List<StarTier>>,
 	private val gemstoneSlots: Map<String, Map<String, Map<String, Int>>>,
 	private val petLevels: List<Int>,
 	private val petRarityOffsets: Map<String, Int>,
-	private val customPets: Map<String, PetLeveling>
+	private val customPets: Map<String, PetLeveling>,
+	private val leveling: Leveling
 ) {
 	val reforgeStoneCount: Int get() = reforgeStones.size
 
@@ -35,6 +56,14 @@ class RepoConstants private constructor(
 	fun starTiers(id: String): List<StarTier> = stars[id].orEmpty()
 
 	fun gemstoneSlotCost(id: String, slot: String): Map<String, Int> = gemstoneSlots[id]?.get(slot).orEmpty()
+
+	fun skillCap(skill: String): Int = leveling.caps[skill] ?: DEFAULT_SKILL_CAP
+
+	fun skillLevel(skill: String, experience: Double, cap: Int): Int = skillTable(skill).level(experience, cap)
+
+	fun slayerLevel(slayer: String, experience: Double): Int = slayerTable(slayer).level(experience)
+
+	fun slayerMaxLevel(slayer: String): Int = slayerTable(slayer).maxLevel
 
 	fun petLevel(type: String, tier: String, exp: Double): Int {
 		val custom = customPets[type]
@@ -51,11 +80,21 @@ class RepoConstants private constructor(
 		return level
 	}
 
+	private fun skillTable(skill: String): LevelTable = leveling.perSkill[skill] ?: leveling.skills
+
+	private fun slayerTable(slayer: String): LevelTable = leveling.slayers[slayer] ?: NO_LEVELS
+
 	internal companion object {
 		private const val DEFAULT_PET_MAX_LEVEL = 100
+		private const val DEFAULT_SKILL_CAP = 50
 		private const val JSON = ".json"
 
-		val EMPTY = RepoConstants(emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap())
+		private val SKILLS_WITH_THEIR_OWN_LADDER = mapOf("runecrafting" to "runecrafting_xp", "social" to "social")
+
+		private val NO_LEVELS = LevelTable(LongArray(0))
+		private val NO_LEVELLING = Leveling(NO_LEVELS, emptyMap(), emptyMap(), emptyMap())
+
+		val EMPTY = RepoConstants(emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING)
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		private val UNSPEAKABLE = Regex("[^a-z0-9\\s_-]")
@@ -70,8 +109,9 @@ class RepoConstants private constructor(
 				stars = stars(read(constants, "essencecosts")),
 				gemstoneSlots = gemstoneSlots(read(constants, "gemstonecosts")),
 				petLevels = pets.getAsJsonArray("pet_levels").ints(),
-				petRarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it)?.toInt() ?: 0 }.orEmpty(),
-				customPets = customPets(pets.getAsJsonObject("custom_pet_leveling"))
+				petRarityOffsets = offsets.ints(0),
+				customPets = customPets(pets.getAsJsonObject("custom_pet_leveling")),
+				leveling = leveling(read(constants, "leveling"))
 			)
 		}
 
@@ -141,15 +181,49 @@ class RepoConstants private constructor(
 				pets[type.uppercase(Locale.ROOT)] = PetLeveling(
 					extraLevels = entry.getAsJsonArray("pet_levels").ints(),
 					maxLevel = entry.number("max_level")?.toInt() ?: DEFAULT_PET_MAX_LEVEL,
-					rarityOffsets = offsets?.keySet()?.associateWith { offsets.number(it)?.toInt() ?: 0 }.orEmpty()
+					rarityOffsets = offsets.ints(0)
 				)
 			}
 			return pets
 		}
 
+		private fun leveling(json: JsonObject): Leveling {
+			val slayers = json.obj("slayer_xp") ?: JsonObject()
+			val leveling = Leveling(
+				skills = incrementTable(json.array("leveling_xp")),
+				perSkill = SKILLS_WITH_THEIR_OWN_LADDER.mapValues { (_, table) -> incrementTable(json.array(table)) },
+				slayers = slayers.keySet().associateWith { totalTable(slayers.array(it)) },
+				caps = json.obj("leveling_caps").ints(DEFAULT_SKILL_CAP)
+			)
+			if (json.size() > 0 && (leveling.skills.maxLevel == 0 || leveling.slayers.isEmpty())) {
+				log.warn("Dhen found no skill or slayer levelling table in the repo, so those levels will read zero")
+			}
+			return leveling
+		}
+
+		private fun incrementTable(steps: JsonArray?): LevelTable {
+			val costs = steps.longs()
+			var total = 0L
+			for (level in costs.indices) {
+				total += costs[level]
+				costs[level] = total
+			}
+			return LevelTable(costs)
+		}
+
+		private fun totalTable(steps: JsonArray?): LevelTable = LevelTable(steps.longs())
+
 		private fun JsonArray?.ints(): List<Int> {
 			if (this == null || isEmpty) return emptyList()
 			return mapNotNull { it.numberOrNull()?.toInt() }
 		}
+
+		private fun JsonArray?.longs(): LongArray {
+			if (this == null || isEmpty) return LongArray(0)
+			return mapNotNull { it.numberOrNull()?.toLong() }.toLongArray()
+		}
+
+		private fun JsonObject?.ints(fallback: Int): Map<String, Int> =
+			keys().associateWith { this?.number(it)?.toInt() ?: fallback }
 	}
 }

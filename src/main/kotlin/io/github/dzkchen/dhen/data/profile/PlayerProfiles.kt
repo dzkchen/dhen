@@ -57,8 +57,10 @@ object PlayerProfiles {
 	private val limiter = Semaphore(MAX_IN_FLIGHT)
 	private val uuids = Cache<String>(UUID_TTL)
 	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
+	private val repoReady = { ItemRepo.state == RepoState.READY }
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
-	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES) { ItemRepo.state == RepoState.READY }
+	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
+	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
 
 	@Volatile
 	private var host: Host? = null
@@ -88,9 +90,13 @@ object PlayerProfiles {
 			release()
 			return Handle {}
 		}
+		val repo = ItemRepo.require()
 		val released = AtomicBoolean()
 		return Handle {
-			if (released.compareAndSet(false, true) && installation.get() == installed) release()
+			if (released.compareAndSet(false, true)) {
+				repo.unsubscribe()
+				if (installation.get() == installed) release()
+			}
 		}
 	}
 
@@ -123,6 +129,9 @@ object PlayerProfiles {
 		cached(slices, uuid) { profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) } }
 
 	suspend fun holdings(uuid: String): ProfileHoldings? = cached(holdings, uuid) { decode(uuid) }
+
+	suspend fun profile(uuid: String): SkyBlockProfile? =
+		cached(models, uuid) { profiles(uuid)?.let { reply -> SkyBlockProfiles.of(uuid, reply) } }
 
 	suspend fun accountSecrets(uuid: String): Long? = player(uuid)?.let(ProfileSlices::secrets)
 
@@ -223,18 +232,19 @@ object PlayerProfiles {
 		uuids.clear()
 		for (cache in replies.values) cache.clear()
 		slices.clear()
+		models.clear()
 		holdings.clear()
 	}
 
 	internal fun cacheSummary(): String = Endpoint.entries.joinToString(
 		prefix = "uuid=${uuids.size}, ",
-		postfix = ", slices=${slices.size}, holdings=${holdings.size}"
+		postfix = ", slices=${slices.size}, models=${models.size}, holdings=${holdings.size}"
 	) { "${it.name.lowercase(Locale.ROOT)}=${replies.getValue(it).size}" }
 
 	private suspend fun decode(uuid: String): ProfileHoldings? {
 		val profile = selectedProfile(uuid) ?: return null
 		val member = ProfileSlices.member(profile, uuid) ?: return null
-		return withContext(Dispatchers.IO) { ProfileHoldings.of(profile, member) }
+		return ProfileHoldings.of(profile, member)
 	}
 
 	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? =
@@ -247,7 +257,9 @@ object PlayerProfiles {
 		if (!idShape.matches(key) || requirements.get() == 0) return null
 		val base = syncBase() ?: return null
 		cache.read(key, owner.clock.nanoTime())?.let { return it.value }
-		return store(owner, cache, key, produce(owner, base), unchanged = lastBase == base && cache.stable())
+		val readyBefore = cache.stable()
+		val value = withContext(Dispatchers.IO) { produce(owner, base) }
+		return store(owner, cache, key, value, unchanged = lastBase == base && readyBefore && cache.stable())
 	}
 
 	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend () -> V?): V? =
