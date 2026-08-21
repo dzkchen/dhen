@@ -104,6 +104,55 @@ class ProfileGardenTest {
 	}
 
 	@Test
+	fun `a visitor is counted both for the offers made and the ones taken`() {
+		val visitors = garden().visitors
+
+		assertEquals(31, visitors.totalCompleted)
+		assertEquals(4, visitors.uniqueServed)
+		assertEquals(9, visitors.perVisitor.getValue("jacob").offered)
+		assertEquals(6, visitors.perVisitor.getValue("jacob").accepted)
+	}
+
+	@Test
+	fun `a visitor who was served without ever being logged as offered still gets a row`() {
+		val rhys = garden().visitors.perVisitor.getValue("rhys")
+
+		assertEquals(0, rhys.offered)
+		assertEquals(2, rhys.accepted)
+	}
+
+	@Test
+	fun `the greenhouse reports its planted slots and every upgrade, including unbought ones`() {
+		val greenhouse = garden().greenhouse
+
+		assertEquals(2, greenhouse.slots.size)
+		assertEquals(4, greenhouse.slots.first().x)
+		assertEquals(-7, greenhouse.slots.first().z)
+		assertEquals(3, greenhouse.upgrades.getValue(GreenhouseUpgrade.GROWTH_SPEED))
+		assertEquals(0, greenhouse.upgrades.getValue(GreenhouseUpgrade.PLOT_LIMIT))
+		assertEquals(GreenhouseUpgrade.entries.size, greenhouse.upgrades.size)
+	}
+
+	@Test
+	fun `the barn reports the skin in use and the ones unlocked`() {
+		val garden = garden()
+
+		assertEquals("MUSHROOM", garden.selectedBarnSkin)
+		assertEquals(listOf("MUSHROOM", "DESERT"), garden.unlockedBarnSkins)
+	}
+
+	@Test
+	fun `a garden nobody has decorated reports no skin rather than a made-up one`() {
+		val garden = decode("""{"garden":{}}""")
+
+		assertNull(garden.selectedBarnSkin)
+		assertTrue(garden.unlockedBarnSkins.isEmpty())
+		assertTrue(garden.greenhouse.slots.isEmpty())
+		assertTrue(garden.visitors.perVisitor.isEmpty())
+		assertEquals(0, garden.visitors.totalCompleted)
+	}
+
+	@Test
 	fun `a reply that carries no garden at all decodes to nothing`() {
 		assertNull(GardenProfiles.of(DataFixture.json("""{"success":true}""")))
 	}
@@ -172,6 +221,16 @@ class ProfileGardenTest {
 				"unlocked_plots_ids": ["beginner_1", "intermediate_3"],
 				"resources_collected": {"WHEAT": 100, "CACTUS": 60},
 				"crop_upgrade_levels": {"WHEAT": 4, "CARROT": 1},
+				"selected_barn_skin": "MUSHROOM",
+				"unlocked_barn_skins": ["MUSHROOM", "DESERT"],
+				"greenhouse_slots": [{"x": 4, "z": -7}, {"x": 5, "z": -7}],
+				"garden_upgrades": {"GROWTH_SPEED": 3, "YIELD": 1},
+				"commission_data": {
+					"total_completed": 31,
+					"unique_npcs_served": 4,
+					"visits": {"jacob": 9, "anita": 1},
+					"completed": {"jacob": 6, "rhys": 2}
+				},
 				"composter_data": {
 					"organic_matter": 1500,
 					"fuel_units": 300,

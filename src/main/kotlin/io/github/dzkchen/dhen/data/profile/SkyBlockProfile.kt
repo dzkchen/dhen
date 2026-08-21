@@ -46,6 +46,7 @@ class SkyBlockProfile internal constructor(
 	val minions: Map<String, Int>,
 	val bestiary: Map<String, BestiaryEntry>,
 	val mining: MiningProfile?,
+	val foraging: ForagingProfile?,
 	val farming: FarmingProfile?
 )
 
@@ -68,6 +69,7 @@ internal object SkyBlockProfiles {
 			minions = minions(everyMember),
 			bestiary = bestiary(member.obj("bestiary")),
 			mining = MiningProfiles.of(member),
+			foraging = ForagingProfiles.of(member),
 			farming = farming
 		)
 	}

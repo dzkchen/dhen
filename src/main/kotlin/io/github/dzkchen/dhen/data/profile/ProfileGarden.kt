@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.data.profile
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoConstants
@@ -9,7 +10,7 @@ import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
-import io.github.dzkchen.dhen.util.textOrNull
+import io.github.dzkchen.dhen.util.texts
 import java.util.Locale
 
 enum class ComposterUpgrade {
@@ -17,6 +18,8 @@ enum class ComposterUpgrade {
 
 	internal val apiKey: String = name.lowercase(Locale.ROOT)
 }
+
+enum class GreenhouseUpgrade { GROWTH_SPEED, YIELD, PLOT_LIMIT }
 
 enum class ContestMedal {
 	BRONZE, SILVER, GOLD, PLATINUM, DIAMOND;
@@ -40,13 +43,32 @@ class Composter internal constructor(
 
 class CropProgress internal constructor(val collected: Long, val milestone: Int, val upgrade: Int)
 
+class GreenhouseSlot internal constructor(val x: Int, val z: Int)
+
+class Greenhouse internal constructor(
+	val slots: List<GreenhouseSlot>,
+	val upgrades: Map<GreenhouseUpgrade, Int>
+)
+
+class VisitorLog internal constructor(val offered: Int, val accepted: Int)
+
+class GardenVisitors internal constructor(
+	val totalCompleted: Int,
+	val uniqueServed: Int,
+	val perVisitor: Map<String, VisitorLog>
+)
+
 class GardenProfile internal constructor(
 	val experience: Double,
 	val level: Int,
 	val maxLevel: Int,
 	val crops: Map<String, CropProgress>,
 	val unlockedPlots: List<String>,
-	val composter: Composter
+	val composter: Composter,
+	val visitors: GardenVisitors,
+	val greenhouse: Greenhouse,
+	val selectedBarnSkin: String?,
+	val unlockedBarnSkins: List<String>
 )
 
 class FarmingContest internal constructor(
@@ -79,10 +101,33 @@ internal object GardenProfiles {
 			level = constants.gardenLevel(experience),
 			maxLevel = constants.gardenMaxLevel,
 			crops = crops(constants, garden.obj("resources_collected"), garden.obj("crop_upgrade_levels")),
-			unlockedPlots = garden.array("unlocked_plots_ids")?.mapNotNull { it.textOrNull() } ?: emptyList(),
-			composter = composter(garden.obj("composter_data"))
+			unlockedPlots = garden.array("unlocked_plots_ids").texts(),
+			composter = composter(garden.obj("composter_data")),
+			visitors = visitors(garden.obj("commission_data")),
+			greenhouse = greenhouse(garden.array("greenhouse_slots"), garden.obj("garden_upgrades")),
+			selectedBarnSkin = garden.text("selected_barn_skin"),
+			unlockedBarnSkins = garden.array("unlocked_barn_skins").texts()
 		)
 	}
+
+	private fun visitors(data: JsonObject?): GardenVisitors {
+		val offered = data?.obj("visits")
+		val accepted = data?.obj("completed")
+		return GardenVisitors(
+			totalCompleted = data?.number("total_completed")?.toInt() ?: 0,
+			uniqueServed = data?.number("unique_npcs_served")?.toInt() ?: 0,
+			perVisitor = (offered.keys() + accepted.keys()).associateWith { visitor ->
+				VisitorLog(offered?.number(visitor)?.toInt() ?: 0, accepted?.number(visitor)?.toInt() ?: 0)
+			}
+		)
+	}
+
+	private fun greenhouse(slots: JsonArray?, upgrades: JsonObject?): Greenhouse = Greenhouse(
+		slots = slots?.mapNotNull { plot ->
+			(plot as? JsonObject)?.let { GreenhouseSlot(it.number("x")?.toInt() ?: 0, it.number("z")?.toInt() ?: 0) }
+		} ?: emptyList(),
+		upgrades = GreenhouseUpgrade.entries.associateWith { upgrades?.number(it.name)?.toInt() ?: 0 }
+	)
 
 	private fun crops(constants: RepoConstants, collected: JsonObject?, upgrades: JsonObject?): Map<String, CropProgress> {
 		val grown = collected.keys() + upgrades.keys()
@@ -132,7 +177,7 @@ internal object FarmingProfiles {
 
 	private fun brackets(brackets: JsonObject?): Map<ContestMedal, Set<String>> =
 		ContestMedal.entries.associateWith { medal ->
-			brackets?.array(medal.apiKey)?.mapNotNullTo(LinkedHashSet()) { it.textOrNull() } ?: emptySet()
+			brackets?.array(medal.apiKey).texts().toSet()
 		}
 
 	private fun contests(contests: JsonObject?): List<FarmingContest> {

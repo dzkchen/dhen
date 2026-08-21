@@ -22,6 +22,11 @@ internal fun JsonObject.flagOrNull(member: String): Boolean? = get(member).flagO
 internal fun JsonObject?.ints(fallback: Int = 0): Map<String, Int> =
 	keys().associateWith { this?.number(it)?.toInt() ?: fallback }
 
+internal fun JsonObject?.numericInts(): Map<String, Int> =
+	keys().mapNotNull { key -> this?.number(key)?.let { key to it.toInt() } }.toMap()
+
+internal fun JsonArray?.texts(): List<String> = this?.mapNotNull { it.textOrNull() } ?: emptyList()
+
 internal fun JsonElement?.flagOrNull(): Boolean? = primitive { isBoolean }?.asBoolean
 
 internal fun JsonElement?.textOrNull(): String? =
