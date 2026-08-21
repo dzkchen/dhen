@@ -4,11 +4,9 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.item.ItemFixture
+import io.github.dzkchen.dhen.data.profile.BagFixture.bag
+import io.github.dzkchen.dhen.data.profile.BagFixture.slot
 import io.github.dzkchen.dhen.util.obj
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.ListTag
-import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.StringTag
 import net.minecraft.world.item.ItemStack
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -17,7 +15,6 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayOutputStream
 import java.util.Base64
 
 class ProfileSliceTest {
@@ -62,32 +59,32 @@ class ProfileSliceTest {
 
 	@Test
 	fun `two copies of one accessory count once, at the higher rarity`() {
-		assertEquals(22, MagicalPower.of(member(bag(item("TEST_TALISMAN", "§f§lCOMMON"), item("TEST_TALISMAN", "§d§lMYTHIC")))))
+		assertEquals(22, MagicalPower.of(member(bag(slot("TEST_TALISMAN", lore = listOf("§f§lCOMMON")), slot("TEST_TALISMAN", lore = listOf("§d§lMYTHIC"))))))
 	}
 
 	@Test
 	fun `an accessory the player cannot use yet is worth nothing`() {
-		val locked = item("REQ_TALISMAN", "§a§lUNCOMMON", "§7§4☠ §cRequires §5Rift Level 5§c.")
+		val locked = slot("REQ_TALISMAN", lore = listOf("§a§lUNCOMMON", "§7§4☠ §cRequires §5Rift Level 5§c."))
 
 		assertEquals(0, MagicalPower.of(member(bag(locked))))
 	}
 
 	@Test
 	fun `hegemony counts double and an abicase adds half the contact list`() {
-		assertEquals(44, MagicalPower.of(member(bag(item("HEGEMONY_ARTIFACT", "§d§lMYTHIC")))))
-		assertEquals(7, MagicalPower.of(member(bag(item("ABICASE", "§a§lUNCOMMON")), contacts = 5)))
+		assertEquals(44, MagicalPower.of(member(bag(slot("HEGEMONY_ARTIFACT", lore = listOf("§d§lMYTHIC"))))))
+		assertEquals(7, MagicalPower.of(member(bag(slot("ABICASE", lore = listOf("§a§lUNCOMMON"))), contacts = 5)))
 	}
 
 	@Test
 	fun `every cosmetic hat collapses into one contribution`() {
-		val hats = bag(item("PARTY_HAT_CRAB_YELLOW", "§9§lRARE"), item("BALLOON_HAT_2024", "§9§lRARE"))
+		val hats = bag(slot("PARTY_HAT_CRAB_YELLOW", lore = listOf("§9§lRARE")), slot("BALLOON_HAT_2024", lore = listOf("§9§lRARE")))
 
 		assertEquals(8, MagicalPower.of(member(hats)))
 	}
 
 	@Test
 	fun `a consumed rift prism adds eleven`() {
-		assertEquals(14, MagicalPower.of(member(bag(item("TEST_TALISMAN", "§f§lCOMMON")), prism = true)))
+		assertEquals(14, MagicalPower.of(member(bag(slot("TEST_TALISMAN", lore = listOf("§f§lCOMMON"))), prism = true)))
 	}
 
 	@Test
@@ -96,7 +93,7 @@ class ProfileSliceTest {
 		assertNull(MagicalPower.of(unreadable))
 		assertEquals(80, MagicalPower.assumed(unreadable, MagicalPower.of(unreadable)))
 
-		val readable = member(bag(item("TEST_TALISMAN", "§a§lUNCOMMON")), tuning = mapOf("health" to 5))
+		val readable = member(bag(slot("TEST_TALISMAN", lore = listOf("§a§lUNCOMMON"))), tuning = mapOf("health" to 5))
 		assertEquals(5, MagicalPower.of(readable))
 		assertEquals(5, MagicalPower.assumed(readable, MagicalPower.of(readable)))
 	}
@@ -124,7 +121,7 @@ class ProfileSliceTest {
 		assertNull(ApiInventory.stacks(null))
 		assertNull(ApiInventory.stacks("not base64 at all"))
 		assertNull(ApiInventory.stacks(Base64.getEncoder().encodeToString("plain bytes".toByteArray())))
-		assertNull(ApiInventory.stacks(bag(item("TEST_TALISMAN", "§f§lCOMMON")).let { it.substring(0, it.length / 2) }))
+		assertNull(ApiInventory.stacks(bag(slot("TEST_TALISMAN", lore = listOf("§f§lCOMMON"))).let { it.substring(0, it.length / 2) }))
 		assertEquals(emptyList<ItemStack>(), ApiInventory.stacks(bag()))
 	}
 
@@ -165,32 +162,6 @@ class ProfileSliceTest {
 	}
 
 	private fun noFloors() = DungeonFloors(emptyMap(), emptyMap(), emptyMap())
-
-	private fun item(id: String, vararg lore: String): CompoundTag {
-		val extras = CompoundTag()
-		extras.putString("id", id)
-		val loreLines = ListTag()
-		for (line in lore) loreLines.add(StringTag.valueOf(line))
-		val display = CompoundTag()
-		display.putString("Name", id)
-		display.put("Lore", loreLines)
-		val tag = CompoundTag()
-		tag.put("ExtraAttributes", extras)
-		tag.put("display", display)
-		val slot = CompoundTag()
-		slot.put("tag", tag)
-		return slot
-	}
-
-	private fun bag(vararg items: CompoundTag): String {
-		val slots = ListTag()
-		for (slot in items) slots.add(slot)
-		val root = CompoundTag()
-		root.put("i", slots)
-		val bytes = ByteArrayOutputStream()
-		NbtIo.writeCompressed(root, bytes)
-		return Base64.getEncoder().encodeToString(bytes.toByteArray())
-	}
 
 	private fun member(
 		talismanBag: String? = null,

@@ -1,18 +1,12 @@
 package io.github.dzkchen.dhen.data.value
 
+import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
-import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
-import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.data.repo.RepoSource
-import io.github.dzkchen.dhen.data.repo.RepoSync
-import io.github.dzkchen.dhen.data.repo.RepoTransport
-import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import net.minecraft.nbt.CompoundTag
@@ -26,7 +20,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
 import java.nio.file.Path
 
 class ItemValueTest {
@@ -37,25 +30,23 @@ class ItemValueTest {
 
 	@BeforeEach
 	fun install() {
-		val root = home.resolve("repo")
-		Files.createDirectories(root.resolve("items"))
-		Files.createDirectories(root.resolve("constants"))
-		Files.writeString(root.resolve("items/HYPERION.json"), "{\"internalname\":\"HYPERION\",\"displayname\":\"§6Hyperion\"}")
-		for ((name, json) in CRAFTABLES) Files.writeString(root.resolve("items/$name.json"), json)
-		Files.writeString(root.resolve("constants/reforgestones.json"), ConstantsFixture.REFORGE_STONES)
-		Files.writeString(root.resolve("constants/essencecosts.json"), ConstantsFixture.ESSENCE_COSTS)
-		Files.writeString(root.resolve("constants/gemstonecosts.json"), ConstantsFixture.GEMSTONE_COSTS)
-		Files.writeString(root.resolve("constants/pets.json"), ConstantsFixture.PETS)
-		ItemRepo.install(scope, root, RepoSync(SOURCE, root, OfflineTransport))
-		ItemRepo.require()
-		Prices.install(scope, EventBus(), Dispatchers.Unconfined, FakeSource, { 0L }) { true }
-		Prices.require()
+		DataFixture.installRepo(
+			scope,
+			home.resolve("repo"),
+			mapOf("HYPERION" to """{"internalname":"HYPERION","displayname":"§6Hyperion"}""") + CRAFTABLES,
+			mapOf(
+				"reforgestones" to ConstantsFixture.REFORGE_STONES,
+				"essencecosts" to ConstantsFixture.ESSENCE_COSTS,
+				"gemstonecosts" to ConstantsFixture.GEMSTONE_COSTS,
+				"pets" to ConstantsFixture.PETS
+			)
+		)
+		DataFixture.installPrices(scope, LOWEST_BINS, bazaar = BAZAAR, npc = NPC_PRICES, spare = """{"SPARE_ONLY":1}""")
 	}
 
 	@AfterEach
 	fun uninstall() {
-		ItemRepo.uninstall()
-		Prices.uninstall()
+		DataFixture.uninstall()
 	}
 
 	@Test
@@ -584,27 +575,10 @@ class ItemValueTest {
 		put("unlocked_slots", ListTag().apply { add(StringTag.valueOf("COMBAT_0")); add(StringTag.valueOf("COMBAT_1")) })
 	}
 
-	private object OfflineTransport : RepoTransport {
-		override fun text(url: String): String? = null
-
-		override fun download(url: String, destination: Path): Boolean = false
-	}
-
-	private object FakeSource : WebSource {
-		override fun text(url: String): String = when {
-			url.contains("bazaar") -> BAZAAR
-			url.contains("tricked") -> LOWEST_BINS
-			url.contains("eliteskyblock") -> "{\"SPARE_ONLY\":1}"
-			else -> NPC_PRICES
-		}
-	}
-
 	private companion object {
 		@JvmStatic
 		@BeforeAll
 		fun bootstrap() = ItemFixture.bootstrap()
-
-		private val SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 		private val CRAFTABLES = mapOf(
 			"NPC_ONLY" to "{\"internalname\":\"NPC_ONLY\",\"displayname\":\"§7Npc Only\"," +

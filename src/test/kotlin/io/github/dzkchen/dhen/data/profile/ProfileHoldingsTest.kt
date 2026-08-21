@@ -2,26 +2,20 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
-import io.github.dzkchen.dhen.data.price.Prices
-import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.data.repo.RepoSource
-import io.github.dzkchen.dhen.data.repo.RepoSync
-import io.github.dzkchen.dhen.data.repo.RepoTransport
+import io.github.dzkchen.dhen.data.profile.BagFixture.bag
+import io.github.dzkchen.dhen.data.profile.BagFixture.slot
 import io.github.dzkchen.dhen.data.value.Networth
 import io.github.dzkchen.dhen.data.value.NetworthCategory
-import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.StringTag
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.junit.jupiter.api.AfterEach
@@ -32,10 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.io.ByteArrayOutputStream
-import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Base64
 
 class ProfileHoldingsTest {
 	@TempDir
@@ -45,8 +36,7 @@ class ProfileHoldingsTest {
 
 	@AfterEach
 	fun uninstall() {
-		ItemRepo.uninstall()
-		Prices.uninstall()
+		DataFixture.uninstall()
 	}
 
 	@Test
@@ -197,8 +187,7 @@ class ProfileHoldingsTest {
 			"HYPERION" to """{"internalname":"HYPERION","displayname":"§6Hyperion"}""",
 			"ENCHANTED_DIAMOND" to """{"internalname":"ENCHANTED_DIAMOND","displayname":"§aEnchanted Diamond"}"""
 		)
-		Prices.install(scope, EventBus(), Dispatchers.Unconfined, FakeSource, { 0L }) { true }
-		Prices.require()
+		DataFixture.installPrices(scope, LOWEST_BINS)
 
 		val holdings = holdings(
 			member = json(
@@ -215,37 +204,13 @@ class ProfileHoldingsTest {
 		assertEquals(3005L, report.total)
 	}
 
-	private fun installRepo(vararg items: Pair<String, String>) {
-		val root = home.resolve("repo")
-		Files.createDirectories(root.resolve("items"))
-		for ((id, body) in items) Files.writeString(root.resolve("items/$id.json"), body)
-		ItemRepo.install(scope, root, RepoSync(SOURCE, root, OfflineTransport))
-		ItemRepo.require()
-	}
+	private fun installRepo(vararg items: Pair<String, String>) =
+		DataFixture.installRepo(scope, home.resolve("repo"), items.toMap())
 
 	private fun holdings(profile: JsonObject = json("""{"banking":{}}"""), member: JsonObject): ProfileHoldings =
 		ProfileHoldings.of(profile, member)
 
 	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
-
-	private fun slot(id: String, name: String = id, lore: List<String> = emptyList(), count: Int = 1): CompoundTag {
-		val extras = CompoundTag()
-		extras.putString("id", id)
-		val display = CompoundTag()
-		display.putString("Name", name)
-		if (lore.isNotEmpty()) {
-			val lines = ListTag()
-			for (line in lore) lines.add(StringTag.valueOf(line))
-			display.put("Lore", lines)
-		}
-		val tag = CompoundTag()
-		tag.put("ExtraAttributes", extras)
-		tag.put("display", display)
-		val slot = CompoundTag()
-		slot.putByte("Count", count.toByte())
-		slot.put("tag", tag)
-		return slot
-	}
 
 	private fun head(texture: String): CompoundTag {
 		val texturesEntry = CompoundTag()
@@ -261,32 +226,7 @@ class ProfileHoldingsTest {
 		return slot("SKULL", "§fA Head").also { it.getCompoundOrEmpty("tag").put("SkullOwner", owner) }
 	}
 
-	private fun bag(vararg slots: CompoundTag): String {
-		val list = ListTag()
-		for (slot in slots) list.add(slot)
-		val root = CompoundTag()
-		root.put("i", list)
-		val bytes = ByteArrayOutputStream()
-		NbtIo.writeCompressed(root, bytes)
-		return Base64.getEncoder().encodeToString(bytes.toByteArray())
-	}
-
 	private fun json(text: String): JsonObject = JsonParser.parseString(text).asJsonObject
-
-	private object OfflineTransport : RepoTransport {
-		override fun text(url: String): String? = null
-
-		override fun download(url: String, destination: Path): Boolean = false
-	}
-
-	private object FakeSource : WebSource {
-		override fun text(url: String): String = when {
-			url.contains("bazaar") -> """{"success":true,"lastUpdated":1,"products":{}}"""
-			url.contains("tricked") -> LOWEST_BINS
-			url.contains("eliteskyblock") -> "{}"
-			else -> """{"items":[]}"""
-		}
-	}
 
 	private companion object {
 		@JvmStatic
@@ -294,8 +234,6 @@ class ProfileHoldingsTest {
 		fun bootstrap() = ItemFixture.bootstrap()
 
 		private const val TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWJjIn19fQ=="
-
-		private val SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 		private val LOWEST_BINS = """
 			{

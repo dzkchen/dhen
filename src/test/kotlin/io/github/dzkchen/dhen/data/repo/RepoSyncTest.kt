@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.data.repo
 
+import io.github.dzkchen.dhen.data.DataFixture
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,8 +15,6 @@ import java.util.zip.ZipOutputStream
 class RepoSyncTest {
 	@TempDir
 	lateinit var home: Path
-
-	private val source = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 	@Test
 	fun `a first sync downloads the archive and unpacks it without its top folder`() {
@@ -113,7 +112,7 @@ class RepoSyncTest {
 
 	private fun root(): Path = home.resolve("repo")
 
-	private fun sync(transport: RepoTransport) = RepoSync(source, root(), transport)
+	private fun sync(transport: RepoTransport) = RepoSync(DataFixture.NEU, root(), transport)
 
 	private fun archive(vararg entries: Pair<String, String>): ByteArray {
 		val bytes = ByteArrayOutputStream()

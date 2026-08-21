@@ -9,14 +9,13 @@ import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.TabWidget
+import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
 import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.data.repo.RepoSource
 import io.github.dzkchen.dhen.data.repo.RepoSync
-import io.github.dzkchen.dhen.data.repo.RepoTransport
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
@@ -46,14 +45,6 @@ import java.nio.file.Path
 import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
-	private object DeadTransport : RepoTransport {
-		override fun text(url: String): String? = null
-
-		override fun download(url: String, destination: Path): Boolean = false
-	}
-
-	private val NEU_SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
-
 	private val HELD_UUID = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
 
 	private fun registry(): CommandRegistry<Any> =
@@ -500,7 +491,7 @@ class CommandRegistryTest {
 		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
-		ItemRepo.install(CoroutineScope(Dispatchers.Unconfined), repo, RepoSync(NEU_SOURCE, repo, DeadTransport))
+		ItemRepo.install(CoroutineScope(Dispatchers.Unconfined), repo, RepoSync(DataFixture.NEU, repo, DataFixture.OFFLINE))
 		try {
 			dispatcher.execute("dhen debug repo download", Any())
 			val asked = ItemRepo.required

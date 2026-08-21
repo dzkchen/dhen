@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.data.repo
 
+import io.github.dzkchen.dhen.data.DataFixture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.AfterEach
@@ -118,7 +119,7 @@ class ItemRepoTest {
 
 	private fun install() {
 		val root = home.resolve("repo")
-		ItemRepo.install(scope, root, RepoSync(SOURCE, root, transport))
+		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, transport))
 	}
 
 	private class FakeTransport : RepoTransport {
@@ -137,8 +138,6 @@ class ItemRepoTest {
 	}
 
 	private companion object {
-		private val SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
-
 		private val ARCHIVE: ByteArray = ByteArrayOutputStream().also { bytes ->
 			ZipOutputStream(bytes).use { zip ->
 				zip.putNextEntry(ZipEntry("NotEnoughUpdates-REPO-abc123/items/ASPECT_OF_THE_END.json"))

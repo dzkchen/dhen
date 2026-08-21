@@ -1,15 +1,9 @@
 package io.github.dzkchen.dhen.data.value
 
+import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.price.PriceSource
-import io.github.dzkchen.dhen.data.price.Prices
-import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.data.repo.RepoSource
-import io.github.dzkchen.dhen.data.repo.RepoSync
-import io.github.dzkchen.dhen.data.repo.RepoTransport
-import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -26,7 +20,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
 
@@ -38,22 +31,17 @@ class NetworthTest {
 
 	@BeforeEach
 	fun install() {
-		val root = home.resolve("repo")
-		Files.createDirectories(root.resolve("items"))
-		Files.writeString(
-			root.resolve("items/ENCHANTED_DIAMOND.json"),
-			"{\"internalname\":\"ENCHANTED_DIAMOND\",\"displayname\":\"§aEnchanted Diamond\"}"
+		DataFixture.installRepo(
+			scope,
+			home.resolve("repo"),
+			mapOf("ENCHANTED_DIAMOND" to """{"internalname":"ENCHANTED_DIAMOND","displayname":"§aEnchanted Diamond"}""")
 		)
-		ItemRepo.install(scope, root, RepoSync(SOURCE, root, OfflineTransport))
-		ItemRepo.require()
-		Prices.install(scope, EventBus(), Dispatchers.Unconfined, FakeSource, { 0L }) { true }
-		Prices.require()
+		DataFixture.installPrices(scope, LOWEST_BINS)
 	}
 
 	@AfterEach
 	fun uninstall() {
-		ItemRepo.uninstall()
-		Prices.uninstall()
+		DataFixture.uninstall()
 	}
 
 	@Test
@@ -159,29 +147,12 @@ class NetworthTest {
 			}
 	}
 
-	private object OfflineTransport : RepoTransport {
-		override fun text(url: String): String? = null
-
-		override fun download(url: String, destination: Path): Boolean = false
-	}
-
-	private object FakeSource : WebSource {
-		override fun text(url: String): String = when {
-			url.contains("bazaar") -> "{\"success\":true,\"lastUpdated\":1,\"products\":{}}"
-			url.contains("tricked") -> LOWEST_BINS
-			url.contains("eliteskyblock") -> "{}"
-			else -> "{\"items\":[]}"
-		}
-	}
-
 	private companion object {
 		private const val CLIENT_THREAD = "dhen-fake-client-thread"
 
 		@JvmStatic
 		@BeforeAll
 		fun bootstrap() = ItemFixture.bootstrap()
-
-		private val SOURCE = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 		private fun threadName(): String = Thread.currentThread().name.substringBefore(" @")
 
