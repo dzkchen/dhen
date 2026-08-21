@@ -139,6 +139,19 @@ class SkyBlockProfileTest {
 	}
 
 	@Test
+	fun `the three island sections hang off the same profile too`() {
+		val profile = decode()
+		val isle = profile.crimsonIsle!!
+		val rift = profile.rift!!
+
+		assertEquals(Faction.MAGE, isle.faction)
+		assertEquals(500, isle.reputation.getValue(Faction.MAGE))
+		assertEquals(2, rift.grubberStacks)
+		assertEquals(700, rift.lifetimeMotes)
+		assertEquals(900L, profile.chocolateFactory!!.chocolate)
+	}
+
+	@Test
 	fun `a profile with none of these sections decodes to empty rather than throwing`() {
 		installRepo()
 		val profile = SkyBlockProfiles.of(VIEWED, bareReply())!!
@@ -152,6 +165,9 @@ class SkyBlockProfileTest {
 		assertNull(profile.mining)
 		assertNull(profile.foraging)
 		assertNull(profile.farming)
+		assertNull(profile.rift)
+		assertNull(profile.chocolateFactory)
+		assertNull(profile.crimsonIsle)
 		assertEquals(0.0, profile.skills.getValue(Skill.FARMING).experience)
 	}
 
@@ -205,6 +221,10 @@ class SkyBlockProfileTest {
 								"crafted_generators":["COBBLESTONE_5","MAGMA_CUBE_2"]
 							},
 							"jacobs_contest":{"perks":{"farming_level_cap":2}},
+							"nether_island_player_data":{"selected_faction":"mages","mages_reputation":500},
+							"rift":{"castle":{"grubber_stacks":2}},
+							"player_stats":{"rift":{"lifetime_motes_earned":700}},
+							"events":{"easter":{"chocolate":900}},
 							"skill_tree":{"experience":{"mining":100,"foraging":40}},
 							"mining_core":{"powder_mithril":40},
 							"pets_data":{"pet_care":{"pet_types_sacrificed":["ROC","HORSE"]}},

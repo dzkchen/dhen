@@ -47,7 +47,10 @@ class SkyBlockProfile internal constructor(
 	val bestiary: Map<String, BestiaryEntry>,
 	val mining: MiningProfile?,
 	val foraging: ForagingProfile?,
-	val farming: FarmingProfile?
+	val farming: FarmingProfile?,
+	val crimsonIsle: CrimsonIsleProfile?,
+	val rift: RiftProfile?,
+	val chocolateFactory: ChocolateFactoryProfile?
 )
 
 internal object SkyBlockProfiles {
@@ -70,7 +73,10 @@ internal object SkyBlockProfiles {
 			bestiary = bestiary(member.obj("bestiary")),
 			mining = MiningProfiles.of(member),
 			foraging = ForagingProfiles.of(member),
-			farming = farming
+			farming = farming,
+			crimsonIsle = CrimsonIsleProfiles.of(member),
+			rift = RiftProfiles.of(member),
+			chocolateFactory = ChocolateFactoryProfiles.of(member)
 		)
 	}
 
