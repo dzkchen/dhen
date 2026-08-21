@@ -44,6 +44,7 @@ object PlayerProfiles {
 
 	private val NEGATIVE_TTL = 1.minutes
 	private val UUID_TTL = 1.hours
+	private val ALWAYS = { true }
 
 	private val nameShape = Regex("[A-Za-z0-9_]{1,16}")
 	private val idShape = Regex("[0-9a-fA-F-]{32,36}")
@@ -59,9 +60,9 @@ object PlayerProfiles {
 	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
 	private val repoReady = { ItemRepo.state == RepoState.READY }
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
-	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
-	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES, repoReady)
-	private val gardens = Cache<GardenProfile>(Endpoint.GARDEN.ttl, MAX_HELD_PROFILES, repoReady)
+	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
+	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
+	private val gardens = Cache<GardenProfile>(Endpoint.GARDEN.ttl, MAX_HELD_PROFILES)
 
 	@Volatile
 	private var host: Host? = null
@@ -126,16 +127,18 @@ object PlayerProfiles {
 
 	suspend fun selectedProfile(uuid: String): JsonObject? = profiles(uuid)?.let(ProfileSlices::selectedProfile)
 
-	suspend fun slice(uuid: String): ProfileSlice? =
-		cached(slices, uuid) { profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) } }
+	suspend fun slice(uuid: String): ProfileSlice? = cached(slices, uuid) { owner, _ ->
+		models.read(uuid, owner.clock.nanoTime())?.value?.slice
+			?: profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) }
+	}
 
-	suspend fun holdings(uuid: String): ProfileHoldings? = cached(holdings, uuid) { decode(uuid) }
+	suspend fun holdings(uuid: String): ProfileHoldings? = cached(holdings, uuid, repoReady) { decode(uuid) }
 
 	suspend fun profile(uuid: String): SkyBlockProfile? =
-		cached(models, uuid) { profiles(uuid)?.let { reply -> SkyBlockProfiles.of(uuid, reply) } }
+		cached(models, uuid, repoReady) { profiles(uuid)?.let { reply -> SkyBlockProfiles.of(uuid, reply) } }
 
 	suspend fun gardenProfile(profileId: String): GardenProfile? =
-		cached(gardens, profileId) { garden(profileId)?.let(GardenProfiles::of) }
+		cached(gardens, profileId, repoReady) { garden(profileId)?.let(GardenProfiles::of) }
 
 	suspend fun accountSecrets(uuid: String): Long? = player(uuid)?.let(ProfileSlices::secrets)
 
@@ -257,18 +260,27 @@ object PlayerProfiles {
 			envelope(fetch(owner, "$base${endpoint.path}?${endpoint.parameter}=$key")).also { proxy.note(it != null) }
 		}
 
-	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend (Host, String) -> V?): V? {
+	private suspend fun <V> cached(
+		cache: Cache<V>,
+		key: String,
+		ready: () -> Boolean = ALWAYS,
+		produce: suspend (Host, String) -> V?
+	): V? {
 		val owner = host ?: return null
 		if (!idShape.matches(key) || requirements.get() == 0) return null
 		val base = syncBase() ?: return null
 		cache.read(key, owner.clock.nanoTime())?.let { return it.value }
-		val readyBefore = cache.stable()
+		if (!ready()) return null
 		val value = withContext(Dispatchers.IO) { produce(owner, base) }
-		return store(owner, cache, key, value, unchanged = lastBase == base && readyBefore && cache.stable())
+		return store(owner, cache, key, value, unchanged = lastBase == base && ready())
 	}
 
-	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend () -> V?): V? =
-		cached(cache, key) { _, _ -> produce() }
+	private suspend fun <V> cached(
+		cache: Cache<V>,
+		key: String,
+		ready: () -> Boolean = ALWAYS,
+		produce: suspend () -> V?
+	): V? = cached(cache, key, ready) { _, _ -> produce() }
 
 	private suspend fun fetch(owner: Host, url: String): String? = withContext(Dispatchers.IO) {
 		limiter.withPermit {
@@ -335,7 +347,7 @@ object PlayerProfiles {
 		STATUS("/v2/status", "uuid", 1.minutes)
 	}
 
-	private class Cache<V>(ttl: Duration, private val maxEntries: Int = MAX_ENTRIES, val stable: () -> Boolean = { true }) {
+	private class Cache<V>(ttl: Duration, private val maxEntries: Int = MAX_ENTRIES) {
 		private val positive = ttl.inWholeNanoseconds
 		private val negative = NEGATIVE_TTL.inWholeNanoseconds
 		private val entries = ConcurrentHashMap<String, Entry<V>>()

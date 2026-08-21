@@ -29,8 +29,9 @@ class SkyBlockProfileTest {
 	fun `the envelope carries the id, the name, the game mode and the members still on the profile`() {
 		val profile = decode()
 
-		assertEquals("profile-1", profile.profileId)
-		assertEquals("Apple", profile.cuteName)
+		assertEquals("profile-1", profile.slice.profileId)
+		assertEquals("Apple", profile.slice.cuteName)
+		assertEquals(42L, profile.slice.dungeons!!.secrets)
 		assertEquals(ProfileMode.IRONMAN, profile.mode)
 		assertEquals(listOf(VIEWED, COOP), profile.members)
 	}
@@ -117,19 +118,6 @@ class SkyBlockProfileTest {
 	}
 
 	@Test
-	fun `the dungeon numbers are the ones the dungeon slice already reports`() {
-		installRepo()
-		val reply = reply()
-		val spine = SkyBlockProfiles.of(VIEWED, reply)!!.dungeons!!
-		val slice = ProfileSlices.of(VIEWED, reply)!!.dungeons!!
-
-		assertEquals(slice.catacombsLevel, spine.catacombsLevel)
-		assertEquals(slice.secrets, spine.secrets)
-		assertEquals(slice.runs, spine.runs)
-		assertEquals(slice.catacombs.keys, spine.catacombs.keys)
-	}
-
-	@Test
 	fun `the long tail hangs off the same profile the spine does`() {
 		val profile = decode()
 
@@ -152,11 +140,20 @@ class SkyBlockProfileTest {
 	}
 
 	@Test
+	fun `the tail sections hang off the same profile too`() {
+		val profile = decode()
+
+		assertEquals(120, profile.attributes!!.syphoned.getValue("veteran"))
+		assertEquals(430, profile.maxwell!!.highestMagicalPower)
+		assertEquals(7, profile.fishing!!.trophyCounts.getValue("blobfish_bronze"))
+	}
+
+	@Test
 	fun `a profile with none of these sections decodes to empty rather than throwing`() {
 		installRepo()
 		val profile = SkyBlockProfiles.of(VIEWED, bareReply())!!
 
-		assertNull(profile.dungeons)
+		assertNull(profile.slice.dungeons)
 		assertEquals(ProfileMode.NORMAL, profile.mode)
 		assertTrue(profile.slayers.isEmpty())
 		assertTrue(profile.collections.isEmpty())
@@ -168,6 +165,9 @@ class SkyBlockProfileTest {
 		assertNull(profile.rift)
 		assertNull(profile.chocolateFactory)
 		assertNull(profile.crimsonIsle)
+		assertNull(profile.attributes)
+		assertNull(profile.maxwell)
+		assertNull(profile.fishing)
 		assertEquals(0.0, profile.skills.getValue(Skill.FARMING).experience)
 	}
 
@@ -222,6 +222,9 @@ class SkyBlockProfileTest {
 							},
 							"jacobs_contest":{"perks":{"farming_level_cap":2}},
 							"nether_island_player_data":{"selected_faction":"mages","mages_reputation":500},
+							"attributes":{"stacks":{"veteran":120}},
+							"accessory_bag_storage":{"highest_magical_power":430},
+							"trophy_fish":{"blobfish_bronze":7,"total_caught":9},
 							"rift":{"castle":{"grubber_stacks":2}},
 							"player_stats":{"rift":{"lifetime_motes_earned":700}},
 							"events":{"easter":{"chocolate":900}},

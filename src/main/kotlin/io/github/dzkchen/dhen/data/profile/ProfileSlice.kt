@@ -83,7 +83,10 @@ internal object ProfileSlices {
 
 	fun of(uuid: String, profilesReply: JsonObject): ProfileSlice? {
 		val profile = selectedProfile(profilesReply) ?: return null
-		val member = member(profile, uuid) ?: return null
+		return member(profile, uuid)?.let { of(profile, it) }
+	}
+
+	fun of(profile: JsonObject, member: JsonObject): ProfileSlice {
 		val magicalPower = MagicalPower.of(member)
 		return ProfileSlice(
 			profileId = profile.text("profile_id") ?: "",
@@ -115,7 +118,7 @@ internal object ProfileSlices {
 	internal fun member(profile: JsonObject, uuid: String): JsonObject? =
 		profile.obj("members")?.obj(uuid.replace("-", ""))
 
-	internal fun dungeons(member: JsonObject): DungeonSlice? =
+	private fun dungeons(member: JsonObject): DungeonSlice? =
 		member.obj("dungeons")?.let { dungeonSlice(it, member) }
 
 	internal fun inventoryApi(member: JsonObject): Boolean =
@@ -179,7 +182,7 @@ internal object MagicalPower {
 
 	fun of(member: JsonObject): Int? {
 		val stacks = ApiInventory.stacks(talismanBag(member)) ?: return null
-		val contacts = member.obj("nether_island_player_data")?.obj("abiphone")?.array("active_contacts")?.size() ?: 0
+		val contacts = contacts(member)
 		val strongest = HashMap<String, Int>()
 		for (stack in stacks) {
 			val data = SkyBlockItems.customData(stack) ?: continue
@@ -189,14 +192,23 @@ internal object MagicalPower {
 			val power = powerOf(item, stack, contacts)
 			if (power > (strongest[family] ?: 0)) strongest[family] = power
 		}
-		return strongest.values.sum() + if (member.obj("rift")?.obj("access")?.flag("consumed_prism") == true) PRISM_POWER else 0
+		return strongest.values.sum() + if (consumedPrism(member)) PRISM_POWER else 0
 	}
 
 	fun assumed(member: JsonObject, power: Int?): Int {
 		if (power != null && power != 0) return power
-		val tuning = member.obj("accessory_bag_storage")?.obj("tuning")?.obj("slot_0") ?: return 0
+		val tuning = tuning(member) ?: return 0
 		return tuning.keySet().sumOf { tuning.number(it)?.toInt() ?: 0 } * POWER_PER_TUNING
 	}
+
+	fun tuning(member: JsonObject): JsonObject? =
+		member.obj("accessory_bag_storage")?.obj("tuning")?.obj("slot_0")
+
+	fun contacts(member: JsonObject): Int =
+		member.obj("nether_island_player_data")?.obj("abiphone")?.array("active_contacts")?.size() ?: 0
+
+	fun consumedPrism(member: JsonObject): Boolean =
+		member.obj("rift")?.obj("access")?.flag("consumed_prism") == true
 
 	private fun talismanBag(member: JsonObject): String? =
 		member.obj("inventory")?.obj("bag_contents")?.obj("talisman_bag")?.text("data")

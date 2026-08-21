@@ -35,13 +35,11 @@ class SlayerProgress internal constructor(
 class BestiaryEntry internal constructor(val kills: Long, val deaths: Long)
 
 class SkyBlockProfile internal constructor(
-	val profileId: String,
-	val cuteName: String,
+	val slice: ProfileSlice,
 	val mode: ProfileMode,
 	val members: List<String>,
 	val skills: Map<Skill, SkillProgress>,
 	val slayers: Map<String, SlayerProgress>,
-	val dungeons: DungeonSlice?,
 	val collections: Map<String, Long>,
 	val minions: Map<String, Int>,
 	val bestiary: Map<String, BestiaryEntry>,
@@ -50,7 +48,10 @@ class SkyBlockProfile internal constructor(
 	val farming: FarmingProfile?,
 	val crimsonIsle: CrimsonIsleProfile?,
 	val rift: RiftProfile?,
-	val chocolateFactory: ChocolateFactoryProfile?
+	val chocolateFactory: ChocolateFactoryProfile?,
+	val attributes: AttributesProfile?,
+	val maxwell: MaxwellProfile?,
+	val fishing: FishingProfile?
 )
 
 internal object SkyBlockProfiles {
@@ -61,13 +62,11 @@ internal object SkyBlockProfiles {
 		val everyMember = members.keySet().mapNotNull(members::obj)
 		val farming = FarmingProfiles.of(member)
 		return SkyBlockProfile(
-			profileId = profile.text("profile_id") ?: "",
-			cuteName = profile.text("cute_name") ?: "",
+			slice = ProfileSlices.of(profile, member),
 			mode = mode(profile.text("game_mode")),
 			members = stillOnProfile(members),
 			skills = skills(member, everyMember, farming?.farmingLevelCap ?: 0),
 			slayers = slayers(member.obj("slayer")?.obj("slayer_bosses")),
-			dungeons = ProfileSlices.dungeons(member),
 			collections = collections(everyMember),
 			minions = minions(everyMember),
 			bestiary = bestiary(member.obj("bestiary")),
@@ -76,7 +75,10 @@ internal object SkyBlockProfiles {
 			farming = farming,
 			crimsonIsle = CrimsonIsleProfiles.of(member),
 			rift = RiftProfiles.of(member),
-			chocolateFactory = ChocolateFactoryProfiles.of(member)
+			chocolateFactory = ChocolateFactoryProfiles.of(member),
+			attributes = AttributesProfiles.of(member),
+			maxwell = MaxwellProfiles.of(member),
+			fishing = FishingProfiles.of(member)
 		)
 	}
 

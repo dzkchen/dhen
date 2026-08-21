@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -187,10 +188,12 @@ class PlayerProfilesTest {
 	}
 
 	@Test
-	fun `slice decodes the fetched reply`() = runBlocking {
+	fun `slice decodes the fetched reply, and does so with no item repo behind it`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
 		install()
 		PlayerProfiles.require()
+
+		assertEquals(RepoState.IDLE, ItemRepo.state)
 		val slice = PlayerProfiles.slice(UUID)!!
 		assertEquals("p1", slice.profileId)
 		assertEquals("Strawberry", slice.cuteName)
@@ -214,20 +217,33 @@ class PlayerProfilesTest {
 		install()
 		PlayerProfiles.require()
 
-		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.cuteName)
+		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.slice?.cuteName)
 		assertTrue(PlayerProfiles.cacheSummary().contains("models=1"))
 	}
 
 	@Test
-	fun `a profile decoded before the item repo is ready is never kept, because its levels would be zero`() = runBlocking {
+	fun `a profile asked for before the item repo is ready reads as not ready, rather than as a player with no levels`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
 		install()
 		PlayerProfiles.require()
 
 		assertEquals(RepoState.IDLE, ItemRepo.state)
-		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.cuteName)
+		assertNull(PlayerProfiles.profile(UUID))
 
 		assertTrue(PlayerProfiles.cacheSummary().contains("models=0"))
+	}
+
+	@Test
+	fun `a decoded profile hands its slice to the next caller rather than decoding a second one`() = runBlocking {
+		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+		DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+		install()
+		PlayerProfiles.require()
+
+		val profile = PlayerProfiles.profile(UUID)!!
+
+		assertEquals("Strawberry", profile.slice.cuteName)
+		assertSame(profile.slice, PlayerProfiles.slice(UUID))
 	}
 
 	@Test
