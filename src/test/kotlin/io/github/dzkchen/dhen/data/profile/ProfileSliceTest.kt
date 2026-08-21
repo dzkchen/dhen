@@ -3,16 +3,19 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.util.obj
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.StringTag
+import net.minecraft.world.item.ItemStack
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.util.Base64
@@ -117,11 +120,12 @@ class ProfileSliceTest {
 
 	@Test
 	fun `a bag that is blank, not base64, not compressed or cut short reads as unreadable`() {
-		assertNull(ApiInventory.items(""))
-		assertNull(ApiInventory.items("not base64 at all"))
-		assertNull(ApiInventory.items(Base64.getEncoder().encodeToString("plain bytes".toByteArray())))
-		assertNull(ApiInventory.items(bag(item("TEST_TALISMAN", "§f§lCOMMON")).let { it.substring(0, it.length / 2) }))
-		assertEquals(emptyList<ApiItem>(), ApiInventory.items(bag()))
+		assertNull(ApiInventory.stacks(""))
+		assertNull(ApiInventory.stacks(null))
+		assertNull(ApiInventory.stacks("not base64 at all"))
+		assertNull(ApiInventory.stacks(Base64.getEncoder().encodeToString("plain bytes".toByteArray())))
+		assertNull(ApiInventory.stacks(bag(item("TEST_TALISMAN", "§f§lCOMMON")).let { it.substring(0, it.length / 2) }))
+		assertEquals(emptyList<ItemStack>(), ApiInventory.stacks(bag()))
 	}
 
 	@Test
@@ -239,6 +243,10 @@ class ProfileSliceTest {
 		private const val UUID = "123e4567-e89b-12d3-a456-426614174000"
 		private const val OTHER_UUID = "00000000-0000-0000-0000-000000000000"
 		private const val DASHLESS = "123e4567e89b12d3a456426614174000"
+
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() = ItemFixture.bootstrap()
 
 		private const val SELECTED =
 			"""{"profile_id":"profile-1","cute_name":"Apple","selected":true,"members":{}}"""

@@ -73,7 +73,7 @@ internal object ProfileSlices {
 
 	fun of(uuid: String, profilesReply: JsonObject): ProfileSlice? {
 		val profile = selectedProfile(profilesReply) ?: return null
-		val member = profile.obj("members")?.obj(uuid.replace("-", "")) ?: return null
+		val member = member(profile, uuid) ?: return null
 		val magicalPower = MagicalPower.of(member)
 		return ProfileSlice(
 			profileId = profile.text("profile_id") ?: "",
@@ -81,7 +81,7 @@ internal object ProfileSlices {
 			dungeons = member.obj("dungeons")?.let { dungeonSlice(it, member) },
 			magicalPower = magicalPower,
 			assumedMagicalPower = MagicalPower.assumed(member, magicalPower),
-			inventoryApi = member.obj("inventory")?.obj("ender_chest_contents")?.text("data") != null
+			inventoryApi = inventoryApi(member)
 		)
 	}
 
@@ -101,6 +101,12 @@ internal object ProfileSlices {
 	fun selectedProfile(profilesReply: JsonObject): JsonObject? = profilesReply.array("profiles")
 		?.firstOrNull { it is JsonObject && it.flag("selected") }
 		?.asJsonObject
+
+	internal fun member(profile: JsonObject, uuid: String): JsonObject? =
+		profile.obj("members")?.obj(uuid.replace("-", ""))
+
+	internal fun inventoryApi(member: JsonObject): Boolean =
+		member.obj("inventory")?.obj("ender_chest_contents")?.text("data") != null
 
 	private fun dungeonSlice(dungeons: JsonObject, member: JsonObject): DungeonSlice {
 		val types = dungeons.obj("dungeon_types")

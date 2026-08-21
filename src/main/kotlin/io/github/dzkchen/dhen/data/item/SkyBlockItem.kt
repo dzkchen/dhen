@@ -210,13 +210,9 @@ class SkyBlockItem internal constructor(
 			return levels
 		}
 
-		private fun petInfo(tag: CompoundTag): PetInfo? {
-			val raw = tag.getStringOr("petInfo", "")
-			if (raw.isEmpty()) return null
-			val json = parsePetInfo(raw) ?: return null
-			val type = json.text("type")
-			val tier = json.text("tier")
-			if (type == null || tier == null) return unreadablePetInfo(raw)
+		internal fun petInfoOf(json: JsonObject): PetInfo? {
+			val type = json.text("type") ?: return null
+			val tier = json.text("tier") ?: return null
 			return PetInfo(
 				type = type,
 				tier = tier,
@@ -225,6 +221,13 @@ class SkyBlockItem internal constructor(
 				candyUsed = (json.number("candyUsed") ?: 0.0).toInt(),
 				skin = json.text("skin")
 			)
+		}
+
+		private fun petInfo(tag: CompoundTag): PetInfo? {
+			val raw = tag.getStringOr("petInfo", "")
+			if (raw.isEmpty()) return null
+			val json = parsePetInfo(raw) ?: return null
+			return petInfoOf(json) ?: unreadablePetInfo(raw)
 		}
 
 		private fun parsePetInfo(raw: String): JsonObject? = try {

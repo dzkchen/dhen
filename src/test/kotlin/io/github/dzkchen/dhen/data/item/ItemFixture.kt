@@ -18,7 +18,7 @@ internal object ItemFixture {
 	fun bootstrap() {
 		SharedConstants.tryDetectVersion()
 		Bootstrap.bootStrap()
-		bindComponents(probe)
+		BuiltInRegistries.ITEM.stream().forEach(::bindComponents)
 	}
 
 	fun vanilla(): ItemStack = ItemStack(probe)

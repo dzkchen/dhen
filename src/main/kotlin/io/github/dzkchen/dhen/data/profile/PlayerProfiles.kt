@@ -5,6 +5,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebClient
@@ -37,6 +39,7 @@ object PlayerProfiles {
 	private const val MOJANG_FALLBACK = "https://api.mojang.com/users/profiles/minecraft/"
 	private const val MAX_IN_FLIGHT = 5
 	private const val MAX_ENTRIES = 128
+	private const val MAX_HELD_PROFILES = 16
 	private const val NO_PROFILE = "none"
 
 	private val NEGATIVE_TTL = 1.minutes
@@ -55,6 +58,7 @@ object PlayerProfiles {
 	private val uuids = Cache<String>(UUID_TTL)
 	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
+	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES) { ItemRepo.state == RepoState.READY }
 
 	@Volatile
 	private var host: Host? = null
@@ -117,6 +121,8 @@ object PlayerProfiles {
 
 	suspend fun slice(uuid: String): ProfileSlice? =
 		cached(slices, uuid) { profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) } }
+
+	suspend fun holdings(uuid: String): ProfileHoldings? = cached(holdings, uuid) { decode(uuid) }
 
 	suspend fun accountSecrets(uuid: String): Long? = player(uuid)?.let(ProfileSlices::secrets)
 
@@ -217,12 +223,19 @@ object PlayerProfiles {
 		uuids.clear()
 		for (cache in replies.values) cache.clear()
 		slices.clear()
+		holdings.clear()
 	}
 
 	internal fun cacheSummary(): String = Endpoint.entries.joinToString(
 		prefix = "uuid=${uuids.size}, ",
-		postfix = ", slices=${slices.size}"
+		postfix = ", slices=${slices.size}, holdings=${holdings.size}"
 	) { "${it.name.lowercase(Locale.ROOT)}=${replies.getValue(it).size}" }
+
+	private suspend fun decode(uuid: String): ProfileHoldings? {
+		val profile = selectedProfile(uuid) ?: return null
+		val member = ProfileSlices.member(profile, uuid) ?: return null
+		return withContext(Dispatchers.IO) { ProfileHoldings.of(profile, member) }
+	}
 
 	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? =
 		cached(replies.getValue(endpoint), key) { owner, base ->
@@ -234,7 +247,7 @@ object PlayerProfiles {
 		if (!idShape.matches(key) || requirements.get() == 0) return null
 		val base = syncBase() ?: return null
 		cache.read(key, owner.clock.nanoTime())?.let { return it.value }
-		return store(owner, cache, key, produce(owner, base), unchanged = lastBase == base)
+		return store(owner, cache, key, produce(owner, base), unchanged = lastBase == base && cache.stable())
 	}
 
 	private suspend fun <V> cached(cache: Cache<V>, key: String, produce: suspend () -> V?): V? =
@@ -305,7 +318,7 @@ object PlayerProfiles {
 		STATUS("/v2/status", "uuid", 1.minutes)
 	}
 
-	private class Cache<V>(ttl: Duration) {
+	private class Cache<V>(ttl: Duration, private val maxEntries: Int = MAX_ENTRIES, val stable: () -> Boolean = { true }) {
 		private val positive = ttl.inWholeNanoseconds
 		private val negative = NEGATIVE_TTL.inWholeNanoseconds
 		private val entries = ConcurrentHashMap<String, Entry<V>>()
@@ -320,9 +333,12 @@ object PlayerProfiles {
 		}
 
 		fun write(key: String, value: V?, now: Long) {
-			if (entries.size >= MAX_ENTRIES) {
+			if (entries.size >= maxEntries) {
 				entries.entries.removeIf { expired(it.value, now) }
-				if (entries.size >= MAX_ENTRIES) entries.clear()
+				while (entries.size >= maxEntries) {
+					val oldest = entries.entries.minByOrNull { it.value.stamp } ?: break
+					entries.remove(oldest.key, oldest.value)
+				}
 			}
 			entries[key] = Entry(value, now)
 		}
