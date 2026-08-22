@@ -52,6 +52,8 @@ dependencies {
 
 	localRuntime("net.litetex.mcm:dev-auth-neo:${providers.gradleProperty("dev_auth_version").get()}")
 
+	compileOnly("maven.modrinth:iris:${providers.gradleProperty("iris_version").get()}")
+
 	testImplementation(platform("org.junit:junit-bom:5.11.4"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")

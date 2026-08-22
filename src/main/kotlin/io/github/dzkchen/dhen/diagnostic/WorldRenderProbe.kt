@@ -9,6 +9,8 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.render.IrisCompat
+import io.github.dzkchen.dhen.render.IrisShaderProgram
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -54,6 +56,11 @@ internal object WorldRenderProbe {
 		.withLocation(Dhen.id("pipeline/filled_through_walls"))
 		.withDepthStencilState(Optional.empty())
 		.build()
+
+	init {
+		IrisCompat.assignOnce(LINES_THROUGH_WALLS, IrisShaderProgram.LINES)
+		IrisCompat.assignOnce(FILLED_THROUGH_WALLS, IrisShaderProgram.BASIC)
+	}
 
 	private val THROUGH_WALL_LINES: RenderType = RenderType.create(
 		"dhen_lines_through_walls",
