@@ -116,7 +116,7 @@ class Diagnostics(
 	fun repoLines(toggle: Boolean): List<String> = buildList {
 		if (toggle) add(toggleRequirement())
 		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}, " +
-			"commit=${ItemRepo.commit ?: "none"}")
+			"retrying=${yesNo(ItemRepo.retrying)}, commit=${ItemRepo.commit ?: "none"}")
 		add("  constants: reforgeStones=${ItemRepo.constants.reforgeStoneCount}, " +
 			"starredItems=${ItemRepo.constants.starredItemCount}")
 	}

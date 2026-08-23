@@ -1,15 +1,17 @@
 package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.Dhen
-import io.github.dzkchen.dhen.data.Requirement
+import io.github.dzkchen.dhen.data.RequirementPump
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 enum class RepoState {
@@ -22,11 +24,12 @@ enum class RepoState {
 object ItemRepo {
 	private const val ITEMS = "items"
 	private const val CONSTANTS = "constants"
+	private const val RETRY_LIMIT = 6
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 	private val RETRY_AFTER = 5.minutes
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
-	private val requirement = Requirement()
+	private val pump = RequirementPump()
 	private val activated = AtomicBoolean()
 
 	private val published = AtomicReference(Published(null, RepoState.IDLE))
@@ -44,7 +47,9 @@ object ItemRepo {
 
 	val size: Int get() = catalog.size
 
-	val required: Int get() = requirement.count
+	val required: Int get() = pump.count
+
+	internal val retrying: Boolean get() = pump.polling
 
 	val ready: Boolean get() = state == RepoState.READY
 
@@ -54,17 +59,18 @@ object ItemRepo {
 
 	fun require(): Handle {
 		val owner = host ?: return Handle {}
-		return requirement.require(alive = { host === owner }, taken = { startLoad(owner) })
+		return pump.requireOnTake({ host === owner }) { owner.scope.launch { drive(owner) } }
 	}
 
 	internal fun install(
 		scope: CoroutineScope,
 		root: Path,
 		sync: RepoSync = RepoSync(NEU, root),
-		clock: NanoClock = NanoClock.SYSTEM
+		clock: NanoClock = NanoClock.SYSTEM,
+		retryAfter: Duration = RETRY_AFTER
 	) {
 		uninstall()
-		val owner = Host(scope, root, sync, clock)
+		val owner = Host(scope, root, sync, clock, retryAfter)
 		published.set(Published(owner, RepoState.IDLE))
 		host = owner
 	}
@@ -72,13 +78,30 @@ object ItemRepo {
 	internal fun uninstall() {
 		host = null
 		published.set(Published(null, RepoState.IDLE))
-		requirement.reset()
+		pump.reset()
 		activated.set(false)
 	}
 
-	private fun startLoad(owner: Host) {
-		if (owner.clock.nanoTime() < published.get().retryAt || !activated.compareAndSet(false, true)) return
-		owner.scope.launch { load(owner) }
+	private suspend fun drive(owner: Host) {
+		var attempts = RETRY_LIMIT
+		while (true) {
+			val current = published.get()
+			if (current.host !== owner || current.state == RepoState.READY) return
+			if (attempts == 0) {
+				log.warn(
+					"Dhen stopped retrying the item repo after {} attempts; /dhen debug repo download asks for it again",
+					RETRY_LIMIT
+				)
+				return
+			}
+			if (loadIfDue(owner)) attempts-- else delay(owner.retryAfter)
+		}
+	}
+
+	private fun loadIfDue(owner: Host): Boolean {
+		if (owner.clock.nanoTime() < published.get().retryAt || !activated.compareAndSet(false, true)) return false
+		load(owner)
+		return true
 	}
 
 	private fun load(owner: Host) {
@@ -97,7 +120,7 @@ object ItemRepo {
 			log.error("Dhen could not load the item repo", throwable)
 			null
 		}
-		val retryAt = owner.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds
+		val retryAt = owner.clock.nanoTime() + owner.retryAfter.inWholeNanoseconds
 		val loaded = publish(owner) { held ->
 			if (read == null) held.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt) else {
 				val next = held.copy(catalog = read.catalog, constants = read.constants, commit = read.commit)
@@ -123,5 +146,11 @@ object ItemRepo {
 		val retryAt: Long = 0L
 	)
 
-	private class Host(val scope: CoroutineScope, val root: Path, val sync: RepoSync, val clock: NanoClock)
+	private class Host(
+		val scope: CoroutineScope,
+		val root: Path,
+		val sync: RepoSync,
+		val clock: NanoClock,
+		val retryAfter: Duration
+	)
 }

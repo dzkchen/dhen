@@ -43,11 +43,16 @@ internal class RequirementPump {
 	val polling: Boolean get() = pump?.isActive == true
 
 	fun require(alive: () -> Boolean, start: () -> Job): Handle =
-		requirement.require(alive) { held ->
-			if (held == 0) stop() else if (pump?.isActive != true) pump = start()
-		}
+		requirement.require(alive) { held -> if (held == 0) stop() else launchIfIdle(start) }
+
+	fun requireOnTake(alive: () -> Boolean, start: () -> Job): Handle =
+		requirement.require(alive, taken = { launchIfIdle(start) }, settled = { held -> if (held == 0) stop() })
 
 	fun reset() = requirement.reset { stop() }
+
+	private fun launchIfIdle(start: () -> Job) {
+		if (pump?.isActive != true) pump = start()
+	}
 
 	private fun stop() {
 		pump?.cancel()

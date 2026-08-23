@@ -487,7 +487,7 @@ class CommandRegistryTest {
 
 		assertEquals(
 			listOf(
-				"Item repo: state=IDLE, items=0, needed by 0, commit=none",
+				"Item repo: state=IDLE, items=0, needed by 0, retrying=no, commit=none",
 				"  constants: reforgeStones=0, starredItems=0"
 			),
 			captured
