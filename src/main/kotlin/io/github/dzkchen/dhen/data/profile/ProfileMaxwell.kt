@@ -1,8 +1,8 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.ints
-import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 
@@ -21,8 +21,8 @@ internal object MaxwellProfiles {
 		return MaxwellProfile(
 			tunings = MagicalPower.tuning(member).ints(),
 			selectedPower = storage.text("selected_power"),
-			highestMagicalPower = storage.number("highest_magical_power")?.toInt() ?: 0,
-			bagUpgrades = storage.number("bag_upgrades_purchased")?.toInt() ?: 0,
+			highestMagicalPower = storage.int("highest_magical_power"),
+			bagUpgrades = storage.int("bag_upgrades_purchased"),
 			abiphoneContacts = MagicalPower.contacts(member),
 			consumedRiftPrism = MagicalPower.consumedPrism(member)
 		)

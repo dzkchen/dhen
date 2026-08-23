@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebSource
+import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
 import java.net.http.HttpResponse
 import java.nio.file.Files
@@ -70,7 +71,7 @@ internal class RepoSync(
 	private fun latestCommit(): String? {
 		val body = transport.text(source.commitUrl) ?: return null
 		return try {
-			JsonParser.parseString(body).asJsonObject.get("sha")?.asString?.takeIf { it.isNotEmpty() }
+			JsonParser.parseString(body).asJsonObject.text("sha")
 		} catch (throwable: Throwable) {
 			log.warn("Dhen could not read the latest {} commit", source.repo, throwable)
 			null

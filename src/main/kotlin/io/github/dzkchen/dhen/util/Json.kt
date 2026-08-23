@@ -19,8 +19,12 @@ internal fun JsonObject.number(member: String): Double? = get(member).numberOrNu
 
 internal fun JsonObject.flagOrNull(member: String): Boolean? = get(member).flagOrNull()
 
+internal fun JsonObject?.int(member: String, fallback: Int = 0): Int = this?.number(member)?.toInt() ?: fallback
+
+internal fun JsonObject?.long(member: String, fallback: Long = 0L): Long = this?.number(member)?.toLong() ?: fallback
+
 internal fun JsonObject?.ints(fallback: Int = 0): Map<String, Int> =
-	keys().associateWith { this?.number(it)?.toInt() ?: fallback }
+	keys().associateWith { int(it, fallback) }
 
 internal fun JsonObject?.numericInts(): Map<String, Int> =
 	keys().mapNotNull { key -> this?.number(key)?.let { key to it.toInt() } }.toMap()

@@ -5,7 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.flag
-import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 
@@ -26,7 +26,7 @@ internal class MayorReply(
 			val perks = perkNames(mayor.array("perks")) ?: return null
 			val minister = mayor.obj("minister")
 			return MayorReply(
-				lastUpdated = json.number("lastUpdated")?.toLong() ?: 0L,
+				lastUpdated = json.long("lastUpdated"),
 				mayor = Mayor(name, perks),
 				minister = minister?.text("name"),
 				ministerPerk = minister?.obj("perk")?.text("name")

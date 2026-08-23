@@ -5,8 +5,10 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.ints
 import io.github.dzkchen.dhen.util.keys
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.obj
@@ -122,14 +124,14 @@ class RepoConstants private constructor(
 		fun read(constants: Path): RepoConstants {
 			if (!Files.isDirectory(constants)) return EMPTY
 			val pets = read(constants, "pets")
-			val offsets = pets.getAsJsonObject("pet_rarity_offset")
+			val offsets = pets.obj("pet_rarity_offset")
 			return RepoConstants(
 				reforgeStones = reforgeStones(read(constants, "reforgestones")),
 				stars = stars(read(constants, "essencecosts")),
 				gemstoneSlots = gemstoneSlots(read(constants, "gemstonecosts")),
-				petLevels = pets.getAsJsonArray("pet_levels").ints(),
+				petLevels = pets.array("pet_levels").ints(),
 				petRarityOffsets = offsets.ints(0),
-				customPets = customPets(pets.getAsJsonObject("custom_pet_leveling")),
+				customPets = customPets(pets.obj("custom_pet_leveling")),
 				leveling = leveling(read(constants, "leveling")),
 				garden = garden(read(constants, "garden"))
 			)
@@ -152,11 +154,11 @@ class RepoConstants private constructor(
 				val entry = element as? JsonObject ?: continue
 				val stone = entry.text("internalName") ?: continue
 				val reforge = entry.text("reforgeName") ?: continue
-				val costs = entry.getAsJsonObject("reforgeCosts")
+				val costs = entry.obj("reforgeCosts")
 				stones[entry.text("nbtModifier") ?: nbtModifier(reforge)] = ReforgeStone(
 					stone = stone.uppercase(Locale.ROOT),
 					reforge = reforge,
-					costs = costs?.keySet()?.associate { it.uppercase(Locale.ROOT) to (costs.number(it)?.toLong() ?: 0L) }.orEmpty()
+					costs = costs?.keySet()?.associate { it.uppercase(Locale.ROOT) to costs.long(it) }.orEmpty()
 				)
 			}
 			return stones
@@ -170,12 +172,12 @@ class RepoConstants private constructor(
 			for ((id, element) in json.entrySet()) {
 				val entry = element as? JsonObject ?: continue
 				val essence = entry.text("type")?.uppercase(Locale.ROOT) ?: continue
-				val extras = entry.getAsJsonObject("items")
+				val extras = entry.obj("items")
 				val tiers = ArrayList<StarTier>()
 				while (true) {
 					val tier = (tiers.size + 1).toString()
 					val amount = entry.number(tier)?.toInt() ?: break
-					tiers += StarTier(essence, amount, ingredients(extras?.getAsJsonArray(tier)))
+					tiers += StarTier(essence, amount, ingredients(extras?.array(tier)))
 				}
 				if (tiers.isNotEmpty()) stars[id.uppercase(Locale.ROOT)] = tiers
 			}
@@ -186,7 +188,7 @@ class RepoConstants private constructor(
 			val items = HashMap<String, Map<String, Map<String, Int>>>(json.size())
 			for ((id, element) in json.entrySet()) {
 				val entry = element as? JsonObject ?: continue
-				val slots = entry.keySet().associateWith { ingredients(entry.getAsJsonArray(it)) }
+				val slots = entry.keySet().associateWith { ingredients(entry.array(it)) }
 				if (slots.isNotEmpty()) items[id.uppercase(Locale.ROOT)] = slots
 			}
 			return items
@@ -197,10 +199,10 @@ class RepoConstants private constructor(
 			val pets = HashMap<String, PetLeveling>(json.size())
 			for ((type, element) in json.entrySet()) {
 				val entry = element as? JsonObject ?: continue
-				val offsets = entry.getAsJsonObject("rarity_offset")
+				val offsets = entry.obj("rarity_offset")
 				pets[type.uppercase(Locale.ROOT)] = PetLeveling(
-					extraLevels = entry.getAsJsonArray("pet_levels").ints(),
-					maxLevel = entry.number("max_level")?.toInt() ?: DEFAULT_PET_MAX_LEVEL,
+					extraLevels = entry.array("pet_levels").ints(),
+					maxLevel = entry.int("max_level", DEFAULT_PET_MAX_LEVEL),
 					rarityOffsets = offsets.ints(0)
 				)
 			}

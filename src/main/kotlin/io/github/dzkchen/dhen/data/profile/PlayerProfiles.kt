@@ -237,7 +237,7 @@ object PlayerProfiles {
 
 	internal fun clearCaches() {
 		uuids.clear()
-		clearProxyCaches()
+		invalidate(configuredBase())
 	}
 
 	private fun clearProxyCaches() {

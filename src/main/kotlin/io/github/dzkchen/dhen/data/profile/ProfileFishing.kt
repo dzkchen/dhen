@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.numericInts
@@ -40,16 +41,16 @@ internal object FishingProfiles {
 		if (trophies == null && fished == null && treasures == null && sharks == null) return null
 		return FishingProfile(
 			itemsFished = ItemsFished(
-				total = fished?.number("total")?.toInt() ?: 0,
-				normal = fished?.number("normal")?.toInt() ?: 0,
-				treasure = fished?.number("treasure")?.toInt() ?: 0,
-				largeTreasure = fished?.number("large_treasure")?.toInt() ?: 0,
-				trophyFish = fished?.number("trophy_fish")?.toInt() ?: 0
+				total = fished.int("total"),
+				normal = fished.int("normal"),
+				treasure = fished.int("treasure"),
+				largeTreasure = fished.int("large_treasure"),
+				trophyFish = fished.int("trophy_fish")
 			),
 			treasuresCaught = treasures?.toInt() ?: 0,
 			festivalSharksKilled = sharks?.toInt() ?: 0,
 			trophyCounts = trophies.numericInts().filterKeys { it != TOTAL_CAUGHT },
-			trophiesCaught = trophies?.number(TOTAL_CAUGHT)?.toInt() ?: 0,
+			trophiesCaught = trophies.int(TOTAL_CAUGHT),
 			lastTrophy = lastTrophy(trophies?.text("last_caught")),
 			trophyRewards = rewards(trophies?.array("rewards"))
 		)

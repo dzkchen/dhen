@@ -2,8 +2,11 @@ package io.github.dzkchen.dhen.data.price
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 
 class BazaarOrder internal constructor(val pricePerUnit: Double, val amount: Long, val orders: Long)
@@ -43,10 +46,13 @@ class BazaarSnapshot internal constructor(
 		fun parse(body: String): BazaarSnapshot? {
 			val json = JsonParser.parseString(body).asJsonObject
 			if (!json.flag("success")) return null
-			val products = json.getAsJsonObject("products") ?: return null
+			val products = json.obj("products") ?: return null
 			val parsed = HashMap<String, BazaarProduct>(products.size())
-			for ((key, element) in products.entrySet()) parsed[marketId(key)] = product(key, element.asJsonObject)
-			return BazaarSnapshot(json.number("lastUpdated")?.toLong() ?: 0L, parsed)
+			for ((key, element) in products.entrySet()) {
+				val fields = element as? JsonObject ?: continue
+				parsed[marketId(key)] = product(key, fields)
+			}
+			return BazaarSnapshot(json.long("lastUpdated"), parsed)
 		}
 
 		fun marketId(productId: String): String {
@@ -69,18 +75,18 @@ class BazaarSnapshot internal constructor(
 				instantSell = sell.maxOfOrNull(BazaarOrder::pricePerUnit) ?: 0.0,
 				buySummary = buy,
 				sellSummary = sell,
-				quickStatus = quickStatus(json.getAsJsonObject("quick_status"))
+				quickStatus = quickStatus(json.obj("quick_status"))
 			)
 		}
 
 		private fun summary(json: JsonObject, member: String): List<BazaarOrder> {
-			val array = json.getAsJsonArray(member) ?: return emptyList()
-			return array.map {
-				val order = it.asJsonObject
+			val array = json.array(member) ?: return emptyList()
+			return array.mapNotNull { element ->
+				val order = element as? JsonObject ?: return@mapNotNull null
 				BazaarOrder(
 					order.number("pricePerUnit") ?: 0.0,
-					order.number("amount")?.toLong() ?: 0L,
-					order.number("orders")?.toLong() ?: 0L
+					order.long("amount"),
+					order.long("orders")
 				)
 			}
 		}
@@ -91,13 +97,13 @@ class BazaarSnapshot internal constructor(
 			if (json == null) return NO_QUICK_STATUS
 			return BazaarQuickStatus(
 				buyPrice = json.number("buyPrice") ?: 0.0,
-				buyVolume = json.number("buyVolume")?.toLong() ?: 0L,
-				buyMovingWeek = json.number("buyMovingWeek")?.toLong() ?: 0L,
-				buyOrders = json.number("buyOrders")?.toLong() ?: 0L,
+				buyVolume = json.long("buyVolume"),
+				buyMovingWeek = json.long("buyMovingWeek"),
+				buyOrders = json.long("buyOrders"),
 				sellPrice = json.number("sellPrice") ?: 0.0,
-				sellVolume = json.number("sellVolume")?.toLong() ?: 0L,
-				sellMovingWeek = json.number("sellMovingWeek")?.toLong() ?: 0L,
-				sellOrders = json.number("sellOrders")?.toLong() ?: 0L
+				sellVolume = json.long("sellVolume"),
+				sellMovingWeek = json.long("sellMovingWeek"),
+				sellOrders = json.long("sellOrders")
 			)
 		}
 	}

@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
@@ -62,10 +63,10 @@ internal object ForagingProfiles {
 		}
 
 	private fun daily(core: JsonObject?): ForagingDaily = ForagingDaily(
-		treesCut = core?.number("daily_trees_cut")?.toInt() ?: 0,
-		treesCutDay = core?.number("daily_trees_cut_day")?.toInt() ?: 0,
+		treesCut = core.int("daily_trees_cut"),
+		treesCutDay = core.int("daily_trees_cut_day"),
 		logsCut = core?.array("daily_log_cut").texts().toSet(),
-		logsCutDay = core?.number("daily_log_cut_day")?.toInt() ?: 0,
-		gifts = core?.number("daily_gifts")?.toInt() ?: 0
+		logsCutDay = core.int("daily_log_cut_day"),
+		gifts = core.int("daily_gifts")
 	)
 }

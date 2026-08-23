@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
@@ -47,13 +48,13 @@ internal object CrimsonIsleProfiles {
 	}
 
 	private fun reputation(isle: JsonObject, faction: Faction): Int =
-		(isle.number("${faction.apiKey}_reputation")?.toInt() ?: 0).coerceAtLeast(0)
+		isle.int("${faction.apiKey}_reputation").coerceAtLeast(0)
 
 	private fun kuudra(tiers: JsonObject?): Map<String, KuudraTier> =
 		tiers.keys().mapTo(LinkedHashSet()) { it.removePrefix(HIGHEST_WAVE) }.associateWith { id ->
 			KuudraTier(
-				completions = tiers?.number(id)?.toInt() ?: 0,
-				highestWave = tiers?.number(HIGHEST_WAVE + id)?.toInt() ?: 0
+				completions = tiers.int(id),
+				highestWave = tiers.int(HIGHEST_WAVE + id)
 			)
 		}
 

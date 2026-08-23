@@ -7,7 +7,9 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.keys
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
@@ -135,7 +137,7 @@ internal object ProfileSlices {
 			classLevels = classLevels,
 			classAverage = DUNGEON_CLASSES.sumOf { classLevels[it] ?: 0 }.toDouble() / DUNGEON_CLASSES.size,
 			selectedClass = dungeons.text("selected_dungeon_class"),
-			secrets = dungeons.number("secrets")?.toLong() ?: 0L,
+			secrets = dungeons.long("secrets"),
 			bloodMobKills = bloodMobKills(member),
 			catacombs = floors(catacombs),
 			masterCatacombs = floors(types?.obj("master_catacombs"))
@@ -162,7 +164,7 @@ internal object ProfileSlices {
 		for (key in completions.keys() + bestS.keys() + bestSPlus.keys()) {
 			val number = key.toIntOrNull() ?: continue
 			floors[number] = DungeonFloor(
-				completions = completions?.number(key)?.toInt() ?: 0,
+				completions = completions.int(key),
 				bestS = bestS?.number(key)?.toLong()?.milliseconds,
 				bestSPlus = bestSPlus?.number(key)?.toLong()?.milliseconds
 			)
@@ -198,7 +200,7 @@ internal object MagicalPower {
 	fun assumed(member: JsonObject, power: Int?): Int {
 		if (power != null && power != 0) return power
 		val tuning = tuning(member) ?: return 0
-		return tuning.keySet().sumOf { tuning.number(it)?.toInt() ?: 0 } * POWER_PER_TUNING
+		return tuning.keySet().sumOf { tuning.int(it) } * POWER_PER_TUNING
 	}
 
 	fun tuning(member: JsonObject): JsonObject? =

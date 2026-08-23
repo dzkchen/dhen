@@ -3,8 +3,10 @@ package io.github.dzkchen.dhen.data.repo
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.event.withoutCodes
-import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.text
+import io.github.dzkchen.dhen.util.textOrNull
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -63,8 +65,8 @@ class ItemCatalog private constructor(
 					id = id.uppercase(Locale.ROOT),
 					itemId = json.text("itemid").orEmpty(),
 					displayName = json.text("displayname").orEmpty(),
-					damage = json.number("damage")?.toInt() ?: 0,
-					lore = json.getAsJsonArray("lore")?.map { it.asString } ?: emptyList(),
+					damage = json.int("damage"),
+					lore = json.array("lore")?.map { it.textOrNull().orEmpty() } ?: emptyList(),
 					recipes = recipes(json)
 				)
 			} catch (throwable: Throwable) {

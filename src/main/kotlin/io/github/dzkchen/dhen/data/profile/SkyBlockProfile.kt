@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.keys
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
@@ -170,7 +171,7 @@ internal object SkyBlockProfiles {
 		val deaths = bestiary?.obj("deaths")
 		val mobs = LinkedHashMap<String, BestiaryEntry>()
 		for (mob in kills.keys() + deaths.keys()) {
-			mobs[mob] = BestiaryEntry(kills?.number(mob)?.toLong() ?: 0L, deaths?.number(mob)?.toLong() ?: 0L)
+			mobs[mob] = BestiaryEntry(kills.long(mob), deaths.long(mob))
 		}
 		return mobs
 	}

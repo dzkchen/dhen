@@ -1,8 +1,9 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.ints
-import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
 
@@ -35,34 +36,34 @@ internal object ChocolateFactoryProfiles {
 	fun of(member: JsonObject): ChocolateFactoryProfile? {
 		val easter = member.obj("events")?.obj("easter") ?: return null
 		return ChocolateFactoryProfile(
-			chocolate = easter.number("chocolate")?.toLong() ?: 0L,
-			totalChocolate = easter.number("total_chocolate")?.toLong() ?: 0L,
-			chocolateSincePrestige = easter.number("chocolate_since_prestige")?.toLong() ?: 0L,
-			prestigeLevel = easter.number("chocolate_level")?.toInt() ?: 0,
+			chocolate = easter.long("chocolate"),
+			totalChocolate = easter.long("total_chocolate"),
+			chocolateSincePrestige = easter.long("chocolate_since_prestige"),
+			prestigeLevel = easter.int("chocolate_level"),
 			employees = easter.obj("employees").ints(),
 			rabbits = easter.obj("rabbits").numericInts(),
-			barnCapacityLevel = easter.number("rabbit_barn_capacity_level")?.toInt() ?: 0,
-			clickUpgrades = easter.number("click_upgrades")?.toInt() ?: 0,
-			chocolateMultiplierUpgrades = easter.number("chocolate_multiplier_upgrades")?.toInt() ?: 0,
-			rabbitRarityUpgrades = easter.number("rabbit_rarity_upgrades")?.toInt() ?: 0,
+			barnCapacityLevel = easter.int("rabbit_barn_capacity_level"),
+			clickUpgrades = easter.int("click_upgrades"),
+			chocolateMultiplierUpgrades = easter.int("chocolate_multiplier_upgrades"),
+			rabbitRarityUpgrades = easter.int("rabbit_rarity_upgrades"),
 			timeTower = timeTower(easter.obj("time_tower")),
 			hitman = hitman(easter.obj("rabbit_hitmen")),
-			lastViewed = easter.number("last_viewed_chocolate_factory")?.toLong() ?: 0L
+			lastViewed = easter.long("last_viewed_chocolate_factory")
 		)
 	}
 
 	private fun timeTower(tower: JsonObject?): TimeTower? = tower?.let {
 		TimeTower(
-			charges = it.number("charges")?.toInt() ?: 0,
-			level = it.number("level")?.toInt() ?: 0,
-			activationTime = it.number("activation_time")?.toLong() ?: 0L
+			charges = it.int("charges"),
+			level = it.int("level"),
+			activationTime = it.long("activation_time")
 		)
 	}
 
 	private fun hitman(hitmen: JsonObject?): RabbitHitman? = hitmen?.let {
 		RabbitHitman(
-			slots = it.number("rabbit_hitmen_slots")?.toInt() ?: 0,
-			uncollectedEggs = it.number("missed_uncollected_eggs")?.toInt() ?: 0
+			slots = it.int("rabbit_hitmen_slots"),
+			uncollectedEggs = it.int("missed_uncollected_eggs")
 		)
 	}
 }

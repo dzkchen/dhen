@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.data.price
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.text
 
@@ -16,10 +18,10 @@ internal object PriceTables {
 	fun neuLowestBins(body: String): Map<String, Double> = cheapest(body, ::neuMarketId)
 
 	fun npcPrices(body: String): Map<String, Double> {
-		val items = JsonParser.parseString(body).asJsonObject.getAsJsonArray("items") ?: return emptyMap()
+		val items = JsonParser.parseString(body).asJsonObject.array("items") ?: return emptyMap()
 		val prices = HashMap<String, Double>(items.size())
 		for (element in items) {
-			val item = element.asJsonObject
+			val item = element as? JsonObject ?: continue
 			val id = item.text("id") ?: continue
 			prices[id.replace(':', '-')] = item.number(NPC_SELL_PRICE) ?: continue
 		}

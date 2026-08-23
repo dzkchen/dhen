@@ -3,7 +3,9 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.flag
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.keys
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
@@ -74,8 +76,8 @@ internal object MiningProfiles {
 		crystals?.obj(id)?.let {
 			id to Crystal(
 				state = it.text("state") ?: UNDISCOVERED,
-				totalPlaced = it.number("total_placed")?.toInt() ?: 0,
-				totalFound = it.number("total_found")?.toInt() ?: 0
+				totalPlaced = it.int("total_placed"),
+				totalFound = it.int("total_found")
 			)
 		}
 	}.toMap()
@@ -86,7 +88,7 @@ internal object MiningProfiles {
 			slot to ForgeSlot(
 				type = it.text("type"),
 				id = it.text("id"),
-				startedAt = it.number("startTime")?.toLong() ?: 0L,
+				startedAt = it.long("startTime"),
 				notified = it.flag("notified")
 			)
 		}
@@ -95,6 +97,6 @@ internal object MiningProfiles {
 	private fun glacite(data: JsonObject?): Glacite = Glacite(
 		fossilsDonated = data?.array("fossils_donated").texts().toSet(),
 		corpsesLooted = data?.obj("corpses_looted").numericInts(),
-		mineshaftsEntered = data?.number("mineshafts_entered")?.toInt() ?: 0
+		mineshaftsEntered = data.int("mineshafts_entered")
 	)
 }

@@ -5,7 +5,8 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.util.array
-import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.int
+import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.texts
@@ -31,10 +32,10 @@ internal object RiftProfiles {
 		if (rift == null && stats == null) return null
 		val deadCats = rift?.obj("dead_cats")
 		return RiftProfile(
-			visits = stats?.number("visits")?.toInt() ?: 0,
-			lifetimeMotes = stats?.number("lifetime_motes_earned")?.toInt() ?: 0,
-			secondsSitting = rift?.obj("village_plaza")?.obj("lonely")?.number("seconds_sitting")?.toInt() ?: 0,
-			grubberStacks = rift?.obj("castle")?.number("grubber_stacks")?.toInt() ?: 0,
+			visits = stats.int("visits"),
+			lifetimeMotes = stats.int("lifetime_motes_earned"),
+			secondsSitting = rift?.obj("village_plaza")?.obj("lonely").int("seconds_sitting"),
+			grubberStacks = rift?.obj("castle").int("grubber_stacks"),
 			unlockedEyes = rift?.obj("wither_cage")?.array("killed_eyes").texts().toSet(),
 			foundSouls = rift?.obj("enigma")?.array("found_souls").texts().toSet(),
 			foundCats = deadCats?.array("found_cats").texts().toSet(),
@@ -48,8 +49,8 @@ internal object RiftProfiles {
 		val type = trophy.text("type") ?: return@mapNotNull null
 		RiftTrophy(
 			type = type,
-			timestamp = trophy.number("timestamp")?.toLong() ?: 0L,
-			visits = trophy.number("visits")?.toInt() ?: 0
+			timestamp = trophy.long("timestamp"),
+			visits = trophy.int("visits")
 		)
 	} ?: emptyList()
 }

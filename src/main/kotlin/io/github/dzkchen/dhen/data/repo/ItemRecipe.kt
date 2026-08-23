@@ -3,7 +3,7 @@ package io.github.dzkchen.dhen.data.repo
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import io.github.dzkchen.dhen.util.number
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.textOrNull
 import java.util.Locale
@@ -35,7 +35,7 @@ private fun crafting(element: JsonElement?): ItemRecipe? {
 	val ingredients = LinkedHashMap<String, Int>(SLOTS.size)
 	for (slot in SLOTS) ingredients.add(json.get(slot))
 	if (ingredients.isEmpty()) return null
-	val output = json.number("count")?.toInt() ?: IMPLIED_AMOUNT
+	val output = json.int("count", IMPLIED_AMOUNT)
 	return ItemRecipe(ingredients, output.coerceAtLeast(IMPLIED_AMOUNT))
 }
 

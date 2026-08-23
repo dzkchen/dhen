@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoConstants
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.ints
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
@@ -114,19 +115,19 @@ internal object GardenProfiles {
 		val offered = data?.obj("visits")
 		val accepted = data?.obj("completed")
 		return GardenVisitors(
-			totalCompleted = data?.number("total_completed")?.toInt() ?: 0,
-			uniqueServed = data?.number("unique_npcs_served")?.toInt() ?: 0,
+			totalCompleted = data.int("total_completed"),
+			uniqueServed = data.int("unique_npcs_served"),
 			perVisitor = (offered.keys() + accepted.keys()).associateWith { visitor ->
-				VisitorLog(offered?.number(visitor)?.toInt() ?: 0, accepted?.number(visitor)?.toInt() ?: 0)
+				VisitorLog(offered.int(visitor), accepted.int(visitor))
 			}
 		)
 	}
 
 	private fun greenhouse(slots: JsonArray?, upgrades: JsonObject?): Greenhouse = Greenhouse(
 		slots = slots?.mapNotNull { plot ->
-			(plot as? JsonObject)?.let { GreenhouseSlot(it.number("x")?.toInt() ?: 0, it.number("z")?.toInt() ?: 0) }
+			(plot as? JsonObject)?.let { GreenhouseSlot(it.int("x"), it.int("z")) }
 		} ?: emptyList(),
-		upgrades = GreenhouseUpgrade.entries.associateWith { upgrades?.number(it.name)?.toInt() ?: 0 }
+		upgrades = GreenhouseUpgrade.entries.associateWith { upgrades.int(it.name) }
 	)
 
 	private fun crops(constants: RepoConstants, collected: JsonObject?, upgrades: JsonObject?): Map<String, CropProgress> {
@@ -137,7 +138,7 @@ internal object GardenProfiles {
 			crops[crop] = CropProgress(
 				collected = amount.toLong(),
 				milestone = constants.cropMilestone(crop, amount),
-				upgrade = upgrades?.number(crop)?.toInt() ?: 0
+				upgrade = upgrades.int(crop)
 			)
 		}
 		return crops
@@ -149,7 +150,7 @@ internal object GardenProfiles {
 			organicMatter = data?.number("organic_matter") ?: 0.0,
 			fuel = data?.number("fuel_units") ?: 0.0,
 			compostUnits = data?.number("compost_units") ?: 0.0,
-			compostItems = data?.number("compost_items")?.toInt() ?: 0,
+			compostItems = data.int("compost_items"),
 			upgrades = ComposterUpgrade.entries.associateWith { upgrades[it.apiKey] ?: 0 }
 		)
 	}
@@ -166,8 +167,8 @@ internal object FarmingProfiles {
 			uniqueBrackets = brackets(jacob?.obj("unique_brackets")),
 			personalBests = jacob?.obj("personal_bests").ints(),
 			contests = contests(jacob?.obj("contests")),
-			farmingLevelCap = perks?.number("farming_level_cap")?.toInt() ?: 0,
-			doubleDrops = perks?.number("double_drops")?.toInt() ?: 0,
+			farmingLevelCap = perks.int("farming_level_cap"),
+			doubleDrops = perks.int("double_drops"),
 			chips = chips.ints()
 		)
 	}
@@ -187,7 +188,7 @@ internal object FarmingProfiles {
 			val contest = contests.obj(id) ?: continue
 			entered += FarmingContest(
 				contestId = id,
-				collected = contest.number("collected")?.toInt() ?: 0,
+				collected = contest.int("collected"),
 				position = contest.number("claimed_position")?.toInt(),
 				participants = contest.number("claimed_participants")?.toInt(),
 				medal = ContestMedal.of(contest.text("claimed_medal"))
