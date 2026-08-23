@@ -28,7 +28,7 @@ internal object PartyHooks {
 		uninstall()
 		channels = Channels(bus, self, request)
 		subscriptions = arrayOf(
-			bus.subscribe<ChatReceiveEvent>(BEFORE_FEATURES) { chatted(it.stripped) },
+			bus.subscribe<ChatReceiveEvent>(BEFORE_FEATURES) { chatted(it) },
 			bus.subscribe<ClientTickEvent.End> { ticked() }
 		)
 	}
@@ -51,9 +51,9 @@ internal object PartyHooks {
 	fun reconciled(inParty: Boolean, leader: String?, roles: Map<String, PartyRole>, memberCount: Int) =
 		guarded("party info") { it.reconciled(inParty, leader, roles, memberCount) }
 
-	private fun chatted(line: String) {
+	private fun chatted(event: ChatReceiveEvent) {
 		if (!SkyBlockLocation.onHypixel) return
-		guarded("party chat") { it.chatted(line) }
+		guarded("party chat") { it.chatted(event.stripped) }
 	}
 
 	private fun ticked() = guarded("party request") { it.flush() }

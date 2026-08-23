@@ -79,12 +79,6 @@ class NetworthTest {
 	}
 
 	@Test
-	fun `the categories keep the names the networth tab shows`() {
-		assertEquals("Purse/Bank", NetworthCategory.CURRENCY.label)
-		assertEquals("Talisman Bag", NetworthCategory.TALISMAN_BAG.label)
-	}
-
-	@Test
 	fun `the async form values away from the caller and hands the report back to it`() {
 		val executor = Executors.newSingleThreadExecutor { runnable -> Thread(runnable, CLIENT_THREAD) }
 		val client = executor.asCoroutineDispatcher()

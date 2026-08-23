@@ -40,7 +40,7 @@ internal object HypixelModApi {
 			}
 			handleEvent(ClientboundLocationPacket::class.java, ::located)
 			handle(ClientboundPartyInfoPacket::class.java) { partyInfo(it) }
-				.onError { reason -> Minecraft.getInstance().execute { partyInfoRefused(reason) } }
+				.onError { reason -> Minecraft.getInstance().execute { failsafe.guard("party info error") { partyInfoRefused(reason) } } }
 		} catch (throwable: Throwable) {
 			HypixelLocationHooks.uninstall()
 			PartyHooks.uninstall()
@@ -76,7 +76,7 @@ internal object HypixelModApi {
 
 	fun <T : ClientboundHypixelPacket> handle(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> =
 		HypixelModAPI.getInstance().createHandler(type) { packet ->
-			Minecraft.getInstance().execute { handler(packet) }
+			Minecraft.getInstance().execute { failsafe.guard(type.simpleName) { handler(packet) } }
 		}
 
 	fun <T : EventPacket> handleEvent(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> {

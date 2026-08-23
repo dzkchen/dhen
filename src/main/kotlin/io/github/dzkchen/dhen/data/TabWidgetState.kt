@@ -11,7 +11,9 @@ object TabWidgetState {
 	fun active(widget: TabWidget): Boolean = lines[widget.ordinal].isNotEmpty()
 
 	fun capture(widget: TabWidget, group: String): String? =
-		stripped[widget.ordinal].firstOrNull()?.let { widget.header.matchEntire(it)?.groups?.get(group)?.value }
+		stripped[widget.ordinal].firstOrNull()?.let {
+			runCatching { widget.header.matchEntire(it)?.groups?.get(group)?.value }.getOrNull()
+		}
 
 	internal fun read(widget: TabWidget, lines: List<String>, stripped: List<String>) {
 		this.lines[widget.ordinal] = lines

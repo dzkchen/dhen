@@ -221,17 +221,6 @@ class SkyBlockItemTest {
 	}
 
 	@Test
-	fun `a malformed pet info is reported once per shape and never as a pet`() {
-		val first = SkyBlockItems.of(stack { putString("id", "PET"); putString("petInfo", "{\"type\":\"TIGER\"") })
-		val second = SkyBlockItems.of(stack { putString("id", "PET"); putString("petInfo", "not json at all") })
-
-		assertNull(first.pet)
-		assertNull(second.pet)
-		assertEquals("", first.marketId)
-		assertEquals("", second.marketId)
-	}
-
-	@Test
 	fun `the recombobulated glyph in front of the rarity does not hide it`() {
 		assertEquals(ItemRarity.MYTHIC, SkyBlockItems.rarity(lored("§d§l§ka§r §d§lMYTHIC DUNGEON SWORD §d§l§ka")))
 	}

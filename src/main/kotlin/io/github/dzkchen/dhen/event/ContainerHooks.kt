@@ -49,6 +49,7 @@ internal object ContainerHooks {
 	private var subscriptions: Array<Handle> = emptyArray()
 
 	fun install(bus: EventBus) {
+		uninstall()
 		channels = Channels(bus)
 		subscriptions = arrayOf(
 			bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) },

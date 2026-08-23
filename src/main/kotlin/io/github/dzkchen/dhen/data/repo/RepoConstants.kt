@@ -218,8 +218,8 @@ class RepoConstants private constructor(
 				trees = SKILL_TREES.associateWith { incrementTable(json.array(it)) },
 				caps = json.obj("leveling_caps").ints(DEFAULT_SKILL_CAP)
 			)
-			if (json.size() > 0 && (leveling.skills.maxLevel == 0 || leveling.slayers.isEmpty())) {
-				log.warn("Dhen found no skill or slayer levelling table in the repo, so those levels will read zero")
+			if (leveling.skills.maxLevel == 0 || leveling.slayers.isEmpty()) {
+				log.warn("Dhen read no skill or slayer levelling table from the repo (leveling.json absent or empty), so those levels will read zero")
 			}
 			return leveling
 		}
@@ -230,8 +230,8 @@ class RepoConstants private constructor(
 				levels = incrementTable(json.array("garden_exp")),
 				cropMilestones = milestones.keys().associateWith { incrementTable(milestones.array(it)) }
 			)
-			if (json.size() > 0 && (garden.levels.maxLevel == 0 || garden.cropMilestones.isEmpty())) {
-				log.warn("Dhen found no garden level or crop milestone table in the repo, so those will read zero")
+			if (garden.levels.maxLevel == 0 || garden.cropMilestones.isEmpty()) {
+				log.warn("Dhen read no garden level or crop milestone table from the repo (garden.json absent or empty), so those will read zero")
 			}
 			return garden
 		}

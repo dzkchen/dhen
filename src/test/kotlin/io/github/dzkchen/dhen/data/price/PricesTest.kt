@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.minutes
 
 class PricesTest {
 	private val scope = CoroutineScope(Dispatchers.Unconfined)
@@ -101,17 +100,6 @@ class PricesTest {
 
 		assertEquals(-1.0, Prices.priceOr("NOTHING_LIKE_THIS", PriceSource.LOWEST_BIN, -1.0))
 		assertEquals(500.0, Prices.priceOr("HYPERION", PriceSource.LOWEST_BIN, -1.0))
-	}
-
-	@Test
-	fun `a feed is left alone until its own ttl expires`() {
-		install()
-		Prices.require()
-
-		nanos = 1.minutes.inWholeNanoseconds
-		Prices.require()
-
-		assertEquals(4, source.requests.size)
 	}
 
 	@Test

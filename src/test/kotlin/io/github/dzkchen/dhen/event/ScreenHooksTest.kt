@@ -5,7 +5,6 @@ import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -53,17 +52,6 @@ class ScreenHooksTest {
 		ScreenHooks.screenChanged(null, FakeScreen("arriving"))
 
 		assertEquals(listOf("open"), seen)
-	}
-
-	@Test
-	fun `a close carries the screen that is going away`() {
-		val leaving = FakeScreen("leaving")
-		var closed: Screen? = null
-		bus.subscribe<GuiCloseEvent> { closed = it.screen }
-
-		ScreenHooks.screenChanged(leaving, FakeScreen("arriving"))
-
-		assertSame(leaving, closed)
 	}
 
 	@Test

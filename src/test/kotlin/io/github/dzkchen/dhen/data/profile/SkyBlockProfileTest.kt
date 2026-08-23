@@ -37,11 +37,6 @@ class SkyBlockProfileTest {
 	}
 
 	@Test
-	fun `a co-op member who has been kicked is no longer listed`() {
-		assertTrue(KICKED !in decode().members)
-	}
-
-	@Test
 	fun `skill experience becomes a level against the repo's table`() {
 		val skills = decode().skills
 

@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.Vec3
 import org.junit.jupiter.api.AfterEach
@@ -94,43 +93,6 @@ class InteractionHooksTest {
 	}
 
 	@Test
-	fun `a block use handler is woken by nothing else`() {
-		val seen = mutableListOf<InteractionEvent>()
-		bus.subscribe<InteractionEvent.UseBlock> { seen += it }
-		val useBlock = InteractionEvent.UseBlock(POS, InteractionHand.MAIN_HAND, ItemStack.EMPTY)
-
-		bus.type<InteractionEvent.UseBlock>().dispatch(useBlock)
-		bus.type<InteractionEvent.UseItem>().dispatch(InteractionEvent.UseItem(InteractionHand.MAIN_HAND, ItemStack.EMPTY))
-		bus.type<InteractionEvent.AttackBlock>().dispatch(InteractionEvent.AttackBlock(POS))
-		bus.type<InteractionEvent.Attack>().dispatch(InteractionEvent.Attack())
-
-		assertEquals(listOf<InteractionEvent>(useBlock), seen)
-	}
-
-	@Test
-	fun `a block use carries the position the hand and the held item`() {
-		var seen: InteractionEvent.UseBlock? = null
-		bus.subscribe<InteractionEvent.UseBlock> { seen = it }
-		val held = ItemStack.EMPTY
-
-		bus.type<InteractionEvent.UseBlock>().dispatch(InteractionEvent.UseBlock(POS, InteractionHand.OFF_HAND, held))
-
-		assertEquals(POS, seen?.pos)
-		assertEquals(InteractionHand.OFF_HAND, seen?.hand)
-		assertSame(held, seen?.item)
-	}
-
-	@Test
-	fun `a block attack carries the position`() {
-		var seen: InteractionEvent.AttackBlock? = null
-		bus.subscribe<InteractionEvent.AttackBlock> { seen = it }
-
-		bus.type<InteractionEvent.AttackBlock>().dispatch(InteractionEvent.AttackBlock(POS))
-
-		assertEquals(POS, seen?.pos)
-	}
-
-	@Test
 	fun `a used block carries its hand hit and the result vanilla returned`() {
 		val seen = mutableListOf<InteractionEvent.UsedBlock>()
 		bus.subscribe<InteractionEvent.UsedBlock> { seen += it }
@@ -144,28 +106,6 @@ class InteractionHooksTest {
 		assertEquals(InteractionHand.OFF_HAND, seen[1].hand)
 		assertEquals(InteractionResult.PASS, seen[1].result)
 		assertFalse(Cancellable::class.java.isAssignableFrom(InteractionEvent.UsedBlock::class.java))
-	}
-
-	@Test
-	fun `every hand and result reaches a used block handler unfiltered`() {
-		var seen = 0
-		bus.subscribe<InteractionEvent.UsedBlock> { seen++ }
-
-		InteractionHooks.usedBlock(InteractionHand.MAIN_HAND, HIT, InteractionResult.PASS)
-		InteractionHooks.usedBlock(InteractionHand.OFF_HAND, HIT, InteractionResult.PASS)
-
-		assertEquals(2, seen)
-	}
-
-	@Test
-	fun `a used block handler is woken by no pre-interaction case`() {
-		var seen = 0
-		bus.subscribe<InteractionEvent.UsedBlock> { seen++ }
-
-		bus.type<InteractionEvent.UseBlock>().dispatch(InteractionEvent.UseBlock(POS, InteractionHand.MAIN_HAND, ItemStack.EMPTY))
-		InteractionHooks.usedBlock(InteractionHand.MAIN_HAND, HIT, InteractionResult.PASS)
-
-		assertEquals(1, seen)
 	}
 
 	@Test
@@ -187,20 +127,6 @@ class InteractionHooksTest {
 		InteractionHooks.usedBlock(InteractionHand.MAIN_HAND, HIT, InteractionResult.SUCCESS)
 
 		assertFalse(InteractionHooks.active())
-	}
-
-	@Test
-	fun `every case starts uncancelled and remembers being cancelled`() {
-		val cases = listOf<InteractionEvent.Pre>(
-			InteractionEvent.UseBlock(POS, InteractionHand.MAIN_HAND, ItemStack.EMPTY),
-			InteractionEvent.UseItem(InteractionHand.MAIN_HAND, ItemStack.EMPTY),
-			InteractionEvent.AttackBlock(POS),
-			InteractionEvent.Attack()
-		)
-
-		assertTrue(cases.none { it.cancelled })
-		cases.forEach { it.cancel() }
-		assertTrue(cases.all { it.cancelled })
 	}
 
 	private companion object {

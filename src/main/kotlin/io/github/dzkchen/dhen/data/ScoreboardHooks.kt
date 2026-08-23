@@ -165,7 +165,7 @@ internal object ScoreboardHooks {
 
 		private fun String.holds(code: String, at: Int): Boolean {
 			var index = 0
-			while (index < length) {
+			while (index + 1 < length) {
 				if (this[index + 1] == code[at + 1]) return true
 				index += 2
 			}

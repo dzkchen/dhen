@@ -226,7 +226,11 @@ object Dhen : ClientModInitializer {
 		LOGGER.info("Dhen initialized")
 	}
 
+	private var latched = false
+
 	private fun latchOff() {
+		if (latched) return
+		latched = true
 		clientThread.shutdown()
 		TickClock.shutdown()
 		NetworkHooks.uninstall()

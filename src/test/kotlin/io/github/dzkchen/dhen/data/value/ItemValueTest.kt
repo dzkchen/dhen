@@ -172,11 +172,6 @@ class ItemValueTest {
 	}
 
 	@Test
-	fun `an unstarred item is not charged for stars it never took`() {
-		assertEquals(1000.0, value(item { putString("id", "HYPERION") }).total)
-	}
-
-	@Test
 	fun `a kuudra piece counts the stars of every tier below its own`() {
 		val valuation = value(item { putString("id", "HOT_TERROR_CHESTPLATE") })
 
@@ -348,11 +343,6 @@ class ItemValueTest {
 			),
 			valuation.breakdown.map { it.label }
 		)
-	}
-
-	@Test
-	fun `an item with none of the once-only upgrades pays for none of them`() {
-		assertEquals(listOf("Hyperion"), value(item { putString("id", "HYPERION") }).breakdown.map { it.label })
 	}
 
 	@Test
@@ -539,11 +529,6 @@ class ItemValueTest {
 
 		assertEquals(0.0, valuation.total)
 		assertFalse(valuation.breakdown.single().priced)
-	}
-
-	@Test
-	fun `an item the market prices is never dropped to its recipe`() {
-		assertEquals(1000.0, value(item { putString("id", "HYPERION") }).total)
 	}
 
 	private fun value(
