@@ -42,8 +42,7 @@ object MayorService {
 	private val feed = CachedFeed("mayor", ELECTION_URL, REFRESH, ::readable, MayorReply::parse)
 	private val failsafe = Failsafe("Dhen {} failed, its mayor data is off until restart")
 	private val requirements = AtomicInteger()
-	private val activated = AtomicBoolean()
-	private val installation = AtomicInteger()
+	private val pumpLock = Any()
 	private val calendarTitle =
 		Pattern.compile("Calendar and Events|(?:Early |Late )?(?:Spring|Summer|Autumn|Winter), Year \\d+").matcher("")
 	private val electionClosed =
@@ -62,6 +61,8 @@ object MayorService {
 	private var extraMayorUntil = 0L
 
 	val required: Int get() = requirements.get()
+
+	internal val polling: Boolean get() = host?.pump?.isActive == true
 
 	val mayor: Mayor? get() = seated?.mayor
 
@@ -85,13 +86,20 @@ object MayorService {
 
 	fun require(): Handle {
 		val host = host ?: return Handle {}
-		val installed = installation.get()
-		requirements.incrementAndGet()
-		if (activated.compareAndSet(false, true)) host.pump = host.scope.launch { poll(host) }
+		if (!adjust(host, 1)) return Handle {}
 		val released = AtomicBoolean()
-		return Handle {
-			if (released.compareAndSet(false, true) && installation.get() == installed) requirements.decrementAndGet()
+		return Handle { if (released.compareAndSet(false, true)) adjust(host, -1) }
+	}
+
+	private fun adjust(host: Host, delta: Int): Boolean = synchronized(pumpLock) {
+		if (this.host !== host) return false
+		if (requirements.addAndGet(delta) == 0) {
+			host.pump?.cancel()
+			host.pump = null
+		} else if (host.pump?.isActive != true) {
+			host.pump = host.scope.launch { poll(host) }
 		}
+		true
 	}
 
 	fun active(): Boolean = host != null
@@ -115,14 +123,12 @@ object MayorService {
 		)
 	}
 
-	internal fun uninstall() {
+	internal fun uninstall() = synchronized(pumpLock) {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		host?.pump?.cancel()
 		host = null
-		installation.incrementAndGet()
 		requirements.set(0)
-		activated.set(false)
 		extraMayorPerk = null
 		extraMayorUntil = 0L
 		feed.reset()
@@ -153,8 +159,9 @@ object MayorService {
 	private suspend fun refresh(host: Host) = coroutineScope {
 		val previous = seated?.mayor?.name
 		val stamp = host.epochMillis() * NANOS_PER_MILLI
+		if (!feed.stale(stamp, POLL)) return@coroutineScope
 		if (previous != null && !feed.stale(stamp)) return@coroutineScope
-		if (!feed.refresh(host.web, stamp) { this@MayorService.host === host }) return@coroutineScope
+		if (!feed.refresh(host.web, stamp) { this@MayorService.host === host && isActive }) return@coroutineScope
 		val current = seated?.mayor?.name
 		if (current == previous) return@coroutineScope
 		val change = host.bus.type<MayorChangeEvent>()

@@ -2,12 +2,14 @@ package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.util.NanoClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.minutes
 
 enum class RepoState {
 	IDLE,
@@ -21,6 +23,7 @@ object ItemRepo {
 	private const val CONSTANTS = "constants"
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
+	private val RETRY_AFTER = 5.minutes
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val requirements = AtomicInteger()
 	private val activated = AtomicBoolean()
@@ -28,6 +31,9 @@ object ItemRepo {
 
 	@Volatile
 	private var host: Host? = null
+
+	@Volatile
+	private var retryAt = 0L
 
 	@Volatile
 	private var catalog: ItemCatalog = ItemCatalog.EMPTY
@@ -48,6 +54,8 @@ object ItemRepo {
 
 	val required: Int get() = requirements.get()
 
+	val ready: Boolean get() = state == RepoState.READY
+
 	fun item(id: String): RepoItem? = catalog.item(id)
 
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)
@@ -56,16 +64,21 @@ object ItemRepo {
 		val host = host ?: return Handle {}
 		val installed = installation.get()
 		requirements.incrementAndGet()
-		if (activated.compareAndSet(false, true)) host.scope.launch { load(host) }
+		if (host.clock.nanoTime() >= retryAt && activated.compareAndSet(false, true)) host.scope.launch { load(host) }
 		val released = AtomicBoolean()
 		return Handle {
 			if (released.compareAndSet(false, true) && installation.get() == installed) requirements.decrementAndGet()
 		}
 	}
 
-	internal fun install(scope: CoroutineScope, root: Path, sync: RepoSync = RepoSync(NEU, root)) {
+	internal fun install(
+		scope: CoroutineScope,
+		root: Path,
+		sync: RepoSync = RepoSync(NEU, root),
+		clock: NanoClock = NanoClock.SYSTEM
+	) {
 		uninstall()
-		host = Host(scope, root, sync)
+		host = Host(scope, root, sync, clock)
 	}
 
 	internal fun uninstall() {
@@ -73,6 +86,7 @@ object ItemRepo {
 		installation.incrementAndGet()
 		requirements.set(0)
 		activated.set(false)
+		retryAt = 0L
 		catalog = ItemCatalog.EMPTY
 		constants = RepoConstants.EMPTY
 		state = RepoState.IDLE
@@ -94,8 +108,12 @@ object ItemRepo {
 			log.error("Dhen could not load the item repo", throwable)
 			RepoState.UNAVAILABLE
 		}
+		if (state == RepoState.UNAVAILABLE) {
+			retryAt = host.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds
+			activated.set(false)
+		}
 		log.info("Dhen item repo {} with {} items", state, catalog.size)
 	}
 
-	private class Host(val scope: CoroutineScope, val root: Path, val sync: RepoSync)
+	private class Host(val scope: CoroutineScope, val root: Path, val sync: RepoSync, val clock: NanoClock)
 }

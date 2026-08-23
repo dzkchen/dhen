@@ -234,6 +234,23 @@ class PlayerProfilesTest {
 	}
 
 	@Test
+	fun `a profile asked for while the item repo is unavailable reads as not ready, and reads for real once it recovers`() =
+		runBlocking {
+			source.bodies = mapOf(PROFILES to SLICE_PROFILE)
+			DataFixture.installRepo(scope, home.resolve("repo"))
+			install()
+			PlayerProfiles.require()
+
+			assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+			assertNull(PlayerProfiles.profile(UUID))
+			assertTrue(PlayerProfiles.cacheSummary().contains("models=0"))
+
+			DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+
+			assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.slice?.cuteName)
+		}
+
+	@Test
 	fun `a decoded profile hands its slice to the next caller rather than decoding a second one`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
 		DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))

@@ -4,6 +4,9 @@ import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.price.PriceSource
+import io.github.dzkchen.dhen.data.repo.ConstantsFixture
+import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.RepoState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -15,6 +18,7 @@ import net.minecraft.world.item.ItemStack
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -46,7 +50,7 @@ class NetworthTest {
 
 	@Test
 	fun `every category is totalled and keyed by the name each entry shows`() {
-		val report = Networth.of(Profile, PriceSource.LOWEST_BIN)
+		val report = report(Profile)
 
 		assertEquals(mapOf("Hyperion" to 1000L), report.categories[NetworthCategory.INVENTORY])
 		assertEquals(mapOf("Spirit Boots" to 200L), report.categories[NetworthCategory.ARMOR])
@@ -58,7 +62,7 @@ class NetworthTest {
 
 	@Test
 	fun `a category the source does not carry contributes nothing`() {
-		val report = Networth.of(Profile, PriceSource.LOWEST_BIN)
+		val report = report(Profile)
 
 		assertEquals(emptyMap<String, Long>(), report.categories[NetworthCategory.QUIVER_BAG])
 		assertEquals(NetworthCategory.entries.size, report.categories.size)
@@ -66,14 +70,14 @@ class NetworthTest {
 
 	@Test
 	fun `two of the same item in one category are added together, not replaced`() {
-		val report = Networth.of(twoHyperions, PriceSource.LOWEST_BIN)
+		val report = report(twoHyperions)
 
 		assertEquals(mapOf("Hyperion" to 2000L), report.categories[NetworthCategory.INVENTORY])
 	}
 
 	@Test
 	fun `a stack is worth what it holds, not one of them`() {
-		val report = Networth.of(stackOfEight, PriceSource.LOWEST_BIN)
+		val report = report(stackOfEight)
 
 		assertEquals(mapOf("Enchanted Diamond" to 8000L), report.categories[NetworthCategory.INVENTORY])
 	}
@@ -95,7 +99,7 @@ class NetworthTest {
 		try {
 			runBlocking {
 				launch(client) {
-					total = Networth.ofAsync(source, PriceSource.LOWEST_BIN).total
+					total = Networth.ofAsync(source, PriceSource.LOWEST_BIN)!!.total
 					deliveredOn = threadName()
 				}.join()
 			}
@@ -107,6 +111,71 @@ class NetworthTest {
 		assertEquals(CLIENT_THREAD, deliveredOn)
 		assertNotEquals(CLIENT_THREAD, valuedOn)
 		assertTrue(valuedOn.isNotEmpty())
+	}
+
+	@Test
+	fun `an unready item catalog is worth no report at all rather than an understated one`() {
+		DataFixture.uninstall()
+		DataFixture.installPrices(scope, LOWEST_BINS)
+
+		assertNull(Networth.of(Profile, PriceSource.LOWEST_BIN))
+		assertEquals(RepoState.IDLE, ItemRepo.state)
+	}
+
+	@Test
+	fun `a repo that failed to load is worth no report either`() {
+		DataFixture.uninstall()
+		DataFixture.installRepo(scope, home.resolve("unreachable"))
+		DataFixture.installPrices(scope, LOWEST_BINS)
+
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+		assertNull(Networth.of(Profile, PriceSource.LOWEST_BIN))
+	}
+
+	@Test
+	fun `a levelled pet is worth the same whether it is held or listed on the profile`() {
+		installPetConstants()
+		val dragon = PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, null, 0, null)
+
+		val listed = report(petsOf(dragon)).categories.getValue(NetworthCategory.PETS)
+		val held = report(inventoryOf(petStack(dragon))).categories.getValue(NetworthCategory.INVENTORY)
+
+		assertEquals(1000000L, listed.values.single())
+		assertEquals(1000000L, held.values.single())
+	}
+
+	@Test
+	fun `a pet carries its held item and its skin through either door`() {
+		installPetConstants()
+		val dragon = PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, "TIER_BOOST", 0, "PET_SKIN_GOLDEN_DRAGON")
+
+		val listed = report(petsOf(dragon)).categories.getValue(NetworthCategory.PETS)
+		val held = report(inventoryOf(petStack(dragon))).categories.getValue(NetworthCategory.INVENTORY)
+
+		assertEquals(1000075L, listed.values.single())
+		assertEquals(1000075L, held.values.single())
+	}
+
+	private fun installPetConstants() {
+		DataFixture.uninstall()
+		DataFixture.installRepo(
+			scope,
+			home.resolve("pets"),
+			mapOf("AOTE" to DataFixture.ANY_ITEM),
+			mapOf("pets" to ConstantsFixture.PETS)
+		)
+		DataFixture.installPrices(scope, LOWEST_BINS)
+	}
+
+	private fun report(source: NetworthSource): NetworthReport = Networth.of(source, PriceSource.LOWEST_BIN)!!
+
+	private fun petsOf(pet: PetInfo) = object : NetworthSource {
+		override fun pets(): List<PetInfo> = listOf(pet)
+	}
+
+	private fun inventoryOf(stack: ItemStack) = object : NetworthSource {
+		override fun items(category: NetworthCategory): List<ItemStack> =
+			if (category == NetworthCategory.INVENTORY) listOf(stack) else emptyList()
 	}
 
 	private object Profile : NetworthSource {
@@ -150,6 +219,16 @@ class NetworthTest {
 
 		private fun threadName(): String = Thread.currentThread().name.substringBefore(" @")
 
+		private fun petStack(pet: PetInfo): ItemStack = ItemFixture.stack {
+			putString("id", "PET")
+			putString(
+				"petInfo",
+				"""{"type":"${pet.type}","tier":"${pet.tier}","exp":${pet.exp}""" +
+					pet.heldItem?.let { ""","heldItem":"$it"""" }.orEmpty() +
+					pet.skin?.let { ""","skin":"$it"""" }.orEmpty() + "}"
+			)
+		}.also { it.set(DataComponents.CUSTOM_NAME, Component.literal("§6Golden Dragon")) }
+
 		private fun named(id: String, name: String): ItemStack =
 			ItemFixture.stack { putString("id", id) }
 				.also { it.set(DataComponents.CUSTOM_NAME, Component.literal(name)) }
@@ -160,6 +239,8 @@ class NetworthTest {
 			  "SPIRIT_BOOTS": 200.0,
 			  "ENCHANTED_DIAMOND": 1000.0,
 			  "PET-GOLDEN_DRAGON-LEGENDARY": 10.0,
+			  "PET-GOLDEN_DRAGON-LEGENDARY-200": 1000000.0,
+			  "PET_SKIN_GOLDEN_DRAGON": 55.0,
 			  "TIER_BOOST": 20.0
 			}
 		""".trimIndent()

@@ -598,8 +598,9 @@ class CommandRegistryTest {
 
 		dispatcher.execute("dhen debug value", Any())
 
-		assertTrue(captured[0].endsWith(": 0.0 from BAZAAR_INSTANT_SELL (base 0.0)"))
-		assertEquals(listOf("  HYPERION: no price", "  RECOMBOBULATOR_3000: no price"), captured.drop(1))
+		assertTrue(captured[0].contains("the item catalog is not ready yet (IDLE)"))
+		assertTrue(captured[1].endsWith(": 0.0 from BAZAAR_INSTANT_SELL (base 0.0)"))
+		assertEquals(listOf("  HYPERION: no price", "  RECOMBOBULATOR_3000: no price"), captured.drop(2))
 	}
 
 	@Test

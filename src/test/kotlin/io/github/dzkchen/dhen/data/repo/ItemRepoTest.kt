@@ -13,6 +13,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class ItemRepoTest {
 	@TempDir
@@ -20,6 +22,8 @@ class ItemRepoTest {
 
 	private val scope = CoroutineScope(Dispatchers.Unconfined)
 	private val transport = FakeTransport()
+
+	private var nanos = 0L
 
 	@AfterEach
 	fun uninstall() {
@@ -110,6 +114,38 @@ class ItemRepoTest {
 	}
 
 	@Test
+	fun `a repo that could not be reached is asked again once the retry window passes`() {
+		transport.reachable = false
+		install()
+		ItemRepo.require()
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+
+		transport.reachable = true
+		ItemRepo.require()
+
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+		assertEquals(0, transport.downloads)
+
+		nanos = 5.minutes.inWholeNanoseconds
+		ItemRepo.require()
+
+		assertEquals(RepoState.READY, ItemRepo.state)
+		assertEquals(1, transport.downloads)
+		assertEquals("§5Aspect of the End", ItemRepo.item("ASPECT_OF_THE_END")?.displayName)
+	}
+
+	@Test
+	fun `a repo that loaded is never asked again however long the session runs`() {
+		install()
+		ItemRepo.require()
+
+		nanos = 1.hours.inWholeNanoseconds
+		ItemRepo.require()
+
+		assertEquals(1, transport.downloads)
+	}
+
+	@Test
 	fun `requiring item data before the repo is installed is a no-op`() {
 		ItemRepo.require()
 
@@ -119,7 +155,7 @@ class ItemRepoTest {
 
 	private fun install() {
 		val root = home.resolve("repo")
-		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, transport))
+		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, transport)) { nanos }
 	}
 
 	private class FakeTransport : RepoTransport {

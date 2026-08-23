@@ -47,9 +47,8 @@ object Prices {
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val requirements = AtomicInteger()
-	private val activated = AtomicBoolean()
+	private val pumpLock = Any()
 	private val announced = AtomicBoolean()
-	private val installation = AtomicInteger()
 
 	@Volatile
 	private var host: Host? = null
@@ -57,6 +56,8 @@ object Prices {
 	internal val feeds: Array<CachedFeed<*>> = arrayOf(bazaarFeed, lowestBinFeed, spareLowestBinFeed, npcFeed)
 
 	val required: Int get() = requirements.get()
+
+	internal val polling: Boolean get() = host?.pump?.isActive == true
 
 	val bazaar: BazaarSnapshot? get() = bazaarFeed.value
 
@@ -84,13 +85,20 @@ object Prices {
 
 	fun require(): Handle {
 		val host = host ?: return Handle {}
-		val installed = installation.get()
-		requirements.incrementAndGet()
-		if (activated.compareAndSet(false, true)) host.pump = host.scope.launch { poll(host) }
+		if (!adjust(host, 1)) return Handle {}
 		val released = AtomicBoolean()
-		return Handle {
-			if (released.compareAndSet(false, true) && installation.get() == installed) requirements.decrementAndGet()
+		return Handle { if (released.compareAndSet(false, true)) adjust(host, -1) }
+	}
+
+	private fun adjust(host: Host, delta: Int): Boolean = synchronized(pumpLock) {
+		if (this.host !== host) return false
+		if (requirements.addAndGet(delta) == 0) {
+			host.pump?.cancel()
+			host.pump = null
+		} else if (host.pump?.isActive != true) {
+			host.pump = host.scope.launch { poll(host) }
 		}
+		true
 	}
 
 	internal fun ageSeconds(feed: CachedFeed<*>): Long {
@@ -110,12 +118,10 @@ object Prices {
 		host = Host(scope, bus, clientDispatcher, web, clock, onHypixel)
 	}
 
-	internal fun uninstall() {
+	internal fun uninstall() = synchronized(pumpLock) {
 		host?.pump?.cancel()
 		host = null
-		installation.incrementAndGet()
 		requirements.set(0)
-		activated.set(false)
 		announced.set(false)
 		for (feed in feeds) feed.reset()
 	}
@@ -141,7 +147,7 @@ object Prices {
 	private suspend fun refresh(host: Host) = coroutineScope {
 		val now = host.clock.nanoTime()
 		val refreshed = feeds.filter { it.stale(now) }
-			.map { feed -> async { feed to feed.refresh(host.web, now) { this@Prices.host === host } } }
+			.map { feed -> async { feed to feed.refresh(host.web, now) { this@Prices.host === host && isActive } } }
 			.awaitAll()
 		if (refreshed.none { (feed, landed) -> landed && feed === bazaarFeed }) return@coroutineScope
 		val snapshot = bazaarFeed.value ?: return@coroutineScope

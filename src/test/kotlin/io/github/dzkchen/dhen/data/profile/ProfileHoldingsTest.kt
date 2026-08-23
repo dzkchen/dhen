@@ -197,7 +197,7 @@ class ProfileHoldingsTest {
 					"currencies":{"coin_purse":5}}"""
 			)
 		)
-		val report = Networth.of(holdings, PriceSource.LOWEST_BIN)
+		val report = Networth.of(holdings, PriceSource.LOWEST_BIN)!!
 
 		assertEquals(mapOf("Hyperion" to 1000L), report.categories[NetworthCategory.INVENTORY])
 		assertEquals(mapOf("Enchanted Diamond" to 2000L), report.categories[NetworthCategory.SACKS])

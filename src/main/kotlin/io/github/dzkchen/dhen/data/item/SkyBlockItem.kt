@@ -182,9 +182,11 @@ class SkyBlockItem internal constructor(
 			ENCHANTED_BOOK -> keyedLevel(ENCHANTED_BOOK, enchantments)
 			RUNE, UNIQUE_RUNE -> keyedLevel(RUNE, runes)
 			POTION -> potionId(tag)
-			PET -> if (pet == null) "" else "$PET-${pet.type}-${pet.tier}"
+			PET -> if (pet == null) "" else petMarketId(pet)
 			else -> id
 		}
+
+		internal fun petMarketId(pet: PetInfo): String = "$PET-${pet.type}-${pet.tier}"
 
 		private fun keyedLevel(prefix: String, levels: Map<String, Int>): String {
 			val single = levels.entries.singleOrNull() ?: return ""

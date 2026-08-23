@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.event.withoutCodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,9 +46,8 @@ class NetworthReport internal constructor(
 )
 
 object Networth {
-	private const val PET = "PET"
-
-	fun of(source: NetworthSource, prices: PriceSource): NetworthReport {
+	fun of(source: NetworthSource, prices: PriceSource): NetworthReport? {
+		if (!ItemRepo.ready) return null
 		val crafts = CraftCost(prices)
 		val categories = LinkedHashMap<NetworthCategory, Map<String, Long>>(NetworthCategory.entries.size)
 		var total = 0L
@@ -59,7 +59,7 @@ object Networth {
 		return NetworthReport(total, categories)
 	}
 
-	suspend fun ofAsync(source: NetworthSource, prices: PriceSource): NetworthReport =
+	suspend fun ofAsync(source: NetworthSource, prices: PriceSource): NetworthReport? =
 		withContext(Dispatchers.IO) { of(source, prices) }
 
 	private fun values(
@@ -101,7 +101,7 @@ object Networth {
 		if (pets.isEmpty()) return emptyMap()
 		val values = LinkedHashMap<String, Long>(pets.size)
 		for (pet in pets) {
-			val value = Prices.priceOr("$PET-${pet.type}-${pet.tier}", prices, 0.0) +
+			val value = Prices.priceOr(ItemValue.listedPet(pet, prices), prices, 0.0) +
 				Prices.priceOr(pet.heldItem.orEmpty(), prices, 0.0) +
 				Prices.priceOr(pet.skin.orEmpty(), prices, 0.0)
 			values.merge(titleCase("${pet.tier}_${pet.type}"), value.toLong(), Long::plus)

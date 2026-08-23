@@ -253,6 +253,35 @@ class MayorServiceTest {
 		assertEquals("Diana", MayorService.mayor?.name)
 	}
 
+	@Test
+	fun `asking for the mayor again in the same minute reuses what was just read`() {
+		install()
+
+		MayorService.require().unsubscribe()
+		MayorService.require().unsubscribe()
+		MayorService.require()
+
+		assertEquals(1, source.requests.size)
+	}
+
+	@Test
+	fun `releasing the last requirement stops the poll, and needing the mayor again starts it`() {
+		install()
+		val first = MayorService.require()
+		val second = MayorService.require()
+		assertTrue(MayorService.polling)
+
+		first.unsubscribe()
+		assertTrue(MayorService.polling)
+
+		second.unsubscribe()
+		assertFalse(MayorService.polling)
+
+		MayorService.require()
+
+		assertTrue(MayorService.polling)
+	}
+
 	private fun install() {
 		MayorService.install(scope, bus, Dispatchers.Unconfined, source, { millis }, { onHypixel }) { inSkyBlock }
 	}

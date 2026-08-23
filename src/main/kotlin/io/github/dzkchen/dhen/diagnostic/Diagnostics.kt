@@ -126,11 +126,14 @@ class Diagnostics(
 
 	fun priceLines(toggle: Boolean): List<String> = buildList {
 		if (toggle) add(togglePrices())
-		add("Prices: needed by ${Prices.required}, bazaar snapshot=${Prices.bazaar?.lastUpdated ?: 0L}")
+		add("Prices: needed by ${Prices.required}, polling=${yesNo(Prices.polling)}, " +
+			"bazaar snapshot=${Prices.bazaar?.lastUpdated ?: 0L}")
 		for (feed in Prices.feeds) {
 			add("  ${feed.name}: entries=${feed.size}, age=${Prices.ageSeconds(feed)}s, failedRefreshes=${feed.failures}")
 		}
 	}
+
+	private fun yesNo(flag: Boolean): String = if (flag) "yes" else "no"
 
 	private fun togglePrices(): String {
 		val held = forcedPrices
@@ -147,7 +150,8 @@ class Diagnostics(
 		}
 		val mayor = MayorService.mayor
 		val date = MayorService.date
-		add("Mayor: ${mayor?.name ?: "unknown"}, needed by ${MayorService.required}, failedRefreshes=${MayorService.failedRefreshes}")
+		add("Mayor: ${mayor?.name ?: "unknown"}, needed by ${MayorService.required}, " +
+			"polling=${yesNo(MayorService.polling)}, failedRefreshes=${MayorService.failedRefreshes}")
 		add("  SkyBlock date: year ${date.year}, month ${date.month}, day ${date.day}")
 		add("  elected in year ${MayorService.electedYear}, next election in year ${MayorService.electedYear + 1}")
 		add("  perks: ${mayor?.perks?.joinToString()?.ifEmpty { "none" } ?: "unknown"}")
@@ -272,6 +276,10 @@ class Diagnostics(
 		if (SkyBlockItems.of(stack) === SkyBlockItem.NONE) {
 			add("Value of '$name': no SkyBlock data on this item")
 			return@buildList
+		}
+		if (!ItemRepo.ready) {
+			add("Value of '$name': the item catalog is not ready yet (${ItemRepo.state}), " +
+				"so every line it prices is missing from the total below.")
 		}
 		val valuation = ItemValue.of(stack, VALUE_SOURCE)
 		add("Value of '$name': ${valuation.total} from $VALUE_SOURCE (base ${valuation.base})")

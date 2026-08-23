@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -204,6 +205,24 @@ class PricesTest {
 		handle.unsubscribe()
 
 		assertEquals(0, Prices.required)
+	}
+
+	@Test
+	fun `releasing the last requirement stops the poll, and needing prices again starts it`() {
+		install()
+		val first = Prices.require()
+		val second = Prices.require()
+		assertTrue(Prices.polling)
+
+		first.unsubscribe()
+		assertTrue(Prices.polling)
+
+		second.unsubscribe()
+		assertFalse(Prices.polling)
+
+		Prices.require()
+
+		assertTrue(Prices.polling)
 	}
 
 	@Test

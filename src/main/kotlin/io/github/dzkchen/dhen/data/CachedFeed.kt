@@ -28,7 +28,7 @@ internal class CachedFeed<T : Any>(
 
 	val size: Int get() = value?.let(count) ?: 0
 
-	fun stale(now: Long): Boolean = value == null || now - updatedAt >= ttl.inWholeNanoseconds
+	fun stale(now: Long, within: Duration = ttl): Boolean = value == null || now - updatedAt >= within.inWholeNanoseconds
 
 	fun refresh(web: WebSource, now: Long, stillWanted: () -> Boolean): Boolean {
 		val parsed = web.text(url)?.let(::read)?.takeIf { count(it) > 0 }

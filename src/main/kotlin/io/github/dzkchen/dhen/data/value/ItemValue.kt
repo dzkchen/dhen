@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.value
 
 import io.github.dzkchen.dhen.data.item.ItemRarity
+import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
@@ -87,6 +88,7 @@ object ItemValue {
 		::armorDye,
 		::rune,
 		::abilityScrolls,
+		::petCosmetics,
 		::boosters,
 		::drillUpgrades,
 		::rodParts,
@@ -118,16 +120,29 @@ object ItemValue {
 			return if (price.isNaN()) 0.0 else price
 		}
 		val pet = fold.item.pet ?: return fold.base(marketId, displayName(marketId))
-		val level = ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp)
-		val leveled = marketId + levelSuffix(level)
-		val listed = if (leveled != marketId && !fold.price(leveled).isNaN()) leveled else marketId
-		return fold.base(listed, "${displayName(marketId)} level $level")
+		val level = petLevel(pet)
+		return fold.base(listedPet(pet, level, fold.source), "${displayName(marketId)} level $level")
 	}
+
+	internal fun listedPet(pet: PetInfo, source: PriceSource): String = listedPet(pet, petLevel(pet), source)
+
+	private fun listedPet(pet: PetInfo, level: Int, source: PriceSource): String {
+		val marketId = SkyBlockItem.petMarketId(pet)
+		val leveled = marketId + levelSuffix(level)
+		return if (leveled != marketId && Prices.price(leveled, source) != null) leveled else marketId
+	}
+
+	private fun petLevel(pet: PetInfo): Int = ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp)
 
 	private fun levelSuffix(level: Int): String = when {
 		level >= DRAGON_PET_LEVEL -> "-$DRAGON_PET_LEVEL"
 		level >= LEGENDARY_PET_LEVEL -> "-$LEGENDARY_PET_LEVEL"
 		else -> ""
+	}
+
+	private fun petCosmetics(fold: Fold): Double {
+		val pet = fold.item.pet ?: return 0.0
+		return fold.cosmetic("Held item", pet.heldItem.orEmpty()) + fold.cosmetic("Skin", pet.skin.orEmpty())
 	}
 
 	private fun reforgeStone(fold: Fold): Double {

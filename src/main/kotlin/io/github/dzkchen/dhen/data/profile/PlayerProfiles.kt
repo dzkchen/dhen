@@ -6,7 +6,6 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebClient
@@ -58,7 +57,7 @@ object PlayerProfiles {
 	private val limiter = Semaphore(MAX_IN_FLIGHT)
 	private val uuids = Cache<String>(UUID_TTL)
 	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
-	private val repoReady = { ItemRepo.state == RepoState.READY }
+	private val repoReady = { ItemRepo.ready }
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
 	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
 	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
