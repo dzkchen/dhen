@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.LevelLadder
 import io.github.dzkchen.dhen.util.flagOrNull
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
@@ -64,8 +65,8 @@ internal object SkillTrees {
 		val constants = ItemRepo.constants
 		return SkillTree(
 			experience = experience,
-			level = constants.treeLevel(family.ladder, experience),
-			maxLevel = constants.treeMaxLevel(family.ladder),
+			level = constants.level(LevelLadder.SKILL_TREE, experience, family.ladder),
+			maxLevel = constants.maxLevel(LevelLadder.SKILL_TREE, family.ladder),
 			selectedSlot = selectedSlot(tree, family),
 			slots = SLOTS.associateWith { slotOf(nodes, abilities, family, it) }
 		)

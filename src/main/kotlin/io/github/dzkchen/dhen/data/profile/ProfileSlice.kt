@@ -50,6 +50,8 @@ class DungeonSlice internal constructor(
 	val secretsPerRun: Double = if (runs == 0) 0.0 else secrets.toDouble() / runs
 }
 
+class ProfileNames internal constructor(val count: Int, val selected: String?)
+
 class ProfileSlice internal constructor(
 	val profileId: String,
 	val cuteName: String,
@@ -108,6 +110,11 @@ internal object ProfileSlices {
 
 	fun secrets(playerReply: JsonObject): Long? =
 		playerReply.obj("player")?.obj("achievements")?.number("skyblock_treasure_hunter")?.toLong()
+
+	fun names(profilesReply: JsonObject): ProfileNames = ProfileNames(
+		count = profilesReply.array("profiles")?.size() ?: 0,
+		selected = selectedProfile(profilesReply)?.text("cute_name")
+	)
 
 	fun selectedProfile(profilesReply: JsonObject): JsonObject? = profilesReply.array("profiles")
 		?.firstOrNull { it is JsonObject && it.flag("selected") }

@@ -24,25 +24,36 @@ class StarTier internal constructor(val essence: String, val essenceAmount: Int,
 
 private class PetLeveling(val extraLevels: List<Int>, val maxLevel: Int, val rarityOffsets: Map<String, Int>)
 
-private class LevelTable(private val totals: LongArray) {
-	val maxLevel: Int get() = totals.size
+enum class LevelLadder { SKILL, SLAYER, SKILL_TREE, GARDEN, CROP_MILESTONE }
 
-	fun level(experience: Double, cap: Int = maxLevel): Int {
+private class LevelTable(private val totals: LongArray, val maxLevel: Int = totals.size) {
+	fun level(experience: Double, cap: Int): Int {
 		var level = 0
 		while (level < cap && level < totals.size && totals[level] <= experience) level++
 		return level
 	}
+
+	fun cappedAt(cap: Int?): LevelTable = if (cap == null || cap == maxLevel) this else LevelTable(totals, cap)
 }
 
-private class Leveling(
-	val skills: LevelTable,
-	val perSkill: Map<String, LevelTable>,
-	val slayers: Map<String, LevelTable>,
-	val trees: Map<String, LevelTable>,
-	val caps: Map<String, Int>
-)
+private val NO_LEVELS = LevelTable(LongArray(0))
 
-private class Garden(val levels: LevelTable, val cropMilestones: Map<String, LevelTable>)
+private class Leveling(
+	private val skills: Map<String, LevelTable>,
+	private val anySkill: LevelTable,
+	private val slayers: Map<String, LevelTable>,
+	private val trees: Map<String, LevelTable>,
+	private val garden: LevelTable,
+	private val cropMilestones: Map<String, LevelTable>
+) {
+	fun table(ladder: LevelLadder, key: String): LevelTable = when (ladder) {
+		LevelLadder.SKILL -> skills[key] ?: anySkill
+		LevelLadder.SLAYER -> slayers[key] ?: NO_LEVELS
+		LevelLadder.SKILL_TREE -> trees[key] ?: NO_LEVELS
+		LevelLadder.GARDEN -> garden
+		LevelLadder.CROP_MILESTONE -> cropMilestones[key] ?: NO_LEVELS
+	}
+}
 
 class RepoConstants private constructor(
 	private val reforgeStones: Map<String, ReforgeStone>,
@@ -51,8 +62,7 @@ class RepoConstants private constructor(
 	private val petLevels: List<Int>,
 	private val petRarityOffsets: Map<String, Int>,
 	private val customPets: Map<String, PetLeveling>,
-	private val leveling: Leveling,
-	private val garden: Garden
+	private val leveling: Leveling
 ) {
 	val reforgeStoneCount: Int get() = reforgeStones.size
 
@@ -64,23 +74,10 @@ class RepoConstants private constructor(
 
 	fun gemstoneSlotCost(id: String, slot: String): Map<String, Int> = gemstoneSlots[id]?.get(slot).orEmpty()
 
-	fun skillCap(skill: String): Int = leveling.caps[skill] ?: DEFAULT_SKILL_CAP
+	fun level(ladder: LevelLadder, experience: Double, key: String, cap: Int = maxLevel(ladder, key)): Int =
+		leveling.table(ladder, key).level(experience, cap)
 
-	fun skillLevel(skill: String, experience: Double, cap: Int): Int = skillTable(skill).level(experience, cap)
-
-	fun slayerLevel(slayer: String, experience: Double): Int = slayerTable(slayer).level(experience)
-
-	fun slayerMaxLevel(slayer: String): Int = slayerTable(slayer).maxLevel
-
-	fun treeLevel(tree: String, experience: Double): Int = treeTable(tree).level(experience, treeMaxLevel(tree))
-
-	fun treeMaxLevel(tree: String): Int = leveling.caps[tree] ?: treeTable(tree).maxLevel
-
-	val gardenMaxLevel: Int get() = garden.levels.maxLevel
-
-	fun gardenLevel(experience: Double): Int = garden.levels.level(experience)
-
-	fun cropMilestone(crop: String, collected: Double): Int = garden.cropMilestones[crop]?.level(collected) ?: 0
+	fun maxLevel(ladder: LevelLadder, key: String): Int = leveling.table(ladder, key).maxLevel
 
 	fun petLevel(type: String, tier: String, exp: Double): Int {
 		val custom = customPets[type]
@@ -97,12 +94,6 @@ class RepoConstants private constructor(
 		return level
 	}
 
-	private fun skillTable(skill: String): LevelTable = leveling.perSkill[skill] ?: leveling.skills
-
-	private fun slayerTable(slayer: String): LevelTable = leveling.slayers[slayer] ?: NO_LEVELS
-
-	private fun treeTable(tree: String): LevelTable = leveling.trees[tree] ?: NO_LEVELS
-
 	internal companion object {
 		private const val DEFAULT_PET_MAX_LEVEL = 100
 		private const val DEFAULT_SKILL_CAP = 50
@@ -111,11 +102,16 @@ class RepoConstants private constructor(
 		private val SKILLS_WITH_THEIR_OWN_LADDER = mapOf("runecrafting" to "runecrafting_xp", "social" to "social")
 		private val SKILL_TREES = listOf("HOTM", "HOTF")
 
-		private val NO_LEVELS = LevelTable(LongArray(0))
-		private val NO_LEVELLING = Leveling(NO_LEVELS, emptyMap(), emptyMap(), emptyMap(), emptyMap())
-		private val NO_GARDEN = Garden(NO_LEVELS, emptyMap())
+		private val NO_LEVELLING = Leveling(
+			skills = emptyMap(),
+			anySkill = NO_LEVELS.cappedAt(DEFAULT_SKILL_CAP),
+			slayers = emptyMap(),
+			trees = emptyMap(),
+			garden = NO_LEVELS,
+			cropMilestones = emptyMap()
+		)
 
-		val EMPTY = RepoConstants(emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING, NO_GARDEN)
+		val EMPTY = RepoConstants(emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING)
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		private val UNSPEAKABLE = Regex("[^a-z0-9\\s_-]")
@@ -132,8 +128,7 @@ class RepoConstants private constructor(
 				petLevels = pets.array("pet_levels").ints(),
 				petRarityOffsets = offsets.ints(0),
 				customPets = customPets(pets.obj("custom_pet_leveling")),
-				leveling = leveling(read(constants, "leveling")),
-				garden = garden(read(constants, "garden"))
+				leveling = leveling(read(constants, "leveling"), read(constants, "garden"))
 			)
 		}
 
@@ -209,33 +204,31 @@ class RepoConstants private constructor(
 			return pets
 		}
 
-		private fun leveling(json: JsonObject): Leveling {
+		private fun leveling(json: JsonObject, gardenJson: JsonObject): Leveling {
+			val caps = json.obj("leveling_caps").ints(DEFAULT_SKILL_CAP)
+			val anySkill = incrementTable(json.array("leveling_xp"))
+			val ownLadders = SKILLS_WITH_THEIR_OWN_LADDER
+				.mapNotNull { (skill, table) -> json.array(table)?.let { steps -> skill to incrementTable(steps) } }
+				.toMap()
 			val slayers = json.obj("slayer_xp") ?: JsonObject()
-			val leveling = Leveling(
-				skills = incrementTable(json.array("leveling_xp")),
-				perSkill = SKILLS_WITH_THEIR_OWN_LADDER
-					.mapNotNull { (skill, table) -> json.array(table)?.let { steps -> skill to incrementTable(steps) } }
-					.toMap(),
-				slayers = slayers.keySet().associateWith { totalTable(slayers.array(it)) },
-				trees = SKILL_TREES.associateWith { incrementTable(json.array(it)) },
-				caps = json.obj("leveling_caps").ints(DEFAULT_SKILL_CAP)
-			)
-			if (leveling.skills.maxLevel == 0 || leveling.slayers.isEmpty()) {
+			val trees = SKILL_TREES.associateWith { incrementTable(json.array(it)).cappedAt(caps[it]) }
+			val milestones = gardenJson.obj("crop_milestones") ?: JsonObject()
+			val gardenLevels = incrementTable(gardenJson.array("garden_exp"))
+			if (anySkill.maxLevel == 0 || slayers.size() == 0) {
 				log.warn("Dhen read no skill or slayer levelling table from the repo (leveling.json absent or empty), so those levels will read zero")
 			}
-			return leveling
-		}
-
-		private fun garden(json: JsonObject): Garden {
-			val milestones = json.obj("crop_milestones") ?: JsonObject()
-			val garden = Garden(
-				levels = incrementTable(json.array("garden_exp")),
-				cropMilestones = milestones.keys().associateWith { incrementTable(milestones.array(it)) }
-			)
-			if (garden.levels.maxLevel == 0 || garden.cropMilestones.isEmpty()) {
+			if (gardenLevels.maxLevel == 0 || milestones.size() == 0) {
 				log.warn("Dhen read no garden level or crop milestone table from the repo (garden.json absent or empty), so those will read zero")
 			}
-			return garden
+			return Leveling(
+				skills = ((caps.keys - trees.keys) + ownLadders.keys)
+					.associateWith { (ownLadders[it] ?: anySkill).cappedAt(caps[it] ?: DEFAULT_SKILL_CAP) },
+				anySkill = anySkill.cappedAt(DEFAULT_SKILL_CAP),
+				slayers = slayers.keySet().associateWith { totalTable(slayers.array(it)) },
+				trees = trees,
+				garden = gardenLevels,
+				cropMilestones = milestones.keys().associateWith { incrementTable(milestones.array(it)) }
+			)
 		}
 
 		private fun incrementTable(steps: JsonArray?): LevelTable {

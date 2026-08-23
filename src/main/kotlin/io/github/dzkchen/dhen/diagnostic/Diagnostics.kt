@@ -18,7 +18,11 @@ import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.profile.DungeonSlice
+import io.github.dzkchen.dhen.data.profile.OnlineReading
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
+import io.github.dzkchen.dhen.data.profile.ProfileSlice
+import io.github.dzkchen.dhen.data.profile.ProfileStatus
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
@@ -174,7 +178,64 @@ class Diagnostics(
 			"peak=${PlayerProfiles.peakInFlight}, failedRequests=${PlayerProfiles.failures}")
 	}
 
-	fun profileLookup(name: String, notify: (String) -> Unit) = PlayerProfiles.lookup(name, notify)
+	fun profileLookup(name: String, notify: (String) -> Unit) {
+		if (PlayerProfiles.reporting(notify) { say -> lookedUp(name, say) }) return
+		notify("Dhen's player-profile service is not running, so it cannot look anybody up.")
+	}
+
+	private suspend fun lookedUp(playerName: String, say: suspend (List<String>) -> Unit) {
+		val uuid = PlayerProfiles.uuidOf(playerName)
+			?: return say(listOf("Dhen could not look '$playerName' up — either no such account exists, or Mojang did not answer."))
+		say(listOf("$playerName is $uuid."))
+		if (!PlayerProfiles.available) {
+			return say(listOf("No profile proxy is set, so Dhen cannot ask for SkyBlock profiles."))
+		}
+		val names = PlayerProfiles.profileNames(uuid)
+			?: return say(listOf("The profile proxy did not answer for $playerName."))
+		val opening = "$playerName has ${names.count} SkyBlock profiles; the selected one is '${names.selected ?: NO_PROFILE}'."
+		val slice = PlayerProfiles.slice(uuid)
+		val secrets = if (slice?.dungeons == null) null else PlayerProfiles.accountSecrets(uuid)
+		say(listOf(opening) + sliceLines(slice, secrets, PlayerProfiles.onlineStatus(uuid)))
+	}
+
+	private fun sliceLines(slice: ProfileSlice?, accountSecrets: Long?, status: ProfileStatus): List<String> = buildList {
+		if (slice == null) {
+			add("Dhen could not read that profile, so it has no stats to show.")
+		} else {
+			slice.dungeons?.also { add(dungeonLine(it)); add(secretsLine(it, accountSecrets)) }
+				?: add("That profile has no dungeon data.")
+			add(powerLine(slice))
+			add("The inventory API is ${if (slice.inventoryApi) "on" else "off"} for that profile.")
+		}
+		add(onlineLine(status))
+	}
+
+	private fun dungeonLine(dungeons: DungeonSlice): String =
+		"Catacombs ${dungeons.catacombsLevel}, class average ${rounded(dungeons.classAverage)}, " +
+			"playing ${dungeons.selectedClass ?: "no class"}."
+
+	private fun secretsLine(dungeons: DungeonSlice, accountSecrets: Long?): String =
+		"${dungeons.secrets} secrets over ${dungeons.runs} runs on this profile (${rounded(dungeons.secretsPerRun)} a run), " +
+			"${accountSecrets ?: "an unknown number"} on the whole account, and ${dungeons.bloodMobKills} blood-mob kills."
+
+	private fun powerLine(slice: ProfileSlice): String = when {
+		slice.magicalPower == null ->
+			"Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
+		slice.magicalPower == 0 && slice.assumedMagicalPower > 0 ->
+			"Magical power ${slice.assumedMagicalPower}, assumed from tuning points because the talisman bag is empty."
+		else -> "Magical power ${slice.magicalPower}."
+	}
+
+	private fun onlineLine(status: ProfileStatus): String = when (status.reading) {
+		OnlineReading.ONLINE -> "Right now they are online${status.gameType?.let { " in $it" } ?: ""}${placeOf(status)}."
+		OnlineReading.OFFLINE -> "Right now they are offline."
+		OnlineReading.UNKNOWN -> "Dhen could not tell whether they are online."
+	}
+
+	private fun placeOf(status: ProfileStatus): String =
+		listOfNotNull(status.mode, status.map).takeIf(List<String>::isNotEmpty)?.joinToString(", ", " (", ")") ?: ""
+
+	private fun rounded(value: Number): String = String.format(Locale.ROOT, "%.1f", value)
 
 	fun profileProxyShown(): String {
 		val saved = ClientPrefs.profileProxy.value
@@ -296,7 +357,7 @@ class Diagnostics(
 		for (hook in Dhen.hooks) if (!hook.active()) add("${hook.feed}: no feed, off until restart")
 		add(
 			if (!TickHooks.serverFeedActive()) "Server tick: no feed, the server tick feed is off until restart"
-			else "Server tick: tps=${String.format(Locale.ROOT, "%.1f", ServerClock.tps)}, " +
+			else "Server tick: tps=${rounded(ServerClock.tps)}, " +
 				"serverTicks=${ServerClock.ticks}, " +
 				"clientTicksSincePing=${ServerClock.clientTicksSinceServerTick}"
 		)
@@ -353,6 +414,7 @@ class Diagnostics(
 
 	private companion object {
 		private const val TOP_ORDERS = 3
+		private const val NO_PROFILE = "none"
 
 		private val VALUE_SOURCE = PriceSource.BAZAAR_INSTANT_SELL
 		private val SCHEMES = setOf("http", "https")

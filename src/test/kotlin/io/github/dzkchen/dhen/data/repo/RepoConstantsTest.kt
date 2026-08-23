@@ -103,7 +103,8 @@ class RepoConstantsTest {
 		assertEquals(4, constants.level("combat", 675.0))
 		assertEquals(5, constants.level("combat", 9999.0))
 		assertEquals(3, constants.level("farming", 9999.0))
-		assertEquals(5, constants.skillLevel("farming", 9999.0, constants.skillCap("farming") + 2))
+		val widened = constants.maxLevel(LevelLadder.SKILL, "farming") + 2
+		assertEquals(5, constants.level(LevelLadder.SKILL, 9999.0, "farming", widened))
 	}
 
 	@Test
@@ -114,7 +115,7 @@ class RepoConstantsTest {
 
 		assertEquals(2, constants.level("runecrafting", 150.0))
 		assertEquals(1, constants.level("social", 70.0))
-		assertEquals(50, constants.skillCap("hunting"))
+		assertEquals(50, constants.maxLevel(LevelLadder.SKILL, "hunting"))
 	}
 
 	@Test
@@ -123,12 +124,12 @@ class RepoConstantsTest {
 
 		val constants = read()
 
-		assertEquals(0, constants.slayerLevel("zombie", 4.0))
-		assertEquals(1, constants.slayerLevel("zombie", 5.0))
-		assertEquals(2, constants.slayerLevel("zombie", 100.0))
-		assertEquals(3, constants.slayerLevel("zombie", 9999.0))
-		assertEquals(3, constants.slayerMaxLevel("zombie"))
-		assertEquals(2, constants.slayerMaxLevel("vampire"))
+		assertEquals(0, constants.level(LevelLadder.SLAYER, 4.0, "zombie"))
+		assertEquals(1, constants.level(LevelLadder.SLAYER, 5.0, "zombie"))
+		assertEquals(2, constants.level(LevelLadder.SLAYER, 100.0, "zombie"))
+		assertEquals(3, constants.level(LevelLadder.SLAYER, 9999.0, "zombie"))
+		assertEquals(3, constants.maxLevel(LevelLadder.SLAYER, "zombie"))
+		assertEquals(2, constants.maxLevel(LevelLadder.SLAYER, "vampire"))
 	}
 
 	@Test
@@ -158,20 +159,20 @@ class RepoConstantsTest {
 
 		val constants = read()
 
-		assertEquals(1, constants.treeLevel("HOTM", 0.0))
-		assertEquals(2, constants.treeLevel("HOTM", 100.0))
-		assertEquals(3, constants.treeLevel("HOTM", 9999.0))
-		assertEquals(3, constants.treeMaxLevel("HOTM"))
-		assertEquals(2, constants.treeMaxLevel("HOTF"))
+		assertEquals(1, constants.level(LevelLadder.SKILL_TREE, 0.0, "HOTM"))
+		assertEquals(2, constants.level(LevelLadder.SKILL_TREE, 100.0, "HOTM"))
+		assertEquals(3, constants.level(LevelLadder.SKILL_TREE, 9999.0, "HOTM"))
+		assertEquals(3, constants.maxLevel(LevelLadder.SKILL_TREE, "HOTM"))
+		assertEquals(2, constants.maxLevel(LevelLadder.SKILL_TREE, "HOTF"))
 	}
 
 	@Test
 	fun `a repo with no garden table reports no garden level and no milestone`() {
 		val constants = read()
 
-		assertEquals(0, constants.gardenLevel(9999.0))
-		assertEquals(0, constants.gardenMaxLevel)
-		assertEquals(0, constants.cropMilestone("WHEAT", 9999.0))
+		assertEquals(0, constants.level(LevelLadder.GARDEN, 9999.0, ""))
+		assertEquals(0, constants.maxLevel(LevelLadder.GARDEN, ""))
+		assertEquals(0, constants.level(LevelLadder.CROP_MILESTONE, 9999.0, "WHEAT"))
 	}
 
 	@Test
@@ -179,12 +180,12 @@ class RepoConstantsTest {
 		val constants = read()
 
 		assertEquals(0, constants.level("combat", 9999.0))
-		assertEquals(0, constants.slayerLevel("zombie", 9999.0))
-		assertEquals(0, constants.slayerMaxLevel("zombie"))
+		assertEquals(0, constants.level(LevelLadder.SLAYER, 9999.0, "zombie"))
+		assertEquals(0, constants.maxLevel(LevelLadder.SLAYER, "zombie"))
 	}
 
 	private fun RepoConstants.level(skill: String, experience: Double): Int =
-		skillLevel(skill, experience, skillCap(skill))
+		level(LevelLadder.SKILL, experience, skill)
 
 	private fun read(): RepoConstants = RepoConstants.read(home.resolve("constants"))
 

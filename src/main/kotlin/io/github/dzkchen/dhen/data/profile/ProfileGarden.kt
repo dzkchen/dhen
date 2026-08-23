@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.LevelLadder
 import io.github.dzkchen.dhen.data.repo.RepoConstants
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.int
@@ -92,14 +93,16 @@ class FarmingProfile internal constructor(
 )
 
 internal object GardenProfiles {
+	private const val WHOLE_GARDEN = ""
+
 	fun of(gardenReply: JsonObject): GardenProfile? {
 		val garden = gardenReply.obj("garden") ?: return null
 		val experience = garden.number("garden_experience") ?: 0.0
 		val constants = ItemRepo.constants
 		return GardenProfile(
 			experience = experience,
-			level = constants.gardenLevel(experience),
-			maxLevel = constants.gardenMaxLevel,
+			level = constants.level(LevelLadder.GARDEN, experience, WHOLE_GARDEN),
+			maxLevel = constants.maxLevel(LevelLadder.GARDEN, WHOLE_GARDEN),
 			crops = crops(constants, garden.obj("resources_collected"), garden.obj("crop_upgrade_levels")),
 			unlockedPlots = garden.array("unlocked_plots_ids").texts(),
 			composter = composter(garden.obj("composter_data")),
@@ -136,7 +139,7 @@ internal object GardenProfiles {
 			val amount = collected?.number(crop) ?: 0.0
 			crops[crop] = CropProgress(
 				collected = amount.toLong(),
-				milestone = constants.cropMilestone(crop, amount),
+				milestone = constants.level(LevelLadder.CROP_MILESTONE, amount, crop),
 				upgrade = upgrades.int(crop)
 			)
 		}

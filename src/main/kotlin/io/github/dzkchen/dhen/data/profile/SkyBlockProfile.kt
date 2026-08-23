@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.LevelLadder
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.long
@@ -99,12 +100,12 @@ internal object SkyBlockProfiles {
 		val skills = LinkedHashMap<Skill, SkillProgress>(Skill.entries.size)
 		for (skill in Skill.entries) {
 			val earned = if (skill == Skill.SOCIAL) social(everyMember) else experience?.number(skill.apiKey) ?: 0.0
-			val cap = constants.skillCap(skill.repoKey) + when (skill) {
+			val cap = constants.maxLevel(LevelLadder.SKILL, skill.repoKey) + when (skill) {
 				Skill.FARMING -> farmingBonus
 				Skill.TAMING -> tamingBonus
 				else -> 0
 			}
-			skills[skill] = SkillProgress(earned, constants.skillLevel(skill.repoKey, earned, cap), cap)
+			skills[skill] = SkillProgress(earned, constants.level(LevelLadder.SKILL, earned, skill.repoKey, cap), cap)
 		}
 		return skills
 	}
@@ -121,8 +122,8 @@ internal object SkyBlockProfiles {
 			val experience = boss.number("xp") ?: 0.0
 			slayers[name] = SlayerProgress(
 				experience = experience,
-				level = constants.slayerLevel(name, experience),
-				maxLevel = constants.slayerMaxLevel(name),
+				level = constants.level(LevelLadder.SLAYER, experience, name),
+				maxLevel = constants.maxLevel(LevelLadder.SLAYER, name),
 				tierKills = tierKills(boss)
 			)
 		}

@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.data.profile
 
-import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -10,7 +9,6 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebSource
-import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.text
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +38,6 @@ object PlayerProfiles {
 	private const val MAX_IN_FLIGHT = 5
 	private const val MAX_ENTRIES = 128
 	private const val MAX_HELD_PROFILES = 16
-	private const val NO_PROFILE = "none"
 	private const val PROXY_AGNOSTIC = 0
 
 	private val NEGATIVE_TTL = 1.minutes
@@ -102,7 +99,6 @@ object PlayerProfiles {
 		}
 	}
 
-
 	suspend fun uuidOf(playerName: String): String? {
 		val host = host ?: return null
 		if (!nameShape.matches(playerName) || requirements.get() == 0) return null
@@ -144,74 +140,20 @@ object PlayerProfiles {
 
 	suspend fun onlineStatus(uuid: String): ProfileStatus = ProfileSlices.status(status(uuid))
 
-	fun lookup(playerName: String, report: (String) -> Unit) {
-		val host = host ?: return report("Dhen's player-profile service is not running, so it cannot look anybody up.")
-		host.scope.launch {
+	suspend fun profileNames(uuid: String): ProfileNames? = profiles(uuid)?.let(ProfileSlices::names)
+
+	internal fun reporting(report: (String) -> Unit, prose: suspend (suspend (List<String>) -> Unit) -> Unit): Boolean {
+		val owner = host ?: return false
+		owner.scope.launch {
 			val requirement = require()
 			try {
-				val uuid = uuidOf(playerName)
-				if (uuid == null) {
-					say(host, report, "Dhen could not look '$playerName' up — either no such account exists, or Mojang did not answer.")
-					return@launch
-				}
-				say(host, report, "$playerName is $uuid.")
-				if (configuredBase() == null) {
-					say(host, report, "No profile proxy is set, so Dhen cannot ask for SkyBlock profiles.")
-					return@launch
-				}
-				val reply = profiles(uuid)
-				if (reply == null) {
-					say(host, report, "The profile proxy did not answer for $playerName.")
-					return@launch
-				}
-				val opening = "$playerName has ${profileList(reply).size()} SkyBlock profiles; the selected one is '${selectedName(reply)}'."
-				val slice = slice(uuid)
-				val secrets = if (slice?.dungeons == null) null else accountSecrets(uuid)
-				sayAll(host, report, listOf(opening) + sliceLines(slice, secrets, onlineStatus(uuid)))
+				prose { lines -> withContext(owner.clientDispatcher) { for (line in lines) report(line) } }
 			} finally {
 				requirement.unsubscribe()
 			}
 		}
+		return true
 	}
-
-	private fun sliceLines(slice: ProfileSlice?, accountSecrets: Long?, status: ProfileStatus): List<String> = buildList {
-		if (slice == null) {
-			add("Dhen could not read that profile, so it has no stats to show.")
-		} else {
-			slice.dungeons?.also { add(dungeonLine(it)); add(secretsLine(it, accountSecrets)) }
-				?: add("That profile has no dungeon data.")
-			add(powerLine(slice))
-			add("The inventory API is ${if (slice.inventoryApi) "on" else "off"} for that profile.")
-		}
-		add(onlineLine(status))
-	}
-
-	private fun dungeonLine(dungeons: DungeonSlice): String =
-		"Catacombs ${dungeons.catacombsLevel}, class average ${rounded(dungeons.classAverage)}, " +
-			"playing ${dungeons.selectedClass ?: "no class"}."
-
-	private fun secretsLine(dungeons: DungeonSlice, accountSecrets: Long?): String =
-		"${dungeons.secrets} secrets over ${dungeons.runs} runs on this profile (${rounded(dungeons.secretsPerRun)} a run), " +
-			"${accountSecrets ?: "an unknown number"} on the whole account, and ${dungeons.bloodMobKills} blood-mob kills."
-
-	private fun powerLine(slice: ProfileSlice): String = when {
-		slice.magicalPower == null ->
-			"Dhen cannot read the talisman bag, so it is assuming a magical power of ${slice.assumedMagicalPower}."
-		slice.magicalPower == 0 && slice.assumedMagicalPower > 0 ->
-			"Magical power ${slice.assumedMagicalPower}, assumed from tuning points because the talisman bag is empty."
-		else -> "Magical power ${slice.magicalPower}."
-	}
-
-	private fun onlineLine(status: ProfileStatus): String = when (status.reading) {
-		OnlineReading.ONLINE -> "Right now they are online${status.gameType?.let { " in $it" } ?: ""}${placeOf(status)}."
-		OnlineReading.OFFLINE -> "Right now they are offline."
-		OnlineReading.UNKNOWN -> "Dhen could not tell whether they are online."
-	}
-
-	private fun placeOf(status: ProfileStatus): String =
-		listOfNotNull(status.mode, status.map).takeIf(List<String>::isNotEmpty)?.joinToString(", ", " (", ")") ?: ""
-
-	private fun rounded(value: Double): String = String.format(Locale.ROOT, "%.1f", value)
 
 	internal fun install(
 		scope: CoroutineScope,
@@ -300,12 +242,6 @@ object PlayerProfiles {
 		return value
 	}
 
-	private suspend fun say(owner: Host, report: (String) -> Unit, line: String) =
-		withContext(owner.clientDispatcher) { report(line) }
-
-	private suspend fun sayAll(owner: Host, report: (String) -> Unit, lines: List<String>) =
-		withContext(owner.clientDispatcher) { for (line in lines) report(line) }
-
 	private fun release() = requirements.updateAndGet { held -> maxOf(0, held - 1) }
 
 	private fun syncBase(): Base {
@@ -339,12 +275,6 @@ object PlayerProfiles {
 		if (body == null) return null
 		return runCatching { JsonParser.parseString(body) }.getOrNull()?.takeIf(JsonElement::isJsonObject)?.asJsonObject
 	}
-
-	private fun profileList(reply: JsonObject): JsonArray = reply.array("profiles") ?: JsonArray()
-
-	private fun selectedName(reply: JsonObject): String =
-		ProfileSlices.selectedProfile(reply)?.text("cute_name") ?: NO_PROFILE
-
 
 	private fun userAgent(): String {
 		val version = runCatching {
