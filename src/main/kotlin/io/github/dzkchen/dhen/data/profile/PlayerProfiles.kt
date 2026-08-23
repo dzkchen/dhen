@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.data.Requirement
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
@@ -22,7 +23,6 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
@@ -48,8 +48,7 @@ object PlayerProfiles {
 	private val idShape = Regex("[0-9a-fA-F-]{32,36}")
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
-	private val requirements = AtomicInteger()
-	private val installation = AtomicInteger()
+	private val requirement = Requirement()
 	private val mojang = Tally(MOJANG)
 	private val proxy = Tally(PROXY)
 	private val peak = AtomicInteger()
@@ -69,7 +68,7 @@ object PlayerProfiles {
 
 	val available: Boolean get() = configuredBase() != null
 
-	val required: Int get() = requirements.get()
+	val required: Int get() = requirement.count
 
 	internal val inFlight: Int get() = MAX_IN_FLIGHT - limiter.availablePermits
 
@@ -82,26 +81,18 @@ object PlayerProfiles {
 	internal val proxyHost: String? get() = configuredBase()?.let { runCatching { URI(it).host }.getOrNull() }
 
 	fun require(): Handle {
-		host ?: return Handle {}
-		val installed = installation.get()
-		requirements.incrementAndGet()
-		if (installation.get() != installed) {
-			release()
-			return Handle {}
-		}
-		val repo = ItemRepo.require()
-		val released = AtomicBoolean()
+		val owner = host ?: return Handle {}
+		val repo = AtomicReference<Handle?>()
+		val held = requirement.require(alive = { host === owner }, taken = { repo.set(ItemRepo.require()) })
 		return Handle {
-			if (released.compareAndSet(false, true)) {
-				repo.unsubscribe()
-				if (installation.get() == installed) release()
-			}
+			held.unsubscribe()
+			repo.get()?.unsubscribe()
 		}
 	}
 
 	suspend fun uuidOf(playerName: String): String? {
 		val host = host ?: return null
-		if (!nameShape.matches(playerName) || requirements.get() == 0) return null
+		if (!nameShape.matches(playerName) || requirement.count == 0) return null
 		syncBase()
 		val key = playerName.lowercase(Locale.ROOT)
 		uuids.read(key, host.clock.nanoTime(), PROXY_AGNOSTIC)?.let { return it.value }
@@ -145,11 +136,11 @@ object PlayerProfiles {
 	internal fun reporting(report: (String) -> Unit, prose: suspend (suspend (List<String>) -> Unit) -> Unit): Boolean {
 		val owner = host ?: return false
 		owner.scope.launch {
-			val requirement = require()
+			val held = require()
 			try {
 				prose { lines -> withContext(owner.clientDispatcher) { for (line in lines) report(line) } }
 			} finally {
-				requirement.unsubscribe()
+				held.unsubscribe()
 			}
 		}
 		return true
@@ -168,8 +159,7 @@ object PlayerProfiles {
 
 	internal fun uninstall() {
 		host = null
-		installation.incrementAndGet()
-		requirements.set(0)
+		requirement.reset()
 		mojang.reset()
 		proxy.reset()
 		peak.set(0)
@@ -213,7 +203,7 @@ object PlayerProfiles {
 		produce: suspend (Host, String, Int) -> V?
 	): V? {
 		val owner = host ?: return null
-		if (!idShape.matches(key) || requirements.get() == 0) return null
+		if (!idShape.matches(key) || requirement.count == 0) return null
 		val base = syncBase()
 		val url = base.url ?: return null
 		cache.read(key, owner.clock.nanoTime(), base.generation)?.let { return it.value }
@@ -241,8 +231,6 @@ object PlayerProfiles {
 		if (host === owner && keep) cache.write(key, value, owner.clock.nanoTime(), generation)
 		return value
 	}
-
-	private fun release() = requirements.updateAndGet { held -> maxOf(0, held - 1) }
 
 	private fun syncBase(): Base {
 		val url = configuredBase()

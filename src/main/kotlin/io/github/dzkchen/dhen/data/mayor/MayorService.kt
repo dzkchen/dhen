@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.mayor
 
 import io.github.dzkchen.dhen.data.CachedFeed
+import io.github.dzkchen.dhen.data.RequirementPump
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
@@ -14,14 +15,11 @@ import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.minecraft.world.item.ItemStack
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -41,8 +39,7 @@ object MayorService {
 
 	private val feed = CachedFeed("mayor", ELECTION_URL, REFRESH, ::readable, MayorReply::parse)
 	private val failsafe = Failsafe("Dhen {} failed, its mayor data is off until restart")
-	private val requirements = AtomicInteger()
-	private val pumpLock = Any()
+	private val pump = RequirementPump()
 	private val calendarTitle =
 		Pattern.compile("Calendar and Events|(?:Early |Late )?(?:Spring|Summer|Autumn|Winter), Year \\d+").matcher("")
 	private val electionClosed =
@@ -60,9 +57,9 @@ object MayorService {
 	@Volatile
 	private var extraMayorUntil = 0L
 
-	val required: Int get() = requirements.get()
+	val required: Int get() = pump.count
 
-	internal val polling: Boolean get() = host?.pump?.isActive == true
+	internal val polling: Boolean get() = pump.polling
 
 	val mayor: Mayor? get() = seated?.mayor
 
@@ -86,20 +83,7 @@ object MayorService {
 
 	fun require(): Handle {
 		val host = host ?: return Handle {}
-		if (!adjust(host, 1)) return Handle {}
-		val released = AtomicBoolean()
-		return Handle { if (released.compareAndSet(false, true)) adjust(host, -1) }
-	}
-
-	private fun adjust(host: Host, delta: Int): Boolean = synchronized(pumpLock) {
-		if (this.host !== host) return false
-		if (requirements.addAndGet(delta) == 0) {
-			host.pump?.cancel()
-			host.pump = null
-		} else if (host.pump?.isActive != true) {
-			host.pump = host.scope.launch { poll(host) }
-		}
-		true
+		return pump.require({ this@MayorService.host === host }) { host.scope.launch { poll(host) } }
 	}
 
 	fun active(): Boolean = host != null
@@ -123,12 +107,11 @@ object MayorService {
 		)
 	}
 
-	internal fun uninstall() = synchronized(pumpLock) {
+	internal fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
-		host?.pump?.cancel()
 		host = null
-		requirements.set(0)
+		pump.reset()
 		extraMayorPerk = null
 		extraMayorUntil = 0L
 		feed.reset()
@@ -151,7 +134,7 @@ object MayorService {
 
 	private suspend fun poll(host: Host) = coroutineScope {
 		while (isActive) {
-			if (requirements.get() > 0 && host.onHypixel()) refresh(host)
+			if (pump.count > 0 && host.onHypixel()) refresh(host)
 			delay(POLL)
 		}
 	}
@@ -227,8 +210,5 @@ object MayorService {
 		val epochMillis: () -> Long,
 		val onHypixel: () -> Boolean,
 		val inSkyBlock: () -> Boolean
-	) {
-		@Volatile
-		var pump: Job? = null
-	}
+	)
 }

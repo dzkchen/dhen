@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.data.Requirement
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import kotlinx.coroutines.CoroutineScope
@@ -8,7 +9,6 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.minutes
 
@@ -26,7 +26,7 @@ object ItemRepo {
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 	private val RETRY_AFTER = 5.minutes
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
-	private val requirements = AtomicInteger()
+	private val requirement = Requirement()
 	private val activated = AtomicBoolean()
 
 	private val published = AtomicReference(Published(null, RepoState.IDLE))
@@ -44,7 +44,7 @@ object ItemRepo {
 
 	val size: Int get() = catalog.size
 
-	val required: Int get() = requirements.get()
+	val required: Int get() = requirement.count
 
 	val ready: Boolean get() = state == RepoState.READY
 
@@ -54,14 +54,7 @@ object ItemRepo {
 
 	fun require(): Handle {
 		val owner = host ?: return Handle {}
-		requirements.incrementAndGet()
-		if (owner.clock.nanoTime() >= published.get().retryAt && activated.compareAndSet(false, true)) {
-			owner.scope.launch { load(owner) }
-		}
-		val released = AtomicBoolean()
-		return Handle {
-			if (released.compareAndSet(false, true) && host === owner) requirements.decrementAndGet()
-		}
+		return requirement.require(alive = { host === owner }, taken = { startLoad(owner) })
 	}
 
 	internal fun install(
@@ -79,38 +72,47 @@ object ItemRepo {
 	internal fun uninstall() {
 		host = null
 		published.set(Published(null, RepoState.IDLE))
-		requirements.set(0)
+		requirement.reset()
 		activated.set(false)
 	}
 
+	private fun startLoad(owner: Host) {
+		if (owner.clock.nanoTime() < published.get().retryAt || !activated.compareAndSet(false, true)) return
+		owner.scope.launch { load(owner) }
+	}
+
 	private fun load(owner: Host) {
-		if (!publish(owner) { it.copy(state = RepoState.SYNCING) }) return
+		if (publish(owner) { it.copy(state = RepoState.SYNCING) } == null) return
 		val read = try {
 			val result = owner.sync.sync()
 			if (result != SyncResult.UPDATED && result != SyncResult.UP_TO_DATE) {
 				log.warn("Dhen could not refresh the item repo ({}), reading whatever is already on disk", result)
 			}
-			val catalog = ItemCatalog.read(owner.root.resolve(ITEMS))
-			Published(
-				owner,
-				if (catalog.size > 0) RepoState.READY else RepoState.UNAVAILABLE,
-				catalog,
+			Reading(
+				ItemCatalog.read(owner.root.resolve(ITEMS)),
 				RepoConstants.read(owner.root.resolve(CONSTANTS)),
 				owner.sync.syncedCommit()
 			)
 		} catch (throwable: Throwable) {
 			log.error("Dhen could not load the item repo", throwable)
-			Published(owner, RepoState.UNAVAILABLE)
+			null
 		}
-		val loaded = if (read.state != RepoState.UNAVAILABLE) read else
-			read.copy(retryAt = owner.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds)
-		if (!publish(owner) { loaded }) return
+		val retryAt = owner.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds
+		val loaded = publish(owner) { held ->
+			if (read == null) held.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt) else {
+				val next = held.copy(catalog = read.catalog, constants = read.constants, commit = read.commit)
+				if (next.catalog.size > 0) next.copy(state = RepoState.READY, retryAt = 0L)
+				else next.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt)
+			}
+		} ?: return
 		if (loaded.state == RepoState.UNAVAILABLE) activated.set(false)
 		log.info("Dhen item repo {} with {} items", loaded.state, loaded.catalog.size)
 	}
 
-	private fun publish(owner: Host, next: (Published) -> Published): Boolean =
-		published.updateAndGet { if (it.host === owner) next(it) else it }.host === owner
+	private fun publish(owner: Host, next: (Published) -> Published): Published? =
+		published.updateAndGet { if (it.host === owner) next(it) else it }.takeIf { it.host === owner }
+
+	private class Reading(val catalog: ItemCatalog, val constants: RepoConstants, val commit: String?)
 
 	private data class Published(
 		val host: Host?,

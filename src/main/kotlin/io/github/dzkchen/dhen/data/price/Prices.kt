@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.price
 
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.data.CachedFeed
+import io.github.dzkchen.dhen.data.RequirementPump
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.BazaarUpdateEvent
 import io.github.dzkchen.dhen.event.EventBus
@@ -11,7 +12,6 @@ import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -20,7 +20,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -46,8 +45,7 @@ object Prices {
 		CachedFeed("NPC prices", NPC_URL, 6.hours, Map<String, Double>::size, PriceTables::npcPrices)
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
-	private val requirements = AtomicInteger()
-	private val pumpLock = Any()
+	private val pump = RequirementPump()
 	private val announced = AtomicBoolean()
 
 	@Volatile
@@ -55,9 +53,9 @@ object Prices {
 
 	internal val feeds: Array<CachedFeed<*>> = arrayOf(bazaarFeed, lowestBinFeed, spareLowestBinFeed, npcFeed)
 
-	val required: Int get() = requirements.get()
+	val required: Int get() = pump.count
 
-	internal val polling: Boolean get() = host?.pump?.isActive == true
+	internal val polling: Boolean get() = pump.polling
 
 	val bazaar: BazaarSnapshot? get() = bazaarFeed.value
 
@@ -85,20 +83,7 @@ object Prices {
 
 	fun require(): Handle {
 		val host = host ?: return Handle {}
-		if (!adjust(host, 1)) return Handle {}
-		val released = AtomicBoolean()
-		return Handle { if (released.compareAndSet(false, true)) adjust(host, -1) }
-	}
-
-	private fun adjust(host: Host, delta: Int): Boolean = synchronized(pumpLock) {
-		if (this.host !== host) return false
-		if (requirements.addAndGet(delta) == 0) {
-			host.pump?.cancel()
-			host.pump = null
-		} else if (host.pump?.isActive != true) {
-			host.pump = host.scope.launch { poll(host) }
-		}
-		true
+		return pump.require({ this@Prices.host === host }) { host.scope.launch { poll(host) } }
 	}
 
 	internal fun ageSeconds(feed: CachedFeed<*>): Long {
@@ -118,10 +103,9 @@ object Prices {
 		host = Host(scope, bus, clientDispatcher, web, clock, onHypixel)
 	}
 
-	internal fun uninstall() = synchronized(pumpLock) {
-		host?.pump?.cancel()
+	internal fun uninstall() {
 		host = null
-		requirements.set(0)
+		pump.reset()
 		announced.set(false)
 		for (feed in feeds) feed.reset()
 	}
@@ -139,7 +123,7 @@ object Prices {
 
 	private suspend fun poll(host: Host) = coroutineScope {
 		while (isActive) {
-			if (requirements.get() > 0 && host.onHypixel()) refresh(host)
+			if (pump.count > 0 && host.onHypixel()) refresh(host)
 			delay(POLL)
 		}
 	}
@@ -171,8 +155,5 @@ object Prices {
 		val web: WebSource,
 		val clock: NanoClock,
 		val onHypixel: () -> Boolean
-	) {
-		@Volatile
-		var pump: Job? = null
-	}
+	)
 }

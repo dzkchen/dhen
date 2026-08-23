@@ -172,6 +172,27 @@ class ItemRepoTest {
 	}
 
 	@Test
+	fun `a load that throws keeps the constants and commit the last read produced`() {
+		Files.createDirectories(home.resolve("repo/constants"))
+		Files.writeString(home.resolve("repo/constants/reforgestones.json"), ConstantsFixture.REFORGE_STONES)
+		Files.writeString(home.resolve("repo.commit"), "abc123")
+		transport.reachable = false
+		install()
+		ItemRepo.require()
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+		assertEquals(3, ItemRepo.constants.reforgeStoneCount)
+		assertEquals("abc123", ItemRepo.commit)
+
+		transport.broken = true
+		nanos = 5.minutes.inWholeNanoseconds
+		ItemRepo.require()
+
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+		assertEquals(3, ItemRepo.constants.reforgeStoneCount)
+		assertEquals("abc123", ItemRepo.commit)
+	}
+
+	@Test
 	fun `requiring item data before the repo is installed is a no-op`() {
 		ItemRepo.require()
 
@@ -186,10 +207,14 @@ class ItemRepoTest {
 
 	private class FakeTransport : RepoTransport {
 		var reachable = true
+		var broken = false
 		var downloads = 0
 		var onDownload: () -> Unit = {}
 
-		override fun text(url: String): String? = if (reachable) "{\"sha\":\"abc123\"}" else null
+		override fun text(url: String): String? {
+			if (broken) throw IllegalStateException("the repo host went away mid-read")
+			return if (reachable) "{\"sha\":\"abc123\"}" else null
+		}
 
 		override fun download(url: String, destination: Path): Boolean {
 			downloads++
