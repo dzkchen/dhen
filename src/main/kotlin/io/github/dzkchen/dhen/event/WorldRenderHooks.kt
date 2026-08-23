@@ -3,21 +3,22 @@ package io.github.dzkchen.dhen.event
 import io.github.dzkchen.dhen.util.Failsafe
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 
-internal object WorldRenderHooks {
+internal object WorldRenderHooks : Hooks {
+	override val feed = "World render"
+
 	private val failsafe = Failsafe("Dhen {} failed, its world render events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun render(context: LevelRenderContext) {
 		val channels = channels ?: return

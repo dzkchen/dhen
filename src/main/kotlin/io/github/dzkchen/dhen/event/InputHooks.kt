@@ -2,21 +2,22 @@ package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.util.Failsafe
 
-internal object InputHooks {
+internal object InputHooks : Hooks {
+	override val feed = "Input"
+
 	private val failsafe = Failsafe("Dhen {} failed, its input events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	@JvmStatic
 	fun beforeKey(key: Int, scancode: Int, modifiers: Int, glfwAction: Int): Boolean =

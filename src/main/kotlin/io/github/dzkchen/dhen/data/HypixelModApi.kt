@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.util.Failsafe
 import net.hypixel.data.type.GameType
 import net.hypixel.modapi.HypixelModAPI
@@ -19,7 +20,9 @@ import net.minecraft.client.Minecraft
 import org.slf4j.LoggerFactory
 import java.util.UUID
 
-internal object HypixelModApi {
+internal object HypixelModApi : Hooks {
+	override val feed = "Hypixel Mod API"
+
 	private val logger = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	private val failsafe = Failsafe("Dhen {} failed, its Hypixel Mod API packets are off until restart")
@@ -29,6 +32,9 @@ internal object HypixelModApi {
 	}
 
 	private var registered = false
+
+	@Volatile
+	private var listening = false
 
 	fun install() {
 		if (registered) return
@@ -40,13 +46,22 @@ internal object HypixelModApi {
 			}
 			handleEvent(ClientboundLocationPacket::class.java, ::located)
 			handle(ClientboundPartyInfoPacket::class.java) { partyInfo(it) }
-				.onError { reason -> Minecraft.getInstance().execute { failsafe.guard("party info error") { partyInfoRefused(reason) } } }
+				.onError { reason ->
+					if (listening) Minecraft.getInstance().execute { failsafe.guard("party info error") { partyInfoRefused(reason) } }
+				}
+			listening = true
 		} catch (throwable: Throwable) {
 			HypixelLocationHooks.uninstall()
 			PartyHooks.uninstall()
 			failsafe.fail("Hypixel Mod API registration", throwable)
 		}
 	}
+
+	override fun uninstall() {
+		listening = false
+	}
+
+	override fun active(): Boolean = listening
 
 	fun located(packet: ClientboundLocationPacket) = HypixelLocationHooks.located(
 		serverName = packet.serverName,
@@ -76,7 +91,7 @@ internal object HypixelModApi {
 
 	fun <T : ClientboundHypixelPacket> handle(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> =
 		HypixelModAPI.getInstance().createHandler(type) { packet ->
-			Minecraft.getInstance().execute { failsafe.guard(type.simpleName) { handler(packet) } }
+			if (listening) Minecraft.getInstance().execute { failsafe.guard(type.simpleName) { handler(packet) } }
 		}
 
 	fun <T : EventPacket> handleEvent(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> {

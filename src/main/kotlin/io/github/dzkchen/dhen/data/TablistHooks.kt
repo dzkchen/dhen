@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChange
@@ -20,7 +21,9 @@ import net.minecraft.network.protocol.game.ClientboundTabListPacket
 import net.minecraft.world.level.GameType
 import net.minecraft.world.scores.PlayerTeam
 
-internal object TablistHooks {
+internal object TablistHooks : Hooks {
+	override val feed = "Tab list"
+
 	private const val BEFORE_FEATURES = 100
 	private const val TABLIST_ENTRIES = 80
 
@@ -32,7 +35,6 @@ internal object TablistHooks {
 
 	private val failsafe = Failsafe("Dhen {} failed, its tab list state is off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -47,14 +49,14 @@ internal object TablistHooks {
 		)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 		TablistState.reset()
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun refresh() = guarded("tab list read") { it.refresh() }
 

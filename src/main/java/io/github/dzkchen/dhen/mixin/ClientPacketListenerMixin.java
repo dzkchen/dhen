@@ -22,7 +22,7 @@ public abstract class ClientPacketListenerMixin {
 		cancellable = true
 	)
 	private void dhen$handleBundle(final ClientboundBundlePacket packet, final CallbackInfo callback) {
-		if (!NetworkHooks.active()) {
+		if (!NetworkHooks.INSTANCE.active()) {
 			return;
 		}
 		final ClientPacketListener listener = (ClientPacketListener)(Object)this;

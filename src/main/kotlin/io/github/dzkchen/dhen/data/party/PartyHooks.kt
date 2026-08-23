@@ -6,16 +6,18 @@ import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PartyEvent
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.client.Minecraft
 
-internal object PartyHooks {
+internal object PartyHooks : Hooks {
+	override val feed = "Party"
+
 	private const val BEFORE_FEATURES = 100
 
 	private val failsafe = Failsafe("Dhen {} failed, its party state is off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -33,14 +35,14 @@ internal object PartyHooks {
 		)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 		PartyState.reset()
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	val requesting: Boolean get() = channels?.requesting ?: false
 

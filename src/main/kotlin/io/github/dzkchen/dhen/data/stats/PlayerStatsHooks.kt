@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.event.ActionBarEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PlayerStatsEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
@@ -17,13 +18,14 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import kotlin.math.roundToInt
 
-internal object PlayerStatsHooks {
+internal object PlayerStatsHooks : Hooks {
+	override val feed = "Player stats"
+
 	private const val BEFORE_FEATURES = 100
 	private const val NO_PLAYER = -1f
 
 	private val failsafe = Failsafe("Dhen {} failed, its action bar stats are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -44,14 +46,14 @@ internal object PlayerStatsHooks {
 		)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 		PlayerStats.reset()
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	private fun parsed(event: ActionBarEvent) = guarded("action bar parse") { it.parse(event) }
 

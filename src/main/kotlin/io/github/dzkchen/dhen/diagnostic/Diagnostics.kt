@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.diagnostic
 
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
@@ -50,7 +51,7 @@ class Diagnostics(
 
 	fun partyLines(): List<String> = buildList {
 		if (!PartyHooks.active()) {
-			add("Party: no feed, the party hooks are not installed")
+			add("${PartyHooks.feed}: no feed, off until restart")
 			return@buildList
 		}
 		add(
@@ -66,13 +67,13 @@ class Diagnostics(
 
 	fun scoreboardLines(): List<String> = buildList {
 		if (!ScoreboardHooks.active()) {
-			add("Scoreboard: no feed, the scoreboard hooks are not installed")
+			add("${ScoreboardHooks.feed}: no feed, off until restart")
 		} else {
 			add("Scoreboard title: '${ScoreboardState.strippedTitle}' (objective ${ScoreboardState.objective.ifEmpty { "none" }})")
 			for (line in ScoreboardState.stripped) add("  $line")
 		}
 		if (!TablistHooks.active()) {
-			add("Tab list: no feed, the tab list hooks are not installed")
+			add("${TablistHooks.feed}: no feed, off until restart")
 			return@buildList
 		}
 		add("Tab list header: '${TablistState.strippedHeader}'")
@@ -82,7 +83,7 @@ class Diagnostics(
 
 	fun tablistWidgetLines(): List<String> = buildList {
 		if (!TabWidgetHooks.active()) {
-			add("Tab list widgets: no feed, the tab list widget hooks are not installed")
+			add("${TabWidgetHooks.feed}: no feed, off until restart")
 			return@buildList
 		}
 		val active = TabWidget.entries.filter(TabWidgetState::active)
@@ -95,7 +96,7 @@ class Diagnostics(
 
 	fun statsLines(): List<String> = buildList {
 		if (!PlayerStatsHooks.active()) {
-			add("Player stats: no feed, the action bar hooks are not installed")
+			add("${PlayerStatsHooks.feed}: no feed, off until restart")
 			return@buildList
 		}
 		add("Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, defense=${PlayerStats.defense}, ehp=${PlayerStats.effectiveHp}")
@@ -284,41 +285,45 @@ class Diagnostics(
 			"Dhen debug: deep profiling ${if (deepMode) "on" else "off"}, " +
 				"modules.json v${ModulePersistence.version}"
 		)
+		for (hook in Dhen.hooks) if (!hook.active()) add("${hook.feed}: no feed, off until restart")
 		add(
-			if (!TickHooks.active()) "Server tick: no feed, the tick hooks are not installed"
+			if (!TickHooks.serverFeedActive()) "Server tick: no feed, the server tick feed is off until restart"
 			else "Server tick: tps=${String.format(Locale.ROOT, "%.1f", ServerClock.tps)}, " +
 				"serverTicks=${ServerClock.ticks}, " +
 				"clientTicksSincePing=${ServerClock.clientTicksSinceServerTick}"
 		)
-		add(
-			if (!HypixelLocationHooks.active()) "Location: no feed, the Hypixel Mod API hooks are not installed"
-			else "Location: hypixel=${SkyBlockLocation.onHypixel}, skyblock=${SkyBlockLocation.inSkyBlock}, " +
-				"island=${SkyBlockLocation.island}, area=${SkyBlockLocation.area ?: "none"}, " +
-				"mode=${SkyBlockLocation.mode ?: "none"}, server=${SkyBlockLocation.serverName ?: "none"}, " +
-				"islandChanges=${HypixelLocationHooks.islandChanges}, " +
-				"areaChanges=${HypixelLocationHooks.areaChanges}, " +
-				"guest=${SkyBlockLocation.isGuest}, " +
-				"awaitingGuestTitle=${SkyBlockLocation.awaitingGuestTitle}"
-		)
-		add(
-			if (!ScoreboardHooks.active()) "Scoreboard: no feed, the scoreboard hooks are not installed"
-			else "Scoreboard: title='${ScoreboardState.strippedTitle}', lines=${ScoreboardState.lines.size}, " +
-				"scoreboardArea=${ScoreboardState.area ?: "none"}"
-		)
-		add(
-			if (!TablistHooks.active()) "Tab list: no feed, the tab list hooks are not installed"
-			else "Tab list: lines=${TablistState.lines.size}, header=${TablistState.strippedHeader.isNotEmpty()}, " +
-				"footer=${TablistState.strippedFooter.isNotEmpty()}"
-		)
-		add(
-			if (!TabWidgetHooks.active()) "Tab list widgets: no feed, the tab list widget hooks are not installed"
-			else "Tab list widgets: active=${TabWidget.entries.count(TabWidgetState::active)} of ${TabWidget.entries.size}"
-		)
-		add(
-			if (!PlayerStatsHooks.active()) "Player stats: no feed, the action bar hooks are not installed"
-			else "Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, mana=${PlayerStats.mana}/${PlayerStats.maxMana}, " +
-				"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
-		)
+		if (HypixelLocationHooks.active()) {
+			add(
+				"Location: hypixel=${SkyBlockLocation.onHypixel}, skyblock=${SkyBlockLocation.inSkyBlock}, " +
+					"island=${SkyBlockLocation.island}, area=${SkyBlockLocation.area ?: "none"}, " +
+					"mode=${SkyBlockLocation.mode ?: "none"}, server=${SkyBlockLocation.serverName ?: "none"}, " +
+					"islandChanges=${HypixelLocationHooks.islandChanges}, " +
+					"areaChanges=${HypixelLocationHooks.areaChanges}, " +
+					"guest=${SkyBlockLocation.isGuest}, " +
+					"awaitingGuestTitle=${SkyBlockLocation.awaitingGuestTitle}"
+			)
+		}
+		if (ScoreboardHooks.active()) {
+			add(
+				"Scoreboard: title='${ScoreboardState.strippedTitle}', lines=${ScoreboardState.lines.size}, " +
+					"scoreboardArea=${ScoreboardState.area ?: "none"}"
+			)
+		}
+		if (TablistHooks.active()) {
+			add(
+				"Tab list: lines=${TablistState.lines.size}, header=${TablistState.strippedHeader.isNotEmpty()}, " +
+					"footer=${TablistState.strippedFooter.isNotEmpty()}"
+			)
+		}
+		if (TabWidgetHooks.active()) {
+			add("Tab list widgets: active=${TabWidget.entries.count(TabWidgetState::active)} of ${TabWidget.entries.size}")
+		}
+		if (PlayerStatsHooks.active()) {
+			add(
+				"Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, mana=${PlayerStats.mana}/${PlayerStats.maxMana}, " +
+					"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
+			)
+		}
 		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}")
 		add("Prices: needed by ${Prices.required}, bazaar=${Prices.bazaar?.size ?: 0} products")
 		for (module in manager.modules) {

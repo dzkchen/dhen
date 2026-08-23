@@ -177,7 +177,8 @@ class TickHooksTest {
 
 		receive(ClientboundPingPacket(2))
 
-		assertFalse(TickHooks.active())
+		assertFalse(TickHooks.serverFeedActive())
+		assertTrue(TickHooks.active())
 	}
 
 	@Test
@@ -186,7 +187,7 @@ class TickHooksTest {
 		bus.subscribe<ClientTickEvent.End> { clientTicks++ }
 		bus.subscribe<ServerTickEvent> { error("boom") }
 		receive(ClientboundPingPacket(2))
-		assertFalse(TickHooks.active())
+		assertFalse(TickHooks.serverFeedActive())
 
 		val before = TickClock.clientTick
 		TickHooks.clientTicked()
@@ -202,7 +203,7 @@ class TickHooksTest {
 		try {
 			bus.subscribe<ServerTickEvent> { error("boom") }
 			receive(ClientboundPingPacket(2))
-			assertFalse(TickHooks.active())
+			assertFalse(TickHooks.serverFeedActive())
 
 			bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
 

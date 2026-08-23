@@ -4,21 +4,22 @@ import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Entity
 
-internal object RenderHooks {
+internal object RenderHooks : Hooks {
+	override val feed = "Entity render"
+
 	private val failsafe = Failsafe("Dhen {} failed, its render events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	@JvmStatic
 	fun entityOutline(entity: Entity, vanillaOutline: Int): Int {

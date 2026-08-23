@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.command
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
@@ -403,16 +404,20 @@ class CommandRegistryTest {
 			"Dhen debug: deep profiling off, modules.json v${ModulePersistence.version}",
 			captured[0]
 		)
-		assertEquals("Server tick: no feed, the tick hooks are not installed", captured[1])
-		assertEquals("Location: no feed, the Hypixel Mod API hooks are not installed", captured[2])
-		assertEquals("Scoreboard: no feed, the scoreboard hooks are not installed", captured[3])
-		assertEquals("Tab list: no feed, the tab list hooks are not installed", captured[4])
-		assertEquals("Tab list widgets: no feed, the tab list widget hooks are not installed", captured[5])
-		assertEquals("Player stats: no feed, the action bar hooks are not installed", captured[6])
-		assertEquals("Item repo: state=IDLE, items=0, needed by 0", captured[7])
-		assertEquals("Prices: needed by 0, bazaar=0 products", captured[8])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", captured[9])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", captured[10])
+		assertEquals(
+			listOf(
+				"Packets", "Screens", "Containers", "Input", "World", "Entity render", "Interactions",
+				"World render", "Ticks", "Location", "Scoreboard", "Tab list", "Tab list widgets",
+				"Party", "Player stats", "Hypixel Mod API"
+			).map { "$it: no feed, off until restart" },
+			captured.filter { it.endsWith("no feed, off until restart") }
+		)
+		val tail = captured.dropWhile { it.endsWith("no feed, off until restart") || it == captured[0] }
+		assertEquals("Server tick: no feed, the server tick feed is off until restart", tail[0])
+		assertEquals("Item repo: state=IDLE, items=0, needed by 0", tail[1])
+		assertEquals("Prices: needed by 0, bazaar=0 products", tail[2])
+		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", tail[3])
+		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", tail[4])
 	}
 
 	@Test
@@ -435,7 +440,7 @@ class CommandRegistryTest {
 			"Location: hypixel=true, skyblock=true, island=CATACOMBS, area=Dungeon, " +
 				"mode=dungeon, server=mini1A, islandChanges=1, areaChanges=1, " +
 				"guest=false, awaitingGuestTitle=false",
-			captured[2]
+			captured.first { it.startsWith("Location: hypixel=") }
 		)
 	}
 

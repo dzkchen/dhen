@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.ScoreboardAreaChangeEvent
 import io.github.dzkchen.dhen.event.ScoreboardUpdateEvent
@@ -23,7 +24,9 @@ import net.minecraft.world.scores.PlayerScoreEntry
 import net.minecraft.world.scores.PlayerTeam
 import net.minecraft.world.scores.Scoreboard
 
-internal object ScoreboardHooks {
+internal object ScoreboardHooks : Hooks {
+	override val feed = "Scoreboard"
+
 	private const val BEFORE_FEATURES = 100
 	private const val SIDEBAR_LINES = 15
 
@@ -35,7 +38,6 @@ internal object ScoreboardHooks {
 
 	private val failsafe = Failsafe("Dhen {} failed, its scoreboard state is off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -50,14 +52,14 @@ internal object ScoreboardHooks {
 		)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 		ScoreboardState.reset()
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun refresh() = guarded("scoreboard read") { it.refresh() }
 

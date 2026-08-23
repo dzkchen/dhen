@@ -2,17 +2,19 @@ package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.TabWidgetUpdateEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
 import io.github.dzkchen.dhen.util.Failsafe
 import java.util.regex.Matcher
 
-internal object TabWidgetHooks {
+internal object TabWidgetHooks : Hooks {
+	override val feed = "Tab list widgets"
+
 	private const val BEFORE_FEATURES = 100
 
 	private val failsafe = Failsafe("Dhen {} failed, its tab list widgets are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -23,14 +25,14 @@ internal object TabWidgetHooks {
 		subscriptions = arrayOf(bus.subscribe<TablistUpdateEvent>(BEFORE_FEATURES) { regrouped() })
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 		TabWidgetState.reset()
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	private fun regrouped() {
 		val channels = channels ?: return

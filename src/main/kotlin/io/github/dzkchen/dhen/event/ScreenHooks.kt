@@ -10,21 +10,22 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
-internal object ScreenHooks {
+internal object ScreenHooks : Hooks {
+	override val feed = "Screens"
+
 	private val failsafe = Failsafe("Dhen {} failed, its screen events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	@JvmStatic
 	fun screenChanged(closing: Screen?, opening: Screen?) {

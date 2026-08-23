@@ -97,6 +97,13 @@ internal object WorldRenderProbe {
 		this.bus = bus
 	}
 
+	fun uninstall() {
+		subscription?.unsubscribe()
+		subscription = null
+	}
+
+	fun active(): Boolean = subscription != null
+
 	fun toggle(): Boolean {
 		val current = subscription
 		subscription = if (current == null) {

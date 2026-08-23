@@ -6,22 +6,22 @@ import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 
-internal object NetworkHooks {
+internal object NetworkHooks : Hooks {
+	override val feed = "Packets"
+
 	private val failsafe = Failsafe("Dhen {} failed, its network events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	@JvmStatic
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	@JvmStatic
 	fun beforeHandle(packet: Packet<*>): Boolean = guarded("packet receive") { channels ->

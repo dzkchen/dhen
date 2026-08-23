@@ -19,6 +19,7 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
+import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.InteractionHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
@@ -91,6 +92,27 @@ object Dhen : ClientModInitializer {
 		anyScreenOpen = { Minecraft.getInstance().gui.screen() != null }
 	)
 	private val hudRuntime = HudRuntime(modules)
+
+	internal val hooks: List<Hooks> by lazy {
+		listOf(
+			NetworkHooks,
+			ScreenHooks,
+			ContainerHooks,
+			InputHooks,
+			WorldHooks,
+			RenderHooks,
+			InteractionHooks,
+			WorldRenderHooks,
+			TickHooks,
+			HypixelLocationHooks,
+			ScoreboardHooks,
+			TablistHooks,
+			TabWidgetHooks,
+			PartyHooks,
+			PlayerStatsHooks,
+			HypixelModApi
+		)
+	}
 
 	private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private val stores = mutableListOf<ConfigStore>()
@@ -228,26 +250,13 @@ object Dhen : ClientModInitializer {
 
 	private var latched = false
 
-	private fun latchOff() {
+	internal fun latchOff() {
 		if (latched) return
 		latched = true
 		clientThread.shutdown()
 		TickClock.shutdown()
-		NetworkHooks.uninstall()
-		ScreenHooks.uninstall()
-		ContainerHooks.uninstall()
-		InputHooks.uninstall()
-		WorldHooks.uninstall()
-		RenderHooks.uninstall()
-		InteractionHooks.uninstall()
-		WorldRenderHooks.uninstall()
-		TickHooks.uninstall()
-		HypixelLocationHooks.uninstall()
-		ScoreboardHooks.uninstall()
-		TablistHooks.uninstall()
-		TabWidgetHooks.uninstall()
-		PartyHooks.uninstall()
-		PlayerStatsHooks.uninstall()
+		hooks.forEach(Hooks::uninstall)
+		WorldRenderProbe.uninstall()
 		ItemRepo.uninstall()
 		Prices.uninstall()
 		MayorService.uninstall()

@@ -8,21 +8,22 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.BlockHitResult
 
-internal object InteractionHooks {
+internal object InteractionHooks : Hooks {
+	override val feed = "Interactions"
+
 	private val failsafe = Failsafe("Dhen {} failed, its interaction events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun useBlock(player: Player, hand: InteractionHand, hit: BlockHitResult): InteractionResult =
 		interaction(player, "use block") { it.useBlock(player, hand, hit.blockPos) }

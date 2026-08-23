@@ -8,10 +8,11 @@ import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.common.ClientboundPingPacket
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket
 
-internal object TickHooks {
+internal object TickHooks : Hooks {
+	override val feed = "Ticks"
+
 	private val failsafe = Failsafe("Dhen {} failed, its tick events are off until restart")
 
-	@Volatile
 	private var serverChannels: ServerChannels? = null
 	private var clientChannels: ClientChannels? = null
 
@@ -26,14 +27,16 @@ internal object TickHooks {
 		resetSubscription = bus.subscribe<WorldChangeEvent> { worldChanged() }
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		disableServerChannels()
 		resetSubscription?.unsubscribe()
 		resetSubscription = null
 		clientChannels = null
 	}
 
-	fun active(): Boolean = serverChannels != null
+	override fun active(): Boolean = clientChannels != null
+
+	fun serverFeedActive(): Boolean = serverChannels != null
 
 	fun clientTickStarted() = clientChannels?.started()
 

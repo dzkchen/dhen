@@ -5,21 +5,22 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.block.state.BlockState
 
-internal object WorldHooks {
+internal object WorldHooks : Hooks {
+	override val feed = "World"
+
 	private val failsafe = Failsafe("Dhen {} failed, its world events are off until restart")
 
-	@Volatile
 	private var channels: Channels? = null
 
 	fun install(bus: EventBus) {
 		channels = Channels(bus)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun worldChanged(phase: WorldChange) = guarded("world change") { it.changed(phase) }
 

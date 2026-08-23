@@ -12,38 +12,41 @@ import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.world.inventory.MenuType
 import net.minecraft.world.item.ItemStack
 
-internal object ContainerHooks {
+internal object ContainerHooks : Hooks {
+	override val feed = "Containers"
+
 	private val failsafe = Failsafe("Dhen {} failed, its container events are off until restart")
 
-	private val slotCounts: Map<MenuType<*>, Int> = mapOf(
-		MenuType.ANVIL to 3,
-		MenuType.BEACON to 1,
-		MenuType.BLAST_FURNACE to 3,
-		MenuType.BREWING_STAND to 5,
-		MenuType.CARTOGRAPHY_TABLE to 2,
-		MenuType.CRAFTER_3x3 to 9,
-		MenuType.CRAFTING to 9,
-		MenuType.ENCHANTMENT to 2,
-		MenuType.FURNACE to 3,
-		MenuType.GENERIC_3x3 to 9,
-		MenuType.GENERIC_9x1 to 9,
-		MenuType.GENERIC_9x2 to 18,
-		MenuType.GENERIC_9x3 to 27,
-		MenuType.GENERIC_9x4 to 36,
-		MenuType.GENERIC_9x5 to 45,
-		MenuType.GENERIC_9x6 to 54,
-		MenuType.GRINDSTONE to 3,
-		MenuType.HOPPER to 5,
-		MenuType.LECTERN to 1,
-		MenuType.LOOM to 3,
-		MenuType.MERCHANT to 3,
-		MenuType.SHULKER_BOX to 27,
-		MenuType.SMITHING to 3,
-		MenuType.SMOKER to 3,
-		MenuType.STONECUTTER to 1
-	)
+	private val slotCounts: Map<MenuType<*>, Int> by lazy {
+		mapOf(
+			MenuType.ANVIL to 3,
+			MenuType.BEACON to 1,
+			MenuType.BLAST_FURNACE to 3,
+			MenuType.BREWING_STAND to 5,
+			MenuType.CARTOGRAPHY_TABLE to 2,
+			MenuType.CRAFTER_3x3 to 9,
+			MenuType.CRAFTING to 9,
+			MenuType.ENCHANTMENT to 2,
+			MenuType.FURNACE to 3,
+			MenuType.GENERIC_3x3 to 9,
+			MenuType.GENERIC_9x1 to 9,
+			MenuType.GENERIC_9x2 to 18,
+			MenuType.GENERIC_9x3 to 27,
+			MenuType.GENERIC_9x4 to 36,
+			MenuType.GENERIC_9x5 to 45,
+			MenuType.GENERIC_9x6 to 54,
+			MenuType.GRINDSTONE to 3,
+			MenuType.HOPPER to 5,
+			MenuType.LECTERN to 1,
+			MenuType.LOOM to 3,
+			MenuType.MERCHANT to 3,
+			MenuType.SHULKER_BOX to 27,
+			MenuType.SMITHING to 3,
+			MenuType.SMOKER to 3,
+			MenuType.STONECUTTER to 1
+		)
+	}
 
-	@Volatile
 	private var channels: Channels? = null
 
 	private var subscriptions: Array<Handle> = emptyArray()
@@ -58,13 +61,13 @@ internal object ContainerHooks {
 		)
 	}
 
-	fun uninstall() {
+	override fun uninstall() {
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		channels = null
 	}
 
-	fun active(): Boolean = channels != null
+	override fun active(): Boolean = channels != null
 
 	fun tick() = guarded("container tick") { it.flush() }
 
