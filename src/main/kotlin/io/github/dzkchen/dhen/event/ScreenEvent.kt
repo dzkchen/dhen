@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
-class GuiOpenEvent internal constructor(val screen: Screen) : Event
+class GuiOpenEvent internal constructor(var screen: Screen) : Event
 
 class GuiCloseEvent internal constructor(val screen: Screen) : Event
 

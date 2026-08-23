@@ -14,6 +14,7 @@ import net.minecraft.world.item.Items
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,8 +41,9 @@ class ScreenHooksTest {
 		bus.subscribe<GuiCloseEvent> { seen += "close ${it.screen.title.string}" }
 		bus.subscribe<GuiOpenEvent> { seen += "open ${it.screen.title.string}" }
 
-		ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("arriving"))
+		val arriving = FakeScreen("arriving")
 
+		assertSame(arriving, ScreenHooks.screenChanged(FakeScreen("leaving"), arriving))
 		assertEquals(listOf("close leaving", "open arriving"), seen)
 	}
 
@@ -51,8 +53,7 @@ class ScreenHooksTest {
 		bus.subscribe<GuiCloseEvent> { seen += "close" }
 		bus.subscribe<GuiOpenEvent> { seen += "open" }
 
-		ScreenHooks.screenChanged(FakeScreen("leaving"), null)
-
+		assertNull(ScreenHooks.screenChanged(FakeScreen("leaving"), null))
 		assertEquals(listOf("close"), seen)
 	}
 
@@ -68,19 +69,42 @@ class ScreenHooksTest {
 	}
 
 	@Test
-	fun `a screen opened from inside an open handler raises one close, not two`() {
+	fun `a screen opened from inside an open handler raises one close, not two, and is handed straight back`() {
+		val nested = FakeScreen("nested")
 		val seen = mutableListOf<String>()
+		var reply: Screen? = null
 		bus.subscribe<GuiCloseEvent> { seen += "close ${it.screen.title.string}" }
 		bus.subscribe<GuiOpenEvent> {
 			seen += "open ${it.screen.title.string}"
 			if (it.screen.title.string == "vanilla") {
-				ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("ours"))
+				reply = ScreenHooks.screenChanged(FakeScreen("leaving"), nested)
 			}
 		}
 
 		ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("vanilla"))
 
 		assertEquals(listOf("close leaving", "open vanilla"), seen)
+		assertSame(nested, reply)
+	}
+
+	@Test
+	fun `a handler that replaces the screen is the one the player ends up looking at`() {
+		val ours = FakeScreen("ours")
+		bus.subscribe<GuiOpenEvent> { if (it.screen.title.string == "vanilla") it.screen = ours }
+
+		assertSame(ours, ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("vanilla")))
+	}
+
+	@Test
+	fun `a replaced screen is the one later handlers are told about`() {
+		val ours = FakeScreen("ours")
+		val seen = mutableListOf<String>()
+		bus.subscribe<GuiOpenEvent> { if (it.screen.title.string == "vanilla") it.screen = ours }
+		bus.subscribe<GuiOpenEvent> { seen += it.screen.title.string }
+
+		ScreenHooks.screenChanged(null, FakeScreen("vanilla"))
+
+		assertEquals(listOf("ours"), seen)
 	}
 
 	@Test
@@ -131,10 +155,10 @@ class ScreenHooksTest {
 
 	@Test
 	fun `a handler that throws turns the hooks off instead of failing the screen change`() {
+		val arriving = FakeScreen("arriving")
 		bus.subscribe<GuiOpenEvent> { throw IllegalStateException("boom") }
 
-		ScreenHooks.screenChanged(null, FakeScreen("arriving"))
-
+		assertSame(arriving, ScreenHooks.screenChanged(null, arriving))
 		assertFalse(ScreenHooks.active())
 	}
 
@@ -145,8 +169,9 @@ class ScreenHooksTest {
 		bus.subscribe<GuiOpenEvent> { seen = true }
 		bus.subscribe<GuiCloseEvent> { seen = true }
 
-		ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("arriving"))
+		val arriving = FakeScreen("arriving")
 
+		assertSame(arriving, ScreenHooks.screenChanged(FakeScreen("leaving"), arriving))
 		assertFalse(seen)
 		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
 	}

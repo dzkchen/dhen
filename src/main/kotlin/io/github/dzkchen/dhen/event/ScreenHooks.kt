@@ -39,14 +39,15 @@ internal object ScreenHooks : Hooks {
 	override fun active(): Boolean = channels != null
 
 	@JvmStatic
-	fun screenChanged(closing: Screen?, opening: Screen?) {
-		if (changing) return
+	fun screenChanged(closing: Screen?, opening: Screen?): Screen? {
+		if (changing) return opening
+		val channels = channels ?: return opening
 		changing = true
-		try {
-			guarded("screen change") { channels ->
-				channels.changed(closing, opening)
-				false
-			}
+		return try {
+			channels.changed(closing, opening)
+		} catch (throwable: Throwable) {
+			latchOff("screen change", throwable)
+			opening
 		} finally {
 			changing = false
 		}
@@ -157,9 +158,12 @@ internal object ScreenHooks : Hooks {
 			tooltipEvents.forget { it.forget() }
 		}
 
-		fun changed(closing: Screen?, opening: Screen?) {
+		fun changed(closing: Screen?, opening: Screen?): Screen? {
 			if (closing != null) closes.dispatch(GuiCloseEvent(closing))
-			if (opening != null) opens.dispatch(GuiOpenEvent(opening))
+			if (opening == null) return null
+			val event = GuiOpenEvent(opening)
+			opens.dispatch(event)
+			return event.screen
 		}
 
 		fun rendering(screen: Screen, graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int): Boolean {
