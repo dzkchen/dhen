@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -105,6 +106,29 @@ class WorldRenderHooksTest {
 	}
 
 	@Test
+	fun `a disconnect releases the frame the shared event was holding`() {
+		var seen: WorldRenderEvent? = null
+		bus.subscribe<WorldRenderEvent> { seen = it }
+		WorldRenderHooks.render(frame())
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+
+		assertThrows(NullPointerException::class.java) { seen!!.collector }
+	}
+
+	@Test
+	fun `joining a world leaves the frame the shared event is holding alone`() {
+		var seen: WorldRenderEvent? = null
+		bus.subscribe<WorldRenderEvent> { seen = it }
+		val frame = frame(gameTime = 3L)
+		WorldRenderHooks.render(frame)
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
+
+		assertEquals(3L, seen?.gameTime)
+	}
+
+	@Test
 	fun `uninstalling stops the world render event`() {
 		var frames = 0
 		bus.subscribe<WorldRenderEvent> { frames++ }
@@ -114,6 +138,7 @@ class WorldRenderHooksTest {
 
 		assertEquals(0, frames)
 		assertFalse(WorldRenderHooks.active())
+		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
 	}
 
 	@Test

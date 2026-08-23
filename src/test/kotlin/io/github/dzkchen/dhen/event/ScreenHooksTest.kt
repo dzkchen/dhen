@@ -1,10 +1,22 @@
 package io.github.dzkchen.dhen.event
 
+import net.minecraft.SharedConstants
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.network.chat.Component
+import net.minecraft.server.Bootstrap
+import net.minecraft.world.SimpleContainer
+import net.minecraft.world.inventory.Slot
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -55,6 +67,68 @@ class ScreenHooksTest {
 	}
 
 	@Test
+	fun `a screen opened from inside an open handler raises one close, not two`() {
+		val seen = mutableListOf<String>()
+		bus.subscribe<GuiCloseEvent> { seen += "close ${it.screen.title.string}" }
+		bus.subscribe<GuiOpenEvent> {
+			seen += "open ${it.screen.title.string}"
+			if (it.screen.title.string == "vanilla") {
+				ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("ours"))
+			}
+		}
+
+		ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("vanilla"))
+
+		assertEquals(listOf("close leaving", "open vanilla"), seen)
+	}
+
+	@Test
+	fun `a disconnect releases the container the shared slot event was holding`() {
+		var seen: SlotRenderEvent? = null
+		bus.subscribe<SlotRenderEvent.Pre> { seen = it }
+		ScreenHooks.beforeSlotRender(uninitialized<ContainerScreen>(), uninitialized<GuiGraphicsExtractor>(), slot())
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+
+		assertThrows(NullPointerException::class.java) { seen!!.slot }
+		assertThrows(NullPointerException::class.java) { seen!!.screen }
+		assertThrows(NullPointerException::class.java) { seen!!.graphics }
+	}
+
+	@Test
+	fun `joining a world leaves the container the shared slot event is holding alone`() {
+		val slot = slot()
+		var seen: SlotRenderEvent? = null
+		bus.subscribe<SlotRenderEvent.Pre> { seen = it }
+		ScreenHooks.beforeSlotRender(uninitialized<ContainerScreen>(), uninitialized<GuiGraphicsExtractor>(), slot)
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
+
+		assertSame(slot, seen?.slot)
+	}
+
+	@Test
+	fun `a disconnect releases the item the shared tooltip event was holding`() {
+		var seen: TooltipEvent? = null
+		bus.subscribe<TooltipEvent> { seen = it }
+		ScreenHooks.beforeTooltip(
+			uninitialized<ContainerScreen>(),
+			uninitialized<GuiGraphicsExtractor>(),
+			slot(),
+			ItemStack(Items.DIAMOND),
+			listOf(Component.literal("Diamond")),
+			0,
+			0
+		)
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+
+		assertThrows(NullPointerException::class.java) { seen!!.stack }
+		assertThrows(NullPointerException::class.java) { seen!!.screen }
+		assertTrue(seen!!.lines.isEmpty())
+	}
+
+	@Test
 	fun `a handler that throws turns the hooks off instead of failing the screen change`() {
 		bus.subscribe<GuiOpenEvent> { throw IllegalStateException("boom") }
 
@@ -73,6 +147,18 @@ class ScreenHooksTest {
 		ScreenHooks.screenChanged(FakeScreen("leaving"), FakeScreen("arriving"))
 
 		assertFalse(seen)
+		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
+	}
+
+	private fun slot(): Slot = Slot(SimpleContainer(1), 0, 0, 0)
+
+	private companion object {
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() {
+			SharedConstants.tryDetectVersion()
+			Bootstrap.bootStrap()
+		}
 	}
 }
 

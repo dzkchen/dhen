@@ -1,15 +1,20 @@
 package io.github.dzkchen.dhen.event
 
+import net.minecraft.SharedConstants
 import net.minecraft.client.gui.components.LerpingBossEvent
 import net.minecraft.client.renderer.entity.state.EntityRenderState
 import net.minecraft.network.chat.Component
+import net.minecraft.server.Bootstrap
 import net.minecraft.util.ARGB
 import net.minecraft.world.BossEvent
+import net.minecraft.world.entity.item.ItemEntity
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -133,6 +138,40 @@ class RenderHooksTest {
 	}
 
 	@Test
+	fun `a disconnect releases the entity the shared glow event was holding`() {
+		var seen: EntityGlowEvent? = null
+		bus.subscribe<EntityGlowEvent> { seen = it }
+		RenderHooks.entityOutline(uninitialized<ItemEntity>(), EntityRenderState.NO_OUTLINE)
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+
+		assertThrows(NullPointerException::class.java) { seen!!.entity }
+	}
+
+	@Test
+	fun `a disconnect releases the entity the shared render event was holding`() {
+		var seen: EntityRenderEvent? = null
+		bus.subscribe<EntityRenderEvent> { seen = it }
+		RenderHooks.entityRenderCancelled(uninitialized<ItemEntity>())
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+
+		assertThrows(NullPointerException::class.java) { seen!!.entity }
+	}
+
+	@Test
+	fun `joining a world leaves the entity the shared glow event is holding alone`() {
+		val entity = uninitialized<ItemEntity>()
+		var seen: EntityGlowEvent? = null
+		bus.subscribe<EntityGlowEvent> { seen = it }
+		RenderHooks.entityOutline(entity, EntityRenderState.NO_OUTLINE)
+
+		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
+
+		assertSame(entity, seen?.entity)
+	}
+
+	@Test
 	fun `uninstalling stops the render events`() {
 		var seen = false
 		bus.subscribe<BossBarUpdateEvent> { seen = true }
@@ -142,6 +181,7 @@ class RenderHooksTest {
 		assertFalse(RenderHooks.bossBarCancelled(bossBar("The Watcher")))
 		assertFalse(seen)
 		assertFalse(RenderHooks.active())
+		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
 	}
 
 	@Test
@@ -165,6 +205,13 @@ class RenderHooksTest {
 	)
 
 	private companion object {
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() {
+			SharedConstants.tryDetectVersion()
+			Bootstrap.bootStrap()
+		}
+
 		private val TEAM_OUTLINE = ARGB.opaque(0x55D6C2)
 		private const val RED = 0xFF0000
 	}

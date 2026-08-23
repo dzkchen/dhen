@@ -17,11 +17,22 @@ internal object ScreenHooks : Hooks {
 
 	private var channels: Channels? = null
 
+	private var disconnects: Handle? = null
+
+	private var changing = false
+
 	fun install(bus: EventBus) {
+		uninstall()
 		channels = Channels(bus)
+		disconnects = bus.subscribe<WorldChangeEvent> { change ->
+			if (change.phase == WorldChange.DISCONNECT) guarded("screen world change") { it.forget(); false }
+		}
 	}
 
 	override fun uninstall() {
+		disconnects?.unsubscribe()
+		disconnects = null
+		changing = false
 		channels = null
 	}
 
@@ -29,9 +40,15 @@ internal object ScreenHooks : Hooks {
 
 	@JvmStatic
 	fun screenChanged(closing: Screen?, opening: Screen?) {
-		guarded("screen change") { channels ->
-			channels.changed(closing, opening)
-			false
+		if (changing) return
+		changing = true
+		try {
+			guarded("screen change") { channels ->
+				channels.changed(closing, opening)
+				false
+			}
+		} finally {
+			changing = false
 		}
 	}
 
@@ -113,7 +130,7 @@ internal object ScreenHooks : Hooks {
 	}
 
 	private fun latchOff(label: String, throwable: Throwable) {
-		channels = null
+		uninstall()
 		failsafe.fail(label, throwable)
 	}
 
@@ -133,6 +150,12 @@ internal object ScreenHooks : Hooks {
 		private val slotPreEvents = ReusableEvent(SlotRenderEvent::Pre)
 		private val slotPostEvents = ReusableEvent(SlotRenderEvent::Post)
 		private val tooltipEvents = ReusableEvent(::TooltipEvent)
+
+		fun forget() {
+			slotPreEvents.forget { it.forget() }
+			slotPostEvents.forget { it.forget() }
+			tooltipEvents.forget { it.forget() }
+		}
 
 		fun changed(closing: Screen?, opening: Screen?) {
 			if (closing != null) closes.dispatch(GuiCloseEvent(closing))

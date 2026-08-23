@@ -9,4 +9,6 @@ internal class ReusableEvent<T : Event>(private val spare: () -> T) {
 	fun release(event: T) {
 		if (event === shared) inUse = false
 	}
+
+	fun forget(release: (T) -> Unit) = release(shared)
 }

@@ -6,7 +6,9 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.state.level.CameraRenderState
 
 class WorldRenderEvent internal constructor() : DeepProfiledEvent {
-	private lateinit var context: LevelRenderContext
+	private var frame: LevelRenderContext? = null
+
+	private val context: LevelRenderContext get() = frame!!
 
 	val collector: SubmitNodeCollector get() = context.submitNodeCollector()
 
@@ -17,6 +19,10 @@ class WorldRenderEvent internal constructor() : DeepProfiledEvent {
 	val gameTime: Long get() = context.levelState().gameTime
 
 	internal fun seed(context: LevelRenderContext) {
-		this.context = context
+		frame = context
+	}
+
+	internal fun forget() {
+		frame = null
 	}
 }

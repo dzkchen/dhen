@@ -6,8 +6,13 @@ import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Entity
 
 class EntityGlowEvent internal constructor() : DeepProfiledEvent {
-	lateinit var entity: Entity
-		internal set
+	private var target: Entity? = null
+
+	var entity: Entity
+		get() = target!!
+		internal set(value) {
+			target = value
+		}
 
 	var glowing: Boolean = false
 
@@ -21,16 +26,29 @@ class EntityGlowEvent internal constructor() : DeepProfiledEvent {
 	internal fun outline(): Int =
 		if (glowing) ARGB.opaque(color) else EntityRenderState.NO_OUTLINE
 
+	internal fun forget() {
+		target = null
+	}
+
 	private companion object {
 		private val UNTEAMED_GLOW = ARGB.white(0xFF)
 	}
 }
 
 class EntityRenderEvent internal constructor() : DeepProfiledEvent, Cancellable {
-	lateinit var entity: Entity
-		internal set
+	private var target: Entity? = null
+
+	var entity: Entity
+		get() = target!!
+		internal set(value) {
+			target = value
+		}
 
 	override var cancelled: Boolean = false
+
+	internal fun forget() {
+		target = null
+	}
 }
 
 class BossBarUpdateEvent internal constructor() : DeepProfiledEvent, Cancellable {

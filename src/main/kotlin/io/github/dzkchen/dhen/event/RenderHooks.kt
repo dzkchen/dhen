@@ -11,11 +11,19 @@ internal object RenderHooks : Hooks {
 
 	private var channels: Channels? = null
 
+	private var disconnects: Handle? = null
+
 	fun install(bus: EventBus) {
+		uninstall()
 		channels = Channels(bus)
+		disconnects = bus.subscribe<WorldChangeEvent> { change ->
+			if (change.phase == WorldChange.DISCONNECT) guarded("entity render world change") { it.forget(); false }
+		}
 	}
 
 	override fun uninstall() {
+		disconnects?.unsubscribe()
+		disconnects = null
 		channels = null
 	}
 
@@ -49,7 +57,7 @@ internal object RenderHooks : Hooks {
 	}
 
 	private fun latchOff(label: String, throwable: Throwable) {
-		channels = null
+		uninstall()
 		failsafe.fail(label, throwable)
 	}
 
@@ -85,6 +93,11 @@ internal object RenderHooks : Hooks {
 			} finally {
 				renderEvents.release(event)
 			}
+		}
+
+		fun forget() {
+			glowEvents.forget { it.forget() }
+			renderEvents.forget { it.forget() }
 		}
 
 		fun bossBar(bossBar: BossEvent): Boolean {

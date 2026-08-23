@@ -10,29 +10,41 @@ internal object WorldRenderHooks : Hooks {
 
 	private var channels: Channels? = null
 
+	private var disconnects: Handle? = null
+
 	fun install(bus: EventBus) {
+		uninstall()
 		channels = Channels(bus)
+		disconnects = bus.subscribe<WorldChangeEvent> { change ->
+			if (change.phase == WorldChange.DISCONNECT) guarded("world render world change") { it.forget() }
+		}
 	}
 
 	override fun uninstall() {
+		disconnects?.unsubscribe()
+		disconnects = null
 		channels = null
 	}
 
 	override fun active(): Boolean = channels != null
 
-	fun render(context: LevelRenderContext) {
+	fun render(context: LevelRenderContext) = guarded("world render") { it.render(context) }
+
+	private inline fun guarded(label: String, block: (Channels) -> Unit) {
 		val channels = channels ?: return
 		try {
-			channels.render(context)
+			block(channels)
 		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail("world render", throwable)
+			uninstall()
+			failsafe.fail(label, throwable)
 		}
 	}
 
 	private class Channels(bus: EventBus) {
 		private val renders = bus.type<WorldRenderEvent>()
 		private val events = ReusableEvent(::WorldRenderEvent)
+
+		fun forget() = events.forget { it.forget() }
 
 		fun render(context: LevelRenderContext) {
 			if (!renders.hasSubscribers) return

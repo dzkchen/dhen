@@ -37,7 +37,10 @@ internal object HypixelModApi : Hooks {
 	private var listening = false
 
 	fun install() {
-		if (registered) return
+		if (registered) {
+			listening = true
+			return
+		}
 		registered = true
 		try {
 			handle(ClientboundHelloPacket::class.java) {

@@ -34,14 +34,35 @@ sealed class ScreenRenderEvent : DeepProfiledEvent {
 }
 
 sealed class SlotRenderEvent : DeepProfiledEvent {
-	lateinit var screen: AbstractContainerScreen<*>
-		internal set
+	private var host: AbstractContainerScreen<*>? = null
 
-	lateinit var graphics: GuiGraphicsExtractor
-		internal set
+	private var canvas: GuiGraphicsExtractor? = null
 
-	lateinit var slot: Slot
-		internal set
+	private var target: Slot? = null
+
+	var screen: AbstractContainerScreen<*>
+		get() = host!!
+		internal set(value) {
+			host = value
+		}
+
+	var graphics: GuiGraphicsExtractor
+		get() = canvas!!
+		internal set(value) {
+			canvas = value
+		}
+
+	var slot: Slot
+		get() = target!!
+		internal set(value) {
+			target = value
+		}
+
+	internal fun forget() {
+		host = null
+		canvas = null
+		target = null
+	}
 
 	class Pre internal constructor() : SlotRenderEvent(), Cancellable {
 		override var cancelled: Boolean = false
@@ -51,17 +72,37 @@ sealed class SlotRenderEvent : DeepProfiledEvent {
 }
 
 class TooltipEvent internal constructor() : DeepProfiledEvent {
-	lateinit var screen: AbstractContainerScreen<*>
-		internal set
+	private var host: AbstractContainerScreen<*>? = null
 
-	lateinit var graphics: GuiGraphicsExtractor
-		internal set
+	private var canvas: GuiGraphicsExtractor? = null
 
-	lateinit var hoveredSlot: Slot
-		internal set
+	private var target: Slot? = null
 
-	lateinit var stack: ItemStack
-		internal set
+	private var held: ItemStack? = null
+
+	var screen: AbstractContainerScreen<*>
+		get() = host!!
+		internal set(value) {
+			host = value
+		}
+
+	var graphics: GuiGraphicsExtractor
+		get() = canvas!!
+		internal set(value) {
+			canvas = value
+		}
+
+	var hoveredSlot: Slot
+		get() = target!!
+		internal set(value) {
+			target = value
+		}
+
+	var stack: ItemStack
+		get() = held!!
+		internal set(value) {
+			held = value
+		}
 
 	var x: Int = 0
 
@@ -80,6 +121,14 @@ class TooltipEvent internal constructor() : DeepProfiledEvent {
 	internal fun reuse(lines: List<Component>) {
 		vanillaLines = lines
 		rewrittenLines = null
+	}
+
+	internal fun forget() {
+		host = null
+		canvas = null
+		target = null
+		held = null
+		reuse(emptyList())
 	}
 }
 
