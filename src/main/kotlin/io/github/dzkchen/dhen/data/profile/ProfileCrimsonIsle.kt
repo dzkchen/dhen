@@ -1,12 +1,12 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
-import java.util.Locale
 
 private const val HIGHEST_WAVE = "highest_wave_"
 private const val DOJO_POINTS = "dojo_points_"
@@ -16,7 +16,7 @@ private const val NEVER_ATTEMPTED = -1
 enum class Faction {
 	MAGE, BARBARIAN;
 
-	internal val apiKey: String = name.lowercase(Locale.ROOT) + "s"
+	internal val apiKey: String = lowercaseApiKey() + "s"
 
 	internal companion object {
 		private val byApiKey = entries.associateBy(Faction::apiKey)
@@ -37,6 +37,9 @@ class CrimsonIsleProfile internal constructor(
 )
 
 internal object CrimsonIsleProfiles {
+	fun abiphoneContacts(member: JsonObject): Int =
+		member.obj("nether_island_player_data")?.obj("abiphone")?.array("active_contacts")?.size() ?: 0
+
 	fun of(member: JsonObject): CrimsonIsleProfile? {
 		val isle = member.obj("nether_island_player_data") ?: return null
 		return CrimsonIsleProfile(

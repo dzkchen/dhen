@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.flag
 import io.github.dzkchen.dhen.util.int
 import io.github.dzkchen.dhen.util.long
 import io.github.dzkchen.dhen.util.obj
@@ -26,6 +27,9 @@ class RiftProfile internal constructor(
 )
 
 internal object RiftProfiles {
+	fun consumedPrism(member: JsonObject): Boolean =
+		member.obj("rift")?.obj("access")?.flag("consumed_prism") == true
+
 	fun of(member: JsonObject): RiftProfile? {
 		val rift = member.obj("rift")
 		val stats = member.obj("player_stats")?.obj("rift")

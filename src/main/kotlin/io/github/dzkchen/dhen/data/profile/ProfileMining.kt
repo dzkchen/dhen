@@ -11,14 +11,13 @@ import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.texts
-import java.util.Locale
 
 private const val UNDISCOVERED = "NOT_FOUND"
 
 enum class Powder {
 	MITHRIL, GEMSTONE, GLACITE;
 
-	internal val apiKey: String = name.lowercase(Locale.ROOT)
+	internal val apiKey: String = lowercaseApiKey()
 }
 
 class Crystal internal constructor(val state: String, val totalPlaced: Int, val totalFound: Int)

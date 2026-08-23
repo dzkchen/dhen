@@ -12,12 +12,11 @@ import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.texts
-import java.util.Locale
 
 enum class ComposterUpgrade {
 	SPEED, MULTI_DROP, FUEL_CAP, ORGANIC_MATTER_CAP, COST_REDUCTION;
 
-	internal val apiKey: String = name.lowercase(Locale.ROOT)
+	internal val apiKey: String = lowercaseApiKey()
 }
 
 enum class GreenhouseUpgrade { GROWTH_SPEED, YIELD, PLOT_LIMIT }
@@ -25,7 +24,7 @@ enum class GreenhouseUpgrade { GROWTH_SPEED, YIELD, PLOT_LIMIT }
 enum class ContestMedal {
 	BRONZE, SILVER, GOLD, PLATINUM, DIAMOND;
 
-	internal val apiKey: String = name.lowercase(Locale.ROOT)
+	internal val apiKey: String = lowercaseApiKey()
 
 	internal companion object {
 		private val byApiKey = entries.associateBy(ContestMedal::apiKey)

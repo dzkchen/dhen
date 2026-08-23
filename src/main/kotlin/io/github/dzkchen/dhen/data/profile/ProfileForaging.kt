@@ -7,14 +7,13 @@ import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.texts
-import java.util.Locale
 
 private const val CLAIMED_MILESTONES = "milestone_tier_claimed"
 
 enum class Whisper {
 	FOREST, DESERT;
 
-	internal val apiKey: String = name.lowercase(Locale.ROOT)
+	internal val apiKey: String = lowercaseApiKey()
 }
 
 class ForagingDaily internal constructor(

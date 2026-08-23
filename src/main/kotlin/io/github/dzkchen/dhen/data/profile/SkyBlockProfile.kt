@@ -9,7 +9,6 @@ import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.textOrNull
-import java.util.Locale
 
 private const val BOSS_KILLS = "boss_kills_tier_"
 
@@ -19,7 +18,7 @@ enum class Skill {
 	FARMING, MINING, COMBAT, FORAGING, FISHING, ENCHANTING,
 	ALCHEMY, TAMING, CARPENTRY, RUNECRAFTING, SOCIAL, HUNTING;
 
-	internal val repoKey: String = name.lowercase(Locale.ROOT)
+	internal val repoKey: String = lowercaseApiKey()
 
 	internal val apiKey: String = "SKILL_$name"
 }
