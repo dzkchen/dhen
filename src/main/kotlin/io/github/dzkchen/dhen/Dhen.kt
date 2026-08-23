@@ -253,14 +253,22 @@ object Dhen : ClientModInitializer {
 	internal fun latchOff() {
 		if (latched) return
 		latched = true
-		clientThread.shutdown()
-		TickClock.shutdown()
-		hooks.forEach(Hooks::uninstall)
-		WorldRenderProbe.uninstall()
-		ItemRepo.uninstall()
-		Prices.uninstall()
-		MayorService.uninstall()
-		PlayerProfiles.uninstall()
+		contained("client thread", clientThread::shutdown)
+		contained("tick clock", TickClock::shutdown)
+		contained("hook registry") { hooks.forEach { contained(it.feed, it::uninstall) } }
+		contained("world render probe", WorldRenderProbe::uninstall)
+		contained("item repository", ItemRepo::uninstall)
+		contained("price feed", Prices::uninstall)
+		contained("mayor feed", MayorService::uninstall)
+		contained("player profiles", PlayerProfiles::uninstall)
+	}
+
+	internal fun contained(label: String, teardown: () -> Unit) {
+		try {
+			teardown()
+		} catch (throwable: Throwable) {
+			LOGGER.error("Dhen could not shut {} down and it stays installed until restart", label, throwable)
+		}
 	}
 
 	private fun interacted(label: String, interaction: () -> InteractionResult): InteractionResult =

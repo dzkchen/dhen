@@ -47,36 +47,41 @@ internal object WorldRenderProbe {
 	private const val QUAD_HALF = 0.5f
 	private const val QUAD_TOWARD_CAMERA = 180.0
 
-	private val LINES_THROUGH_WALLS: RenderPipeline = RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
-		.withLocation(Dhen.id("pipeline/lines_through_walls"))
-		.withDepthStencilState(Optional.empty())
-		.build()
-
-	private val FILLED_THROUGH_WALLS: RenderPipeline = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-		.withLocation(Dhen.id("pipeline/filled_through_walls"))
-		.withDepthStencilState(Optional.empty())
-		.build()
-
-	init {
-		IrisCompat.assignOnce(LINES_THROUGH_WALLS, IrisShaderProgram.LINES)
-		IrisCompat.assignOnce(FILLED_THROUGH_WALLS, IrisShaderProgram.BASIC)
+	private val LINES_THROUGH_WALLS: RenderPipeline by lazy {
+		RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+			.withLocation(Dhen.id("pipeline/lines_through_walls"))
+			.withDepthStencilState(Optional.empty())
+			.build()
+			.also { IrisCompat.assignOnce(it, IrisShaderProgram.LINES) }
 	}
 
-	private val THROUGH_WALL_LINES: RenderType = RenderType.create(
-		"dhen_lines_through_walls",
-		RenderSetup.builder(LINES_THROUGH_WALLS)
-			.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-			.setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
-			.createRenderSetup()
-	)
+	private val FILLED_THROUGH_WALLS: RenderPipeline by lazy {
+		RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+			.withLocation(Dhen.id("pipeline/filled_through_walls"))
+			.withDepthStencilState(Optional.empty())
+			.build()
+			.also { IrisCompat.assignOnce(it, IrisShaderProgram.BASIC) }
+	}
 
-	private val THROUGH_WALL_FILL: RenderType = RenderType.create(
-		"dhen_filled_through_walls",
-		RenderSetup.builder(FILLED_THROUGH_WALLS)
-			.sortOnUpload()
-			.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-			.createRenderSetup()
-	)
+	private val THROUGH_WALL_LINES: RenderType by lazy {
+		RenderType.create(
+			"dhen_lines_through_walls",
+			RenderSetup.builder(LINES_THROUGH_WALLS)
+				.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+				.setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+				.createRenderSetup()
+		)
+	}
+
+	private val THROUGH_WALL_FILL: RenderType by lazy {
+		RenderType.create(
+			"dhen_filled_through_walls",
+			RenderSetup.builder(FILLED_THROUGH_WALLS)
+				.sortOnUpload()
+				.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+				.createRenderSetup()
+		)
+	}
 
 	private val WIRE_EDGES = intArrayOf(
 		0, 1, 2, 3, 4, 5, 6, 7,

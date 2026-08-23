@@ -65,6 +65,29 @@ class LatchOffTest {
 	}
 
 	@Test
+	fun `a hook that throws on uninstall does not strand the hooks after it`() {
+		val torn = mutableListOf<String>()
+		val throwing = object : Hooks {
+			override val feed = "throwing feed"
+			override fun uninstall(): Unit = throw IllegalStateException("teardown")
+			override fun active() = true
+		}
+		val recording = object : Hooks {
+			override val feed = "recording feed"
+			override fun uninstall() {
+				torn += feed
+			}
+
+			override fun active() = torn.isEmpty()
+		}
+
+		for (hook in listOf(throwing, recording)) Dhen.contained(hook.feed, hook::uninstall)
+
+		assertEquals(listOf("recording feed"), torn)
+		assertFalse(recording.active())
+	}
+
+	@Test
 	fun `the registry names every hook the entrypoint installs`() {
 		val installed = setOf(
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
