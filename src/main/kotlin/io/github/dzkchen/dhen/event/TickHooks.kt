@@ -42,7 +42,7 @@ internal object TickHooks {
 		if (publish) clientChannels?.ended()
 	}
 
-	private fun received(packet: Packet<*>) = guarded("server tick") { channels ->
+	private fun received(packet: Packet<*>) = guarded { channels ->
 		when (packet) {
 			is ClientboundPingPacket -> if (packet.id != 0) channels.serverTicked()
 			is ClientboundSetTimePacket -> channels.timeSynced()
@@ -60,13 +60,13 @@ internal object TickHooks {
 		}
 	}
 
-	private inline fun guarded(label: String, block: (ServerChannels) -> Unit) {
+	private inline fun guarded(block: (ServerChannels) -> Unit) {
 		val channels = serverChannels ?: return
 		try {
 			block(channels)
 		} catch (throwable: Throwable) {
 			disableServerChannels()
-			failsafe.fail(label, throwable)
+			failsafe.fail("server tick", throwable)
 		}
 	}
 

@@ -45,7 +45,7 @@ import java.nio.file.Path
 import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
-	private val HELD_UUID = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
+	private val heldUuid = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
 
 	private fun registry(): CommandRegistry<Any> =
 		CommandRegistry(ModuleManager()) { _, message -> captured += message }
@@ -536,7 +536,7 @@ class CommandRegistryTest {
 		ItemFixture.bootstrap()
 		val stack = ItemFixture.stack {
 			putString("id", "SPIRIT_SCEPTRE")
-			putString("uuid", HELD_UUID)
+			putString("uuid", heldUuid)
 			putInt("upgrade_level", 5)
 			putInt("rarity_upgrades", 1)
 		}
@@ -548,7 +548,7 @@ class CommandRegistryTest {
 
 		dispatcher.execute("dhen debug item", Any())
 
-		assertTrue(captured.any { it.contains("id=SPIRIT_SCEPTRE") && it.contains("marketId=SPIRIT_SCEPTRE") && it.contains("uuid=$HELD_UUID") })
+		assertTrue(captured.any { it.contains("id=SPIRIT_SCEPTRE") && it.contains("marketId=SPIRIT_SCEPTRE") && it.contains("uuid=$heldUuid") })
 		assertTrue(captured.any { it.contains("rarity=MYTHIC") && it.contains("upgradeLevel=5") && it.contains("rarityUpgrades=1") })
 	}
 

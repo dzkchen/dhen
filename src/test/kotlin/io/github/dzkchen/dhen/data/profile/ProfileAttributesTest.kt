@@ -84,7 +84,7 @@ class ProfileAttributesTest {
 	private fun decode(member: String): AttributesProfile = AttributesProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"attributes": {"stacks": {"veteran": 120, "undead": 40}},
 			"shards": {
 				"owned": [

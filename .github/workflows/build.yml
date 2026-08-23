@@ -26,7 +26,16 @@ jobs:
       - name: setup gradle
         uses: gradle/actions/setup-gradle@v6
       - name: build
-        run: ./gradlew build
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if ./gradlew build 2>&1 | tee gradle-build.log; then exit 0; fi
+            grep -qE 'Too Many Requests|status code 5[0-9][0-9]|Connection reset|Read timed out|Connection timed out' gradle-build.log \
+              || exit 1
+            echo "::warning::transient repository failure on attempt $attempt, retrying"
+            sleep $((attempt * 30))
+          done
+          exit 1
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:

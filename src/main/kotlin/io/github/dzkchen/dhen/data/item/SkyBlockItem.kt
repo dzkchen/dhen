@@ -95,8 +95,8 @@ class SkyBlockItem internal constructor(
 
 	private fun strings(key: String): List<String> {
 		val list = tag.getListOrEmpty(key)
-		if (list.isEmpty()) return emptyList()
-		return (0 until list.size).mapNotNull { named(list.getStringOr(it, "")) }
+		if (list.isEmpty) return emptyList()
+		return list.indices.mapNotNull { named(list.getStringOr(it, "")) }
 	}
 
 	internal fun rarity(stack: ItemStack): ItemRarity =

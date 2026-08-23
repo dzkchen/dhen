@@ -43,7 +43,7 @@ internal object InteractionHooks {
 
 	@JvmStatic
 	fun usedBlock(hand: InteractionHand, hit: BlockHitResult, result: InteractionResult) {
-		guardedUnit("used block") { it.usedBlock(hand, hit, result) }
+		guardedUnit { it.usedBlock(hand, hit, result) }
 	}
 
 	private inline fun interaction(player: Player, label: String, block: (Channels) -> Boolean): InteractionResult =
@@ -59,12 +59,12 @@ internal object InteractionHooks {
 		}
 	}
 
-	private inline fun guardedUnit(label: String, block: (Channels) -> Unit) {
+	private inline fun guardedUnit(block: (Channels) -> Unit) {
 		val channels = channels ?: return
 		try {
 			block(channels)
 		} catch (throwable: Throwable) {
-			latchOff(label, throwable)
+			latchOff("used block", throwable)
 		}
 	}
 
@@ -105,6 +105,5 @@ internal object InteractionHooks {
 }
 
 private inline fun <T : InteractionEvent.Pre> EventBus.EventType<T>.publish(event: () -> T): Boolean {
-	if (!hasSubscribers) return false
-	return event().also { dispatch(it) }.cancelled
+	return hasSubscribers && event().also { dispatch(it) }.cancelled
 }

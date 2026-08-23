@@ -87,7 +87,7 @@ class ProfileRiftTest {
 	private fun decode(member: String): RiftProfile = RiftProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"rift": {
 				"village_plaza": {"lonely": {"seconds_sitting": 1800}},
 				"wither_cage": {"killed_eyes": ["blue", "green"]},

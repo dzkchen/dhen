@@ -2,7 +2,6 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.ItemFixture
@@ -21,6 +20,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 
 class ProfileSliceTest {
+	@Suppress("AssertBetweenInconvertibleTypes")
 	@Test
 	fun `a full profiles reply decodes into every field of the dungeon slice`() {
 		val dungeons = ProfileSlices.of(UUID, fullReply())!!.dungeons!!

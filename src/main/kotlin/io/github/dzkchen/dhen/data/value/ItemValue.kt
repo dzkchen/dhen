@@ -315,7 +315,7 @@ object ItemValue {
 	private fun gemstoneSlotUnlockCost(fold: Fold): Double {
 		val gems = fold.item.gems ?: return 0.0
 		val unlocked = gems.getListOrEmpty(UNLOCKED_SLOTS)
-		if (unlocked.isEmpty()) return 0.0
+		if (unlocked.isEmpty) return 0.0
 		val costs = LinkedHashMap<String, Int>()
 		var priced = 0
 		for (index in unlocked.indices) {

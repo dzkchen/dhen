@@ -1,7 +1,5 @@
 package io.github.dzkchen.dhen.data.profile
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
 import kotlinx.coroutines.CoroutineScope
@@ -214,7 +212,7 @@ class ProfileGardenTest {
 
 
 	private companion object {
-		private val GARDEN = """{
+		private const val GARDEN = """{
 			"success": true,
 			"garden": {
 				"garden_experience": 140,
@@ -241,7 +239,7 @@ class ProfileGardenTest {
 			}
 		}"""
 
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"player_data": {"garden_chips": {"cropshot": 1, "hypercharge": 3}},
 			"jacobs_contest": {
 				"medals_inv": {"bronze": 12, "silver": 7, "gold": 4},

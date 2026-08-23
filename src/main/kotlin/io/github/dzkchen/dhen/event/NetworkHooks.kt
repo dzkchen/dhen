@@ -112,7 +112,7 @@ internal object NetworkHooks {
 			message.message = text
 			messages.dispatch(message)
 			if (message.cancelled) return true
-			if (message.message !== text) outgoing.chatText(message.message)
+			if (message.message != text) outgoing.chatText(message.message)
 			return false
 		}
 	}

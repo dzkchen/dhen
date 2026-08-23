@@ -255,7 +255,7 @@ object Dhen : ClientModInitializer {
 
 	private fun worldChanged(phase: WorldChange) {
 		val client = Minecraft.getInstance()
-		if (client.isSameThread()) failsafe.guard("world change") { WorldHooks.worldChanged(phase) }
+		if (client.isSameThread) failsafe.guard("world change") { WorldHooks.worldChanged(phase) }
 		else client.execute { worldChanged(phase) }
 	}
 

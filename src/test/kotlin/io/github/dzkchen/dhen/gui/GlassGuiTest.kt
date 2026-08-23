@@ -84,7 +84,6 @@ class GlassGuiTest {
 	}
 
 	@Test
-	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
 	fun `the tab transition is quicker than the entry`() {
 		assertTrue(GlassGui.TAB_MILLIS < GlassGui.ENTRY_MILLIS)
 	}

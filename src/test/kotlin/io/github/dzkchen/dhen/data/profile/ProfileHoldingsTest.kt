@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.ItemFixture
@@ -70,7 +69,7 @@ class ProfileHoldingsTest {
 
 	@Test
 	fun `a slot carrying a head texture becomes a player head wearing it`() {
-		val stack = ApiInventory.stacks(bag(head(TEXTURE)))!!.single()
+		val stack = ApiInventory.stacks(bag(head()))!!.single()
 
 		assertEquals(Items.PLAYER_HEAD, stack.item)
 		assertEquals(TEXTURE, SkyBlockItems.skullTexture(stack))
@@ -213,9 +212,9 @@ class ProfileHoldingsTest {
 
 	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
 
-	private fun head(texture: String): CompoundTag {
+	private fun head(): CompoundTag {
 		val texturesEntry = CompoundTag()
-		texturesEntry.putString("Value", texture)
+		texturesEntry.putString("Value", TEXTURE)
 		val textures = ListTag()
 		textures.add(texturesEntry)
 		val properties = CompoundTag()

@@ -57,7 +57,7 @@ class ProfileMaxwellTest {
 	private fun decode(member: String): MaxwellProfile = MaxwellProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"accessory_bag_storage": {
 				"tuning": {"slot_0": {"health": 20, "attack_speed": -10}},
 				"selected_power": "fortuitous",

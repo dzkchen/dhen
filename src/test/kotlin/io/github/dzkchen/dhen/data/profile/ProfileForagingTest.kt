@@ -123,7 +123,7 @@ class ProfileForagingTest {
 
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"skill_tree": {
 				"experience": {"mining": 300, "foraging": 60},
 				"selected_skill_tree_slot": {"mining": 2, "foraging": 3},

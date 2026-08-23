@@ -81,7 +81,7 @@ class ProfileChocolateFactoryTest {
 		ChocolateFactoryProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"events": {
 				"easter": {
 					"chocolate": 4200000,

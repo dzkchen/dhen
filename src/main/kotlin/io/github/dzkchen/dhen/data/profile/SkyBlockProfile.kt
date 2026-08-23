@@ -20,7 +20,7 @@ enum class Skill {
 
 	internal val repoKey: String = name.lowercase(Locale.ROOT)
 
-	internal val apiKey: String = "SKILL_" + name
+	internal val apiKey: String = "SKILL_$name"
 }
 
 class SkillProgress internal constructor(val experience: Double, val level: Int, val maxLevel: Int)

@@ -20,7 +20,7 @@ internal class RoomBand {
 	private var shrinksBelow = 0
 	private var growsAt = 0
 
-	fun holds(room: Int): Boolean = room >= shrinksBelow && room < growsAt
+	fun holds(room: Int): Boolean = room in shrinksBelow until growsAt
 
 	fun set(shrinksBelow: Int, growsAt: Int) {
 		this.shrinksBelow = shrinksBelow

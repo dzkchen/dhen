@@ -205,7 +205,7 @@ class SkyBlockProfileTest {
 		private const val KICKED = "00000000000000000000000000000002"
 		private const val OTHER = "99999999999999999999999999999999"
 
-		private val REPLY = """{
+		private const val REPLY = """{
 			"success": true,
 			"profiles": [
 				{"profile_id":"profile-0","cute_name":"Banana","selected":false,"members":{}},

@@ -91,7 +91,7 @@ class ProfileFishingTest {
 	private fun decode(member: String): FishingProfile = FishingProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"trophy_fish": {
 				"sulphur_skitter_bronze": 5,
 				"sulphur_skitter_silver": 2,

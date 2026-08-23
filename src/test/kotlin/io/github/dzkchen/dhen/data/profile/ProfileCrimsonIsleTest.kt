@@ -72,7 +72,7 @@ class ProfileCrimsonIsleTest {
 	private fun decode(member: String): CrimsonIsleProfile = CrimsonIsleProfiles.of(DataFixture.json(member))!!
 
 	private companion object {
-		private val MEMBER = """{
+		private const val MEMBER = """{
 			"nether_island_player_data": {
 				"selected_faction": "barbarians",
 				"barbarians_reputation": 1200,
