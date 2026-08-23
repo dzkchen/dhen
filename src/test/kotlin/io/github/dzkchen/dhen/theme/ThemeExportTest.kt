@@ -1,8 +1,8 @@
 package io.github.dzkchen.dhen.theme
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.gui.DhenTheme
+import io.github.dzkchen.dhen.json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -157,8 +157,6 @@ class ThemeExportTest {
 	}
 
 	private fun read(folder: Path): JsonObject = json(Files.readString(folder.resolve(ThemeFormat.MANIFEST)))
-
-	private fun json(text: String): JsonObject = JsonParser.parseString(text) as JsonObject
 
 	private companion object {
 		const val TOKEN_COUNT = 22

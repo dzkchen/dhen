@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.config
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.json
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +54,7 @@ class ConfigStoreTest {
 
 		assertTrue(ran.isEmpty())
 		assertEquals(5, doc.get("version").asInt)
-		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
+		val written = json(Files.readString(path))
 		assertEquals(5, written.get("version").asInt)
 		assertEquals(2, written.get("known").asInt)
 		assertEquals("yes", written.getAsJsonObject("future").get("keep").asString)
@@ -77,7 +77,7 @@ class ConfigStoreTest {
 
 		assertEquals(listOf("second", "third"), ran)
 		assertEquals(3, doc.get("version").asInt)
-		assertEquals(3, JsonParser.parseString(Files.readString(path)).asJsonObject.get("version").asInt)
+		assertEquals(3, json(Files.readString(path)).get("version").asInt)
 	}
 
 	@Test
@@ -104,7 +104,7 @@ class ConfigStoreTest {
 
 		store.save(JsonObject().apply { addProperty("known", 2) }).join()
 
-		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
+		val written = json(Files.readString(path))
 		assertEquals(2, written.get("known").asInt)
 		assertEquals("yes", written.getAsJsonObject("mystery").get("keep").asString)
 	}
@@ -203,7 +203,7 @@ class ConfigStoreTest {
 
 		assertNull(doc.get("known"))
 		assertEquals(half, Files.readString(unusable(path)))
-		assertEquals(2, JsonParser.parseString(Files.readString(path)).asJsonObject.get("known").asInt)
+		assertEquals(2, json(Files.readString(path)).get("known").asInt)
 	}
 
 	@Test
@@ -221,7 +221,7 @@ class ConfigStoreTest {
 	private fun unusable(path: Path): Path = path.resolveSibling(path.fileName.toString() + ".unusable")
 
 	private fun writtenNumber(path: Path): Int =
-		JsonParser.parseString(Files.readString(path)).asJsonObject.get("n").asInt
+		json(Files.readString(path)).get("n").asInt
 
 	private fun numberDoc(n: Int): JsonObject = JsonObject().apply { addProperty("n", n) }
 }

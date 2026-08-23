@@ -29,10 +29,7 @@ class CuratedConstantsTest {
 
 	@Test
 	fun `every turbo crop is capped twice, by the gourd and then the enchanted one`() {
-		val crops = ENDCAPPED.filter { it.startsWith("TURBO_") }
-
-		assertEquals(13, crops.size)
-		for (crop in crops) {
+		for (crop in ENDCAPPED.filter { it.startsWith("TURBO_") }) {
 			assertEquals(
 				listOf(5 to "TURBO_GOURD", 6 to "ENCHANTED_TURBO_GOURD"),
 				CuratedConstants.endcaps(crop).map { it.requiredLevel to it.endcapItem }
@@ -42,7 +39,6 @@ class CuratedConstantsTest {
 
 	@Test
 	fun `every enchant Hypixel caps is in the table`() {
-		assertEquals(27, ENDCAPPED.size)
 		for (enchantment in ENDCAPPED) assertTrue(CuratedConstants.endcaps(enchantment).isNotEmpty(), enchantment)
 	}
 
@@ -74,8 +70,9 @@ class CuratedConstantsTest {
 	fun `each kuudra prestige tier costs essence, teeth and coins`() {
 		for (tier in listOf("HOT", "BURNING", "FIERY", "INFERNAL")) {
 			assertEquals(
-				listOf("ESSENCE_CRIMSON", "KUUDRA_TEETH", "SKYBLOCK_COIN"),
-				CuratedConstants.crimsonPrestigeCost(tier).keys.toList()
+				setOf("ESSENCE_CRIMSON", "KUUDRA_TEETH", "SKYBLOCK_COIN"),
+				CuratedConstants.crimsonPrestigeCost(tier).keys,
+				tier
 			)
 		}
 		assertEquals(

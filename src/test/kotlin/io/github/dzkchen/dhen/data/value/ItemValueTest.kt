@@ -1,38 +1,29 @@
 package io.github.dzkchen.dhen.data.value
 
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
-class ItemValueTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
+internal class ItemValueTest : RepoBackedTest() {
 	@BeforeEach
 	fun install() {
 		DataFixture.installRepo(
 			scope,
-			home.resolve("repo"),
+			repoRoot,
 			mapOf("HYPERION" to """{"internalname":"HYPERION","displayname":"§6Hyperion"}""") + CRAFTABLES,
 			mapOf(
 				"reforgestones" to ConstantsFixture.REFORGE_STONES,
@@ -42,11 +33,6 @@ class ItemValueTest {
 			)
 		)
 		DataFixture.installPrices(scope, LOWEST_BINS, bazaar = BAZAAR, npc = NPC_PRICES, spare = """{"SPARE_ONLY":1}""")
-	}
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
 	}
 
 	@Test

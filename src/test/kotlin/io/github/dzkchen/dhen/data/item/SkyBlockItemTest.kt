@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.data.item
 
+import io.github.dzkchen.dhen.data.item.ItemFixture.HELD_UUID
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
@@ -16,11 +17,11 @@ import org.junit.jupiter.api.Test
 class SkyBlockItemTest {
 	@Test
 	fun `a plain item is its own market id`() {
-		val item = SkyBlockItems.of(stack { putString("id", "ASPECT_OF_THE_END"); putString("uuid", UUID) })
+		val item = SkyBlockItems.of(stack { putString("id", "ASPECT_OF_THE_END"); putString("uuid", HELD_UUID) })
 
 		assertEquals("ASPECT_OF_THE_END", item.id)
 		assertEquals("ASPECT_OF_THE_END", item.marketId)
-		assertEquals(UUID, item.uuid)
+		assertEquals(HELD_UUID, item.uuid)
 	}
 
 	@Test
@@ -286,8 +287,6 @@ class SkyBlockItemTest {
 	private fun named(name: String): ItemStack = ItemFixture.named(name)
 
 	private companion object {
-		private const val UUID = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
-
 		@JvmStatic
 		@BeforeAll
 		fun bootstrap() = ItemFixture.bootstrap()

@@ -1,13 +1,14 @@
 package io.github.dzkchen.dhen.data
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.repo.ConstantsFixture
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoSource
 import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.data.repo.RepoTransport
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.json as parseJson
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +32,7 @@ internal object DataFixture {
 		override fun download(url: String, destination: Path): Boolean = false
 	}
 
-	fun json(body: String): JsonObject = JsonParser.parseString(body).asJsonObject
+	fun json(body: String): JsonObject = parseJson(body)
 
 	fun installRepo(
 		scope: CoroutineScope,
@@ -46,6 +47,9 @@ internal object DataFixture {
 		ItemRepo.install(scope, root, RepoSync(NEU, root, OFFLINE))
 		ItemRepo.require()
 	}
+
+	fun installLeveling(scope: CoroutineScope, home: Path) =
+		installRepo(scope, home.resolve("repo"), constants = mapOf("leveling" to ConstantsFixture.LEVELING))
 
 	fun installPrices(
 		scope: CoroutineScope,

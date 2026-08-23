@@ -1,11 +1,12 @@
 package io.github.dzkchen.dhen.event
 
-import net.minecraft.SharedConstants
+import io.github.dzkchen.dhen.absent
+import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.uninitialized
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.network.chat.Component
-import net.minecraft.server.Bootstrap
 import net.minecraft.world.SimpleContainer
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
@@ -155,14 +156,8 @@ class ScreenHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() {
-			SharedConstants.tryDetectVersion()
-			Bootstrap.bootStrap()
-		}
+		fun bootstrap() = bootstrapMinecraft()
 	}
 }
 
 private class FakeScreen(title: String) : Screen(absent(), absent(), Component.literal(title))
-
-@Suppress("UNCHECKED_CAST")
-private fun <T> absent(): T = null as T

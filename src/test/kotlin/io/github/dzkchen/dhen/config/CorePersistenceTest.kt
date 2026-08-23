@@ -1,10 +1,10 @@
 package io.github.dzkchen.dhen.config
 
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.Effects
+import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.util.Color
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +100,7 @@ class CorePersistenceTest {
 
 		store.save(CorePersistence.snapshot(ClickGuiState(collapsed = linkedSetOf("DEV")))).join()
 
-		val written = JsonParser.parseString(Files.readString(path)).asJsonObject
+		val written = json(Files.readString(path))
 		assertFalse(written.has("panels"))
 		assertEquals("DEV", written.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
 	}

@@ -1,29 +1,14 @@
 package io.github.dzkchen.dhen.data.profile
 
 import io.github.dzkchen.dhen.data.DataFixture
-import io.github.dzkchen.dhen.data.repo.ConstantsFixture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import org.junit.jupiter.api.AfterEach
+import io.github.dzkchen.dhen.data.RepoBackedTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
-class ProfileMiningTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
-	}
-
+internal class ProfileMiningTest : RepoBackedTest() {
 	@Test
 	fun `heart of the mountain experience becomes a level against the repo's table`() {
 		val tree = decode(MEMBER).tree
@@ -183,7 +168,7 @@ class ProfileMiningTest {
 	}
 
 	private fun installRepo() =
-		DataFixture.installRepo(scope, home.resolve("repo"), constants = mapOf("leveling" to ConstantsFixture.LEVELING))
+		DataFixture.installLeveling(scope, home)
 
 
 	private companion object {

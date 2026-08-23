@@ -34,14 +34,18 @@ class TickClockTest {
 	}
 
 	@Test
-	fun `a zero-tick wait still resumes on the next tick rather than inline`() {
+	fun `a zero-tick wait and a bare tick await both resume on the next tick rather than inline`() {
 		var fired = false
+		var awaited = false
 		start { delayTicks(0); fired = true }
+		start { awaitTick(); awaited = true }
 
 		assertFalse(fired)
+		assertFalse(awaited)
 
 		clientTick()
 		assertTrue(fired)
+		assertTrue(awaited)
 	}
 
 	@Test
@@ -121,16 +125,6 @@ class TickClockTest {
 		dispatcher.drainQueue()
 		assertTrue(oneShot.isCancelled)
 		assertTrue(repeating.isCancelled)
-	}
-
-	@Test
-	fun `awaiting a single tick resumes on the very next tick`() {
-		var fired = false
-		start { awaitTick(); fired = true }
-
-		clientTick()
-
-		assertTrue(fired)
 	}
 
 	private fun start(block: suspend () -> Unit): Job =

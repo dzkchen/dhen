@@ -19,8 +19,6 @@ import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
-import net.minecraft.SharedConstants
-import net.minecraft.server.Bootstrap
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -31,10 +29,7 @@ import org.junit.jupiter.api.TestInstance
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LatchOffTest {
 	@BeforeAll
-	fun bootstrap() {
-		SharedConstants.tryDetectVersion()
-		Bootstrap.bootStrap()
-	}
+	fun bootstrap() = bootstrapMinecraft()
 
 	@Test
 	fun `latching off leaves no hook with a live feed`() {

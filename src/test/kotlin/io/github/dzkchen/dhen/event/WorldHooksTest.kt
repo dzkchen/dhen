@@ -1,8 +1,7 @@
 package io.github.dzkchen.dhen.event
 
-import net.minecraft.SharedConstants
+import io.github.dzkchen.dhen.bootstrapMinecraft
 import net.minecraft.core.BlockPos
-import net.minecraft.server.Bootstrap
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
 import org.junit.jupiter.api.AfterEach
@@ -112,10 +111,7 @@ class WorldHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() {
-			SharedConstants.tryDetectVersion()
-			Bootstrap.bootStrap()
-		}
+		fun bootstrap() = bootstrapMinecraft()
 
 		private val FIRST = BlockPos(4, 64, 8)
 		private val SECOND = BlockPos(5, 65, 9)

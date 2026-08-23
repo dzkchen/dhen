@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.data.TabWidget
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
+import io.github.dzkchen.dhen.data.item.ItemFixture.HELD_UUID
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -46,8 +47,6 @@ import java.nio.file.Path
 import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
-	private val heldUuid = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
-
 	private fun registry(): CommandRegistry<Any> =
 		CommandRegistry(ModuleManager()) { _, message -> captured += message }
 
@@ -402,7 +401,7 @@ class CommandRegistryTest {
 
 		assertEquals(
 			"Dhen debug: deep profiling off, modules.json v${ModulePersistence.version}",
-			captured[0]
+			captured.single { it.startsWith("Dhen debug:") }
 		)
 		assertEquals(
 			listOf(
@@ -412,12 +411,17 @@ class CommandRegistryTest {
 			).map { "$it: no feed, off until restart" },
 			captured.filter { it.endsWith("no feed, off until restart") }
 		)
-		val tail = captured.dropWhile { it.endsWith("no feed, off until restart") || it == captured[0] }
-		assertEquals("Server tick: no feed, the server tick feed is off until restart", tail[0])
-		assertEquals("Item repo: state=IDLE, items=0, needed by 0", tail[1])
-		assertEquals("Prices: needed by 0, bazaar=0 products", tail[2])
-		assertEquals("Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1", tail[3])
-		assertEquals("  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1", tail[4])
+		val reported = listOf("Server tick:", "Item repo:", "Prices:", "Debug Module:", "  DebugEvent:")
+		assertEquals(
+			listOf(
+				"Server tick: no feed, the server tick feed is off until restart",
+				"Item repo: state=IDLE, items=0, needed by 0",
+				"Prices: needed by 0, bazaar=0 products",
+				"Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1",
+				"  DebugEvent: calls=1, rollingAvg=50ns, rollingMax=50ns, samples=1"
+			),
+			captured.filter { line -> reported.any(line::startsWith) }
+		)
 	}
 
 	@Test
@@ -508,8 +512,10 @@ class CommandRegistryTest {
 			ItemRepo.uninstall()
 		}
 
-		assertEquals("Item repo: asked for, downloading in the background.", captured[0])
-		assertEquals("Item repo: no longer asked for by this toggle.", captured[3])
+		assertEquals(
+			listOf("Item repo: asked for, downloading in the background.", "Item repo: no longer asked for by this toggle."),
+			captured.filter { it.startsWith("Item repo: ") && !it.startsWith("Item repo: state=") }
+		)
 	}
 
 	@Test
@@ -541,7 +547,7 @@ class CommandRegistryTest {
 		ItemFixture.bootstrap()
 		val stack = ItemFixture.stack {
 			putString("id", "SPIRIT_SCEPTRE")
-			putString("uuid", heldUuid)
+			putString("uuid", HELD_UUID)
 			putInt("upgrade_level", 5)
 			putInt("rarity_upgrades", 1)
 		}
@@ -553,7 +559,7 @@ class CommandRegistryTest {
 
 		dispatcher.execute("dhen debug item", Any())
 
-		assertTrue(captured.any { it.contains("id=SPIRIT_SCEPTRE") && it.contains("marketId=SPIRIT_SCEPTRE") && it.contains("uuid=$heldUuid") })
+		assertTrue(captured.any { it.contains("id=SPIRIT_SCEPTRE") && it.contains("marketId=SPIRIT_SCEPTRE") && it.contains("uuid=$HELD_UUID") })
 		assertTrue(captured.any { it.contains("rarity=MYTHIC") && it.contains("upgradeLevel=5") && it.contains("rarityUpgrades=1") })
 	}
 

@@ -1,14 +1,14 @@
 package io.github.dzkchen.dhen.event
 
 import com.mojang.blaze3d.vertex.PoseStack
+import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.unsupported
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
-import net.minecraft.SharedConstants
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.chunk.ChunkSectionsToRender
 import net.minecraft.client.renderer.state.level.LevelRenderState
-import net.minecraft.server.Bootstrap
 import net.minecraft.world.phys.Vec3
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.lang.reflect.Proxy
 
 class WorldRenderHooksTest {
 	private val bus = EventBus()
@@ -154,7 +153,7 @@ class WorldRenderHooksTest {
 		val state = LevelRenderState()
 		state.gameTime = gameTime
 		state.cameraRenderState.pos = cameraPos
-		return FakeFrame(noCollector(), PoseStack(), state)
+		return FakeFrame(unsupported(), PoseStack(), state)
 	}
 
 	private class FakeFrame(
@@ -178,14 +177,6 @@ class WorldRenderHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() {
-			SharedConstants.tryDetectVersion()
-			Bootstrap.bootStrap()
-		}
-
-		private fun noCollector(): SubmitNodeCollector = Proxy.newProxyInstance(
-			SubmitNodeCollector::class.java.classLoader,
-			arrayOf(SubmitNodeCollector::class.java)
-		) { _, _, _ -> throw UnsupportedOperationException() } as SubmitNodeCollector
+		fun bootstrap() = bootstrapMinecraft()
 	}
 }

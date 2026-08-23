@@ -1,6 +1,6 @@
 package io.github.dzkchen.dhen.config
 
-import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -41,7 +41,7 @@ class ModulePersistenceTest {
 		)
 			.save(ModulePersistence.snapshot(saved)).join()
 
-		val file = JsonParser.parseString(Files.readString(path)).asJsonObject
+		val file = json(Files.readString(path))
 		assertEquals(ModulePersistence.version, file.get("version").asInt)
 		val fileSettings = file.getAsJsonObject("modules").getAsJsonObject("Sample").getAsJsonObject("settings")
 		assertFalse(fileSettings.has("Run"))
@@ -68,9 +68,7 @@ class ModulePersistenceTest {
 		val manager = ModuleManager()
 		val module = SampleModule().also { manager.register(it) }
 		manager.enable(module.name)
-		val doc = JsonParser.parseString(
-			"""{"modules":{"Sample":{"enabled":"yes","settings":{"Speed":"fast","Label":"kept"}}}}"""
-		).asJsonObject
+		val doc = json("""{"modules":{"Sample":{"enabled":"yes","settings":{"Speed":"fast","Label":"kept"}}}}""")
 
 		ModulePersistence.apply(manager, doc)
 
@@ -83,9 +81,7 @@ class ModulePersistenceTest {
 	fun `a stored value outside the current range is clamped on load`() {
 		val manager = ModuleManager()
 		val module = SampleModule().also { manager.register(it) }
-		val doc = JsonParser.parseString(
-			"""{"modules":{"Sample":{"enabled":false,"settings":{"Speed":99.0}}}}"""
-		).asJsonObject
+		val doc = json("""{"modules":{"Sample":{"enabled":false,"settings":{"Speed":99.0}}}}""")
 		manager.enable(module.name)
 
 		ModulePersistence.apply(manager, doc)
@@ -98,9 +94,7 @@ class ModulePersistenceTest {
 	fun `an unknown module in the file is ignored`() {
 		val manager = ModuleManager()
 		val module = SampleModule().also { manager.register(it) }
-		val doc = JsonParser.parseString(
-			"""{"modules":{"Gone":{"enabled":true},"Sample":{"enabled":true}}}"""
-		).asJsonObject
+		val doc = json("""{"modules":{"Gone":{"enabled":true},"Sample":{"enabled":true}}}""")
 
 		ModulePersistence.apply(manager, doc)
 

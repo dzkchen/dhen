@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
@@ -11,15 +12,11 @@ import io.github.dzkchen.dhen.data.profile.BagFixture.bag
 import io.github.dzkchen.dhen.data.profile.BagFixture.slot
 import io.github.dzkchen.dhen.data.value.Networth
 import io.github.dzkchen.dhen.data.value.NetworthCategory
-import java.nio.file.Path
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -28,19 +25,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 
-class ProfileHoldingsTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
-	}
-
+internal class ProfileHoldingsTest : RepoBackedTest() {
 	@Test
 	fun `a slot keeps its name, its lore, how many it holds and what SkyBlock item it is`() {
 		val stack = ApiInventory.stacks(bag(slot("HYPERION", "§6Hyperion", lore = listOf("§7Damage: §c+260"), count = 5)))!!.single()
@@ -252,14 +238,14 @@ class ProfileHoldingsTest {
 	}
 
 	private fun installRepo(vararg items: Pair<String, String>) =
-		DataFixture.installRepo(scope, home.resolve("repo"), items.toMap())
+		DataFixture.installRepo(scope, repoRoot, items.toMap())
 
 	private fun holdings(profile: JsonObject = DataFixture.json("""{"banking":{}}"""), member: JsonObject): ProfileHoldings =
 		ProfileHoldings.of(profile, member)
 
 	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
 
-	private fun head(ownerId: String = "123e4567-e89b-12d3-a456-426614174000", texture: String = TEXTURE): CompoundTag {
+	private fun head(ownerId: String = BagFixture.VIEWED_UUID, texture: String = TEXTURE): CompoundTag {
 		val texturesEntry = CompoundTag()
 		texturesEntry.putString("Value", texture)
 		val textures = ListTag()

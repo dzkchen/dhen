@@ -1,12 +1,13 @@
 package io.github.dzkchen.dhen.data.profile
 
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.RepoBackedTest
+import io.github.dzkchen.dhen.data.profile.BagFixture.VIEWED_UUID
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebSource
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -19,29 +20,22 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-class PlayerProfilesTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
+internal class PlayerProfilesTest : RepoBackedTest() {
 	private val source = FakeSource()
 	private var base = PROXY
 	private var nanos = 0L
 
 	@AfterEach
-	fun uninstall() {
+	fun stopProfiles() {
 		PlayerProfiles.uninstall()
-		DataFixture.uninstall()
 	}
 
 	@Test
 	fun `asking for player data starts the item repo the levels are read out of`() {
-		val root = home.resolve("repo")
+		val root = repoRoot
 		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, DataFixture.OFFLINE))
 		install()
 		assertEquals(RepoState.IDLE, ItemRepo.state)
@@ -58,7 +52,7 @@ class PlayerProfilesTest {
 	fun `a client that asks for nothing fetches nothing`() = runBlocking {
 		install()
 
-		assertNull(PlayerProfiles.profiles(UUID))
+		assertNull(PlayerProfiles.profiles(VIEWED_UUID))
 		assertTrue(source.requests.isEmpty())
 	}
 
@@ -68,7 +62,7 @@ class PlayerProfilesTest {
 		install()
 		PlayerProfiles.require()
 
-		assertNull(PlayerProfiles.profiles(UUID))
+		assertNull(PlayerProfiles.profiles(VIEWED_UUID))
 		assertTrue(source.requests.isEmpty())
 		assertFalse(PlayerProfiles.available)
 	}
@@ -131,7 +125,7 @@ class PlayerProfilesTest {
 		install()
 		PlayerProfiles.require()
 
-		assertEquals("Banana", PlayerProfiles.selectedProfile(UUID)?.get("cute_name")?.asString)
+		assertEquals("Banana", PlayerProfiles.selectedProfile(VIEWED_UUID)?.get("cute_name")?.asString)
 		assertEquals(1, source.requests.size)
 	}
 
@@ -141,9 +135,9 @@ class PlayerProfilesTest {
 		install()
 		PlayerProfiles.require()
 
-		assertNull(PlayerProfiles.profiles(UUID))
+		assertNull(PlayerProfiles.profiles(VIEWED_UUID))
 		assertEquals(1, source.requests.size)
-		assertNull(PlayerProfiles.profiles(UUID))
+		assertNull(PlayerProfiles.profiles(VIEWED_UUID))
 		assertEquals(1, source.requests.size)
 	}
 
@@ -165,7 +159,7 @@ class PlayerProfilesTest {
 		source.bodies = mapOf(PROFILES to ONE_PROFILE)
 		install()
 		PlayerProfiles.require()
-		PlayerProfiles.profiles(UUID)
+		PlayerProfiles.profiles(VIEWED_UUID)
 
 		assertEquals(1, source.requests.size)
 		base = OTHER
@@ -181,7 +175,7 @@ class PlayerProfilesTest {
 		source.onRequest = { PlayerProfiles.uninstall() }
 		install()
 		PlayerProfiles.require()
-		PlayerProfiles.profiles(UUID)
+		PlayerProfiles.profiles(VIEWED_UUID)
 		source.onRequest = {}
 
 		assertEquals("uuid=0, profiles=0, player=0, museum=0, garden=0, status=0, slices=0, models=0, holdings=0, gardens=0", PlayerProfiles.cacheSummary())
@@ -209,7 +203,7 @@ class PlayerProfilesTest {
 			runBlocking { PlayerProfiles.profiles(SECOND_UUID) }
 		}
 
-		PlayerProfiles.profiles(UUID)
+		PlayerProfiles.profiles(VIEWED_UUID)
 
 		assertTrue(PlayerProfiles.cacheSummary().contains("profiles=1"), PlayerProfiles.cacheSummary())
 		assertEquals("Cherry", cuteName())
@@ -222,7 +216,7 @@ class PlayerProfilesTest {
 		PlayerProfiles.require()
 
 		assertEquals(RepoState.IDLE, ItemRepo.state)
-		val slice = PlayerProfiles.slice(UUID)!!
+		val slice = PlayerProfiles.slice(VIEWED_UUID)!!
 		assertEquals("p1", slice.profileId)
 		assertEquals("Strawberry", slice.cuteName)
 	}
@@ -232,20 +226,20 @@ class PlayerProfilesTest {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
 		install()
 		PlayerProfiles.require()
-		PlayerProfiles.slice(UUID)
+		PlayerProfiles.slice(VIEWED_UUID)
 		assertEquals(1, source.requests.size)
-		PlayerProfiles.slice(UUID)
+		PlayerProfiles.slice(VIEWED_UUID)
 		assertEquals(1, source.requests.size)
 	}
 
 	@Test
 	fun `profile decodes the fetched reply and keeps it once the item repo is ready`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
-		DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+		DataFixture.installRepo(scope, repoRoot, items = mapOf("AOTE" to DataFixture.ANY_ITEM))
 		install()
 		PlayerProfiles.require()
 
-		assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.slice?.cuteName)
+		assertEquals("Strawberry", PlayerProfiles.profile(VIEWED_UUID)?.slice?.cuteName)
 		assertTrue(PlayerProfiles.cacheSummary().contains("models=1"))
 	}
 
@@ -256,7 +250,7 @@ class PlayerProfilesTest {
 		PlayerProfiles.require()
 
 		assertEquals(RepoState.IDLE, ItemRepo.state)
-		assertNull(PlayerProfiles.profile(UUID))
+		assertNull(PlayerProfiles.profile(VIEWED_UUID))
 
 		assertTrue(PlayerProfiles.cacheSummary().contains("models=0"))
 	}
@@ -265,30 +259,30 @@ class PlayerProfilesTest {
 	fun `a profile asked for while the item repo is unavailable reads as not ready, and reads for real once it recovers`() =
 		runBlocking {
 			source.bodies = mapOf(PROFILES to SLICE_PROFILE)
-			DataFixture.installRepo(scope, home.resolve("repo"))
+			DataFixture.installRepo(scope, repoRoot)
 			install()
 			PlayerProfiles.require()
 
 			assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
-			assertNull(PlayerProfiles.profile(UUID))
+			assertNull(PlayerProfiles.profile(VIEWED_UUID))
 			assertTrue(PlayerProfiles.cacheSummary().contains("models=0"))
 
-			DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+			DataFixture.installRepo(scope, repoRoot, items = mapOf("AOTE" to DataFixture.ANY_ITEM))
 
-			assertEquals("Strawberry", PlayerProfiles.profile(UUID)?.slice?.cuteName)
+			assertEquals("Strawberry", PlayerProfiles.profile(VIEWED_UUID)?.slice?.cuteName)
 		}
 
 	@Test
 	fun `a decoded profile hands its slice to the next caller rather than decoding a second one`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
-		DataFixture.installRepo(scope, home.resolve("repo"), items = mapOf("AOTE" to DataFixture.ANY_ITEM))
+		DataFixture.installRepo(scope, repoRoot, items = mapOf("AOTE" to DataFixture.ANY_ITEM))
 		install()
 		PlayerProfiles.require()
 
-		val profile = PlayerProfiles.profile(UUID)!!
+		val profile = PlayerProfiles.profile(VIEWED_UUID)!!
 
 		assertEquals("Strawberry", profile.slice.cuteName)
-		assertSame(profile.slice, PlayerProfiles.slice(UUID))
+		assertSame(profile.slice, PlayerProfiles.slice(VIEWED_UUID))
 	}
 
 	@Test
@@ -306,7 +300,7 @@ class PlayerProfilesTest {
 	}
 
 	private suspend fun cuteName(): String? =
-		PlayerProfiles.profiles(UUID)?.getAsJsonArray("profiles")?.get(0)?.asJsonObject?.get("cute_name")?.asString
+		PlayerProfiles.profiles(VIEWED_UUID)?.getAsJsonArray("profiles")?.get(0)?.asJsonObject?.get("cute_name")?.asString
 
 	private fun install() =
 		PlayerProfiles.install(scope, Dispatchers.Unconfined, source, NanoClock { nanos }) { base }
@@ -335,7 +329,6 @@ class PlayerProfilesTest {
 
 	private companion object {
 		private const val NAME = "Steve"
-		private const val UUID = "123e4567-e89b-12d3-a456-426614174000"
 		private const val DASHED = "069a79f4-44e9-4726-a5be-fca90e38aaf5"
 		private const val DASHLESS = "069a79f444e94726a5befca90e38aaf5"
 		private const val PROXY = "https://proxy.example.com"
@@ -344,8 +337,8 @@ class PlayerProfilesTest {
 
 		private const val FIRST = "https://api.minecraftservices.com/minecraft/profile/lookup/name/$NAME"
 		private const val SECOND = "https://api.mojang.com/users/profiles/minecraft/$NAME"
-		private const val PROFILES = "$PROXY/v2/skyblock/profiles?uuid=$UUID"
-		private const val OTHER_PROFILES = "$OTHER/v2/skyblock/profiles?uuid=$UUID"
+		private const val PROFILES = "$PROXY/v2/skyblock/profiles?uuid=$VIEWED_UUID"
+		private const val OTHER_PROFILES = "$OTHER/v2/skyblock/profiles?uuid=$VIEWED_UUID"
 		private const val SECOND_UUID = "123e4567-e89b-12d3-a456-426614174001"
 		private const val OTHER_SECOND = "$OTHER/v2/skyblock/profiles?uuid=$SECOND_UUID"
 
@@ -359,9 +352,9 @@ class PlayerProfilesTest {
 			"""{"success":true,"profiles":[{"profile_id":"1","cute_name":"Apple","selected":false},""" +
 				"""{"profile_id":"2","cute_name":"Banana","selected":true}]}"""
 		private const val SLICE_PROFILE =
-			"""{"success":true,"profiles":[{"profile_id":"p1","cute_name":"Strawberry","selected":true,"members":{"123e4567e89b12d3a456426614174000":{}}}]}"""
+			"""{"success":true,"profiles":[{"profile_id":"p1","cute_name":"Strawberry","selected":true,"members":{"${BagFixture.VIEWED}":{}}}]}"""
 
-		private val TWENTY_UUIDS = "0123456789abcdefABCD".map { last -> UUID.dropLast(1) + last }
+		private val TWENTY_UUIDS = "0123456789abcdefABCD".map { last -> VIEWED_UUID.dropLast(1) + last }
 		private val ELEVEN_UUIDS = TWENTY_UUIDS.take(11)
 	}
 }

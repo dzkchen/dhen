@@ -1,37 +1,23 @@
 package io.github.dzkchen.dhen.data.profile
 
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
-class ProfileGardenTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
+internal class ProfileGardenTest : RepoBackedTest() {
 	@BeforeEach
 	fun installRepo() {
 		DataFixture.installRepo(
 			scope,
-			home.resolve("repo"),
+			repoRoot,
 			constants = mapOf("garden" to ConstantsFixture.GARDEN)
 		)
-	}
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
 	}
 
 	@Test

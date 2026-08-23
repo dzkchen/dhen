@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.json
 import net.minecraft.network.chat.FontDescription
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -320,7 +320,7 @@ class DhenTypeTest {
 	}
 
 	private fun definition(): JsonObject =
-		JsonParser.parseString(String(resource(DEFINITION), Charsets.UTF_8)).asJsonObject
+		json(String(resource(DEFINITION), Charsets.UTF_8))
 
 	private fun resource(path: String): ByteArray {
 		val stream = javaClass.classLoader.getResourceAsStream(path)

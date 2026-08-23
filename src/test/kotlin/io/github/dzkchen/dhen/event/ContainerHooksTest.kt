@@ -1,12 +1,11 @@
 package io.github.dzkchen.dhen.event
 
+import io.github.dzkchen.dhen.bootstrapMinecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
-import net.minecraft.SharedConstants
-import net.minecraft.server.Bootstrap
 import net.minecraft.world.inventory.MenuType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -158,10 +157,7 @@ class ContainerHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() {
-			SharedConstants.tryDetectVersion()
-			Bootstrap.bootStrap()
-		}
+		fun bootstrap() = bootstrapMinecraft()
 
 		private const val WINDOW = 7
 		private val TITLE: Component = Component.literal("SkyBlock Menu")

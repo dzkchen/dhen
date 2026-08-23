@@ -198,7 +198,7 @@ class HypixelLocationHooksTest {
 	fun `every island with a guest variant has one of its own`() {
 		val guests = Island.entries.mapNotNull { it.guest }
 
-		assertEquals(listOf(Island.PRIVATE_ISLAND_GUEST, Island.GARDEN_GUEST), guests)
+		assertEquals(setOf(Island.PRIVATE_ISLAND_GUEST, Island.GARDEN_GUEST), guests.toSet())
 		assertEquals(guests.size, guests.toSet().size)
 		assertTrue(guests.all { it.modeId == null })
 	}

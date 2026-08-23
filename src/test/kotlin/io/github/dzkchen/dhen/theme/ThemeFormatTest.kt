@@ -1,8 +1,7 @@
 package io.github.dzkchen.dhen.theme
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.gui.DhenTheme
+import io.github.dzkchen.dhen.json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -146,7 +145,7 @@ class ThemeFormatTest {
 		assertEquals(listOf("ana"), bare.authors)
 	}
 
-	private fun parse(json: String): ThemeEntry = ThemeFormat.parse(ID, JsonParser.parseString(json) as JsonObject)
+	private fun parse(body: String): ThemeEntry = ThemeFormat.parse(ID, json(body))
 
 	private companion object {
 		const val ID = "probe"

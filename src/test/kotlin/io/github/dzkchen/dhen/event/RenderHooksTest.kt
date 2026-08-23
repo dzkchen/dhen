@@ -1,10 +1,10 @@
 package io.github.dzkchen.dhen.event
 
-import net.minecraft.SharedConstants
+import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.uninitialized
 import net.minecraft.client.gui.components.LerpingBossEvent
 import net.minecraft.client.renderer.entity.state.EntityRenderState
 import net.minecraft.network.chat.Component
-import net.minecraft.server.Bootstrap
 import net.minecraft.util.ARGB
 import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.item.ItemEntity
@@ -207,10 +207,7 @@ class RenderHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() {
-			SharedConstants.tryDetectVersion()
-			Bootstrap.bootStrap()
-		}
+		fun bootstrap() = bootstrapMinecraft()
 
 		private val TEAM_OUTLINE = ARGB.opaque(0x55D6C2)
 		private const val RED = 0xFF0000

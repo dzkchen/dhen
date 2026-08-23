@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import io.github.dzkchen.dhen.json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,13 +20,13 @@ class ClickGuiViewTest {
 	@Test
 	fun `read returns an empty set when the block or its list is absent`() {
 		assertTrue(ClickGuiView.read(JsonObject()).collapsed.isEmpty())
-		assertTrue(ClickGuiView.read(document("""{"clickgui":{}}""")).collapsed.isEmpty())
-		assertTrue(ClickGuiView.read(document("""{"clickgui":"garbage"}""")).collapsed.isEmpty())
+		assertTrue(ClickGuiView.read(json("""{"clickgui":{}}""")).collapsed.isEmpty())
+		assertTrue(ClickGuiView.read(json("""{"clickgui":"garbage"}""")).collapsed.isEmpty())
 	}
 
 	@Test
 	fun `read keeps the names it understands and drops the rest`() {
-		val doc = document("""{"clickgui":{"collapsed":["DEV",7,{"a":1},"MISC","DEV"]}}""")
+		val doc = json("""{"clickgui":{"collapsed":["DEV",7,{"a":1},"MISC","DEV"]}}""")
 
 		val loaded = ClickGuiView.read(doc)
 
@@ -35,7 +35,7 @@ class ClickGuiViewTest {
 
 	@Test
 	fun `a file the accordion left an opened list in reads its collapsed names anyway`() {
-		val loaded = ClickGuiView.read(document("""{"clickgui":{"collapsed":["DEV"],"opened":["MISC"]}}"""))
+		val loaded = ClickGuiView.read(json("""{"clickgui":{"collapsed":["DEV"],"opened":["MISC"]}}"""))
 
 		assertEquals(listOf("DEV"), loaded.collapsed.toList())
 	}
@@ -69,6 +69,4 @@ class ClickGuiViewTest {
 		assertEquals("DEV", doc.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
 		assertTrue(doc.has("client"))
 	}
-
-	private fun document(json: String): JsonObject = JsonParser.parseString(json).asJsonObject
 }

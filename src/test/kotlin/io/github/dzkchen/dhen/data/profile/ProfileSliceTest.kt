@@ -1,13 +1,15 @@
 package io.github.dzkchen.dhen.data.profile
 
-import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.item.ApiInventory
 import io.github.dzkchen.dhen.data.item.ItemFixture
+import io.github.dzkchen.dhen.data.profile.BagFixture.CATACOMBS
+import io.github.dzkchen.dhen.data.profile.BagFixture.VIEWED_UUID
 import io.github.dzkchen.dhen.data.profile.BagFixture.bag
+import io.github.dzkchen.dhen.data.profile.BagFixture.member
+import io.github.dzkchen.dhen.data.profile.BagFixture.reply
 import io.github.dzkchen.dhen.data.profile.BagFixture.slot
-import io.github.dzkchen.dhen.util.obj
 import java.util.Base64
 import kotlin.time.Duration.Companion.milliseconds
 import net.minecraft.world.item.ItemStack
@@ -23,7 +25,7 @@ class ProfileSliceTest {
 	@Suppress("AssertBetweenInconvertibleTypes")
 	@Test
 	fun `a full profiles reply decodes into every field of the dungeon slice`() {
-		val dungeons = ProfileSlices.of(UUID, fullReply())!!.dungeons!!
+		val dungeons = ProfileSlices.of(VIEWED_UUID, fullReply())!!.dungeons!!
 
 		assertEquals(1000.0, dungeons.catacombsExperience)
 		assertEquals(6, dungeons.catacombsLevel)
@@ -45,7 +47,7 @@ class ProfileSliceTest {
 
 	@Test
 	fun `the entrance floor does not count as a run and secrets per run survives a player with none`() {
-		val dungeons = ProfileSlices.of(UUID, fullReply())!!.dungeons!!
+		val dungeons = ProfileSlices.of(VIEWED_UUID, fullReply())!!.dungeons!!
 
 		assertEquals(6, dungeons.runs)
 		assertEquals(7.0, dungeons.secretsPerRun)
@@ -64,61 +66,16 @@ class ProfileSliceTest {
 	}
 
 	@Test
-	fun `two copies of one accessory count once, at the higher rarity`() {
-		assertEquals(22, power(member(bag(slot("TEST_TALISMAN", lore = listOf("§f§lCOMMON")), slot("TEST_TALISMAN", lore = listOf("§d§lMYTHIC"))))))
-	}
-
-	@Test
-	fun `an accessory the player cannot use yet is worth nothing`() {
-		val locked = slot("REQ_TALISMAN", lore = listOf("§a§lUNCOMMON", "§7§4☠ §cRequires §5Rift Level 5§c."))
-
-		assertEquals(0, power(member(bag(locked))))
-	}
-
-	@Test
-	fun `hegemony counts double and an abicase adds half the contact list`() {
-		assertEquals(44, power(member(bag(slot("HEGEMONY_ARTIFACT", lore = listOf("§d§lMYTHIC"))))))
-		assertEquals(7, power(member(bag(slot("ABICASE", lore = listOf("§a§lUNCOMMON"))), contacts = 5)))
-	}
-
-	@Test
-	fun `every cosmetic hat collapses into one contribution`() {
-		val hats = bag(slot("PARTY_HAT_CRAB_YELLOW", lore = listOf("§9§lRARE")), slot("BALLOON_HAT_2024", lore = listOf("§9§lRARE")))
-
-		assertEquals(8, power(member(hats)))
-	}
-
-	@Test
-	fun `a consumed rift prism adds eleven`() {
-		assertEquals(14, power(member(bag(slot("TEST_TALISMAN", lore = listOf("§f§lCOMMON"))), prism = true)))
-	}
-
-	@Test
-	fun `an unreadable talisman bag falls back to ten a tuning point, and a readable one does not`() {
-		val unreadable = member("not base64 at all", prism = true, tuning = mapOf("health" to 5, "strength" to 3))
-		assertNull(power(unreadable))
-		assertEquals(80, assumedPower(unreadable))
-
-		val readable = member(bag(slot("TEST_TALISMAN", lore = listOf("§a§lUNCOMMON"))), tuning = mapOf("health" to 5))
-		assertEquals(5, power(readable))
-		assertEquals(5, assumedPower(readable))
-	}
-
-	@Test
-	fun `an empty talisman bag is nought magical power, not an unreadable one`() {
-		val empty = member(bag(), tuning = mapOf("health" to 4))
-
-		assertEquals(0, power(empty))
-		assertEquals(40, assumedPower(empty))
-		assertEquals(0, ProfileSlices.of(UUID, reply(empty))!!.magicalPower)
-		assertNull(ProfileSlices.of(UUID, reply(member("not base64 at all")))!!.magicalPower)
+	fun `an empty talisman bag is nought magical power on the slice, an unreadable one none at all`() {
+		assertEquals(0, ProfileSlices.of(VIEWED_UUID, reply(member(bag())))!!.magicalPower)
+		assertNull(ProfileSlices.of(VIEWED_UUID, reply(member("not base64 at all")))!!.magicalPower)
 	}
 
 	@Test
 	fun `the inventory API reads as off until the ender chest comes back with it`() {
-		assertFalse(ProfileSlices.of(UUID, replyWithEnderChest(null))!!.inventoryApi)
-		assertFalse(ProfileSlices.of(UUID, replyWithEnderChest(""))!!.inventoryApi)
-		assertTrue(ProfileSlices.of(UUID, replyWithEnderChest("dGVzdA=="))!!.inventoryApi)
+		assertFalse(ProfileSlices.of(VIEWED_UUID, replyWithEnderChest(null))!!.inventoryApi)
+		assertFalse(ProfileSlices.of(VIEWED_UUID, replyWithEnderChest(""))!!.inventoryApi)
+		assertTrue(ProfileSlices.of(VIEWED_UUID, replyWithEnderChest("dGVzdA=="))!!.inventoryApi)
 	}
 
 	@Test
@@ -156,62 +113,18 @@ class ProfileSliceTest {
 
 	@Test
 	fun `nothing there and there but empty are told apart`() {
-		assertNull(ProfileSlices.of(UUID, DataFixture.json("""{"success":true,"profiles":[]}""")))
-		assertNull(ProfileSlices.of(UUID, DataFixture.json("""{"success":true,"profiles":[$UNSELECTED]}""")))
+		assertNull(ProfileSlices.of(VIEWED_UUID, DataFixture.json("""{"success":true,"profiles":[]}""")))
+		assertNull(ProfileSlices.of(VIEWED_UUID, DataFixture.json("""{"success":true,"profiles":[$UNSELECTED]}""")))
 		assertNull(ProfileSlices.of(OTHER_UUID, reply(member())))
 
-		val bare = ProfileSlices.of(UUID, reply(member()))
+		val bare = ProfileSlices.of(VIEWED_UUID, reply(member()))
 		assertNotNull(bare)
 		assertNull(bare!!.dungeons)
 		assertEquals("profile-1", bare.profileId)
 		assertEquals("Apple", bare.cuteName)
 	}
 
-	private fun power(member: JsonObject): Int? =
-		MagicalPower.of(member, CrimsonIsleProfiles.abiphoneContacts(member), RiftProfiles.consumedPrism(member))
-
-	private fun assumedPower(member: JsonObject): Int =
-		MagicalPower.assumed(MaxwellProfiles.tunings(member), power(member))
-
 	private fun noFloors() = DungeonFloors(emptyMap())
-
-	private fun member(
-		talismanBag: String? = null,
-		contacts: Int = 0,
-		prism: Boolean = false,
-		tuning: Map<String, Int>? = null,
-		enderChest: String? = null
-	): JsonObject {
-		val contactList = JsonArray()
-		repeat(contacts) { contactList.add("contact $it") }
-		val member = DataFixture.json("""{"rift":{"access":{"consumed_prism":$prism}},"nether_island_player_data":{"abiphone":{}}}""")
-		member.obj("nether_island_player_data")!!.obj("abiphone")!!.add("active_contacts", contactList)
-		if (talismanBag != null || enderChest != null) {
-			val inventory = JsonObject()
-			if (talismanBag != null) inventory.add("bag_contents", DataFixture.json("""{"talisman_bag":{"data":"$talismanBag"}}"""))
-			if (enderChest != null) inventory.add("ender_chest_contents", DataFixture.json("""{"data":"$enderChest"}"""))
-			member.add("inventory", inventory)
-		}
-		if (tuning != null) {
-			val points = JsonObject()
-			for ((stat, value) in tuning) points.addProperty(stat, value)
-			val slots = JsonObject()
-			slots.add("slot_0", points)
-			member.add("accessory_bag_storage", JsonObject().also { it.add("tuning", slots) })
-		}
-		return member
-	}
-
-	private fun reply(member: JsonObject): JsonObject {
-		val profile = DataFixture.json(SELECTED)
-		profile.obj("members")!!.add(DASHLESS, member)
-		val profiles = JsonArray()
-		profiles.add(profile)
-		return JsonObject().also {
-			it.addProperty("success", true)
-			it.add("profiles", profiles)
-		}
-	}
 
 	private fun replyWithEnderChest(data: String?): JsonObject = reply(member(enderChest = data))
 
@@ -220,29 +133,19 @@ class ProfileSliceTest {
 		it.add("player_stats", DataFixture.json("""{"kills":{"watcher_summon_undead":10.0,"master_watcher_summon_undead":5.0}}"""))
 	})
 
-
 	private companion object {
-		private const val UUID = "123e4567-e89b-12d3-a456-426614174000"
 		private const val OTHER_UUID = "00000000-0000-0000-0000-000000000000"
-		private const val DASHLESS = "123e4567e89b12d3a456426614174000"
 
 		@JvmStatic
 		@BeforeAll
 		fun bootstrap() = ItemFixture.bootstrap()
 
-		private const val SELECTED =
-			"""{"profile_id":"profile-1","cute_name":"Apple","selected":true,"members":{}}"""
 		private const val UNSELECTED =
 			"""{"profile_id":"profile-2","cute_name":"Banana","selected":false,"members":{}}"""
 
 		private const val DUNGEONS = """{
 			"dungeon_types":{
-				"catacombs":{
-					"experience":1000.0,
-					"tier_completions":{"0":5,"1":2,"2":3,"total":99},
-					"fastest_time_s":{"1":1000,"2":2000},
-					"fastest_time_s_plus":{"1":900}
-				},
+				"catacombs":$CATACOMBS,
 				"master_catacombs":{
 					"tier_completions":{"3":1},
 					"fastest_time_s":{"3":1500},

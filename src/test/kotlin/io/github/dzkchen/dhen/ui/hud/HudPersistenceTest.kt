@@ -1,9 +1,9 @@
 package io.github.dzkchen.dhen.ui.hud
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -35,7 +35,7 @@ class HudPersistenceTest {
 		ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations, debounce = {})
 			.save(ModulePersistence.snapshot(saved)).join()
 
-		val file = JsonParser.parseString(Files.readString(path)).asJsonObject
+		val file = json(Files.readString(path))
 		val entry = file.getAsJsonObject("modules").getAsJsonObject("Overlay").getAsJsonObject("hud")
 		assertEquals("BOTTOM_RIGHT", entry.getAsJsonObject("Status").get("anchor").asString)
 
@@ -97,9 +97,7 @@ class HudPersistenceTest {
 	fun `an unreadable number keeps the layout instead of failing the load`() {
 		val manager = ModuleManager()
 		val module = OverlayModule().also { manager.register(it) }
-		val doc = JsonParser.parseString(
-			"""{"modules":{"Overlay":{"enabled":true,"hud":{"Status":{"x":1e2147483648,"y":9}}}}}"""
-		).asJsonObject
+		val doc = json("""{"modules":{"Overlay":{"enabled":true,"hud":{"Status":{"x":1e2147483648,"y":9}}}}}""")
 
 		ModulePersistence.apply(manager, doc)
 

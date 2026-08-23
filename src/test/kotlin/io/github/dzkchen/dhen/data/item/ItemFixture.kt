@@ -1,13 +1,12 @@
 package io.github.dzkchen.dhen.data.item
 
-import net.minecraft.SharedConstants
+import io.github.dzkchen.dhen.bootstrapMinecraft
 import net.minecraft.core.Holder
 import net.minecraft.core.component.DataComponentMap
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
-import net.minecraft.server.Bootstrap
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -15,9 +14,10 @@ import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.ItemLore
 
 internal object ItemFixture {
+	const val HELD_UUID = "3e0d0b3a-6d2e-4a1e-9c1d-2b9a1f0c7e55"
+
 	fun bootstrap() {
-		SharedConstants.tryDetectVersion()
-		Bootstrap.bootStrap()
+		bootstrapMinecraft()
 		BuiltInRegistries.ITEM.stream().forEach(::bindComponents)
 	}
 

@@ -1,21 +1,19 @@
 package io.github.dzkchen.dhen.data.value
 
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -23,29 +21,17 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 import java.util.concurrent.Executors
 
-class NetworthTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
+internal class NetworthTest : RepoBackedTest() {
 	@BeforeEach
 	fun install() {
 		DataFixture.installRepo(
 			scope,
-			home.resolve("repo"),
+			repoRoot,
 			mapOf("ENCHANTED_DIAMOND" to """{"internalname":"ENCHANTED_DIAMOND","displayname":"§aEnchanted Diamond"}""")
 		)
 		DataFixture.installPrices(scope, LOWEST_BINS)
-	}
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
 	}
 
 	@Test

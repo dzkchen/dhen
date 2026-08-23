@@ -1,9 +1,9 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
+import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.theme.ThemeFixture
 import io.github.dzkchen.dhen.theme.ThemeFormat
@@ -139,7 +139,7 @@ class ClientPrefsTest {
 
 	@Test
 	fun `the profile proxy address is remembered but never drawn`() {
-		ClientPrefs.read(document("""{"client":{"Profile proxy":"https://proxy.example.com"}}"""))
+		ClientPrefs.read(json("""{"client":{"Profile proxy":"https://proxy.example.com"}}"""))
 
 		assertEquals("https://proxy.example.com", ClientPrefs.profileProxy.value)
 		assertFalse(ClientPrefs.profileProxy.isVisible)
@@ -204,7 +204,7 @@ class ClientPrefsTest {
 
 	@Test
 	fun `reading the stored accent drives the palette slot`() {
-		ClientPrefs.read(document("""{"client":{"Accent color":$TEAL}}"""))
+		ClientPrefs.read(json("""{"client":{"Accent color":$TEAL}}"""))
 
 		assertEquals(TEAL, DhenPalette.accent)
 		assertEquals(DhenTheme.DEFAULT.withAccent(TEAL).accentForeground, DhenPalette.accentForeground)
@@ -235,7 +235,7 @@ class ClientPrefsTest {
 
 	@Test
 	fun `a malformed accent leaves the one already loaded`() {
-		ClientPrefs.read(document("""{"client":{"Accent color":"pink"}}"""))
+		ClientPrefs.read(json("""{"client":{"Accent color":"pink"}}"""))
 
 		assertEquals(DhenPalette.DEFAULT_ACCENT, ClientPrefs.accent.value.argb)
 		assertEquals(DhenPalette.DEFAULT_ACCENT, DhenPalette.accent)
@@ -243,7 +243,7 @@ class ClientPrefsTest {
 
 	@Test
 	fun `a stored accent is opaque however it was written`() {
-		ClientPrefs.read(document("""{"client":{"Accent color":${0x2055D6C2}}}"""))
+		ClientPrefs.read(json("""{"client":{"Accent color":${0x2055D6C2}}}"""))
 
 		assertEquals(0xFF, ClientPrefs.accent.value.argb ushr 24)
 		assertEquals(0xFF, DhenPalette.accent ushr 24)
@@ -271,8 +271,6 @@ class ClientPrefsTest {
 
 		assertFalse(Effects.reducedSetting.value)
 	}
-
-	private fun document(json: String): JsonObject = JsonParser.parseString(json).asJsonObject
 
 	private fun theme(id: String, manifest: String) = ThemeFixture.write(config, id, manifest)
 

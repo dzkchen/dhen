@@ -1,30 +1,17 @@
 package io.github.dzkchen.dhen.data.profile
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.data.DataFixture
-import io.github.dzkchen.dhen.data.repo.ConstantsFixture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import org.junit.jupiter.api.AfterEach
+import io.github.dzkchen.dhen.data.RepoBackedTest
+import io.github.dzkchen.dhen.data.profile.BagFixture.CATACOMBS
+import io.github.dzkchen.dhen.data.profile.BagFixture.VIEWED
+import io.github.dzkchen.dhen.json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
-class SkyBlockProfileTest {
-	@TempDir
-	lateinit var home: Path
-
-	private val scope = CoroutineScope(Dispatchers.Unconfined)
-
-	@AfterEach
-	fun uninstall() {
-		DataFixture.uninstall()
-	}
-
+internal class SkyBlockProfileTest : RepoBackedTest() {
 	@Test
 	fun `the envelope carries the id, the name, the game mode and the members still on the profile`() {
 		val profile = decode()
@@ -187,15 +174,14 @@ class SkyBlockProfileTest {
 	}
 
 	private fun installRepo() =
-		DataFixture.installRepo(scope, home.resolve("repo"), constants = mapOf("leveling" to ConstantsFixture.LEVELING))
+		DataFixture.installLeveling(scope, home)
 
-	private fun reply(): JsonObject = JsonParser.parseString(REPLY).asJsonObject
+	private fun reply(): JsonObject = json(REPLY)
 
 	private fun bareReply(): JsonObject =
-		JsonParser.parseString("""{"profiles":[{"selected":true,"members":{"$VIEWED":{}}}]}""").asJsonObject
+		json("""{"profiles":[{"selected":true,"members":{"$VIEWED":{}}}]}""")
 
 	private companion object {
-		private const val VIEWED = "123e4567e89b12d3a456426614174000"
 		private const val COOP = "00000000000000000000000000000001"
 		private const val KICKED = "00000000000000000000000000000002"
 		private const val OTHER = "99999999999999999999999999999999"
@@ -233,14 +219,7 @@ class SkyBlockProfileTest {
 							}},
 							"bestiary":{"kills":{"zombie":500},"deaths":{"zombie":2,"skeleton":1}},
 							"dungeons":{
-								"dungeon_types":{
-									"catacombs":{
-										"experience":1000,
-										"tier_completions":{"0":5,"1":2,"2":3,"total":99},
-										"fastest_time_s":{"1":1000,"2":2000},
-										"fastest_time_s_plus":{"1":900}
-									}
-								},
+								"dungeon_types":{"catacombs":$CATACOMBS},
 								"player_classes":{"healer":{"experience":50}},
 								"selected_dungeon_class":"healer",
 								"secrets":42
