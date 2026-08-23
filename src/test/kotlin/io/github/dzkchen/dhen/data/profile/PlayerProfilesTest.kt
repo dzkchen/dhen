@@ -188,6 +188,34 @@ class PlayerProfilesTest {
 	}
 
 	@Test
+	fun `the raw replies cache holds no more profiles than the decoded ones do`() = runBlocking {
+		install()
+		PlayerProfiles.require()
+
+		for (uuid in TWENTY_UUIDS) PlayerProfiles.profiles(uuid)
+
+		assertEquals(TWENTY_UUIDS.size, source.requests.size)
+		assertTrue(PlayerProfiles.cacheSummary().contains("profiles=16"), PlayerProfiles.cacheSummary())
+	}
+
+	@Test
+	fun `a reply produced before the proxy address changed is never served for the new one`() = runBlocking {
+		source.bodies = mapOf(PROFILES to ONE_PROFILE, OTHER_PROFILES to OTHER_PROFILE, OTHER_SECOND to ONE_PROFILE)
+		install()
+		PlayerProfiles.require()
+		source.onRequest = {
+			source.onRequest = {}
+			base = OTHER
+			runBlocking { PlayerProfiles.profiles(SECOND_UUID) }
+		}
+
+		PlayerProfiles.profiles(UUID)
+
+		assertTrue(PlayerProfiles.cacheSummary().contains("profiles=1"), PlayerProfiles.cacheSummary())
+		assertEquals("Cherry", cuteName())
+	}
+
+	@Test
 	fun `slice decodes the fetched reply, and does so with no item repo behind it`() = runBlocking {
 		source.bodies = mapOf(PROFILES to SLICE_PROFILE)
 		install()
@@ -318,17 +346,22 @@ class PlayerProfilesTest {
 		private const val SECOND = "https://api.mojang.com/users/profiles/minecraft/$NAME"
 		private const val PROFILES = "$PROXY/v2/skyblock/profiles?uuid=$UUID"
 		private const val OTHER_PROFILES = "$OTHER/v2/skyblock/profiles?uuid=$UUID"
+		private const val SECOND_UUID = "123e4567-e89b-12d3-a456-426614174001"
+		private const val OTHER_SECOND = "$OTHER/v2/skyblock/profiles?uuid=$SECOND_UUID"
 
 		private const val ID_REPLY = """{"id":"$DASHED","name":"$NAME"}"""
 		private const val REFUSED = """{"success":false,"cause":"Malformed UUID"}"""
 		private const val ONE_PROFILE =
 			"""{"success":true,"profiles":[{"profile_id":"1","cute_name":"Apple","selected":true}]}"""
+		private const val OTHER_PROFILE =
+			"""{"success":true,"profiles":[{"profile_id":"9","cute_name":"Cherry","selected":true}]}"""
 		private const val TWO_PROFILES =
 			"""{"success":true,"profiles":[{"profile_id":"1","cute_name":"Apple","selected":false},""" +
 				"""{"profile_id":"2","cute_name":"Banana","selected":true}]}"""
 		private const val SLICE_PROFILE =
 			"""{"success":true,"profiles":[{"profile_id":"p1","cute_name":"Strawberry","selected":true,"members":{"123e4567e89b12d3a456426614174000":{}}}]}"""
 
-		private val ELEVEN_UUIDS = "0123456789a".map { last -> UUID.dropLast(1) + last }
+		private val TWENTY_UUIDS = "0123456789abcdefABCD".map { last -> UUID.dropLast(1) + last }
+		private val ELEVEN_UUIDS = TWENTY_UUIDS.take(11)
 	}
 }

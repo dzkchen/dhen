@@ -146,6 +146,32 @@ class ItemRepoTest {
 	}
 
 	@Test
+	fun `a download that finishes after the repo was torn down leaves it empty`() {
+		install()
+		transport.onDownload = { ItemRepo.uninstall() }
+
+		ItemRepo.require()
+
+		assertEquals(RepoState.IDLE, ItemRepo.state)
+		assertEquals(0, ItemRepo.size)
+		assertNull(ItemRepo.commit)
+	}
+
+	@Test
+	fun `a download that finishes after the repo was reinstalled does not fill the new one`() {
+		install()
+		transport.onDownload = {
+			transport.onDownload = {}
+			install()
+		}
+
+		ItemRepo.require()
+
+		assertEquals(RepoState.IDLE, ItemRepo.state)
+		assertEquals(0, ItemRepo.size)
+	}
+
+	@Test
 	fun `requiring item data before the repo is installed is a no-op`() {
 		ItemRepo.require()
 
@@ -161,11 +187,13 @@ class ItemRepoTest {
 	private class FakeTransport : RepoTransport {
 		var reachable = true
 		var downloads = 0
+		var onDownload: () -> Unit = {}
 
 		override fun text(url: String): String? = if (reachable) "{\"sha\":\"abc123\"}" else null
 
 		override fun download(url: String, destination: Path): Boolean {
 			downloads++
+			onDownload()
 			if (!reachable) return false
 			destination.parent?.let(Files::createDirectories)
 			Files.write(destination, ARCHIVE)

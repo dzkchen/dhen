@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.minutes
 
 enum class RepoState {
@@ -27,28 +28,19 @@ object ItemRepo {
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val requirements = AtomicInteger()
 	private val activated = AtomicBoolean()
-	private val installation = AtomicInteger()
+
+	private val published = AtomicReference(Published(null, RepoState.IDLE))
 
 	@Volatile
 	private var host: Host? = null
 
-	@Volatile
-	private var retryAt = 0L
+	private val catalog: ItemCatalog get() = published.get().catalog
 
-	@Volatile
-	private var catalog: ItemCatalog = ItemCatalog.EMPTY
+	val constants: RepoConstants get() = published.get().constants
 
-	@Volatile
-	var constants: RepoConstants = RepoConstants.EMPTY
-		private set
+	val state: RepoState get() = published.get().state
 
-	@Volatile
-	var state: RepoState = RepoState.IDLE
-		private set
-
-	@Volatile
-	var commit: String? = null
-		private set
+	val commit: String? get() = published.get().commit
 
 	val size: Int get() = catalog.size
 
@@ -61,13 +53,14 @@ object ItemRepo {
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)
 
 	fun require(): Handle {
-		val host = host ?: return Handle {}
-		val installed = installation.get()
+		val owner = host ?: return Handle {}
 		requirements.incrementAndGet()
-		if (host.clock.nanoTime() >= retryAt && activated.compareAndSet(false, true)) host.scope.launch { load(host) }
+		if (owner.clock.nanoTime() >= published.get().retryAt && activated.compareAndSet(false, true)) {
+			owner.scope.launch { load(owner) }
+		}
 		val released = AtomicBoolean()
 		return Handle {
-			if (released.compareAndSet(false, true) && installation.get() == installed) requirements.decrementAndGet()
+			if (released.compareAndSet(false, true) && host === owner) requirements.decrementAndGet()
 		}
 	}
 
@@ -78,42 +71,55 @@ object ItemRepo {
 		clock: NanoClock = NanoClock.SYSTEM
 	) {
 		uninstall()
-		host = Host(scope, root, sync, clock)
+		val owner = Host(scope, root, sync, clock)
+		published.set(Published(owner, RepoState.IDLE))
+		host = owner
 	}
 
 	internal fun uninstall() {
 		host = null
-		installation.incrementAndGet()
+		published.set(Published(null, RepoState.IDLE))
 		requirements.set(0)
 		activated.set(false)
-		retryAt = 0L
-		catalog = ItemCatalog.EMPTY
-		constants = RepoConstants.EMPTY
-		state = RepoState.IDLE
-		commit = null
 	}
 
-	private fun load(host: Host) {
-		state = RepoState.SYNCING
-		state = try {
-			val result = host.sync.sync()
+	private fun load(owner: Host) {
+		if (!publish(owner) { it.copy(state = RepoState.SYNCING) }) return
+		val read = try {
+			val result = owner.sync.sync()
 			if (result != SyncResult.UPDATED && result != SyncResult.UP_TO_DATE) {
 				log.warn("Dhen could not refresh the item repo ({}), reading whatever is already on disk", result)
 			}
-			catalog = ItemCatalog.read(host.root.resolve(ITEMS))
-			constants = RepoConstants.read(host.root.resolve(CONSTANTS))
-			commit = host.sync.syncedCommit()
-			if (catalog.size > 0) RepoState.READY else RepoState.UNAVAILABLE
+			val catalog = ItemCatalog.read(owner.root.resolve(ITEMS))
+			Published(
+				owner,
+				if (catalog.size > 0) RepoState.READY else RepoState.UNAVAILABLE,
+				catalog,
+				RepoConstants.read(owner.root.resolve(CONSTANTS)),
+				owner.sync.syncedCommit()
+			)
 		} catch (throwable: Throwable) {
 			log.error("Dhen could not load the item repo", throwable)
-			RepoState.UNAVAILABLE
+			Published(owner, RepoState.UNAVAILABLE)
 		}
-		if (state == RepoState.UNAVAILABLE) {
-			retryAt = host.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds
-			activated.set(false)
-		}
-		log.info("Dhen item repo {} with {} items", state, catalog.size)
+		val loaded = if (read.state != RepoState.UNAVAILABLE) read else
+			read.copy(retryAt = owner.clock.nanoTime() + RETRY_AFTER.inWholeNanoseconds)
+		if (!publish(owner) { loaded }) return
+		if (loaded.state == RepoState.UNAVAILABLE) activated.set(false)
+		log.info("Dhen item repo {} with {} items", loaded.state, loaded.catalog.size)
 	}
+
+	private fun publish(owner: Host, next: (Published) -> Published): Boolean =
+		published.updateAndGet { if (it.host === owner) next(it) else it }.host === owner
+
+	private data class Published(
+		val host: Host?,
+		val state: RepoState,
+		val catalog: ItemCatalog = ItemCatalog.EMPTY,
+		val constants: RepoConstants = RepoConstants.EMPTY,
+		val commit: String? = null,
+		val retryAt: Long = 0L
+	)
 
 	private class Host(val scope: CoroutineScope, val root: Path, val sync: RepoSync, val clock: NanoClock)
 }

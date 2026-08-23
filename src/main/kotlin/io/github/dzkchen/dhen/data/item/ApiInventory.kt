@@ -24,7 +24,6 @@ import java.util.UUID
 
 internal object ApiInventory {
 	private const val NBT_QUOTA = 8L * 1024 * 1024
-	private val FALLBACK_UUID = UUID(0L, 0L)
 
 	fun stacks(blob: String?): List<ItemStack>? {
 		if (blob.isNullOrBlank()) return null
@@ -69,7 +68,8 @@ internal object ApiInventory {
 		if (textures.isEmpty) return null
 		val value = textures.getCompoundOrEmpty(0).getStringOr("Value", "")
 		if (value.isEmpty()) return null
-		val id = runCatching { UUID.fromString(skullOwner.getStringOr("Id", "")) }.getOrNull() ?: FALLBACK_UUID
+		val id = runCatching { UUID.fromString(skullOwner.getStringOr("Id", "")) }.getOrNull()
+			?: UUID.nameUUIDFromBytes(value.toByteArray())
 		val name = skullOwner.getStringOr("Name", "")
 		val properties = PropertyMap(ImmutableMultimap.of("textures", Property("textures", value)))
 		return ResolvableProfile.createResolved(GameProfile(id, name, properties))

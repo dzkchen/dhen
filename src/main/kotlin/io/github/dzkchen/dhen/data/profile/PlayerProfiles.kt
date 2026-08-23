@@ -26,6 +26,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -40,6 +41,7 @@ object PlayerProfiles {
 	private const val MAX_ENTRIES = 128
 	private const val MAX_HELD_PROFILES = 16
 	private const val NO_PROFILE = "none"
+	private const val PROXY_AGNOSTIC = 0
 
 	private val NEGATIVE_TTL = 1.minutes
 	private val UUID_TTL = 1.hours
@@ -56,18 +58,17 @@ object PlayerProfiles {
 	private val peak = AtomicInteger()
 	private val limiter = Semaphore(MAX_IN_FLIGHT)
 	private val uuids = Cache<String>(UUID_TTL)
-	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl) }
+	private val replies = Endpoint.entries.associateWith { Cache<JsonObject>(it.ttl, it.cap) }
 	private val repoReady = { ItemRepo.ready }
 	private val slices = Cache<ProfileSlice>(Endpoint.PROFILES.ttl)
 	private val models = Cache<SkyBlockProfile>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
 	private val holdings = Cache<ProfileHoldings>(Endpoint.PROFILES.ttl, MAX_HELD_PROFILES)
 	private val gardens = Cache<GardenProfile>(Endpoint.GARDEN.ttl, MAX_HELD_PROFILES)
 
-	@Volatile
-	private var host: Host? = null
+	private val currentBase = AtomicReference(Base(null, 0))
 
 	@Volatile
-	private var lastBase: String? = null
+	private var host: Host? = null
 
 	val available: Boolean get() = configuredBase() != null
 
@@ -107,11 +108,11 @@ object PlayerProfiles {
 		if (!nameShape.matches(playerName) || requirements.get() == 0) return null
 		syncBase()
 		val key = playerName.lowercase(Locale.ROOT)
-		uuids.read(key, host.clock.nanoTime())?.let { return it.value }
+		uuids.read(key, host.clock.nanoTime(), PROXY_AGNOSTIC)?.let { return it.value }
 		val found = readId(fetch(host, MOJANG_PRIMARY + playerName))
 			?: readId(fetch(host, MOJANG_FALLBACK + playerName))
 		mojang.note(found != null)
-		return store(host, uuids, key, found, unchanged = true)
+		return store(host, uuids, key, found, PROXY_AGNOSTIC, keep = true)
 	}
 
 	suspend fun profiles(uuid: String): JsonObject? = ask(Endpoint.PROFILES, uuid)
@@ -126,8 +127,8 @@ object PlayerProfiles {
 
 	suspend fun selectedProfile(uuid: String): JsonObject? = profiles(uuid)?.let(ProfileSlices::selectedProfile)
 
-	suspend fun slice(uuid: String): ProfileSlice? = cached(slices, uuid) { owner, _ ->
-		models.read(uuid, owner.clock.nanoTime())?.value?.slice
+	suspend fun slice(uuid: String): ProfileSlice? = cached(slices, uuid) { owner, _, generation ->
+		models.read(uuid, owner.clock.nanoTime(), generation)?.value?.slice
 			?: profiles(uuid)?.let { reply -> ProfileSlices.of(uuid, reply) }
 	}
 
@@ -230,12 +231,16 @@ object PlayerProfiles {
 		mojang.reset()
 		proxy.reset()
 		peak.set(0)
-		lastBase = null
-		clearCaches()
+		uuids.clear()
+		invalidate(null)
 	}
 
 	internal fun clearCaches() {
 		uuids.clear()
+		clearProxyCaches()
+	}
+
+	private fun clearProxyCaches() {
 		for (cache in replies.values) cache.clear()
 		slices.clear()
 		models.clear()
@@ -255,23 +260,25 @@ object PlayerProfiles {
 	}
 
 	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? =
-		cached(replies.getValue(endpoint), key) { owner, base ->
-			envelope(fetch(owner, "$base${endpoint.path}?${endpoint.parameter}=$key")).also { proxy.note(it != null) }
+		cached(replies.getValue(endpoint), key) { owner, url, _ ->
+			envelope(fetch(owner, "$url${endpoint.path}?${endpoint.parameter}=$key")).also { proxy.note(it != null) }
 		}
 
 	private suspend fun <V> cached(
 		cache: Cache<V>,
 		key: String,
 		ready: () -> Boolean = ALWAYS,
-		produce: suspend (Host, String) -> V?
+		produce: suspend (Host, String, Int) -> V?
 	): V? {
 		val owner = host ?: return null
 		if (!idShape.matches(key) || requirements.get() == 0) return null
-		val base = syncBase() ?: return null
-		cache.read(key, owner.clock.nanoTime())?.let { return it.value }
+		val base = syncBase()
+		val url = base.url ?: return null
+		cache.read(key, owner.clock.nanoTime(), base.generation)?.let { return it.value }
 		if (!ready()) return null
-		val value = withContext(Dispatchers.IO) { produce(owner, base) }
-		return store(owner, cache, key, value, unchanged = lastBase == base && ready())
+		val value = withContext(Dispatchers.IO) { produce(owner, url, base.generation) }
+		val current = ready() && currentBase.get().generation == base.generation
+		return store(owner, cache, key, value, base.generation, keep = current)
 	}
 
 	private suspend fun <V> cached(
@@ -279,7 +286,7 @@ object PlayerProfiles {
 		key: String,
 		ready: () -> Boolean = ALWAYS,
 		produce: suspend () -> V?
-	): V? = cached(cache, key, ready) { _, _ -> produce() }
+	): V? = cached(cache, key, ready) { _, _, _ -> produce() }
 
 	private suspend fun fetch(owner: Host, url: String): String? = withContext(Dispatchers.IO) {
 		limiter.withPermit {
@@ -288,8 +295,8 @@ object PlayerProfiles {
 		}
 	}
 
-	private fun <V> store(owner: Host, cache: Cache<V>, key: String, value: V?, unchanged: Boolean): V? {
-		if (host === owner && unchanged) cache.write(key, value, owner.clock.nanoTime())
+	private fun <V> store(owner: Host, cache: Cache<V>, key: String, value: V?, generation: Int, keep: Boolean): V? {
+		if (host === owner && keep) cache.write(key, value, owner.clock.nanoTime(), generation)
 		return value
 	}
 
@@ -301,13 +308,21 @@ object PlayerProfiles {
 
 	private fun release() = requirements.updateAndGet { held -> maxOf(0, held - 1) }
 
-	private fun syncBase(): String? {
-		val base = configuredBase()
-		if (base != lastBase) {
-			clearCaches()
-			lastBase = base
+	private fun syncBase(): Base {
+		val url = configuredBase()
+		val previous = currentBase.get()
+		return if (previous.url == url) previous else invalidate(url)
+	}
+
+	private fun invalidate(url: String?): Base {
+		while (true) {
+			val previous = currentBase.get()
+			val next = Base(url, previous.generation + 1)
+			if (currentBase.compareAndSet(previous, next)) {
+				clearProxyCaches()
+				return next
+			}
 		}
-		return base
 	}
 
 	private fun configuredBase(): String? = host?.baseUrl?.invoke()?.trim()?.trimEnd('/')?.ifEmpty { null }
@@ -338,13 +353,20 @@ object PlayerProfiles {
 		return "${Dhen.MOD_ID}/${version ?: "dev"}"
 	}
 
-	private enum class Endpoint(val path: String, val parameter: String, val ttl: Duration) {
+	private enum class Endpoint(
+		val path: String,
+		val parameter: String,
+		val ttl: Duration,
+		val cap: Int = MAX_HELD_PROFILES
+	) {
 		PROFILES("/v2/skyblock/profiles", "uuid", 5.minutes),
 		PLAYER("/v2/player", "uuid", 5.minutes),
 		MUSEUM("/v2/skyblock/museum", "profile", 5.minutes),
 		GARDEN("/v2/skyblock/garden", "profile", 5.minutes),
-		STATUS("/v2/status", "uuid", 1.minutes)
+		STATUS("/v2/status", "uuid", 1.minutes, MAX_ENTRIES)
 	}
+
+	private class Base(val url: String?, val generation: Int)
 
 	private class Cache<V>(ttl: Duration, private val maxEntries: Int = MAX_ENTRIES) {
 		private val positive = ttl.inWholeNanoseconds
@@ -353,14 +375,14 @@ object PlayerProfiles {
 
 		val size: Int get() = entries.size
 
-		fun read(key: String, now: Long): Entry<V>? {
+		fun read(key: String, now: Long, generation: Int): Entry<V>? {
 			val entry = entries[key] ?: return null
-			if (!expired(entry, now)) return entry
-			entries.remove(key, entry)
+			if (entry.generation == generation && !expired(entry, now)) return entry
+			if (entry.generation <= generation) entries.remove(key, entry)
 			return null
 		}
 
-		fun write(key: String, value: V?, now: Long) {
+		fun write(key: String, value: V?, now: Long, generation: Int) {
 			if (entries.size >= maxEntries) {
 				entries.entries.removeIf { expired(it.value, now) }
 				while (entries.size >= maxEntries) {
@@ -368,7 +390,7 @@ object PlayerProfiles {
 					entries.remove(oldest.key, oldest.value)
 				}
 			}
-			entries[key] = Entry(value, now)
+			entries[key] = Entry(value, now, generation)
 		}
 
 		fun clear() = entries.clear()
@@ -376,7 +398,7 @@ object PlayerProfiles {
 		private fun expired(entry: Entry<V>, now: Long): Boolean =
 			now - entry.stamp >= if (entry.value == null) negative else positive
 
-		class Entry<V>(val value: V?, val stamp: Long)
+		class Entry<V>(val value: V?, val stamp: Long, val generation: Int)
 	}
 
 	private class Tally(private val source: String) {

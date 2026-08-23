@@ -22,7 +22,9 @@ import net.minecraft.world.item.Items
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -86,7 +88,7 @@ class ProfileHoldingsTest {
 			)
 		)
 
-		assertEquals(listOf("FIRST", "SECOND"), holdings.backpacks.map(::skyBlockId))
+		assertEquals(listOf("FIRST", "SECOND"), holdings.backpacks.copies().map(::skyBlockId))
 	}
 
 	@Test
@@ -158,7 +160,7 @@ class ProfileHoldingsTest {
 			)
 		)
 
-		assertEquals(listOf("HELM", "BOOTS", "CLOAK"), holdings.loadout.map(::skyBlockId))
+		assertEquals(listOf("HELM", "BOOTS", "CLOAK"), holdings.loadout.copies().map(::skyBlockId))
 	}
 
 	@Test
@@ -172,12 +174,57 @@ class ProfileHoldingsTest {
 	}
 
 	@Test
+	fun `a hidden bank balance is left out rather than reading as zero coins`() {
+		val holdings = holdings(
+			profile = JsonObject(),
+			member = DataFixture.json("""{"currencies":{"coin_purse":100}}""")
+		)
+
+		assertEquals(mapOf("Purse" to 100L), holdings.currency())
+	}
+
+	@Test
+	fun `a reader that changes a stack it was handed does not change what the next reader gets`() {
+		val holdings = holdings(
+			member = DataFixture.json("""{"inventory":{"inv_contents":{"data":"${bag(slot("HYPERION", count = 3))}"}}}""")
+		)
+
+		holdings.items(NetworthCategory.INVENTORY).single().count = 64
+
+		assertEquals(3, holdings.items(NetworthCategory.INVENTORY).single().count)
+		assertEquals(3, holdings.inventory.copies().single().count)
+	}
+
+	@Test
+	fun `the sack counts and the pet list cannot be changed by whoever is handed them`() {
+		val holdings = holdings(
+			member = DataFixture.json(
+				"""{"inventory":{"sacks_counts":{"ENCHANTED_DIAMOND":5}},
+					"pets_data":{"pets":[{"type":"ENDER_DRAGON","tier":"LEGENDARY","exp":1}]}}"""
+			)
+		)
+
+		assertThrows(UnsupportedOperationException::class.java) { (holdings.sacks as MutableMap)["GOLD"] = 1L }
+		assertThrows(UnsupportedOperationException::class.java) { (holdings.pets as MutableList).clear() }
+		assertEquals(mapOf("ENCHANTED_DIAMOND" to 5L), holdings.sacks)
+		assertEquals(1, holdings.pets.size)
+	}
+
+	@Test
+	fun `two heads whose owner ids are unreadable still tell each other apart by texture`() {
+		val stacks = ApiInventory.stacks(bag(head(ownerId = "not a uuid"), head(ownerId = "", texture = OTHER_TEXTURE)))!!
+
+		assertNotEquals(SkyBlockItems.skullId(stacks[0]), SkyBlockItems.skullId(stacks[1]))
+		assertEquals(SkyBlockItems.skullId(stacks[0]), SkyBlockItems.skullId(ApiInventory.stacks(bag(head(ownerId = "")))!!.single()))
+	}
+
+	@Test
 	fun `a player with the inventory API turned off reads as empty rather than failing`() {
 		val holdings = holdings(member = JsonObject())
 
-		assertEquals(emptyList<ItemStack>(), holdings.inventory)
-		assertEquals(emptyList<ItemStack>(), holdings.enderChest)
-		assertEquals(emptyList<ItemStack>(), holdings.talismans)
+		assertEquals(emptyList<ItemStack>(), holdings.inventory.copies())
+		assertEquals(emptyList<ItemStack>(), holdings.enderChest.copies())
+		assertEquals(emptyList<ItemStack>(), holdings.talismans.copies())
 		assertFalse(holdings.inventoryApi)
 	}
 
@@ -212,15 +259,15 @@ class ProfileHoldingsTest {
 
 	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
 
-	private fun head(): CompoundTag {
+	private fun head(ownerId: String = "123e4567-e89b-12d3-a456-426614174000", texture: String = TEXTURE): CompoundTag {
 		val texturesEntry = CompoundTag()
-		texturesEntry.putString("Value", TEXTURE)
+		texturesEntry.putString("Value", texture)
 		val textures = ListTag()
 		textures.add(texturesEntry)
 		val properties = CompoundTag()
 		properties.put("textures", textures)
 		val owner = CompoundTag()
-		owner.putString("Id", "123e4567-e89b-12d3-a456-426614174000")
+		owner.putString("Id", ownerId)
 		owner.putString("Name", "Dhen")
 		owner.put("Properties", properties)
 		return slot("SKULL", "§fA Head").also { it.getCompoundOrEmpty("tag").put("SkullOwner", owner) }
@@ -233,6 +280,7 @@ class ProfileHoldingsTest {
 		fun bootstrap() = ItemFixture.bootstrap()
 
 		private const val TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWJjIn19fQ=="
+		private const val OTHER_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUveHl6In19fQ=="
 
 		private val LOWEST_BINS = """
 			{
