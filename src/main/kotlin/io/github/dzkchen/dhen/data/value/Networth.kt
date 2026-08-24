@@ -68,7 +68,7 @@ object Networth {
 	): Map<String, Long> = when (category) {
 		NetworthCategory.CURRENCY -> source.currency()
 		NetworthCategory.SACKS -> sacks(source.sacks(), prices)
-		NetworthCategory.PETS -> pets(source.pets(), prices)
+		NetworthCategory.PETS -> pets(source.pets(), prices, crafts)
 		else -> items(source.items(category), prices, crafts)
 	}
 
@@ -95,14 +95,11 @@ object Networth {
 		return values
 	}
 
-	private fun pets(pets: List<PetInfo>, prices: PriceSource): Map<String, Long> {
+	private fun pets(pets: List<PetInfo>, prices: PriceSource, crafts: CraftCost): Map<String, Long> {
 		if (pets.isEmpty()) return emptyMap()
 		val values = LinkedHashMap<String, Long>(pets.size)
 		for (pet in pets) {
-			val value = Prices.priceOr(ItemValue.listedPet(pet, prices), prices, 0.0) +
-				Prices.priceOr(pet.heldItem.orEmpty(), prices, 0.0) +
-				Prices.priceOr(pet.skin.orEmpty(), prices, 0.0)
-			values.merge(titleCase("${pet.tier}_${pet.type}"), value.toLong(), Long::plus)
+			values.merge(titleCase("${pet.tier}_${pet.type}"), ItemValue.of(pet, prices, crafts).total.toLong(), Long::plus)
 		}
 		return values
 	}

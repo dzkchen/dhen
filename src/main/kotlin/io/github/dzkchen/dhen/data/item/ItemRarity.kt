@@ -36,6 +36,8 @@ enum class ItemRarity(baseColor: ChatFormatting, val magicalPower: Int) {
 
 		internal fun byColorCode(code: String): ItemRarity? = entries.find { it.colorCode == code }
 
+		internal fun byName(name: String): ItemRarity = entries.find { it.name == name } ?: NONE
+
 		internal fun of(stack: ItemStack): ItemRarity {
 			val lore = SkyBlockItems.lore(stack)
 			for (index in lore.indices.reversed()) fromLoreLine(legacyCodes(lore[index]))?.let { return it }

@@ -43,6 +43,28 @@ class SkyBlockItem internal constructor(
 	internal val tag: CompoundTag,
 	knownRarity: ItemRarity? = null
 ) {
+	private constructor(id: String, marketId: String, pet: PetInfo?, knownRarity: ItemRarity? = null) : this(
+		id = id,
+		uuid = "",
+		marketId = marketId,
+		pet = pet,
+		upgradeLevel = 0,
+		rarityUpgrades = 0,
+		hotPotatoCount = 0,
+		artOfWar = 0,
+		tunedTransmission = 0,
+		reforge = "",
+		enchantments = emptyMap(),
+		runes = emptyMap(),
+		attributes = emptyMap(),
+		gems = null,
+		ethermerge = false,
+		donatedMuseum = false,
+		timestamp = 0L,
+		tag = CompoundTag(),
+		knownRarity = knownRarity
+	)
+
 	private var resolvedRarity: ItemRarity? = knownRarity
 
 	val isRecombobulated: Boolean get() = rarityUpgrades > 0
@@ -103,27 +125,7 @@ class SkyBlockItem internal constructor(
 		resolvedRarity ?: ItemRarity.of(stack).also { resolvedRarity = it }
 
 	companion object {
-		val NONE = SkyBlockItem(
-			id = "",
-			uuid = "",
-			marketId = "",
-			pet = null,
-			upgradeLevel = 0,
-			rarityUpgrades = 0,
-			hotPotatoCount = 0,
-			artOfWar = 0,
-			tunedTransmission = 0,
-			reforge = "",
-			enchantments = emptyMap(),
-			runes = emptyMap(),
-			attributes = emptyMap(),
-			gems = null,
-			ethermerge = false,
-			donatedMuseum = false,
-			timestamp = 0L,
-			tag = CompoundTag(),
-			knownRarity = ItemRarity.NONE
-		)
+		val NONE = SkyBlockItem(id = "", marketId = "", pet = null, knownRarity = ItemRarity.NONE)
 
 		private const val ENCHANTED_BOOK = "ENCHANTED_BOOK"
 		private const val RUNE = "RUNE"
@@ -186,7 +188,10 @@ class SkyBlockItem internal constructor(
 			else -> id
 		}
 
-		internal fun petMarketId(pet: PetInfo): String = "$PET-${pet.type}-${pet.tier}"
+		internal fun ofPet(pet: PetInfo): SkyBlockItem =
+			SkyBlockItem(id = PET, marketId = petMarketId(pet), pet = pet)
+
+		private fun petMarketId(pet: PetInfo): String = "$PET-${pet.type}-${pet.tier}"
 
 		private fun keyedLevel(prefix: String, levels: Map<String, Int>): String {
 			val single = levels.entries.singleOrNull() ?: return ""

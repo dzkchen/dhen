@@ -103,6 +103,9 @@ object ItemValue {
 	fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource): Valuation =
 		of(item, rarity, source, CraftCost(source))
 
+	internal fun of(pet: PetInfo, source: PriceSource, crafts: CraftCost): Valuation =
+		of(SkyBlockItem.ofPet(pet), ItemRarity.byName(pet.tier), source, crafts)
+
 	internal fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource, crafts: CraftCost): Valuation {
 		val fold = Fold(item, rarity, source, crafts)
 		val base = baseItem(fold)
@@ -121,13 +124,10 @@ object ItemValue {
 		}
 		val pet = fold.item.pet ?: return fold.base(marketId, displayName(marketId))
 		val level = petLevel(pet)
-		return fold.base(listedPet(pet, level, fold.source), "${displayName(marketId)} level $level")
+		return fold.base(listedPet(marketId, level, fold.source), "${displayName(marketId)} level $level")
 	}
 
-	internal fun listedPet(pet: PetInfo, source: PriceSource): String = listedPet(pet, petLevel(pet), source)
-
-	private fun listedPet(pet: PetInfo, level: Int, source: PriceSource): String {
-		val marketId = SkyBlockItem.petMarketId(pet)
+	private fun listedPet(marketId: String, level: Int, source: PriceSource): String {
 		val leveled = marketId + levelSuffix(level)
 		return if (leveled != marketId && Prices.price(leveled, source) != null) leveled else marketId
 	}
