@@ -17,4 +17,9 @@ public abstract class GuiMixin {
 	private Screen dhen$screenChanged(final Screen opening) {
 		return ScreenHooks.screenChanged(this.screen, opening);
 	}
+
+	@ModifyVariable(method = "setScreen", at = @At("STORE"), argsOnly = true)
+	private Screen dhen$screenSynthesised(final Screen synthesised) {
+		return ScreenHooks.screenSynthesised(synthesised);
+	}
 }

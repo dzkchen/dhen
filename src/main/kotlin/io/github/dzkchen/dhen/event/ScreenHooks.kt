@@ -39,19 +39,12 @@ internal object ScreenHooks : Hooks {
 	override fun active(): Boolean = channels != null
 
 	@JvmStatic
-	fun screenChanged(closing: Screen?, opening: Screen?): Screen? {
-		if (changing) return opening
-		val channels = channels ?: return opening
-		changing = true
-		return try {
-			channels.changed(closing, opening)
-		} catch (throwable: Throwable) {
-			latchOff("screen change", throwable)
-			opening
-		} finally {
-			changing = false
-		}
-	}
+	fun screenChanged(closing: Screen?, opening: Screen?): Screen? =
+		guardedChange("screen change", opening) { it.changed(closing, opening) }
+
+	@JvmStatic
+	fun screenSynthesised(synthesised: Screen?): Screen? =
+		guardedChange("screen synthesised", synthesised) { it.changed(null, synthesised) }
 
 	@JvmStatic
 	fun beforeScreenRender(screen: Screen, graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int): Boolean =
@@ -118,6 +111,20 @@ internal object ScreenHooks : Hooks {
 	@JvmStatic
 	fun releaseTooltip(event: TooltipEvent) {
 		channels?.releaseTooltip(event)
+	}
+
+	private inline fun guardedChange(label: String, fallback: Screen?, block: (Channels) -> Screen?): Screen? {
+		if (changing) return fallback
+		val channels = channels ?: return fallback
+		changing = true
+		return try {
+			block(channels)
+		} catch (throwable: Throwable) {
+			latchOff(label, throwable)
+			fallback
+		} finally {
+			changing = false
+		}
 	}
 
 	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {

@@ -1,16 +1,16 @@
 package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.absent
-import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.uninitialized
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.DeathScreen
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.TitleScreen
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.SimpleContainer
 import net.minecraft.world.inventory.Slot
-import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -108,6 +108,97 @@ class ScreenHooksTest {
 	}
 
 	@Test
+	fun `the death screen vanilla invents when the player dies raises an open`() {
+		val death = uninitialized<DeathScreen>()
+		val seen = mutableListOf<Screen>()
+		bus.subscribe<GuiOpenEvent> { seen += it.screen }
+
+		ScreenHooks.screenChanged(FakeScreen("playing"), null)
+
+		assertSame(death, ScreenHooks.screenSynthesised(death))
+		assertEquals(listOf<Screen>(death), seen)
+	}
+
+	@Test
+	fun `the title screen vanilla invents when a menu closes with no world raises an open`() {
+		val title = uninitialized<TitleScreen>()
+		val seen = mutableListOf<Screen>()
+		bus.subscribe<GuiOpenEvent> { seen += it.screen }
+
+		ScreenHooks.screenChanged(FakeScreen("options"), null)
+
+		assertSame(title, ScreenHooks.screenSynthesised(title))
+		assertEquals(listOf<Screen>(title), seen)
+	}
+
+	@Test
+	fun `a null argument raises the close and exactly one open, never two`() {
+		val seen = mutableListOf<String>()
+		bus.subscribe<GuiCloseEvent> { seen += "close ${it.screen.title.string}" }
+		bus.subscribe<GuiOpenEvent> { seen += "open" }
+
+		assertNull(ScreenHooks.screenChanged(FakeScreen("playing"), null))
+		ScreenHooks.screenSynthesised(uninitialized<DeathScreen>())
+
+		assertEquals(listOf("close playing", "open"), seen)
+	}
+
+	@Test
+	fun `a handler replaces the screen vanilla invented`() {
+		val ours = FakeScreen("ours")
+		bus.subscribe<GuiOpenEvent> { if (it.screen is DeathScreen) it.screen = ours }
+
+		assertSame(ours, ScreenHooks.screenSynthesised(uninitialized<DeathScreen>()))
+	}
+
+	@Test
+	fun `a chat screen vanilla had nothing to restore raises no open`() {
+		var seen = false
+		bus.subscribe<GuiOpenEvent> { seen = true }
+
+		assertNull(ScreenHooks.screenSynthesised(null))
+		assertFalse(seen)
+	}
+
+	@Test
+	fun `a screen invented inside an open handler raises one open, not two`() {
+		val nested = uninitialized<TitleScreen>()
+		val seen = mutableListOf<Screen>()
+		var reply: Screen? = null
+		bus.subscribe<GuiOpenEvent> {
+			seen += it.screen
+			if (it.screen !== nested) reply = ScreenHooks.screenSynthesised(nested)
+		}
+
+		val arriving = FakeScreen("arriving")
+		ScreenHooks.screenChanged(null, arriving)
+
+		assertEquals(listOf<Screen>(arriving), seen)
+		assertSame(nested, reply)
+	}
+
+	@Test
+	fun `a handler that throws on an invented screen turns the hooks off instead of failing the screen change`() {
+		val death = uninitialized<DeathScreen>()
+		bus.subscribe<GuiOpenEvent> { throw IllegalStateException("boom") }
+
+		assertSame(death, ScreenHooks.screenSynthesised(death))
+		assertFalse(ScreenHooks.active())
+	}
+
+	@Test
+	fun `invented screens are ignored while the hooks are not installed`() {
+		ScreenHooks.uninstall()
+		var seen = false
+		bus.subscribe<GuiOpenEvent> { seen = true }
+
+		val death = uninitialized<DeathScreen>()
+
+		assertSame(death, ScreenHooks.screenSynthesised(death))
+		assertFalse(seen)
+	}
+
+	@Test
 	fun `a disconnect releases the container the shared slot event was holding`() {
 		var seen: SlotRenderEvent? = null
 		bus.subscribe<SlotRenderEvent.Pre> { seen = it }
@@ -140,7 +231,7 @@ class ScreenHooksTest {
 			uninitialized<ContainerScreen>(),
 			uninitialized<GuiGraphicsExtractor>(),
 			slot(),
-			ItemStack(Items.DIAMOND),
+			ItemFixture.vanilla(),
 			listOf(Component.literal("Diamond")),
 			0,
 			0
@@ -181,7 +272,7 @@ class ScreenHooksTest {
 	private companion object {
 		@JvmStatic
 		@BeforeAll
-		fun bootstrap() = bootstrapMinecraft()
+		fun bootstrap() = ItemFixture.bootstrap()
 	}
 }
 
