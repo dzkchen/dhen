@@ -60,10 +60,11 @@ internal object ConstantsFixture {
 
 	val PETS: String = """
 		{
-		  "pet_rarity_offset": {"COMMON": 0, "LEGENDARY": 0},
+		  "pet_rarity_offset": {"COMMON": 0, "RARE": 0, "EPIC": 50, "LEGENDARY": 0, "MYTHIC": 50},
 		  "pet_levels": [${List(99) { 1 }.joinToString(", ")}],
 		  "custom_pet_leveling": {
-		    "GOLDEN_DRAGON": {"pet_levels": [${List(100) { 2 }.joinToString(", ")}], "max_level": 200}
+		    "GOLDEN_DRAGON": {"pet_levels": [${List(100) { 2 }.joinToString(", ")}], "max_level": 200},
+		    "BINGO": {"rarity_offset": {"COMMON": 0, "RARE": 0, "EPIC": 0, "LEGENDARY": 0}}
 		  }
 		}
 	"""

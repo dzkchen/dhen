@@ -86,6 +86,16 @@ class RepoConstantsTest {
 	}
 
 	@Test
+	fun `a curve tier the pet's own tree does not offset falls back to the tier the pet is`() {
+		write("pets", ConstantsFixture.PETS)
+
+		val constants = read()
+
+		assertEquals(100, constants.petLevel("BINGO", "LEGENDARY", 99.0, "MYTHIC"))
+		assertEquals(50, constants.petLevel("AMMONITE", "LEGENDARY", 99.0, "MYTHIC"))
+	}
+
+	@Test
 	fun `a pet of a tier the repo does not offset is left at level one`() {
 		write("pets", ConstantsFixture.PETS)
 

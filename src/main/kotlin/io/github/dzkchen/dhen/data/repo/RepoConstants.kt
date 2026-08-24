@@ -79,9 +79,10 @@ class RepoConstants private constructor(
 
 	fun maxLevel(ladder: LevelLadder, key: String): Int = leveling.table(ladder, key).maxLevel
 
-	fun petLevel(type: String, tier: String, exp: Double): Int {
+	fun petLevel(type: String, tier: String, exp: Double, curveTier: String = tier): Int {
 		val custom = customPets[type]
-		val offset = custom?.rarityOffsets?.get(tier) ?: petRarityOffsets[tier] ?: return 1
+		val offset = custom?.rarityOffsets?.let { it[curveTier] ?: it[tier] }
+			?: petRarityOffsets[curveTier] ?: petRarityOffsets[tier] ?: return 1
 		val tree = if (custom == null || custom.extraLevels.isEmpty()) petLevels else petLevels + custom.extraLevels
 		val maxLevel = custom?.maxLevel ?: DEFAULT_PET_MAX_LEVEL
 		var remaining = exp

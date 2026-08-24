@@ -154,6 +154,28 @@ internal class NetworthTest : RepoBackedTest() {
 	}
 
 	@Test
+	fun `a tier boosted pet levels on the boosted curve through either door`() {
+		installPetConstants()
+		val boosted = PetInfo("TIGER", "RARE", 99.0, TIER_BOOST, 0, null)
+		val plain = PetInfo("TIGER", "RARE", 99.0, null, 0, null)
+
+		assertEquals(1000L, report(petsOf(plain)).categories.getValue(NetworthCategory.PETS).values.single())
+		assertEquals(30L, report(petsOf(boosted)).categories.getValue(NetworthCategory.PETS).values.single())
+		assertEquals(
+			30L,
+			report(inventoryOf(petStack(boosted))).categories.getValue(NetworthCategory.INVENTORY).values.single()
+		)
+	}
+
+	@Test
+	fun `a tier boost on a pet the repo has no higher tier for leaves the curve alone`() {
+		installPetConstants()
+		val ammonite = PetInfo("AMMONITE", "RARE", 99.0, TIER_BOOST, 0, null)
+
+		assertEquals(1020L, report(petsOf(ammonite)).categories.getValue(NetworthCategory.PETS).values.single())
+	}
+
+	@Test
 	fun `a pet record carries no reforge`() {
 		assertEquals("", SkyBlockItem.ofPet(PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, null, 0, null)).reforge)
 	}
@@ -163,7 +185,7 @@ internal class NetworthTest : RepoBackedTest() {
 		DataFixture.installRepo(
 			scope,
 			home.resolve("pets"),
-			mapOf("AOTE" to DataFixture.ANY_ITEM),
+			mapOf("AOTE" to DataFixture.ANY_ITEM, "TIGER;3" to """{"internalname":"TIGER;3"}"""),
 			mapOf("pets" to ConstantsFixture.PETS)
 		)
 		DataFixture.installPrices(scope, LOWEST_BINS)
@@ -248,6 +270,9 @@ internal class NetworthTest : RepoBackedTest() {
 			  "ENCHANTED_DIAMOND": 1000.0,
 			  "PET-GOLDEN_DRAGON-LEGENDARY": 10.0,
 			  "PET-GOLDEN_DRAGON-LEGENDARY-200": 1000000.0,
+			  "PET-TIGER-RARE": 10.0,
+			  "PET-TIGER-RARE-100": 1000.0,
+			  "PET-AMMONITE-RARE-100": 1000.0,
 			  "PET_SKIN_GOLDEN_DRAGON": 55.0,
 			  "PET_ITEM_TIER_BOOST": 20.0
 			}

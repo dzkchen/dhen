@@ -11,7 +11,7 @@ internal object PriceTables {
 	private const val RUNE = "_RUNE"
 	private const val NPC_SELL_PRICE = "npc_sell_price"
 
-	private val PET_TIERS = arrayOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
+	val PET_TIERS = arrayOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
 
 	fun lowestBins(body: String): Map<String, Double> = cheapest(body) { it.replace(':', '-') }
 

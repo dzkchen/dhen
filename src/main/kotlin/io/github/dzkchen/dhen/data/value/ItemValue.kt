@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
+import io.github.dzkchen.dhen.data.price.PriceTables
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.CuratedConstants
 import io.github.dzkchen.dhen.data.repo.EndcapEnchant
@@ -40,6 +41,7 @@ object ItemValue {
 	private const val UNIQUE_RUNE = "UNIQUE_RUNE"
 	private const val ULTIMATE_WITHER_SCROLL = "ULTIMATE_WITHER_SCROLL"
 	private const val BOOSTER = "_BOOSTER"
+	private const val PET_TIER_BOOST = "PET_ITEM_TIER_BOOST"
 	private const val LEGENDARY_PET_LEVEL = 100
 	private const val DRAGON_PET_LEVEL = 200
 
@@ -134,7 +136,16 @@ object ItemValue {
 		return if (leveled != marketId && Prices.price(leveled, source) != null) leveled else marketId
 	}
 
-	private fun petLevel(pet: PetInfo): Int = ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp)
+	private fun petLevel(pet: PetInfo): Int =
+		ItemRepo.constants.petLevel(pet.type, pet.tier, pet.exp, curveTier(pet))
+
+	private fun curveTier(pet: PetInfo): String {
+		if (pet.heldItem != PET_TIER_BOOST) return pet.tier
+		val boosted = PriceTables.PET_TIERS.indexOf(pet.tier) + 1
+		if (boosted == 0 || boosted == PriceTables.PET_TIERS.size) return pet.tier
+		if (ItemRepo.item("${pet.type};$boosted") == null) return pet.tier
+		return PriceTables.PET_TIERS[boosted]
+	}
 
 	private fun levelSuffix(level: Int): String = when {
 		level >= DRAGON_PET_LEVEL -> "-$DRAGON_PET_LEVEL"
