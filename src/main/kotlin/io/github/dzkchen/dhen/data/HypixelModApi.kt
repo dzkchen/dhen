@@ -31,12 +31,18 @@ internal object HypixelModApi : Hooks {
 		Minecraft.getInstance().connection?.getPlayerInfo(uuid)?.profile?.name
 	}
 
+	private val minecraftThread: (Runnable) -> Unit = { Minecraft.getInstance().execute(it) }
+
 	private var registered = false
 
 	@Volatile
 	private var listening = false
 
-	fun install() {
+	@Volatile
+	private var clientThread: (Runnable) -> Unit = minecraftThread
+
+	fun install(clientThread: (Runnable) -> Unit = minecraftThread) {
+		this.clientThread = clientThread
 		if (registered) {
 			listening = true
 			return
@@ -49,9 +55,7 @@ internal object HypixelModApi : Hooks {
 			}
 			handleEvent(ClientboundLocationPacket::class.java, ::located)
 			handle(ClientboundPartyInfoPacket::class.java) { partyInfo(it) }
-				.onError { reason ->
-					if (listening) Minecraft.getInstance().execute { failsafe.guard("party info error") { partyInfoRefused(reason) } }
-				}
+				.onError { reason -> delivered("party info error") { partyInfoRefused(reason) } }
 			listening = true
 		} catch (throwable: Throwable) {
 			HypixelLocationHooks.uninstall()
@@ -65,6 +69,21 @@ internal object HypixelModApi : Hooks {
 	}
 
 	override fun active(): Boolean = listening
+
+	fun delivered(label: String, block: () -> Unit) {
+		if (!listening) return
+		clientThread { guarded(label, block) }
+	}
+
+	private fun guarded(label: String, block: () -> Unit) {
+		if (!listening) return
+		try {
+			block()
+		} catch (throwable: Throwable) {
+			uninstall()
+			failsafe.fail(label, throwable)
+		}
+	}
 
 	fun located(packet: ClientboundLocationPacket) = HypixelLocationHooks.located(
 		serverName = packet.serverName,
@@ -94,7 +113,7 @@ internal object HypixelModApi : Hooks {
 
 	fun <T : ClientboundHypixelPacket> handle(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> =
 		HypixelModAPI.getInstance().createHandler(type) { packet ->
-			if (listening) Minecraft.getInstance().execute { failsafe.guard(type.simpleName) { handler(packet) } }
+			delivered(type.simpleName) { handler(packet) }
 		}
 
 	fun <T : EventPacket> handleEvent(type: Class<T>, handler: (T) -> Unit): RegisteredHandler<T> {

@@ -23,12 +23,14 @@ class HypixelModApiTest {
 	fun install() {
 		HypixelLocationHooks.install(bus)
 		PartyHooks.install(bus, self = { "Me" }, request = {})
+		HypixelModApi.install { it.run() }
 	}
 
 	@AfterEach
 	fun uninstall() {
 		HypixelLocationHooks.uninstall()
 		PartyHooks.uninstall()
+		HypixelModApi.uninstall()
 	}
 
 	@Test
@@ -99,6 +101,28 @@ class HypixelModApiTest {
 
 		assertFalse(PartyState.inParty)
 		assertTrue(PartyState.members.isEmpty())
+	}
+
+	@Test
+	fun `a throwing packet handler turns the mod api feed off and reports it off`() {
+		assertTrue(HypixelModApi.active())
+
+		HypixelModApi.delivered("party info") { error("boom") }
+
+		assertFalse(HypixelModApi.active())
+	}
+
+	@Test
+	fun `a latched feed delivers nothing until it is installed again`() {
+		var delivered = 0
+		HypixelModApi.delivered("party info") { error("boom") }
+
+		HypixelModApi.delivered("party info") { delivered++ }
+
+		assertEquals(0, delivered)
+		HypixelModApi.install { it.run() }
+		HypixelModApi.delivered("party info") { delivered++ }
+		assertEquals(1, delivered)
 	}
 
 	private fun partyOf(vararg members: Pair<UUID, PartyRole>): ClientboundPartyInfoPacket =
