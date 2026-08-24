@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.PetInfo
+import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -150,6 +151,11 @@ internal class NetworthTest : RepoBackedTest() {
 
 		assertEquals(ItemRarity.LEGENDARY, ItemRarity.of(dragon))
 		assertEquals(ItemRarity.LEGENDARY, HeldItem.of(petStack(dragon)).rarity)
+	}
+
+	@Test
+	fun `a pet record carries no reforge`() {
+		assertEquals("", SkyBlockItem.ofPet(PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, null, 0, null)).reforge)
 	}
 
 	private fun installPetConstants() {

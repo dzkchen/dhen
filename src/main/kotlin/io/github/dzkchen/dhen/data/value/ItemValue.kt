@@ -104,12 +104,14 @@ object ItemValue {
 		of(item, rarity, source, CraftCost(source))
 
 	internal fun of(pet: PetInfo, source: PriceSource, crafts: CraftCost): Valuation =
-		of(SkyBlockItem.ofPet(pet), ItemRarity.of(pet), source, crafts)
+		valuation(Fold(SkyBlockItem.ofPet(pet), null, source, crafts))
 
-	internal fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource, crafts: CraftCost): Valuation {
-		val fold = Fold(item, rarity, source, crafts)
+	internal fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource, crafts: CraftCost): Valuation =
+		valuation(Fold(item, rarity, source, crafts))
+
+	private fun valuation(fold: Fold): Valuation {
 		val base = baseItem(fold)
-		var total = if (item.id == ENCHANTED_BOOK) 0.0 else base
+		var total = if (fold.item.id == ENCHANTED_BOOK) 0.0 else base
 		for (modifier in MODIFIERS) total += modifier(fold)
 		return Valuation(total, base, fold.lines)
 	}
@@ -147,7 +149,7 @@ object ItemValue {
 
 	private fun reforgeStone(fold: Fold): Double {
 		val reforge = ItemRepo.constants.reforgeStone(fold.item.reforge) ?: return 0.0
-		val applyCost = applyCost(reforge.costs, fold.rarity, fold.item.isRecombobulated) ?: return 0.0
+		val applyCost = applyCost(reforge.costs, fold.rarity ?: return 0.0, fold.item.isRecombobulated) ?: return 0.0
 		return fold.entry(reforge.stone, label = "Reforge: ${reforge.reforge}") +
 			fold.coins("Reforge apply cost", applyCost.toDouble())
 	}
@@ -384,7 +386,7 @@ object ItemValue {
 
 	private class Fold(
 		val item: SkyBlockItem,
-		val rarity: ItemRarity,
+		val rarity: ItemRarity?,
 		val source: PriceSource,
 		val crafts: CraftCost
 	) {
