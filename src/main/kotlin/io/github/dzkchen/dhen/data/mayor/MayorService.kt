@@ -21,6 +21,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.minecraft.world.item.ItemStack
 import java.util.regex.Pattern
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
@@ -34,10 +35,11 @@ object MayorService {
 	private const val NANOS_PER_MILLI = 1_000_000L
 
 	private val POLL = 1.minutes
-	private val REFRESH = 20.minutes
+	private val SEATED_REFRESH = 20.minutes
+	private val UNSEATED_REFRESH = 1.minutes
 	private val PERKPOCALYPSE_TERM = 6.hours
 
-	private val feed = CachedFeed("mayor", ELECTION_URL, REFRESH, ::readable, MayorReply::parse)
+	private val feed = CachedFeed("mayor", ELECTION_URL, Duration.INFINITE, ::readable, MayorReply::parse)
 	private val failsafe = Failsafe("Dhen {} failed, its mayor data is off until restart")
 	private val pump = RequirementPump()
 	private val calendarTitle =
@@ -56,6 +58,9 @@ object MayorService {
 
 	@Volatile
 	private var extraMayorUntil = 0L
+
+	@Volatile
+	private var askedAt = 0L
 
 	val required: Int get() = pump.count
 
@@ -112,6 +117,7 @@ object MayorService {
 		subscriptions = emptyArray()
 		host = null
 		pump.reset()
+		askedAt = 0L
 		extraMayorPerk = null
 		extraMayorUntil = 0L
 		feed.reset()
@@ -142,8 +148,10 @@ object MayorService {
 	private suspend fun refresh(host: Host) = coroutineScope {
 		val previous = seated?.mayor?.name
 		val stamp = host.epochMillis() * NANOS_PER_MILLI
-		if (!feed.stale(stamp, POLL)) return@coroutineScope
-		if (previous != null && !feed.stale(stamp)) return@coroutineScope
+		val askAgainAfter = if (previous == null) UNSEATED_REFRESH else SEATED_REFRESH
+		val sinceAsked = stamp - askedAt
+		if (sinceAsked >= 0 && sinceAsked < askAgainAfter.inWholeNanoseconds) return@coroutineScope
+		askedAt = stamp
 		if (!feed.refresh(host.web, stamp) { this@MayorService.host === host && isActive }) return@coroutineScope
 		val current = seated?.mayor?.name
 		if (current == previous) return@coroutineScope

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class MayorServiceTest {
 	private val scope = CoroutineScope(Dispatchers.Unconfined)
@@ -262,6 +263,74 @@ class MayorServiceTest {
 		MayorService.require()
 
 		assertEquals(1, source.requests.size)
+	}
+
+	@Test
+	fun `a seated mayor is left alone for twenty minutes and asked for again after that`() {
+		install()
+		MayorService.require().unsubscribe()
+
+		millis += 19.minutes.inWholeMilliseconds
+		MayorService.require().unsubscribe()
+
+		assertEquals(1, source.requests.size)
+
+		millis += 1.minutes.inWholeMilliseconds
+		MayorService.require()
+
+		assertEquals(2, source.requests.size)
+	}
+
+	@Test
+	fun `a mayor nobody has seated is asked for again a minute later, not twenty`() {
+		source.lastUpdated = SkyBlockCalendar.millisAt(508, 4, 1)
+		install()
+		MayorService.require().unsubscribe()
+
+		millis += 1.minutes.inWholeMilliseconds
+		MayorService.require()
+
+		assertEquals(2, source.requests.size)
+		assertNull(MayorService.mayor)
+	}
+
+	@Test
+	fun `a mayor the election unseated is asked for again a minute later, not twenty`() {
+		millis = SkyBlockCalendar.millisAt(510, 3, 27) - 1.minutes.inWholeMilliseconds
+		install()
+		MayorService.require().unsubscribe()
+		assertEquals("Diana", MayorService.mayor?.name)
+
+		millis += 2.minutes.inWholeMilliseconds
+		MayorService.require()
+
+		assertNull(MayorService.mayor)
+		assertEquals(2, source.requests.size)
+	}
+
+	@Test
+	fun `a clock that jumps backwards does not silence a client with no mayor`() {
+		source.reachable = false
+		install()
+		MayorService.require().unsubscribe()
+
+		millis -= 30.minutes.inWholeMilliseconds
+		MayorService.require()
+
+		assertEquals(2, source.requests.size)
+	}
+
+	@Test
+	fun `a source that never answered is still only asked once a minute`() {
+		source.reachable = false
+		install()
+
+		MayorService.require().unsubscribe()
+		MayorService.require().unsubscribe()
+		MayorService.require()
+
+		assertEquals(1, source.requests.size)
+		assertEquals(1, MayorService.failedRefreshes)
 	}
 
 	@Test
