@@ -122,7 +122,7 @@ class SkyBlockItem internal constructor(
 	}
 
 	internal fun rarity(stack: ItemStack): ItemRarity =
-		resolvedRarity ?: ItemRarity.of(stack).also { resolvedRarity = it }
+		resolvedRarity ?: (pet?.let { ItemRarity.of(it) } ?: ItemRarity.of(stack)).also { resolvedRarity = it }
 
 	companion object {
 		val NONE = SkyBlockItem(id = "", marketId = "", pet = null, knownRarity = ItemRarity.NONE)

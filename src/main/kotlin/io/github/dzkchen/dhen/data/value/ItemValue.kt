@@ -104,7 +104,7 @@ object ItemValue {
 		of(item, rarity, source, CraftCost(source))
 
 	internal fun of(pet: PetInfo, source: PriceSource, crafts: CraftCost): Valuation =
-		of(SkyBlockItem.ofPet(pet), ItemRarity.byName(pet.tier), source, crafts)
+		of(SkyBlockItem.ofPet(pet), ItemRarity.of(pet), source, crafts)
 
 	internal fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource, crafts: CraftCost): Valuation {
 		val fold = Fold(item, rarity, source, crafts)

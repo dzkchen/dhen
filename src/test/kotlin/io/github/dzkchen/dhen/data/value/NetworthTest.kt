@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.ItemFixture
+import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.repo.ConstantsFixture
@@ -134,13 +135,21 @@ internal class NetworthTest : RepoBackedTest() {
 	@Test
 	fun `a pet carries its held item and its skin through either door`() {
 		installPetConstants()
-		val dragon = PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, "TIER_BOOST", 0, "PET_SKIN_GOLDEN_DRAGON")
+		val dragon = PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, TIER_BOOST, 0, "PET_SKIN_GOLDEN_DRAGON")
 
 		val listed = report(petsOf(dragon)).categories.getValue(NetworthCategory.PETS)
 		val held = report(inventoryOf(petStack(dragon))).categories.getValue(NetworthCategory.INVENTORY)
 
 		assertEquals(1000075L, listed.values.single())
 		assertEquals(1000075L, held.values.single())
+	}
+
+	@Test
+	fun `a tier boosted pet is one rarity, not one per door`() {
+		val dragon = PetInfo("GOLDEN_DRAGON", "LEGENDARY", 299.0, TIER_BOOST, 0, null)
+
+		assertEquals(ItemRarity.LEGENDARY, ItemRarity.of(dragon))
+		assertEquals(ItemRarity.LEGENDARY, HeldItem.of(petStack(dragon)).rarity)
 	}
 
 	private fun installPetConstants() {
@@ -174,7 +183,7 @@ internal class NetworthTest : RepoBackedTest() {
 
 		override fun sacks(): Map<String, Long> = mapOf("ENCHANTED_DIAMOND" to 2L, "NOBODY_BUYS_THIS" to 40L)
 
-		override fun pets(): List<PetInfo> = listOf(PetInfo("GOLDEN_DRAGON", "LEGENDARY", 0.0, "TIER_BOOST", 0, null))
+		override fun pets(): List<PetInfo> = listOf(PetInfo("GOLDEN_DRAGON", "LEGENDARY", 0.0, TIER_BOOST, 0, null))
 
 		override fun currency(): Map<String, Long> = mapOf("Purse" to 5L, "Solo Bank" to 7L)
 	}
@@ -199,6 +208,7 @@ internal class NetworthTest : RepoBackedTest() {
 
 	private companion object {
 		private const val CLIENT_THREAD = "dhen-fake-client-thread"
+		private const val TIER_BOOST = "PET_ITEM_TIER_BOOST"
 
 		@JvmStatic
 		@BeforeAll
@@ -216,7 +226,10 @@ internal class NetworthTest : RepoBackedTest() {
 					pet.heldItem?.let { ""","heldItem":"$it"""" }.orEmpty() +
 					pet.skin?.let { ""","skin":"$it"""" }.orEmpty() + "}"
 			)
-		}.also { it.set(DataComponents.CUSTOM_NAME, Component.literal("§6Golden Dragon")) }
+		}.also { it.set(DataComponents.CUSTOM_NAME, Component.literal(petName(pet))) }
+
+		private fun petName(pet: PetInfo): String =
+			"§7[Lvl 200] " + if (pet.heldItem == TIER_BOOST) "§dGolden Dragon" else "§6Golden Dragon"
 
 		private fun named(id: String, name: String): ItemStack =
 			ItemFixture.stack { putString("id", id) }
@@ -230,7 +243,7 @@ internal class NetworthTest : RepoBackedTest() {
 			  "PET-GOLDEN_DRAGON-LEGENDARY": 10.0,
 			  "PET-GOLDEN_DRAGON-LEGENDARY-200": 1000000.0,
 			  "PET_SKIN_GOLDEN_DRAGON": 55.0,
-			  "TIER_BOOST": 20.0
+			  "PET_ITEM_TIER_BOOST": 20.0
 			}
 		""".trimIndent()
 	}
