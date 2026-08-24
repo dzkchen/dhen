@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.RepoBackedTest
 import io.github.dzkchen.dhen.data.item.ApiInventory
+import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -15,6 +16,7 @@ import io.github.dzkchen.dhen.data.value.NetworthCategory
 import net.minecraft.core.component.DataComponents
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
+import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,7 +45,7 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 
 		assertEquals(3, stacks.size)
 		assertTrue(stacks[0].isEmpty)
-		assertEquals("BOOTS", skyBlockId(stacks[1]))
+		assertEquals("BOOTS", SkyBlockItem.parse(SkyBlockItems.customData(stacks[1])!!).id)
 		assertTrue(stacks[2].isEmpty)
 	}
 
@@ -74,7 +76,7 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 			)
 		)
 
-		assertEquals(listOf("FIRST", "SECOND"), holdings.backpacks.copies().map(::skyBlockId))
+		assertEquals(listOf("FIRST", "SECOND"), holdings.backpacks.map { it.item.id })
 	}
 
 	@Test
@@ -106,7 +108,7 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 			NetworthCategory.QUIVER_BAG to "ARROW"
 		)
 
-		for ((category, id) in filed) assertEquals(id, skyBlockId(holdings.items(category).single()), category.name)
+		for ((category, id) in filed) assertEquals(id, holdings.items(category).single().item.id, category.name)
 	}
 
 	@Test
@@ -146,7 +148,7 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 			)
 		)
 
-		assertEquals(listOf("HELM", "BOOTS", "CLOAK"), holdings.loadout.copies().map(::skyBlockId))
+		assertEquals(listOf("HELM", "BOOTS", "CLOAK"), holdings.loadout.map { it.item.id })
 	}
 
 	@Test
@@ -172,13 +174,19 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 	@Test
 	fun `a reader that changes a stack it was handed does not change what the next reader gets`() {
 		val holdings = holdings(
-			member = DataFixture.json("""{"inventory":{"inv_contents":{"data":"${bag(slot("HYPERION", count = 3))}"}}}""")
+			member = DataFixture.json("""{"inventory":{"inv_contents":{"data":"${bag(slot("HYPERION", "§6Hyperion", count = 3))}"}}}""")
 		)
 
-		holdings.items(NetworthCategory.INVENTORY).single().count = 64
+		holdings.items(NetworthCategory.INVENTORY).single().stack().also {
+			it.count = 64
+			it.set(DataComponents.CUSTOM_NAME, Component.literal("§cMine now"))
+		}
 
-		assertEquals(3, holdings.items(NetworthCategory.INVENTORY).single().count)
-		assertEquals(3, holdings.inventory.copies().single().count)
+		val next = holdings.items(NetworthCategory.INVENTORY).single()
+		assertEquals(3, next.count)
+		assertEquals("§6Hyperion", next.stack().get(DataComponents.CUSTOM_NAME)?.string)
+		assertEquals(3, holdings.inventory.single().stack().count)
+		assertThrows(UnsupportedOperationException::class.java) { (holdings.inventory as MutableList).clear() }
 	}
 
 	@Test
@@ -208,9 +216,9 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 	fun `a player with the inventory API turned off reads as empty rather than failing`() {
 		val holdings = holdings(member = JsonObject())
 
-		assertEquals(emptyList<ItemStack>(), holdings.inventory.copies())
-		assertEquals(emptyList<ItemStack>(), holdings.enderChest.copies())
-		assertEquals(emptyList<ItemStack>(), holdings.talismans.copies())
+		assertEquals(emptyList<HeldItem>(), holdings.inventory)
+		assertEquals(emptyList<HeldItem>(), holdings.enderChest)
+		assertEquals(emptyList<HeldItem>(), holdings.talismans)
 		assertFalse(holdings.inventoryApi)
 	}
 
@@ -242,8 +250,6 @@ internal class ProfileHoldingsTest : RepoBackedTest() {
 
 	private fun holdings(profile: JsonObject = DataFixture.json("""{"banking":{}}"""), member: JsonObject): ProfileHoldings =
 		ProfileHoldings.of(profile, member)
-
-	private fun skyBlockId(stack: ItemStack): String = SkyBlockItem.parse(SkyBlockItems.customData(stack)!!).id
 
 	private fun head(ownerId: String = BagFixture.VIEWED_UUID, texture: String = TEXTURE): CompoundTag {
 		val texturesEntry = CompoundTag()

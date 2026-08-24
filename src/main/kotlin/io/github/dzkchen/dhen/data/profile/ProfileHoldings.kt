@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.profile
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.data.item.ApiInventory
+import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.value.NetworthCategory
@@ -20,24 +21,20 @@ private const val PROFILE_BANK = "Profile Bank"
 private const val EQUIPPED_SET = "equipped_set"
 private val LOADOUT_SECTIONS = listOf("armor", "equipment")
 
-class HeldStacks internal constructor(private val held: List<ItemStack>) {
-	fun copies(): List<ItemStack> = held.map(ItemStack::copy)
-}
-
 class ProfileHoldings internal constructor(
-	val inventory: HeldStacks,
-	val armor: HeldStacks,
-	val equipment: HeldStacks,
-	val enderChest: HeldStacks,
-	val backpacks: HeldStacks,
-	val talismans: HeldStacks,
-	val fishingBag: HeldStacks,
-	val quiver: HeldStacks,
-	val potionBag: HeldStacks,
-	val personalVault: HeldStacks,
-	val candy: HeldStacks,
-	val carnivalMasks: HeldStacks,
-	val loadout: HeldStacks,
+	val inventory: List<HeldItem>,
+	val armor: List<HeldItem>,
+	val equipment: List<HeldItem>,
+	val enderChest: List<HeldItem>,
+	val backpacks: List<HeldItem>,
+	val talismans: List<HeldItem>,
+	val fishingBag: List<HeldItem>,
+	val quiver: List<HeldItem>,
+	val potionBag: List<HeldItem>,
+	val personalVault: List<HeldItem>,
+	val candy: List<HeldItem>,
+	val carnivalMasks: List<HeldItem>,
+	val loadout: List<HeldItem>,
 	val sacks: Map<String, Long>,
 	val pets: List<PetInfo>,
 	val purse: Long?,
@@ -45,7 +42,7 @@ class ProfileHoldings internal constructor(
 	val profileBank: Long?,
 	val inventoryApi: Boolean
 ) : NetworthSource {
-	override fun items(category: NetworthCategory): List<ItemStack> = when (category) {
+	override fun items(category: NetworthCategory): List<HeldItem> = when (category) {
 		NetworthCategory.INVENTORY -> inventory
 		NetworthCategory.ARMOR -> armor
 		NetworthCategory.EQUIPMENT -> equipment
@@ -56,8 +53,8 @@ class ProfileHoldings internal constructor(
 		NetworthCategory.QUIVER_BAG -> quiver
 		NetworthCategory.PERSONAL_VAULT -> personalVault
 		NetworthCategory.LOADOUT -> loadout
-		else -> NONE
-	}.copies()
+		else -> emptyList()
+	}
 
 	override fun sacks(): Map<String, Long> = sacks
 
@@ -70,25 +67,23 @@ class ProfileHoldings internal constructor(
 	}
 
 	internal companion object {
-		private val NONE = HeldStacks(emptyList())
-
 		fun of(profile: JsonObject, member: JsonObject): ProfileHoldings {
 			val inventory = member.obj("inventory")
 			val bags = inventory?.obj("bag_contents")
 			val shared = member.obj("shared_inventory")
 			return ProfileHoldings(
-				inventory = stacks(inventory, "inv_contents"),
-				armor = stacks(inventory, "inv_armor"),
-				equipment = stacks(inventory, "equipment_contents"),
-				enderChest = stacks(inventory, "ender_chest_contents"),
+				inventory = held(inventory, "inv_contents"),
+				armor = held(inventory, "inv_armor"),
+				equipment = held(inventory, "equipment_contents"),
+				enderChest = held(inventory, "ender_chest_contents"),
 				backpacks = backpacks(inventory?.obj("backpack_contents")),
-				talismans = stacks(bags, "talisman_bag"),
-				fishingBag = stacks(bags, "fishing_bag"),
-				quiver = stacks(bags, "quiver"),
-				potionBag = stacks(bags, "potion_bag"),
-				personalVault = stacks(inventory, "personal_vault_contents"),
-				candy = stacks(shared, "candy_inventory_contents"),
-				carnivalMasks = stacks(shared, "carnival_mask_inventory_contents"),
+				talismans = held(bags, "talisman_bag"),
+				fishingBag = held(bags, "fishing_bag"),
+				quiver = held(bags, "quiver"),
+				potionBag = held(bags, "potion_bag"),
+				personalVault = held(inventory, "personal_vault_contents"),
+				candy = held(shared, "candy_inventory_contents"),
+				carnivalMasks = held(shared, "carnival_mask_inventory_contents"),
 				loadout = loadout(member.obj("loadout")),
 				sacks = sacks(inventory?.obj("sacks_counts")),
 				pets = pets(member.obj("pets_data")?.array("pets")),
@@ -99,28 +94,31 @@ class ProfileHoldings internal constructor(
 			)
 		}
 
-		private fun stacks(owner: JsonObject?, key: String): HeldStacks = HeldStacks(slots(owner, key))
+		private fun held(owner: JsonObject?, key: String): List<HeldItem> = held(slots(owner, key))
+
+		private fun held(stacks: List<ItemStack>): List<HeldItem> =
+			if (stacks.isEmpty()) emptyList() else buildList(stacks.size) { stacks.mapTo(this, HeldItem::of) }
 
 		private fun slots(owner: JsonObject?, key: String): List<ItemStack> =
 			ApiInventory.stacks(owner?.obj(key)?.text("data")) ?: emptyList()
 
-		private fun backpacks(pages: JsonObject?): HeldStacks {
-			if (pages == null) return NONE
-			return HeldStacks(pages.keySet().filter { it.toIntOrNull() != null }.sortedBy(String::toInt).flatMap { slots(pages, it) })
+		private fun backpacks(pages: JsonObject?): List<HeldItem> {
+			if (pages == null) return emptyList()
+			return held(pages.keySet().filter { it.toIntOrNull() != null }.sortedBy(String::toInt).flatMap { slots(pages, it) })
 		}
 
-		private fun loadout(loadout: JsonObject?): HeldStacks {
-			if (loadout == null) return NONE
-			val held = ArrayList<ItemStack>()
+		private fun loadout(loadout: JsonObject?): List<HeldItem> {
+			if (loadout == null) return emptyList()
+			val stacks = ArrayList<ItemStack>()
 			for (section in LOADOUT_SECTIONS) {
 				val sets = loadout.obj(section) ?: continue
 				for (name in sets.keySet()) {
 					if (name == EQUIPPED_SET) continue
 					val set = sets.obj(name) ?: continue
-					for (slot in set.keySet()) held += slots(set, slot)
+					for (slot in set.keySet()) stacks += slots(set, slot)
 				}
 			}
-			return HeldStacks(held)
+			return held(stacks)
 		}
 
 		private fun sacks(counts: JsonObject?): Map<String, Long> = buildMap {

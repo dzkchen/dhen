@@ -1,15 +1,13 @@
 package io.github.dzkchen.dhen.data.value
 
+import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
-import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
-import io.github.dzkchen.dhen.event.withoutCodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.minecraft.world.item.ItemStack
 import java.util.Locale
 
 enum class NetworthCategory(label: String? = null) {
@@ -31,7 +29,7 @@ enum class NetworthCategory(label: String? = null) {
 }
 
 interface NetworthSource {
-	fun items(category: NetworthCategory): List<ItemStack> = emptyList()
+	fun items(category: NetworthCategory): List<HeldItem> = emptyList()
 
 	fun sacks(): Map<String, Long> = emptyMap()
 
@@ -74,14 +72,14 @@ object Networth {
 		else -> items(source.items(category), prices, crafts)
 	}
 
-	private fun items(stacks: List<ItemStack>, prices: PriceSource, crafts: CraftCost): Map<String, Long> {
-		if (stacks.isEmpty()) return emptyMap()
-		val values = LinkedHashMap<String, Long>(stacks.size)
-		for (stack in stacks) {
-			val data = SkyBlockItems.customData(stack) ?: continue
-			val item = SkyBlockItem.parse(data)
-			val valuation = ItemValue.of(item, item.rarity(stack), prices, crafts)
-			values.merge(name(stack), (valuation.total * stack.count).toLong(), Long::plus)
+	private fun items(held: List<HeldItem>, prices: PriceSource, crafts: CraftCost): Map<String, Long> {
+		if (held.isEmpty()) return emptyMap()
+		val values = LinkedHashMap<String, Long>(held.size)
+		for (entry in held) {
+			val item = entry.item
+			if (item === SkyBlockItem.NONE) continue
+			val valuation = ItemValue.of(item, entry.rarity, prices, crafts)
+			values.merge(entry.name, (valuation.total * entry.count).toLong(), Long::plus)
 		}
 		return values
 	}
@@ -108,8 +106,6 @@ object Networth {
 		}
 		return values
 	}
-
-	private fun name(stack: ItemStack): String = withoutCodes(stack.hoverName.string)
 }
 
 private fun titleCase(name: String): String =

@@ -36,11 +36,11 @@ class SkyBlockItem internal constructor(
 	val enchantments: Map<String, Int>,
 	val runes: Map<String, Int>,
 	val attributes: Map<String, Int>,
-	val gems: CompoundTag?,
+	internal val gems: CompoundTag?,
 	val ethermerge: Boolean,
 	val donatedMuseum: Boolean,
 	val timestamp: Long,
-	val tag: CompoundTag,
+	internal val tag: CompoundTag,
 	knownRarity: ItemRarity? = null
 ) {
 	private var resolvedRarity: ItemRarity? = knownRarity

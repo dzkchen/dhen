@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.value
 
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.data.RepoBackedTest
+import io.github.dzkchen.dhen.data.item.HeldItem
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.price.PriceSource
@@ -76,9 +77,9 @@ internal class NetworthTest : RepoBackedTest() {
 		var deliveredOn = ""
 		var total = 0L
 		val source = object : NetworthSource {
-			override fun items(category: NetworthCategory): List<ItemStack> {
+			override fun items(category: NetworthCategory): List<HeldItem> {
 				valuedOn = threadName()
-				return if (category == NetworthCategory.INVENTORY) listOf(named("HYPERION", "§6Hyperion")) else emptyList()
+				return if (category == NetworthCategory.INVENTORY) held(named("HYPERION", "§6Hyperion")) else emptyList()
 			}
 		}
 
@@ -160,14 +161,14 @@ internal class NetworthTest : RepoBackedTest() {
 	}
 
 	private fun inventoryOf(stack: ItemStack) = object : NetworthSource {
-		override fun items(category: NetworthCategory): List<ItemStack> =
-			if (category == NetworthCategory.INVENTORY) listOf(stack) else emptyList()
+		override fun items(category: NetworthCategory): List<HeldItem> =
+			if (category == NetworthCategory.INVENTORY) held(stack) else emptyList()
 	}
 
 	private object Profile : NetworthSource {
-		override fun items(category: NetworthCategory): List<ItemStack> = when (category) {
-			NetworthCategory.INVENTORY -> listOf(named("HYPERION", "§6Hyperion"), ItemFixture.vanilla())
-			NetworthCategory.ARMOR -> listOf(named("SPIRIT_BOOTS", "§5Spirit Boots"))
+		override fun items(category: NetworthCategory): List<HeldItem> = when (category) {
+			NetworthCategory.INVENTORY -> held(named("HYPERION", "§6Hyperion"), ItemFixture.vanilla())
+			NetworthCategory.ARMOR -> held(named("SPIRIT_BOOTS", "§5Spirit Boots"))
 			else -> emptyList()
 		}
 
@@ -179,18 +180,18 @@ internal class NetworthTest : RepoBackedTest() {
 	}
 
 	private val twoHyperions = object : NetworthSource {
-		override fun items(category: NetworthCategory): List<ItemStack> =
+		override fun items(category: NetworthCategory): List<HeldItem> =
 			if (category == NetworthCategory.INVENTORY) {
-				listOf(named("HYPERION", "§6Hyperion"), named("HYPERION", "§6Hyperion"))
+				held(named("HYPERION", "§6Hyperion"), named("HYPERION", "§6Hyperion"))
 			} else {
 				emptyList()
 			}
 	}
 
 	private val stackOfEight = object : NetworthSource {
-		override fun items(category: NetworthCategory): List<ItemStack> =
+		override fun items(category: NetworthCategory): List<HeldItem> =
 			if (category == NetworthCategory.INVENTORY) {
-				listOf(named("ENCHANTED_DIAMOND", "§aEnchanted Diamond").also { it.count = 8 })
+				held(named("ENCHANTED_DIAMOND", "§aEnchanted Diamond").also { it.count = 8 })
 			} else {
 				emptyList()
 			}
@@ -204,6 +205,8 @@ internal class NetworthTest : RepoBackedTest() {
 		fun bootstrap() = ItemFixture.bootstrap()
 
 		private fun threadName(): String = Thread.currentThread().name.substringBefore(" @")
+
+		private fun held(vararg stacks: ItemStack): List<HeldItem> = stacks.map(HeldItem::of)
 
 		private fun petStack(pet: PetInfo): ItemStack = ItemFixture.stack {
 			putString("id", "PET")
