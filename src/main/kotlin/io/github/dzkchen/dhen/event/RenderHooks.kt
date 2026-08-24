@@ -4,10 +4,10 @@ import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Entity
 
-internal object RenderHooks : Hooks {
+internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 	override val feed = "Entity render"
 
-	private val failsafe = Failsafe("Dhen {} failed, its render events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its render events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -17,7 +17,7 @@ internal object RenderHooks : Hooks {
 		uninstall()
 		channels = Channels(bus)
 		disconnects = bus.subscribe<WorldChangeEvent> { change ->
-			if (change.phase == WorldChange.DISCONNECT) guarded("entity render world change") { it.forget(); false }
+			if (change.phase == WorldChange.DISCONNECT) guarded("entity render world change") { it.forget() }
 		}
 	}
 
@@ -27,41 +27,19 @@ internal object RenderHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	@JvmStatic
-	fun entityOutline(entity: Entity, vanillaOutline: Int): Int {
-		val channels = channels ?: return vanillaOutline
-		return try {
-			channels.glow(entity, vanillaOutline)
-		} catch (throwable: Throwable) {
-			latchOff("entity glow", throwable)
-			vanillaOutline
-		}
-	}
+	fun entityOutline(entity: Entity, vanillaOutline: Int): Int =
+		guarded("entity glow", vanillaOutline) { it.glow(entity, vanillaOutline) }
 
 	@JvmStatic
-	fun entityRenderCancelled(entity: Entity): Boolean = guarded("entity render") { it.rendering(entity) }
+	fun entityRenderCancelled(entity: Entity): Boolean = guarded("entity render", false) { it.rendering(entity) }
 
 	@JvmStatic
-	fun bossBarCancelled(bossBar: BossEvent): Boolean = guarded("boss bar") { it.bossBar(bossBar) }
+	fun bossBarCancelled(bossBar: BossEvent): Boolean = guarded("boss bar", false) { it.bossBar(bossBar) }
 
-	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
-		val channels = channels ?: return false
-		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			latchOff(label, throwable)
-			false
-		}
-	}
-
-	private fun latchOff(label: String, throwable: Throwable) {
-		uninstall()
-		failsafe.fail(label, throwable)
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val glows = bus.type<EntityGlowEvent>()
 		private val renders = bus.type<EntityRenderEvent>()
 		private val bossBars = bus.type<BossBarUpdateEvent>()

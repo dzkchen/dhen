@@ -5,18 +5,19 @@ import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PartyEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.client.Minecraft
 
-internal object PartyHooks : Hooks {
+internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 	override val feed = "Party"
 
 	private const val BEFORE_FEATURES = 100
 
-	private val failsafe = Failsafe("Dhen {} failed, its party state is off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its party state is off until restart")
 
 	private var channels: Channels? = null
 
@@ -42,7 +43,7 @@ internal object PartyHooks : Hooks {
 		PartyState.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	val requesting: Boolean get() = channels?.requesting ?: false
 
@@ -60,17 +61,7 @@ internal object PartyHooks : Hooks {
 
 	private fun ticked() = guarded("party request") { it.flush() }
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(
+	internal class Channels(
 		bus: EventBus,
 		private val name: () -> String?,
 		private val request: () -> Unit

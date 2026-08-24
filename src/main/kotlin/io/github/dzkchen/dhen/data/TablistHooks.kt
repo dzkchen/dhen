@@ -2,12 +2,13 @@ package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.event.legacyCodes
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.util.Failsafe
@@ -21,7 +22,7 @@ import net.minecraft.network.protocol.game.ClientboundTabListPacket
 import net.minecraft.world.level.GameType
 import net.minecraft.world.scores.PlayerTeam
 
-internal object TablistHooks : Hooks {
+internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 	override val feed = "Tab list"
 
 	private const val BEFORE_FEATURES = 100
@@ -33,7 +34,7 @@ internal object TablistHooks : Hooks {
 			.thenBy { it.team?.name.orEmpty() }
 			.thenBy(String.CASE_INSENSITIVE_ORDER) { it.profile.name }
 
-	private val failsafe = Failsafe("Dhen {} failed, its tab list state is off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its tab list state is off until restart")
 
 	private var channels: Channels? = null
 
@@ -56,7 +57,7 @@ internal object TablistHooks : Hooks {
 		TablistState.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun refresh() = guarded("tab list read") { it.refresh() }
 
@@ -81,17 +82,7 @@ internal object TablistHooks : Hooks {
 	private fun displayName(info: PlayerInfo): Component =
 		info.tabListDisplayName ?: PlayerTeam.formatNameForTeam(info.team, Component.literal(info.profile.name))
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(bus: EventBus, private val players: () -> List<Component>) {
+	internal class Channels(bus: EventBus, private val players: () -> List<Component>) {
 		private val updates = bus.type<TablistUpdateEvent>()
 		private var pending = false
 		private var reframed = false

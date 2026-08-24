@@ -10,10 +10,10 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
-internal object ScreenHooks : Hooks {
+internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 	override val feed = "Screens"
 
-	private val failsafe = Failsafe("Dhen {} failed, its screen events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its screen events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -25,7 +25,7 @@ internal object ScreenHooks : Hooks {
 		uninstall()
 		channels = Channels(bus)
 		disconnects = bus.subscribe<WorldChangeEvent> { change ->
-			if (change.phase == WorldChange.DISCONNECT) guarded("screen world change") { it.forget(); false }
+			if (change.phase == WorldChange.DISCONNECT) guarded("screen world change") { it.forget() }
 		}
 	}
 
@@ -36,7 +36,7 @@ internal object ScreenHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	@JvmStatic
 	fun screenChanged(closing: Screen?, opening: Screen?): Screen? =
@@ -48,23 +48,20 @@ internal object ScreenHooks : Hooks {
 
 	@JvmStatic
 	fun beforeScreenRender(screen: Screen, graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int): Boolean =
-		guarded("screen render") { it.rendering(screen, graphics, mouseX, mouseY) }
+		guarded("screen render", false) { it.rendering(screen, graphics, mouseX, mouseY) }
 
 	@JvmStatic
 	fun afterScreenRender(screen: Screen, graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		guarded("screen rendered") { channels ->
-			channels.rendered(screen, graphics, mouseX, mouseY)
-			false
-		}
+		guarded("screen rendered") { it.rendered(screen, graphics, mouseX, mouseY) }
 	}
 
 	@JvmStatic
 	fun beforeContainerClick(screen: AbstractContainerScreen<*>, click: MouseButtonEvent, hovered: Slot?): Boolean =
-		guarded("container click") { it.clicked(screen, click, hovered) }
+		guarded("container click", false) { it.clicked(screen, click, hovered) }
 
 	@JvmStatic
 	fun beforeContainerKey(screen: AbstractContainerScreen<*>, key: KeyEvent, hovered: Slot?): Boolean =
-		guarded("container key") { it.pressed(screen, key, hovered) }
+		guarded("container key", false) { it.pressed(screen, key, hovered) }
 
 	@JvmStatic
 	fun beforeContainerScroll(
@@ -74,18 +71,15 @@ internal object ScreenHooks : Hooks {
 		scrollX: Double,
 		scrollY: Double,
 		hovered: Slot?
-	): Boolean = guarded("container scroll") { it.scrolled(screen, mouseX, mouseY, scrollX, scrollY, hovered) }
+	): Boolean = guarded("container scroll", false) { it.scrolled(screen, mouseX, mouseY, scrollX, scrollY, hovered) }
 
 	@JvmStatic
 	fun beforeSlotRender(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot): Boolean =
-		guarded("slot render") { it.slotRendering(screen, graphics, slot) }
+		guarded("slot render", false) { it.slotRendering(screen, graphics, slot) }
 
 	@JvmStatic
 	fun afterSlotRender(screen: AbstractContainerScreen<*>, graphics: GuiGraphicsExtractor, slot: Slot) {
-		guarded("slot rendered") { channels ->
-			channels.slotRendered(screen, graphics, slot)
-			false
-		}
+		guarded("slot rendered") { it.slotRendered(screen, graphics, slot) }
 	}
 
 	@JvmStatic
@@ -99,13 +93,7 @@ internal object ScreenHooks : Hooks {
 		y: Int
 	): TooltipEvent? {
 		if (hovered == null || stack.isEmpty || lines.isEmpty()) return null
-		val channels = channels ?: return null
-		return try {
-			channels.tooltip(screen, graphics, hovered, stack, lines, x, y)
-		} catch (throwable: Throwable) {
-			latchOff("tooltip", throwable)
-			null
-		}
+		return guarded("tooltip", null) { it.tooltip(screen, graphics, hovered, stack, lines, x, y) }
 	}
 
 	@JvmStatic
@@ -115,34 +103,15 @@ internal object ScreenHooks : Hooks {
 
 	private inline fun guardedChange(label: String, fallback: Screen?, block: (Channels) -> Screen?): Screen? {
 		if (changing) return fallback
-		val channels = channels ?: return fallback
 		changing = true
 		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			latchOff(label, throwable)
-			fallback
+			guarded(label, fallback, block)
 		} finally {
 			changing = false
 		}
 	}
 
-	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
-		val channels = channels ?: return false
-		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			latchOff(label, throwable)
-			false
-		}
-	}
-
-	private fun latchOff(label: String, throwable: Throwable) {
-		uninstall()
-		failsafe.fail(label, throwable)
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val opens = bus.type<GuiOpenEvent>()
 		private val closes = bus.type<GuiCloseEvent>()
 		private val clicks = bus.type<ContainerClickEvent>()

@@ -2,10 +2,10 @@ package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.util.Failsafe
 
-internal object InputHooks : Hooks {
+internal object InputHooks : GuardedHooks<InputHooks.Channels> {
 	override val feed = "Input"
 
-	private val failsafe = Failsafe("Dhen {} failed, its input events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its input events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -17,28 +17,17 @@ internal object InputHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	@JvmStatic
 	fun beforeKey(key: Int, scancode: Int, modifiers: Int, glfwAction: Int): Boolean =
-		guarded("key input") { it.key(key, scancode, modifiers, glfwAction) }
+		guarded("key input", false) { it.key(key, scancode, modifiers, glfwAction) }
 
 	@JvmStatic
 	fun beforeMouseButton(button: Int, modifiers: Int, glfwAction: Int): Boolean =
-		guarded("mouse input") { it.mouse(button, modifiers, glfwAction) }
+		guarded("mouse input", false) { it.mouse(button, modifiers, glfwAction) }
 
-	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
-		val channels = channels ?: return false
-		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail(label, throwable)
-			false
-		}
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val keys = bus.type<KeyInputEvent>()
 		private val buttons = bus.type<MouseInputEvent>()
 

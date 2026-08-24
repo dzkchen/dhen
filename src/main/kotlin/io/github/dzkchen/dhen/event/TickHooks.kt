@@ -8,10 +8,10 @@ import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.common.ClientboundPingPacket
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket
 
-internal object TickHooks : Hooks {
+internal object TickHooks : GuardedHooks<TickHooks.ServerChannels> {
 	override val feed = "Ticks"
 
-	private val failsafe = Failsafe("Dhen {} failed, its tick events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its tick events are off until restart")
 
 	private var serverChannels: ServerChannels? = null
 	private var clientChannels: ClientChannels? = null
@@ -36,7 +36,11 @@ internal object TickHooks : Hooks {
 
 	override fun active(): Boolean = clientChannels != null
 
-	fun serverFeedActive(): Boolean = serverChannels != null
+	override fun bound() = serverChannels
+
+	override fun latchOff() = disableServerChannels()
+
+	fun serverFeedActive(): Boolean = bound() != null
 
 	fun clientTickStarted() = clientChannels?.started()
 
@@ -45,7 +49,7 @@ internal object TickHooks : Hooks {
 		if (publish) clientChannels?.ended()
 	}
 
-	private fun received(packet: Packet<*>) = guarded { channels ->
+	private fun received(packet: Packet<*>) = guarded("server tick") { channels ->
 		when (packet) {
 			is ClientboundPingPacket -> if (packet.id != 0) channels.serverTicked()
 			is ClientboundSetTimePacket -> channels.timeSynced()
@@ -60,16 +64,6 @@ internal object TickHooks : Hooks {
 		} catch (throwable: Throwable) {
 			uninstall()
 			failsafe.fail("tick clock reset", throwable)
-		}
-	}
-
-	private inline fun guarded(block: (ServerChannels) -> Unit) {
-		val channels = serverChannels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			disableServerChannels()
-			failsafe.fail("server tick", throwable)
 		}
 	}
 
@@ -88,7 +82,7 @@ internal object TickHooks : Hooks {
 		fun ended() = ends.dispatch(ClientTickEvent.End)
 	}
 
-	private class ServerChannels(bus: EventBus, private val clock: NanoClock) {
+	internal class ServerChannels(bus: EventBus, private val clock: NanoClock) {
 		private val ticks = bus.type<ServerTickEvent>()
 
 		fun serverTicked() {

@@ -245,6 +245,24 @@ class ScreenHooksTest {
 	}
 
 	@Test
+	fun `a throwing tooltip handler hands back no tooltip`() {
+		bus.subscribe<TooltipEvent> { error("boom") }
+
+		val event = ScreenHooks.beforeTooltip(
+			uninitialized<ContainerScreen>(),
+			uninitialized<GuiGraphicsExtractor>(),
+			slot(),
+			ItemFixture.vanilla(),
+			listOf(Component.literal("Diamond")),
+			0,
+			0
+		)
+
+		assertNull(event)
+		assertFalse(ScreenHooks.active())
+	}
+
+	@Test
 	fun `a handler that throws turns the hooks off instead of failing the screen change`() {
 		val arriving = FakeScreen("arriving")
 		bus.subscribe<GuiOpenEvent> { throw IllegalStateException("boom") }

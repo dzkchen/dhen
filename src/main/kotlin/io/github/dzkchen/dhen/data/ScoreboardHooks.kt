@@ -2,13 +2,14 @@ package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.ScoreboardAreaChangeEvent
 import io.github.dzkchen.dhen.event.ScoreboardUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.event.legacyCodes
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.util.Failsafe
@@ -24,7 +25,7 @@ import net.minecraft.world.scores.PlayerScoreEntry
 import net.minecraft.world.scores.PlayerTeam
 import net.minecraft.world.scores.Scoreboard
 
-internal object ScoreboardHooks : Hooks {
+internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 	override val feed = "Scoreboard"
 
 	private const val BEFORE_FEATURES = 100
@@ -36,7 +37,7 @@ internal object ScoreboardHooks : Hooks {
 
 	private val areaLine = Regex("\\s*\u00a7\\d. \u00a7.(.*)")
 
-	private val failsafe = Failsafe("Dhen {} failed, its scoreboard state is off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its scoreboard state is off until restart")
 
 	private var channels: Channels? = null
 
@@ -59,7 +60,7 @@ internal object ScoreboardHooks : Hooks {
 		ScoreboardState.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun refresh() = guarded("scoreboard read") { it.refresh() }
 
@@ -78,17 +79,7 @@ internal object ScoreboardHooks : Hooks {
 		packet is ClientboundSetDisplayObjectivePacket ||
 		packet is ClientboundSetPlayerTeamPacket
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(bus: EventBus, private val sidebar: () -> Scoreboard?) {
+	internal class Channels(bus: EventBus, private val sidebar: () -> Scoreboard?) {
 		private val updates = bus.type<ScoreboardUpdateEvent>()
 		private val areas = bus.type<ScoreboardAreaChangeEvent>()
 		private var pending = false

@@ -8,10 +8,10 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.BlockHitResult
 
-internal object InteractionHooks : Hooks {
+internal object InteractionHooks : GuardedHooks<InteractionHooks.Channels> {
 	override val feed = "Interactions"
 
-	private val failsafe = Failsafe("Dhen {} failed, its interaction events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its interaction events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -23,7 +23,7 @@ internal object InteractionHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun useBlock(player: Player, hand: InteractionHand, hit: BlockHitResult): InteractionResult =
 		interaction(player, "use block") { it.useBlock(player, hand, hit.blockPos) }
@@ -40,41 +40,17 @@ internal object InteractionHooks : Hooks {
 	fun attackEntity(player: Player, entity: Entity): InteractionResult =
 		interaction(player, "attack entity") { it.attackEntity(entity) }
 
-	fun attack(): Boolean = guarded("attack") { it.attack() }
+	fun attack(): Boolean = guarded("attack", false) { it.attack() }
 
 	@JvmStatic
 	fun usedBlock(hand: InteractionHand, hit: BlockHitResult, result: InteractionResult) {
-		guardedUnit { it.usedBlock(hand, hit, result) }
+		guarded("used block") { it.usedBlock(hand, hit, result) }
 	}
 
 	private inline fun interaction(player: Player, label: String, block: (Channels) -> Boolean): InteractionResult =
-		if (player.isLocalPlayer && guarded(label, block)) InteractionResult.FAIL else InteractionResult.PASS
+		if (player.isLocalPlayer && guarded(label, false, block)) InteractionResult.FAIL else InteractionResult.PASS
 
-	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
-		val channels = channels ?: return false
-		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			latchOff(label, throwable)
-			false
-		}
-	}
-
-	private inline fun guardedUnit(block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			latchOff("used block", throwable)
-		}
-	}
-
-	private fun latchOff(label: String, throwable: Throwable) {
-		channels = null
-		failsafe.fail(label, throwable)
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val useBlocks = bus.type<InteractionEvent.UseBlock>()
 		private val useEntities = bus.type<InteractionEvent.UseEntity>()
 		private val useItems = bus.type<InteractionEvent.UseItem>()

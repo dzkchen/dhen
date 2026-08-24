@@ -5,10 +5,10 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.block.state.BlockState
 
-internal object WorldHooks : Hooks {
+internal object WorldHooks : GuardedHooks<WorldHooks.Channels> {
 	override val feed = "World"
 
-	private val failsafe = Failsafe("Dhen {} failed, its world events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its world events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -20,7 +20,7 @@ internal object WorldHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun worldChanged(phase: WorldChange) = guarded("world change") { it.changed(phase) }
 
@@ -31,17 +31,7 @@ internal object WorldHooks : Hooks {
 	@JvmStatic
 	fun entityUnloaded(entity: Entity) = guarded("entity unload") { it.entityUnloaded(entity) }
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val changes = bus.type<WorldChangeEvent>()
 		private val blocks = bus.type<BlockChangeEvent>()
 		private val unloads = bus.type<EntityUnloadEvent>()

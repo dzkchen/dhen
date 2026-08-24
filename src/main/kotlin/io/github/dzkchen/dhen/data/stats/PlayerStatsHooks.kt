@@ -5,11 +5,12 @@ import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.ActionBarEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.PlayerStatsEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -18,13 +19,13 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import kotlin.math.roundToInt
 
-internal object PlayerStatsHooks : Hooks {
+internal object PlayerStatsHooks : GuardedHooks<PlayerStatsHooks.Channels> {
 	override val feed = "Player stats"
 
 	private const val BEFORE_FEATURES = 100
 	private const val NO_PLAYER = -1f
 
-	private val failsafe = Failsafe("Dhen {} failed, its action bar stats are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its action bar stats are off until restart")
 
 	private var channels: Channels? = null
 
@@ -53,7 +54,7 @@ internal object PlayerStatsHooks : Hooks {
 		PlayerStats.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	private fun parsed(event: ActionBarEvent) = guarded("action bar parse") { it.parse(event) }
 
@@ -71,17 +72,7 @@ internal object PlayerStatsHooks : Hooks {
 		return player.getAttributeBaseValue(Attributes.MOVEMENT_SPEED)
 	}
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(
+	internal class Channels(
 		bus: EventBus,
 		private val inDungeon: () -> Boolean,
 		private val healthRatio: () -> Float,

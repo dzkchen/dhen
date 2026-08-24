@@ -12,10 +12,10 @@ import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
 import net.minecraft.world.inventory.MenuType
 import net.minecraft.world.item.ItemStack
 
-internal object ContainerHooks : Hooks {
+internal object ContainerHooks : GuardedHooks<ContainerHooks.Channels> {
 	override val feed = "Containers"
 
-	private val failsafe = Failsafe("Dhen {} failed, its container events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its container events are off until restart")
 
 	private val slotCounts: Map<MenuType<*>, Int> by lazy {
 		mapOf(
@@ -67,7 +67,7 @@ internal object ContainerHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun tick() = guarded("container tick") { it.flush() }
 
@@ -77,17 +77,7 @@ internal object ContainerHooks : Hooks {
 
 	private fun sent(packet: Packet<*>) = guarded("container close") { it.sent(packet) }
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val readies = bus.type<ContainerReadyEvent>()
 		private val updates = bus.type<ContainerUpdatedEvent>()
 		private val closes = bus.type<ContainerClosedEvent>()

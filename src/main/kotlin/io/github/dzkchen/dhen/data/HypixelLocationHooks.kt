@@ -2,19 +2,20 @@ package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.AreaChangeEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.util.Failsafe
 
-internal object HypixelLocationHooks : Hooks {
+internal object HypixelLocationHooks : GuardedHooks<HypixelLocationHooks.Channels> {
 	override val feed = "Location"
 
 	private const val SKYBLOCK_OBJECTIVE = "SBScoreboard"
 
-	private val failsafe = Failsafe("Dhen {} failed, its island events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its island events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -39,7 +40,7 @@ internal object HypixelLocationHooks : Hooks {
 		SkyBlockLocation.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	fun greeted() = guarded("Hypixel hello") { it.greeted() }
 
@@ -53,17 +54,7 @@ internal object HypixelLocationHooks : Hooks {
 
 	private fun disconnected() = guarded("Hypixel disconnect") { it.disconnected() }
 
-	private inline fun guarded(label: String, block: (Channels) -> Unit) {
-		val channels = channels ?: return
-		try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
-		}
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val islands = bus.type<IslandChangeEvent>()
 		private val areas = bus.type<AreaChangeEvent>()
 

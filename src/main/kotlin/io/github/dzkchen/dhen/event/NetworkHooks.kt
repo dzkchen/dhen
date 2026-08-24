@@ -6,10 +6,10 @@ import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 
-internal object NetworkHooks : Hooks {
+internal object NetworkHooks : GuardedHooks<NetworkHooks.Channels> {
 	override val feed = "Packets"
 
-	private val failsafe = Failsafe("Dhen {} failed, its network events are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its network events are off until restart")
 
 	private var channels: Channels? = null
 
@@ -21,10 +21,10 @@ internal object NetworkHooks : Hooks {
 		channels = null
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
 	@JvmStatic
-	fun beforeHandle(packet: Packet<*>): Boolean = guarded("packet receive") { channels ->
+	fun beforeHandle(packet: Packet<*>): Boolean = guarded("packet receive", false) { channels ->
 		if (channels.received(packet)) return@guarded true
 		val chat = packet as? SystemChatPacketAccessor ?: return@guarded false
 		val content = chat.chatContent()
@@ -34,28 +34,14 @@ internal object NetworkHooks : Hooks {
 	}
 
 	@JvmStatic
-	fun beforeSend(packet: Packet<*>): Boolean = guarded("packet send") { channels -> channels.sent(packet) }
+	fun beforeSend(packet: Packet<*>): Boolean = guarded("packet send", false) { channels -> channels.sent(packet) }
 
 	@JvmStatic
 	fun afterHandle(packet: Packet<*>) {
-		guarded("packet handled") { channels ->
-			channels.handled(packet)
-			false
-		}
+		guarded("packet handled") { it.handled(packet) }
 	}
 
-	private inline fun guarded(label: String, block: (Channels) -> Boolean): Boolean {
-		val channels = channels ?: return false
-		return try {
-			block(channels)
-		} catch (throwable: Throwable) {
-			this.channels = null
-			failsafe.fail(label, throwable)
-			false
-		}
-	}
-
-	private class Channels(bus: EventBus) {
+	internal class Channels(bus: EventBus) {
 		private val receivePre = bus.type<PacketReceiveEvent.Pre>()
 		private val receivePost = bus.type<PacketReceiveEvent.Post>()
 		private val chat = TextChannel(bus.type<ChatReceiveEvent>(), ChatReceiveEvent())

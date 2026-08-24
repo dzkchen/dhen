@@ -1,19 +1,20 @@
 package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
-import io.github.dzkchen.dhen.event.Hooks
 import io.github.dzkchen.dhen.event.TabWidgetUpdateEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
+import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.util.Failsafe
 import java.util.regex.Matcher
 
-internal object TabWidgetHooks : Hooks {
+internal object TabWidgetHooks : GuardedHooks<TabWidgetHooks.Channels> {
 	override val feed = "Tab list widgets"
 
 	private const val BEFORE_FEATURES = 100
 
-	private val failsafe = Failsafe("Dhen {} failed, its tab list widgets are off until restart")
+	override val failsafe = Failsafe("Dhen {} failed, its tab list widgets are off until restart")
 
 	private var channels: Channels? = null
 
@@ -32,19 +33,11 @@ internal object TabWidgetHooks : Hooks {
 		TabWidgetState.reset()
 	}
 
-	override fun active(): Boolean = channels != null
+	override fun bound() = channels
 
-	private fun regrouped() {
-		val channels = channels ?: return
-		try {
-			channels.group(TablistState.lines, TablistState.stripped)
-		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail("tab list widget grouping", throwable)
-		}
-	}
+	private fun regrouped() = guarded("tab list widget grouping") { it.group(TablistState.lines, TablistState.stripped) }
 
-	private class Channels(bus: EventBus, private val inSkyBlock: () -> Boolean) {
+	internal class Channels(bus: EventBus, private val inSkyBlock: () -> Boolean) {
 		private val updates = bus.type<TabWidgetUpdateEvent>()
 		private val widgets = TabWidget.entries
 		private val matchers: Array<Matcher> = Array(widgets.size) { widgets[it].header.toPattern().matcher("") }

@@ -193,6 +193,15 @@ class RenderHooksTest {
 		assertFalse(RenderHooks.active())
 	}
 
+	@Test
+	fun `a throwing glow handler hands back the outline vanilla computed`() {
+		bus.subscribe<EntityGlowEvent> { error("boom") }
+
+		assertEquals(TEAM_OUTLINE, RenderHooks.entityOutline(uninitialized<ItemEntity>(), TEAM_OUTLINE))
+
+		assertFalse(RenderHooks.active())
+	}
+
 	private fun bossBar(name: String): BossEvent = LerpingBossEvent(
 		UUID.nameUUIDFromBytes(name.toByteArray()),
 		Component.literal(name),
