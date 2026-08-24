@@ -104,6 +104,51 @@ class RepoSyncTest {
 	}
 
 	@Test
+	fun `a sync nobody wants any more downloads nothing`() {
+		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
+
+		assertEquals(SyncResult.ABANDONED, sync(transport).sync { false })
+
+		assertEquals(0, transport.downloads)
+		assertFalse(Files.exists(root().resolve("items/A.json")))
+	}
+
+	@Test
+	fun `a sync nobody wants any more leaves the last one alone and clears the archive behind it`() {
+		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
+		sync(transport).sync()
+		Files.write(home.resolve("repo.zip"), ByteArray(16))
+
+		val moved = FakeTransport("def456", archive("items/B.json" to "{}"))
+		assertEquals(SyncResult.ABANDONED, sync(moved).sync { false })
+
+		assertEquals(0, moved.downloads)
+		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
+		assertEquals("abc123", sync(moved).syncedCommit())
+		assertFalse(Files.exists(home.resolve("repo.zip")))
+	}
+
+	@Test
+	fun `a repo already up to date is up to date rather than abandoned`() {
+		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
+		sync(transport).sync()
+
+		assertEquals(SyncResult.UP_TO_DATE, sync(transport).sync { false })
+	}
+
+	@Test
+	fun `a sync that got as far as downloading unpacks all of it however late nobody wants it`() {
+		val transport = FakeTransport("abc123", archive("items/A.json" to "{}", "items/B.json" to "{}"))
+		var checks = 0
+
+		assertEquals(SyncResult.UPDATED, sync(transport).sync { checks++ == 0 })
+
+		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
+		assertTrue(Files.isRegularFile(root().resolve("items/B.json")))
+		assertEquals("abc123", sync(transport).syncedCommit())
+	}
+
+	@Test
 	fun `the archive is deleted once it has been unpacked`() {
 		sync(FakeTransport("abc123", archive("items/A.json" to "{}"))).sync()
 

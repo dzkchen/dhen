@@ -21,6 +21,7 @@ internal data class RepoSource(val owner: String, val repo: String, val branch: 
 internal enum class SyncResult {
 	UPDATED,
 	UP_TO_DATE,
+	ABANDONED,
 	UNREACHABLE,
 	UNREADABLE
 }
@@ -52,10 +53,11 @@ internal class RepoSync(
 
 	fun hasContent(): Boolean = Files.isDirectory(root) && Files.list(root).use { it.findFirst().isPresent }
 
-	fun sync(): SyncResult {
+	fun sync(stillWanted: () -> Boolean = { true }): SyncResult {
 		val latest = latestCommit() ?: return SyncResult.UNREACHABLE
 		if (latest == syncedCommit() && hasContent()) return SyncResult.UP_TO_DATE
 		return try {
+			if (!stillWanted()) return SyncResult.ABANDONED
 			if (!transport.download(source.archiveUrl(latest), archive)) return SyncResult.UNREACHABLE
 			unpack()
 			Files.writeString(marker, latest)

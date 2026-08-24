@@ -5,11 +5,12 @@ import io.github.dzkchen.dhen.data.RequirementPump
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -30,7 +31,6 @@ object ItemRepo {
 	private val RETRY_AFTER = 5.minutes
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val pump = RequirementPump()
-	private val activated = AtomicBoolean()
 
 	private val published = AtomicReference(Published(null, RepoState.IDLE))
 
@@ -79,35 +79,46 @@ object ItemRepo {
 		host = null
 		published.set(Published(null, RepoState.IDLE))
 		pump.reset()
-		activated.set(false)
 	}
 
-	private suspend fun drive(owner: Host) {
+	private suspend fun drive(owner: Host) = coroutineScope {
 		var attempts = RETRY_LIMIT
-		while (true) {
+		while (isActive) {
 			val current = published.get()
-			if (current.host !== owner || current.state == RepoState.READY) return
+			if (current.host !== owner || current.state == RepoState.READY) return@coroutineScope
 			if (attempts == 0) {
 				log.warn(
 					"Dhen stopped retrying the item repo after {} attempts; /dhen debug repo download asks for it again",
 					RETRY_LIMIT
 				)
-				return
+				return@coroutineScope
 			}
-			if (loadIfDue(owner)) attempts-- else delay(owner.retryAfter)
+			if (loadIfDue(owner) { host === owner && pump.count > 0 }) attempts-- else delay(owner.retryAfter)
 		}
 	}
 
-	private fun loadIfDue(owner: Host): Boolean {
-		if (owner.clock.nanoTime() < published.get().retryAt || !activated.compareAndSet(false, true)) return false
-		load(owner)
+	private fun loadIfDue(owner: Host, stillWanted: () -> Boolean): Boolean {
+		if (owner.clock.nanoTime() < published.get().retryAt) return false
+		val displaced = beginSyncing(owner) ?: return false
+		load(owner, displaced, stillWanted)
 		return true
 	}
 
-	private fun load(owner: Host) {
-		if (publish(owner) { it.copy(state = RepoState.SYNCING) } == null) return
+	private fun beginSyncing(owner: Host): RepoState? {
+		while (true) {
+			val held = published.get()
+			if (held.host !== owner || held.state == RepoState.SYNCING || held.state == RepoState.READY) return null
+			if (published.compareAndSet(held, held.copy(state = RepoState.SYNCING))) return held.state
+		}
+	}
+
+	private fun load(owner: Host, displaced: RepoState, stillWanted: () -> Boolean) {
 		val read = try {
-			val result = owner.sync.sync()
+			val result = owner.sync.sync(stillWanted)
+			if (result == SyncResult.ABANDONED) {
+				publish(owner) { it.copy(state = displaced) }
+				return
+			}
 			if (result != SyncResult.UPDATED && result != SyncResult.UP_TO_DATE) {
 				log.warn("Dhen could not refresh the item repo ({}), reading whatever is already on disk", result)
 			}
@@ -128,7 +139,6 @@ object ItemRepo {
 				else next.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt)
 			}
 		} ?: return
-		if (loaded.state == RepoState.UNAVAILABLE) activated.set(false)
 		log.info("Dhen item repo {} with {} items", loaded.state, loaded.catalog.size)
 	}
 

@@ -15,6 +15,8 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.time.Duration
@@ -286,6 +288,55 @@ class ItemRepoTest {
 	}
 
 	@Test
+	fun `a download nobody wants any more is never started and frees the repo for the next module`() {
+		val probing = CountDownLatch(1)
+		val released = CountDownLatch(1)
+		transport.onProbe = {
+			transport.onProbe = {}
+			probing.countDown()
+			released.await()
+		}
+		installOn(CoroutineScope(Dispatchers.IO))
+		val handle = ItemRepo.require()
+		assertTrue(probing.await(10, TimeUnit.SECONDS))
+
+		handle.unsubscribe()
+		released.countDown()
+		waitUntil("the sync to be abandoned") { ItemRepo.state == RepoState.IDLE }
+
+		assertEquals(0, transport.downloads)
+		assertEquals(0, ItemRepo.size)
+		assertFalse(Files.exists(home.resolve("repo.zip")))
+
+		ItemRepo.require()
+
+		waitUntil("the repo to load for the next module") { ItemRepo.state == RepoState.READY }
+		assertEquals(1, transport.downloads)
+	}
+
+	@Test
+	fun `a sync asked for again while it runs is carried through rather than started over`() {
+		val probing = CountDownLatch(1)
+		val released = CountDownLatch(1)
+		transport.onProbe = {
+			transport.onProbe = {}
+			probing.countDown()
+			released.await()
+		}
+		installOn(CoroutineScope(Dispatchers.IO))
+		val handle = ItemRepo.require()
+		assertTrue(probing.await(10, TimeUnit.SECONDS))
+
+		handle.unsubscribe()
+		ItemRepo.require()
+		released.countDown()
+
+		waitUntil("the repo to finish the sync it already started") { ItemRepo.state == RepoState.READY }
+		assertEquals(1, transport.probes)
+		assertEquals(1, transport.downloads)
+	}
+
+	@Test
 	fun `requiring item data before the repo is installed is a no-op`() {
 		ItemRepo.require()
 
@@ -296,6 +347,11 @@ class ItemRepoTest {
 	private fun install() {
 		val root = home.resolve("repo")
 		ItemRepo.install(scope, root, RepoSync(DataFixture.NEU, root, transport), clock = { nanos })
+	}
+
+	private fun installOn(owner: CoroutineScope) {
+		val root = home.resolve("repo")
+		ItemRepo.install(owner, root, RepoSync(DataFixture.NEU, root, transport), clock = { nanos })
 	}
 
 	private fun installRetryingEvery(window: Duration) {
@@ -327,8 +383,12 @@ class ItemRepoTest {
 
 		var onDownload: () -> Unit = {}
 
+		@Volatile
+		var onProbe: () -> Unit = {}
+
 		override fun text(url: String): String? {
 			probes++
+			onProbe()
 			if (broken) throw IllegalStateException("the repo host went away mid-read")
 			return if (reachable) "{\"sha\":\"abc123\"}" else null
 		}
