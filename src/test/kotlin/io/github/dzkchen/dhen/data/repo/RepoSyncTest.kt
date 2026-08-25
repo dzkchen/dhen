@@ -20,7 +20,7 @@ class RepoSyncTest {
 	fun `a first sync downloads the archive and unpacks it without its top folder`() {
 		val transport = FakeTransport("abc123", archive("items/ASPECT_OF_THE_END.json" to "{}"))
 
-		assertEquals(SyncResult.UPDATED, sync(transport).sync())
+		assertEquals(SyncResult.UPDATED, sync(transport).sync().result)
 
 		assertTrue(Files.isRegularFile(root().resolve("items/ASPECT_OF_THE_END.json")))
 		assertFalse(Files.exists(root().resolve("NotEnoughUpdates-REPO-abc123")))
@@ -40,7 +40,7 @@ class RepoSyncTest {
 		sync(transport).sync()
 		transport.downloads = 0
 
-		assertEquals(SyncResult.UP_TO_DATE, sync(transport).sync())
+		assertEquals(SyncResult.UP_TO_DATE, sync(transport).sync().result)
 		assertEquals(0, transport.downloads)
 	}
 
@@ -49,7 +49,7 @@ class RepoSyncTest {
 		sync(FakeTransport("abc123", archive("items/OLD.json" to "{}"))).sync()
 
 		val moved = FakeTransport("def456", archive("items/NEW.json" to "{}"))
-		assertEquals(SyncResult.UPDATED, sync(moved).sync())
+		assertEquals(SyncResult.UPDATED, sync(moved).sync().result)
 
 		assertTrue(Files.isRegularFile(root().resolve("items/NEW.json")))
 		assertFalse(Files.exists(root().resolve("items/OLD.json")))
@@ -63,7 +63,7 @@ class RepoSyncTest {
 		root().toFile().deleteRecursively()
 		transport.downloads = 0
 
-		assertEquals(SyncResult.UPDATED, sync(transport).sync())
+		assertEquals(SyncResult.UPDATED, sync(transport).sync().result)
 		assertEquals(1, transport.downloads)
 	}
 
@@ -72,7 +72,7 @@ class RepoSyncTest {
 		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
 		sync(transport).sync()
 
-		assertEquals(SyncResult.UNREACHABLE, sync(FakeTransport(null, ByteArray(0))).sync())
+		assertEquals(SyncResult.UNREACHABLE, sync(FakeTransport(null, ByteArray(0))).sync().result)
 		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
 		assertEquals("abc123", sync(transport).syncedCommit())
 	}
@@ -83,7 +83,7 @@ class RepoSyncTest {
 		sync(transport).sync()
 
 		val broken = FakeTransport("def456", archive("items/B.json" to "{}"), downloadable = false)
-		assertEquals(SyncResult.UNREACHABLE, sync(broken).sync())
+		assertEquals(SyncResult.UNREACHABLE, sync(broken).sync().result)
 		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
 		assertFalse(Files.exists(home.resolve("repo.zip")))
 	}
@@ -92,7 +92,7 @@ class RepoSyncTest {
 	fun `an archive entry that climbs out of the repo directory is refused`() {
 		val escaping = archive("../escaped.json" to "{}")
 
-		assertEquals(SyncResult.UNREADABLE, sync(FakeTransport("abc123", escaping)).sync())
+		assertEquals(SyncResult.UNREADABLE, sync(FakeTransport("abc123", escaping)).sync().result)
 		assertFalse(Files.exists(home.resolve("escaped.json")))
 	}
 
@@ -100,14 +100,14 @@ class RepoSyncTest {
 	fun `a commit response without a sha is unreachable`() {
 		val transport = FakeTransport(null, ByteArray(0), body = "{\"message\":\"Not Found\"}")
 
-		assertEquals(SyncResult.UNREACHABLE, sync(transport).sync())
+		assertEquals(SyncResult.UNREACHABLE, sync(transport).sync().result)
 	}
 
 	@Test
 	fun `a sync nobody wants any more downloads nothing`() {
 		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
 
-		assertEquals(SyncResult.ABANDONED, sync(transport).sync { false })
+		assertEquals(SyncResult.ABANDONED, sync(transport).sync { false }.result)
 
 		assertEquals(0, transport.downloads)
 		assertFalse(Files.exists(root().resolve("items/A.json")))
@@ -120,7 +120,7 @@ class RepoSyncTest {
 		Files.write(home.resolve("repo.zip"), ByteArray(16))
 
 		val moved = FakeTransport("def456", archive("items/B.json" to "{}"))
-		assertEquals(SyncResult.ABANDONED, sync(moved).sync { false })
+		assertEquals(SyncResult.ABANDONED, sync(moved).sync { false }.result)
 
 		assertEquals(0, moved.downloads)
 		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
@@ -133,7 +133,7 @@ class RepoSyncTest {
 		val transport = FakeTransport("abc123", archive("items/A.json" to "{}"))
 		sync(transport).sync()
 
-		assertEquals(SyncResult.UP_TO_DATE, sync(transport).sync { false })
+		assertEquals(SyncResult.UP_TO_DATE, sync(transport).sync { false }.result)
 	}
 
 	@Test
@@ -141,7 +141,7 @@ class RepoSyncTest {
 		val transport = FakeTransport("abc123", archive("items/A.json" to "{}", "items/B.json" to "{}"))
 		var checks = 0
 
-		assertEquals(SyncResult.UPDATED, sync(transport).sync { checks++ == 0 })
+		assertEquals(SyncResult.UPDATED, sync(transport).sync { checks++ == 0 }.result)
 
 		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
 		assertTrue(Files.isRegularFile(root().resolve("items/B.json")))

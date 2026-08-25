@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 enum class RepoState {
@@ -29,6 +30,7 @@ object ItemRepo {
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 	private val RETRY_AFTER = 5.minutes
+	private val MAX_RETRY_AFTER = 1.hours
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val pump = RequirementPump()
 
@@ -113,8 +115,11 @@ object ItemRepo {
 	}
 
 	private fun load(owner: Host, displaced: RepoState, stillWanted: () -> Boolean) {
+		var retryAfter: Duration? = null
 		val read = try {
-			val result = owner.sync.sync(stillWanted)
+			val outcome = owner.sync.sync(stillWanted)
+			val result = outcome.result
+			retryAfter = outcome.retryAfter
 			if (result == SyncResult.ABANDONED) {
 				publish(owner) { it.copy(state = displaced) }
 				return
@@ -131,7 +136,9 @@ object ItemRepo {
 			log.error("Dhen could not load the item repo", throwable)
 			null
 		}
-		val retryAt = owner.clock.nanoTime() + owner.retryAfter.inWholeNanoseconds
+		val retryDelay = retryAfter?.coerceIn(owner.retryAfter, maxOf(owner.retryAfter, MAX_RETRY_AFTER))
+			?: owner.retryAfter
+		val retryAt = owner.clock.nanoTime() + retryDelay.inWholeNanoseconds
 		val loaded = publish(owner) { held ->
 			if (read == null) held.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt) else {
 				val next = held.copy(catalog = read.catalog, constants = read.constants, commit = read.commit)

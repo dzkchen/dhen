@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.WebClient
+import io.github.dzkchen.dhen.util.WebResponse
 import io.github.dzkchen.dhen.util.WebSource
 import io.github.dzkchen.dhen.util.text
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,6 +25,7 @@ import java.net.URI
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLongArray
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -39,10 +41,14 @@ object PlayerProfiles {
 	private const val MAX_ENTRIES = 128
 	private const val MAX_HELD_PROFILES = 16
 	private const val PROXY_AGNOSTIC = 0
+	private const val NOT_FOUND = 404
+	private const val TOO_MANY_REQUESTS = 429
 
 	private val NEGATIVE_TTL = 1.minutes
+	private val MOJANG_RETRY_AFTER = 5.minutes
 	private val UUID_TTL = 1.hours
 	private val ALWAYS = { true }
+	private val MOJANG_ENDPOINTS = arrayOf(MOJANG_PRIMARY, MOJANG_FALLBACK)
 
 	private val nameShape = Regex("[A-Za-z0-9_]{1,16}")
 	private val idShape = Regex("[0-9a-fA-F-]{32,36}")
@@ -96,10 +102,29 @@ object PlayerProfiles {
 		syncBase()
 		val key = playerName.lowercase(Locale.ROOT)
 		uuids.read(key, host.clock.nanoTime(), PROXY_AGNOSTIC)?.let { return it.value }
-		val found = readId(fetch(host, MOJANG_PRIMARY + playerName))
-			?: readId(fetch(host, MOJANG_FALLBACK + playerName))
+		var found: String? = null
+		for (index in MOJANG_ENDPOINTS.indices) {
+			val now = host.clock.nanoTime()
+			if (now < host.retryNotBefore.get(index)) continue
+			val response = fetchResponse(host, MOJANG_ENDPOINTS[index] + playerName)
+			if (response.statusCode == TOO_MANY_REQUESTS) {
+				coolDown(host, index)
+				continue
+			}
+			if (response.statusCode == NOT_FOUND) break
+			found = readId(response.body)
+			if (found != null) break
+		}
 		mojang.note(found != null)
 		return store(host, uuids, key, found, PROXY_AGNOSTIC, keep = true)
+	}
+
+	private fun coolDown(owner: Host, endpoint: Int) {
+		val retryAt = owner.clock.nanoTime() + MOJANG_RETRY_AFTER.inWholeNanoseconds
+		while (true) {
+			val previous = owner.retryNotBefore.get(endpoint)
+			if (previous >= retryAt || owner.retryNotBefore.compareAndSet(endpoint, previous, retryAt)) return
+		}
 	}
 
 	suspend fun profiles(uuid: String): JsonObject? = ask(Endpoint.PROFILES, uuid)
@@ -193,7 +218,8 @@ object PlayerProfiles {
 
 	private suspend fun ask(endpoint: Endpoint, key: String): JsonObject? =
 		cached(replies.getValue(endpoint), key) { owner, url, _ ->
-			envelope(fetch(owner, "$url${endpoint.path}?${endpoint.parameter}=$key")).also { proxy.note(it != null) }
+			envelope(fetchResponse(owner, "$url${endpoint.path}?${endpoint.parameter}=$key").body)
+				.also { proxy.note(it != null) }
 		}
 
 	private suspend fun <V> cached(
@@ -220,10 +246,10 @@ object PlayerProfiles {
 		produce: suspend () -> V?
 	): V? = cached(cache, key, ready) { _, _, _ -> produce() }
 
-	private suspend fun fetch(owner: Host, url: String): String? = withContext(Dispatchers.IO) {
+	private suspend fun fetchResponse(owner: Host, url: String): WebResponse = withContext(Dispatchers.IO) {
 		limiter.withPermit {
 			peak.updateAndGet { seen -> maxOf(seen, inFlight) }
-			owner.web.text(url)
+			owner.web.response(url)
 		}
 	}
 
@@ -341,6 +367,7 @@ object PlayerProfiles {
 		val clientDispatcher: CoroutineDispatcher,
 		val web: WebSource,
 		val clock: NanoClock,
-		val baseUrl: () -> String
+		val baseUrl: () -> String,
+		val retryNotBefore: AtomicLongArray = AtomicLongArray(MOJANG_ENDPOINTS.size)
 	)
 }

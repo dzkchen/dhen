@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.util.NanoClock
+import io.github.dzkchen.dhen.util.WebResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.AfterEach
@@ -136,6 +137,56 @@ class ItemRepoTest {
 
 		assertEquals(1, transport.downloads)
 		assertEquals("§5Aspect of the End", ItemRepo.item("ASPECT_OF_THE_END")?.displayName)
+	}
+
+	@Test
+	fun `a server retry hint moves the next repo probe beyond the local window`() {
+		transport.reachable = false
+		transport.statusCode = 429
+		transport.retryAfter = 30.minutes
+		install()
+		val first = ItemRepo.require()
+
+		assertEquals(1, transport.probes)
+		first.unsubscribe()
+		nanos = 5.minutes.inWholeNanoseconds
+		val early = ItemRepo.require()
+		assertEquals(1, transport.probes)
+		early.unsubscribe()
+
+		nanos = 30.minutes.inWholeNanoseconds
+		ItemRepo.require()
+		assertEquals(2, transport.probes)
+	}
+
+	@Test
+	fun `a server retry hint is clamped to the local floor and one hour ceiling`() {
+		transport.reachable = false
+		transport.statusCode = 429
+		transport.retryAfter = 1.seconds
+		install()
+		val first = ItemRepo.require()
+		first.unsubscribe()
+
+		nanos = 1.seconds.inWholeNanoseconds
+		val belowFloor = ItemRepo.require()
+		assertEquals(1, transport.probes)
+		belowFloor.unsubscribe()
+		nanos = 5.minutes.inWholeNanoseconds
+		val atFloor = ItemRepo.require()
+		assertEquals(2, transport.probes)
+		atFloor.unsubscribe()
+
+		ItemRepo.uninstall()
+		nanos = 0L
+		transport.probes = 0
+		transport.retryAfter = 6.hours
+		install()
+		val longHint = ItemRepo.require()
+		longHint.unsubscribe()
+		nanos = 1.hours.inWholeNanoseconds
+		ItemRepo.require()
+		assertEquals(2, transport.probes)
 	}
 
 	@Test
@@ -381,16 +432,25 @@ class ItemRepoTest {
 		@Volatile
 		var downloads = 0
 
+		@Volatile
+		var statusCode: Int? = null
+
+		@Volatile
+		var retryAfter: Duration? = null
+
 		var onDownload: () -> Unit = {}
 
 		@Volatile
 		var onProbe: () -> Unit = {}
 
-		override fun text(url: String): String? {
+		override fun text(url: String): String? = response(url).body
+
+		override fun response(url: String): WebResponse {
 			probes++
 			onProbe()
 			if (broken) throw IllegalStateException("the repo host went away mid-read")
-			return if (reachable) "{\"sha\":\"abc123\"}" else null
+			val body = if (reachable) "{\"sha\":\"abc123\"}" else null
+			return WebResponse(body, statusCode ?: body?.let { 200 }, retryAfter)
 		}
 
 		override fun download(url: String, destination: Path): Boolean {

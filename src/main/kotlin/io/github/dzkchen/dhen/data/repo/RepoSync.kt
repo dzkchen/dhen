@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.repo
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.WebClient
+import io.github.dzkchen.dhen.util.WebResponse
 import io.github.dzkchen.dhen.util.WebSource
 import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
@@ -11,6 +12,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipInputStream
+import kotlin.time.Duration
 
 internal data class RepoSource(val owner: String, val repo: String, val branch: String) {
 	val commitUrl: String get() = "https://api.github.com/repos/$owner/$repo/commits/$branch"
@@ -26,6 +28,8 @@ internal enum class SyncResult {
 	UNREADABLE
 }
 
+internal data class SyncOutcome(val result: SyncResult, val retryAfter: Duration? = null)
+
 internal interface RepoTransport : WebSource {
 	fun download(url: String, destination: Path): Boolean
 }
@@ -34,6 +38,8 @@ internal class HttpRepoTransport(
 	private val web: WebClient = WebClient(mapOf("Accept" to "application/vnd.github+json"))
 ) : RepoTransport {
 	override fun text(url: String): String? = web.text(url)
+
+	override fun response(url: String): WebResponse = web.response(url)
 
 	override fun download(url: String, destination: Path): Boolean {
 		destination.parent?.let(Files::createDirectories)
@@ -53,32 +59,37 @@ internal class RepoSync(
 
 	fun hasContent(): Boolean = Files.isDirectory(root) && Files.list(root).use { it.findFirst().isPresent }
 
-	fun sync(stillWanted: () -> Boolean = { true }): SyncResult {
-		val latest = latestCommit() ?: return SyncResult.UNREACHABLE
-		if (latest == syncedCommit() && hasContent()) return SyncResult.UP_TO_DATE
+	fun sync(stillWanted: () -> Boolean = { true }): SyncOutcome {
+		val latest = latestCommit()
+		val commit = latest.commit ?: return SyncOutcome(SyncResult.UNREACHABLE, latest.retryAfter)
+		if (commit == syncedCommit() && hasContent()) return SyncOutcome(SyncResult.UP_TO_DATE)
 		return try {
-			if (!stillWanted()) return SyncResult.ABANDONED
-			if (!transport.download(source.archiveUrl(latest), archive)) return SyncResult.UNREACHABLE
+			if (!stillWanted()) return SyncOutcome(SyncResult.ABANDONED)
+			if (!transport.download(source.archiveUrl(commit), archive)) return SyncOutcome(SyncResult.UNREACHABLE)
 			unpack()
-			Files.writeString(marker, latest)
-			SyncResult.UPDATED
+			Files.writeString(marker, commit)
+			SyncOutcome(SyncResult.UPDATED)
 		} catch (throwable: Throwable) {
 			log.error("Dhen could not unpack the {} repo", source.repo, throwable)
-			SyncResult.UNREADABLE
+			SyncOutcome(SyncResult.UNREADABLE)
 		} finally {
 			Files.deleteIfExists(archive)
 		}
 	}
 
-	private fun latestCommit(): String? {
-		val body = transport.text(source.commitUrl) ?: return null
-		return try {
+	private fun latestCommit(): LatestCommit {
+		val response = transport.response(source.commitUrl)
+		val body = response.body ?: return LatestCommit(null, response.retryAfter)
+		val commit = try {
 			JsonParser.parseString(body).asJsonObject.text("sha")
 		} catch (throwable: Throwable) {
 			log.warn("Dhen could not read the latest {} commit", source.repo, throwable)
 			null
 		}
+		return LatestCommit(commit, response.retryAfter)
 	}
+
+	private class LatestCommit(val commit: String?, val retryAfter: Duration?)
 
 	private fun unpack() {
 		Files.deleteIfExists(marker)

@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.util.NanoClock
+import io.github.dzkchen.dhen.util.WebResponse
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -97,6 +98,33 @@ internal class PlayerProfilesTest : RepoBackedTest() {
 
 		assertEquals(DASHLESS, PlayerProfiles.uuidOf(NAME))
 		assertEquals(listOf(FIRST, SECOND), source.requests.toList())
+	}
+
+	@Test
+	fun `a rate limited Mojang endpoint is skipped for other names during its cooldown`() = runBlocking {
+		source.statuses = mapOf(FIRST to 429)
+		source.bodies = mapOf(SECOND to ID_REPLY, ALEX_SECOND to ALEX_ID_REPLY)
+		source.onRequest = { if (source.requests.size == 1) nanos = TWO_MINUTES }
+		install()
+		PlayerProfiles.require()
+
+		assertEquals(DASHLESS, PlayerProfiles.uuidOf(NAME))
+		nanos = SIX_MINUTES
+		assertEquals(ALEX_DASHLESS, PlayerProfiles.uuidOf(ALEX))
+		assertEquals(listOf(FIRST, SECOND, ALEX_SECOND), source.requests.toList())
+	}
+
+	@Test
+	fun `a Mojang not found reply stops failover and negative caches the name`() = runBlocking {
+		source.statuses = mapOf(FIRST to 404)
+		source.bodies = mapOf(SECOND to ID_REPLY)
+		install()
+		PlayerProfiles.require()
+
+		assertNull(PlayerProfiles.uuidOf(NAME))
+		assertEquals(listOf(FIRST), source.requests.toList())
+		assertNull(PlayerProfiles.uuidOf(NAME))
+		assertEquals(listOf(FIRST), source.requests.toList())
 	}
 
 	@Test
@@ -311,38 +339,49 @@ internal class PlayerProfilesTest : RepoBackedTest() {
 		private val highest = AtomicInteger()
 
 		var bodies: Map<String, String> = emptyMap()
+		var statuses: Map<String, Int> = emptyMap()
 		var dwellMillis = 0L
 		var onRequest: () -> Unit = {}
 
 		val peak: Int get() = highest.get()
 
-		override fun text(url: String): String? {
+		override fun text(url: String): String? = response(url).body
+
+		override fun response(url: String): WebResponse {
 			val now = active.incrementAndGet()
 			highest.updateAndGet { seen -> maxOf(seen, now) }
 			requests += url
 			onRequest()
 			if (dwellMillis > 0) Thread.sleep(dwellMillis)
 			active.decrementAndGet()
-			return bodies[url]
+			val body = bodies[url]
+			return WebResponse(body, statuses[url] ?: body?.let { 200 })
 		}
 	}
 
 	private companion object {
 		private const val NAME = "Steve"
+		private const val ALEX = "Alex"
 		private const val DASHED = "069a79f4-44e9-4726-a5be-fca90e38aaf5"
 		private const val DASHLESS = "069a79f444e94726a5befca90e38aaf5"
+		private const val ALEX_DASHED = "ec561538-f3fd-461d-aff5-086b22154bce"
+		private const val ALEX_DASHLESS = "ec561538f3fd461daff5086b22154bce"
 		private const val PROXY = "https://proxy.example.com"
 		private const val OTHER = "https://other.example.com"
+		private const val TWO_MINUTES = 120_000_000_000L
 		private const val FIVE_MINUTES = 300_000_000_001L
+		private const val SIX_MINUTES = 360_000_000_000L
 
 		private const val FIRST = "https://api.minecraftservices.com/minecraft/profile/lookup/name/$NAME"
 		private const val SECOND = "https://api.mojang.com/users/profiles/minecraft/$NAME"
+		private const val ALEX_SECOND = "https://api.mojang.com/users/profiles/minecraft/$ALEX"
 		private const val PROFILES = "$PROXY/v2/skyblock/profiles?uuid=$VIEWED_UUID"
 		private const val OTHER_PROFILES = "$OTHER/v2/skyblock/profiles?uuid=$VIEWED_UUID"
 		private const val SECOND_UUID = "123e4567-e89b-12d3-a456-426614174001"
 		private const val OTHER_SECOND = "$OTHER/v2/skyblock/profiles?uuid=$SECOND_UUID"
 
 		private const val ID_REPLY = """{"id":"$DASHED","name":"$NAME"}"""
+		private const val ALEX_ID_REPLY = """{"id":"$ALEX_DASHED","name":"$ALEX"}"""
 		private const val REFUSED = """{"success":false,"cause":"Malformed UUID"}"""
 		private const val ONE_PROFILE =
 			"""{"success":true,"profiles":[{"profile_id":"1","cute_name":"Apple","selected":true}]}"""
