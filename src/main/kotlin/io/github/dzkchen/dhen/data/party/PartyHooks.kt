@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.data.party
 
 import io.github.dzkchen.dhen.data.HypixelModApi
-import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
@@ -16,6 +15,12 @@ internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 	override val feed = "Party"
 
 	private const val BEFORE_FEATURES = 100
+	private const val HYPIXEL_BRAND = "hypixel"
+
+	private val liveHypixelServer: () -> Boolean = {
+		Minecraft.getInstance().player?.connection?.serverBrand()
+			?.contains(HYPIXEL_BRAND, ignoreCase = true) == true
+	}
 
 	override val failsafe = Failsafe("Dhen {} failed, its party state is off until restart")
 
@@ -26,10 +31,11 @@ internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 	fun install(
 		bus: EventBus,
 		self: () -> String? = { Minecraft.getInstance().user.name },
-		request: () -> Unit = HypixelModApi::requestPartyInfo
+		request: () -> Unit = HypixelModApi::requestPartyInfo,
+		onHypixel: () -> Boolean = liveHypixelServer
 	) {
 		uninstall()
-		channels = Channels(bus, self, request)
+		channels = Channels(bus, self, request, onHypixel)
 		subscriptions = arrayOf(
 			bus.subscribe<ChatReceiveEvent>(BEFORE_FEATURES) { chatted(it) },
 			bus.subscribe<ClientTickEvent.End> { ticked() }
@@ -55,8 +61,7 @@ internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 		guarded("party info") { it.reconciled(inParty, leader, roles, memberCount) }
 
 	private fun chatted(event: ChatReceiveEvent) {
-		if (!SkyBlockLocation.onHypixel) return
-		guarded("party chat") { it.chatted(event.stripped) }
+		guarded("party chat") { it.chatted(event) }
 	}
 
 	private fun ticked() = guarded("party request") { it.flush() }
@@ -64,7 +69,8 @@ internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 	internal class Channels(
 		bus: EventBus,
 		private val name: () -> String?,
-		private val request: () -> Unit
+		private val request: () -> Unit,
+		private val onHypixel: () -> Boolean
 	) : PartyRoster {
 		private val joins = bus.type<PartyEvent.Joined>()
 		private val leaves = bus.type<PartyEvent.Left>()
@@ -96,9 +102,12 @@ internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 			if (permanent) requesting = false
 		}
 
-		fun chatted(line: String) = publishing {
-			PartyChat.read(line, this)
-			if (changed) requested = true
+		fun chatted(event: ChatReceiveEvent) {
+			if (!onHypixel()) return
+			publishing {
+				PartyChat.read(event.stripped, this)
+				if (changed) requested = true
+			}
 		}
 
 		fun reconciled(inParty: Boolean, leader: String?, roles: Map<String, PartyRole>, memberCount: Int) = publishing {

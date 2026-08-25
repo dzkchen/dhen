@@ -3,10 +3,12 @@ package io.github.dzkchen.dhen.data
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.party.PartyRole
 import io.github.dzkchen.dhen.data.party.PartyState
+import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.EventBus
 import net.hypixel.data.type.GameType
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundPartyInfoPacket
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -22,7 +24,7 @@ class HypixelModApiTest {
 	@BeforeEach
 	fun install() {
 		HypixelLocationHooks.install(bus)
-		PartyHooks.install(bus, self = { "Me" }, request = {})
+		PartyHooks.install(bus, self = { "Me" }, request = {}, onHypixel = { true })
 		HypixelModApi.install { it.run() }
 	}
 
@@ -104,12 +106,24 @@ class HypixelModApiTest {
 	}
 
 	@Test
-	fun `a throwing packet handler turns the mod api feed off and reports it off`() {
+	fun `a throwing adapter drops mod api and location but leaves party chat live`() {
+		HypixelModApi.located(ClientboundLocationPacket("mini5B", GameType.SKYBLOCK, null, "dungeon", "Dungeon"))
 		assertTrue(HypixelModApi.active())
+		assertTrue(HypixelLocationHooks.active())
+		assertTrue(PartyHooks.active())
 
 		HypixelModApi.delivered("party info") { error("boom") }
 
 		assertFalse(HypixelModApi.active())
+		assertFalse(HypixelLocationHooks.active())
+		assertTrue(PartyHooks.active())
+		assertEquals(Island.NONE, SkyBlockLocation.island)
+
+		val event = ChatReceiveEvent()
+		event.text = Component.literal("[MVP+] Bob joined the party.")
+		bus.type<ChatReceiveEvent>().dispatch(event)
+
+		assertEquals(listOf("Bob"), PartyState.members)
 	}
 
 	@Test

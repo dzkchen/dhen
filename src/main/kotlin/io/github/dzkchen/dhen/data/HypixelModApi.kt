@@ -58,9 +58,7 @@ internal object HypixelModApi : Hooks {
 				.onError { reason -> delivered("party info error") { partyInfoRefused(reason) } }
 			listening = true
 		} catch (throwable: Throwable) {
-			HypixelLocationHooks.uninstall()
-			PartyHooks.uninstall()
-			failsafe.fail("Hypixel Mod API registration", throwable)
+			latchOff("Hypixel Mod API registration", throwable)
 		}
 	}
 
@@ -80,9 +78,14 @@ internal object HypixelModApi : Hooks {
 		try {
 			block()
 		} catch (throwable: Throwable) {
-			uninstall()
-			failsafe.fail(label, throwable)
+			latchOff(label, throwable)
 		}
+	}
+
+	private fun latchOff(label: String, throwable: Throwable) {
+		uninstall()
+		HypixelLocationHooks.uninstall()
+		failsafe.fail(label, throwable)
 	}
 
 	fun located(packet: ClientboundLocationPacket) = HypixelLocationHooks.located(

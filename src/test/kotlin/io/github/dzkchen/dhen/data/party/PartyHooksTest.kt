@@ -18,11 +18,11 @@ class PartyHooksTest {
 	private val bus = EventBus()
 	private val events = mutableListOf<String>()
 	private var requests = 0
+	private var onHypixel = true
 
 	@BeforeEach
 	fun install() {
-		PartyHooks.install(bus, self = { "Me" }, request = { requests++ })
-		SkyBlockLocation.greeted()
+		PartyHooks.install(bus, self = { "Me" }, request = { requests++ }, onHypixel = { onHypixel })
 		bus.subscribe<PartyEvent.Joined> { events += "joined ${it.name}" }
 		bus.subscribe<PartyEvent.Left> { events += "left ${it.name}" }
 		bus.subscribe<PartyEvent.LeaderChanged> { events += "leader ${it.previous}>${it.leader}" }
@@ -212,12 +212,21 @@ class PartyHooksTest {
 	}
 
 	@Test
-	fun `chat is ignored until the mod api says we are on Hypixel`() {
-		SkyBlockLocation.reset()
+	fun `chat is ignored off Hypixel`() {
+		onHypixel = false
 
 		chat("[MVP+] Bob joined the party.")
 
 		assertTrue(PartyState.members.isEmpty())
+	}
+
+	@Test
+	fun `party chat survives the location feed resetting`() {
+		SkyBlockLocation.reset()
+
+		chat("[MVP+] Bob joined the party.")
+
+		assertEquals(listOf("Bob"), PartyState.members)
 	}
 
 	@Test
@@ -363,7 +372,7 @@ class PartyHooksTest {
 
 	private fun reinstall() {
 		PartyHooks.uninstall()
-		PartyHooks.install(bus, self = { "Me" }, request = { requests++ })
+		PartyHooks.install(bus, self = { "Me" }, request = { requests++ }, onHypixel = { onHypixel })
 		events.clear()
 	}
 
