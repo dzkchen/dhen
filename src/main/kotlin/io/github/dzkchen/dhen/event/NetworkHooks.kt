@@ -44,22 +44,32 @@ internal object NetworkHooks : GuardedHooks<NetworkHooks.Channels> {
 	internal class Channels(bus: EventBus) {
 		private val receivePre = bus.type<PacketReceiveEvent.Pre>()
 		private val receivePost = bus.type<PacketReceiveEvent.Post>()
-		private val chat = TextChannel(bus.type<ChatReceiveEvent>(), ChatReceiveEvent())
-		private val actionBar = TextChannel(bus.type<ActionBarEvent>(), ActionBarEvent())
+		private val chat = TextChannel(bus.type<ChatReceiveEvent>(), ::ChatReceiveEvent)
+		private val actionBar = TextChannel(bus.type<ActionBarEvent>(), ::ActionBarEvent)
 		private val outbound = OutboundChannel(bus.type<PacketSendEvent>(), bus.type<MessageSendEvent>())
-		private val preEvent = PacketReceiveEvent.Pre()
-		private val postEvent = PacketReceiveEvent.Post()
+		private val preEvents = ReusableEvent(PacketReceiveEvent::Pre, PacketReceiveEvent::forget)
+		private val postEvents = ReusableEvent(PacketReceiveEvent::Post, PacketReceiveEvent::forget)
 
 		fun received(packet: Packet<*>): Boolean {
-			preEvent.packet = packet
-			preEvent.cancelled = false
-			receivePre.dispatch(preEvent)
-			return preEvent.cancelled
+			val event = preEvents.borrow()
+			event.packet = packet
+			event.cancelled = false
+			return try {
+				receivePre.dispatch(event)
+				event.cancelled
+			} finally {
+				preEvents.release(event)
+			}
 		}
 
 		fun handled(packet: Packet<*>) {
-			postEvent.packet = packet
-			receivePost.dispatch(postEvent)
+			val event = postEvents.borrow()
+			event.packet = packet
+			try {
+				receivePost.dispatch(event)
+			} finally {
+				postEvents.release(event)
+			}
 		}
 
 		fun sent(packet: Packet<*>): Boolean = outbound.publish(packet)
@@ -72,46 +82,53 @@ internal object NetworkHooks : GuardedHooks<NetworkHooks.Channels> {
 		private val packets: EventBus.EventType<PacketSendEvent>,
 		private val messages: EventBus.EventType<MessageSendEvent>
 	) {
-		private val sendEvent = PacketSendEvent()
-		private val messageEvent = MessageSendEvent()
-		private var sharedEventsInUse = false
+		private val sendEvents = ReusableEvent(::PacketSendEvent, PacketSendEvent::forget)
+		private val messageEvents = ReusableEvent(::MessageSendEvent, MessageSendEvent::forget)
 
 		fun publish(packet: Packet<*>): Boolean {
-			if (sharedEventsInUse) return publish(packet, PacketSendEvent(), MessageSendEvent())
-			sharedEventsInUse = true
-			return try {
-				publish(packet, sendEvent, messageEvent)
-			} finally {
-				sharedEventsInUse = false
-			}
-		}
-
-		private fun publish(packet: Packet<*>, send: PacketSendEvent, message: MessageSendEvent): Boolean {
+			val send = sendEvents.borrow()
 			send.packet = packet
 			send.cancelled = false
-			packets.dispatch(send)
-			if (send.cancelled) return true
+			val cancelled = try {
+				packets.dispatch(send)
+				send.cancelled
+			} finally {
+				sendEvents.release(send)
+			}
+			if (cancelled) return true
 			val outgoing = packet as? ChatTextAccess ?: return false
 			val text = outgoing.chatText()
+			val message = messageEvents.borrow()
 			message.cancelled = false
 			message.isCommand = outgoing is ServerboundChatCommandPacketAccessor
 			message.message = text
-			messages.dispatch(message)
-			if (message.cancelled) return true
-			if (message.message != text) outgoing.chatText(message.message)
-			return false
+			return try {
+				messages.dispatch(message)
+				if (message.cancelled) return true
+				if (message.message != text) outgoing.chatText(message.message)
+				false
+			} finally {
+				messageEvents.release(message)
+			}
 		}
 	}
 
 	private class TextChannel<T : TextEvent>(
 		private val channel: EventBus.EventType<T>,
-		private val event: T
+		spare: () -> T
 	) {
+		private val events = ReusableEvent(spare, TextEvent::forget)
+
 		fun publish(content: Component): Component? {
+			val event = events.borrow()
 			event.cancelled = false
 			event.text = content
-			channel.dispatch(event)
-			return if (event.cancelled) null else event.text
+			return try {
+				channel.dispatch(event)
+				if (event.cancelled) null else event.text
+			} finally {
+				events.release(event)
+			}
 		}
 	}
 }

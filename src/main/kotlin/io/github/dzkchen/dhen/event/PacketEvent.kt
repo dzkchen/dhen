@@ -3,8 +3,17 @@ package io.github.dzkchen.dhen.event
 import net.minecraft.network.protocol.Packet
 
 sealed class PacketReceiveEvent : DeepProfiledEvent {
-	lateinit var packet: Packet<*>
-		internal set
+	private var held: Packet<*>? = null
+
+	var packet: Packet<*>
+		get() = held!!
+		internal set(value) {
+			held = value
+		}
+
+	internal fun forget() {
+		held = null
+	}
 
 	class Pre internal constructor() : PacketReceiveEvent(), Cancellable {
 		override var cancelled: Boolean = false
@@ -14,8 +23,17 @@ sealed class PacketReceiveEvent : DeepProfiledEvent {
 }
 
 class PacketSendEvent internal constructor() : DeepProfiledEvent, Cancellable {
-	lateinit var packet: Packet<*>
-		internal set
+	private var held: Packet<*>? = null
+
+	var packet: Packet<*>
+		get() = held!!
+		internal set(value) {
+			held = value
+		}
 
 	override var cancelled: Boolean = false
+
+	internal fun forget() {
+		held = null
+	}
 }

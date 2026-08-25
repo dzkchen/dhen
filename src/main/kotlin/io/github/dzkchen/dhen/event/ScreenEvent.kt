@@ -14,17 +14,32 @@ class GuiOpenEvent internal constructor(var screen: Screen) : Event
 class GuiCloseEvent internal constructor(val screen: Screen) : Event
 
 sealed class ScreenRenderEvent : DeepProfiledEvent {
-	lateinit var screen: Screen
-		internal set
+	private var host: Screen? = null
 
-	lateinit var graphics: GuiGraphicsExtractor
-		internal set
+	private var canvas: GuiGraphicsExtractor? = null
+
+	var screen: Screen
+		get() = host!!
+		internal set(value) {
+			host = value
+		}
+
+	var graphics: GuiGraphicsExtractor
+		get() = canvas!!
+		internal set(value) {
+			canvas = value
+		}
 
 	var mouseX: Int = 0
 		internal set
 
 	var mouseY: Int = 0
 		internal set
+
+	internal fun forget() {
+		host = null
+		canvas = null
+	}
 
 	class Pre internal constructor() : ScreenRenderEvent(), Cancellable {
 		override var cancelled: Boolean = false

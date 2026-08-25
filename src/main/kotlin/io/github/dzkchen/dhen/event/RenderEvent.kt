@@ -52,8 +52,17 @@ class EntityRenderEvent internal constructor() : DeepProfiledEvent, Cancellable 
 }
 
 class BossBarUpdateEvent internal constructor() : DeepProfiledEvent, Cancellable {
-	lateinit var bossBar: BossEvent
-		internal set
+	private var held: BossEvent? = null
+
+	var bossBar: BossEvent
+		get() = held!!
+		internal set(value) {
+			held = value
+		}
 
 	override var cancelled: Boolean = false
+
+	internal fun forget() {
+		held = null
+	}
 }

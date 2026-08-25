@@ -10,19 +10,12 @@ internal object WorldRenderHooks : GuardedHooks<WorldRenderHooks.Channels> {
 
 	private var channels: Channels? = null
 
-	private var disconnects: Handle? = null
-
 	fun install(bus: EventBus) {
 		uninstall()
 		channels = Channels(bus)
-		disconnects = bus.subscribe<WorldChangeEvent> { change ->
-			if (change.phase == WorldChange.DISCONNECT) guarded("world render world change") { it.forget() }
-		}
 	}
 
 	override fun uninstall() {
-		disconnects?.unsubscribe()
-		disconnects = null
 		channels = null
 	}
 
@@ -32,9 +25,7 @@ internal object WorldRenderHooks : GuardedHooks<WorldRenderHooks.Channels> {
 
 	internal class Channels(bus: EventBus) {
 		private val renders = bus.type<WorldRenderEvent>()
-		private val events = ReusableEvent(::WorldRenderEvent)
-
-		fun forget() = events.forget { it.forget() }
+		private val events = ReusableEvent(::WorldRenderEvent, WorldRenderEvent::forget)
 
 		fun render(context: LevelRenderContext) {
 			if (!renders.hasSubscribers) return

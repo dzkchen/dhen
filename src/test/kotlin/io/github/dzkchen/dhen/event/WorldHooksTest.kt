@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -38,39 +39,65 @@ class WorldHooksTest {
 
 	@Test
 	fun `a block change carries the position and both states`() {
-		var seen: BlockChangeEvent? = null
-		bus.subscribe<BlockChangeEvent> { seen = it }
+		var pos: BlockPos? = null
+		var oldState: BlockState? = null
+		var newState: BlockState? = null
+		bus.subscribe<BlockChangeEvent> {
+			pos = it.pos
+			oldState = it.oldState
+			newState = it.newState
+		}
 
 		WorldHooks.blockChanged(FIRST, STONE, DIRT)
 
-		assertEquals(FIRST, seen?.pos)
-		assertSame(STONE, seen?.oldState)
-		assertSame(DIRT, seen?.newState)
+		assertEquals(FIRST, pos)
+		assertSame(STONE, oldState)
+		assertSame(DIRT, newState)
 	}
 
 	@Test
 	fun `every block change reuses one event instance`() {
 		val seen = mutableListOf<BlockChangeEvent>()
-		bus.subscribe<BlockChangeEvent> { seen += it }
+		val positions = mutableListOf<BlockPos>()
+		bus.subscribe<BlockChangeEvent> {
+			seen += it
+			positions += it.pos
+		}
 
 		WorldHooks.blockChanged(FIRST, STONE, DIRT)
 		WorldHooks.blockChanged(SECOND, DIRT, STONE)
 
 		assertSame(seen[0], seen[1])
-		assertEquals(SECOND, seen[1].pos)
+		assertEquals(listOf(FIRST, SECOND), positions)
 	}
 
 	@Test
 	fun `a block change with no subscriber never touches the shared event`() {
-		var seen: BlockChangeEvent? = null
-		val handle = bus.subscribe<BlockChangeEvent> { seen = it }
+		var pos: BlockPos? = null
+		var oldState: BlockState? = null
+		val handle = bus.subscribe<BlockChangeEvent> {
+			pos = it.pos
+			oldState = it.oldState
+		}
 
 		WorldHooks.blockChanged(FIRST, STONE, DIRT)
 		handle.unsubscribe()
 		WorldHooks.blockChanged(SECOND, DIRT, STONE)
 
-		assertEquals(FIRST, seen?.pos)
-		assertSame(STONE, seen?.oldState)
+		assertEquals(FIRST, pos)
+		assertSame(STONE, oldState)
+	}
+
+	@Test
+	fun `a block change releases its position and states when dispatch returns`() {
+		var seen: BlockChangeEvent? = null
+		bus.subscribe<BlockChangeEvent> { seen = it }
+
+		WorldHooks.blockChanged(FIRST, STONE, DIRT)
+
+		assertThrows(NullPointerException::class.java) { seen!!.pos }
+		assertThrows(NullPointerException::class.java) { seen!!.oldState }
+		assertThrows(NullPointerException::class.java) { seen!!.newState }
 	}
 
 	@Test

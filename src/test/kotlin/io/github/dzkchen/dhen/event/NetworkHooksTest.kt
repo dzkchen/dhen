@@ -11,7 +11,9 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -53,13 +55,17 @@ class NetworkHooksTest {
 	fun `a chat packet raises a chat line carrying styled and stripped text`() {
 		val line = Component.literal("Hello ").withStyle(ChatFormatting.GREEN)
 			.append(Component.literal("world").withStyle(ChatFormatting.BOLD))
-		var event: ChatReceiveEvent? = null
-		bus.subscribe<ChatReceiveEvent> { event = it }
+		var styled = ""
+		var stripped = ""
+		bus.subscribe<ChatReceiveEvent> {
+			styled = it.styled
+			stripped = it.stripped
+		}
 
 		assertFalse(NetworkHooks.beforeHandle(FakeChatPacket(line)))
 
-		assertEquals("§aHello §a§lworld", event?.styled)
-		assertEquals("Hello world", event?.stripped)
+		assertEquals("§aHello §a§lworld", styled)
+		assertEquals("Hello world", stripped)
 	}
 
 	@Test
@@ -67,12 +73,12 @@ class NetworkHooksTest {
 		val line = Component.empty()
 			.append(Component.literal("bold").withStyle(ChatFormatting.BOLD))
 			.append(Component.literal(" plain"))
-		var event: ChatReceiveEvent? = null
-		bus.subscribe<ChatReceiveEvent> { event = it }
+		var styled = ""
+		bus.subscribe<ChatReceiveEvent> { styled = it.styled }
 
 		NetworkHooks.beforeHandle(FakeChatPacket(line))
 
-		assertEquals("§lbold§r plain", event?.styled)
+		assertEquals("§lbold§r plain", styled)
 	}
 
 	@Test
@@ -138,24 +144,32 @@ class NetworkHooksTest {
 
 	@Test
 	fun `an outgoing chat packet raises a message that is not a command`() {
-		var event: MessageSendEvent? = null
-		bus.subscribe<MessageSendEvent> { event = it }
+		var message = ""
+		var command = true
+		bus.subscribe<MessageSendEvent> {
+			message = it.message
+			command = it.isCommand
+		}
 
 		assertFalse(NetworkHooks.beforeSend(FakeChatSendPacket("hello there")))
 
-		assertEquals("hello there", event?.message)
-		assertFalse(event?.isCommand ?: true)
+		assertEquals("hello there", message)
+		assertFalse(command)
 	}
 
 	@Test
 	fun `an outgoing command packet raises a message that knows it is a command`() {
-		var event: MessageSendEvent? = null
-		bus.subscribe<MessageSendEvent> { event = it }
+		var message = ""
+		var command = false
+		bus.subscribe<MessageSendEvent> {
+			message = it.message
+			command = it.isCommand
+		}
 
 		assertFalse(NetworkHooks.beforeSend(FakeCommandSendPacket("party warp")))
 
-		assertEquals("party warp", event?.message)
-		assertTrue(event?.isCommand ?: false)
+		assertEquals("party warp", message)
+		assertTrue(command)
 	}
 
 	@Test
@@ -206,6 +220,57 @@ class NetworkHooksTest {
 		}
 
 		assertTrue(NetworkHooks.beforeSend(FakeCommandSendPacket("pw")))
+	}
+
+	@Test
+	fun `a chat line raised inside another borrows its own event`() {
+		val seen = mutableListOf<ChatReceiveEvent>()
+		val texts = mutableListOf<String>()
+		var nested = false
+		bus.subscribe<ChatReceiveEvent> { event ->
+			seen += event
+			texts += event.text.string
+			if (!nested) {
+				nested = true
+				NetworkHooks.beforeHandle(FakeChatPacket(Component.literal("nested")))
+				texts += event.text.string
+			}
+		}
+
+		NetworkHooks.beforeHandle(FakeChatPacket(Component.literal("outer")))
+
+		assertNotSame(seen[0], seen[1])
+		assertEquals(listOf("outer", "nested", "outer"), texts)
+	}
+
+	@Test
+	fun `network events release their payloads when dispatch returns`() {
+		var receivePre: PacketReceiveEvent.Pre? = null
+		var receivePost: PacketReceiveEvent.Post? = null
+		var sent: PacketSendEvent? = null
+		var chat: ChatReceiveEvent? = null
+		var actionBar: ActionBarEvent? = null
+		var message: MessageSendEvent? = null
+		bus.subscribe<PacketReceiveEvent.Pre> { receivePre = it }
+		bus.subscribe<PacketReceiveEvent.Post> { receivePost = it }
+		bus.subscribe<PacketSendEvent> { sent = it }
+		bus.subscribe<ChatReceiveEvent> { chat = it }
+		bus.subscribe<ActionBarEvent> { actionBar = it }
+		bus.subscribe<MessageSendEvent> { message = it }
+		val received = FakeChatPacket(Component.literal("chat"))
+
+		NetworkHooks.beforeHandle(received)
+		NetworkHooks.afterHandle(received)
+		NetworkHooks.beforeHandle(FakeChatPacket(Component.literal("action"), overlay = true))
+		NetworkHooks.beforeSend(FakeCommandSendPacket("party warp"))
+
+		assertThrows(NullPointerException::class.java) { receivePre!!.packet }
+		assertThrows(NullPointerException::class.java) { receivePost!!.packet }
+		assertThrows(NullPointerException::class.java) { sent!!.packet }
+		assertTrue(chat!!.text.string.isEmpty())
+		assertTrue(actionBar!!.text.string.isEmpty())
+		val releasedMessage = message ?: error("message event missing")
+		assertTrue(releasedMessage.message.isEmpty())
 	}
 
 	@Test

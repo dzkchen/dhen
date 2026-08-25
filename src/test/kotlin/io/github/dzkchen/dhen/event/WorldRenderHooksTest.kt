@@ -36,13 +36,17 @@ class WorldRenderHooksTest {
 	@Test
 	fun `a frame hands the handler the collector and pose the context carries`() {
 		val frame = frame()
-		var seen: WorldRenderEvent? = null
-		bus.subscribe<WorldRenderEvent> { seen = it }
+		var collector: SubmitNodeCollector? = null
+		var pose: PoseStack? = null
+		bus.subscribe<WorldRenderEvent> {
+			collector = it.collector
+			pose = it.pose
+		}
 
 		WorldRenderHooks.render(frame)
 
-		assertSame(frame.submitNodeCollector(), seen?.collector)
-		assertSame(frame.poseStack(), seen?.pose)
+		assertSame(frame.submitNodeCollector(), collector)
+		assertSame(frame.poseStack(), pose)
 	}
 
 	@Test
@@ -64,33 +68,39 @@ class WorldRenderHooksTest {
 	@Test
 	fun `every frame reuses one event instance`() {
 		val seen = mutableListOf<WorldRenderEvent>()
-		bus.subscribe<WorldRenderEvent> { seen += it }
+		val times = mutableListOf<Long>()
+		bus.subscribe<WorldRenderEvent> {
+			seen += it
+			times += it.gameTime
+		}
 
 		WorldRenderHooks.render(frame(gameTime = 1L))
 		WorldRenderHooks.render(frame(gameTime = 2L))
 
 		assertSame(seen[0], seen[1])
-		assertEquals(2L, seen[1].gameTime)
+		assertEquals(listOf(1L, 2L), times)
 	}
 
 	@Test
 	fun `a frame with no subscriber never touches the shared event`() {
-		var seen: WorldRenderEvent? = null
-		val handle = bus.subscribe<WorldRenderEvent> { seen = it }
+		var seen = 0L
+		val handle = bus.subscribe<WorldRenderEvent> { seen = it.gameTime }
 
 		WorldRenderHooks.render(frame(gameTime = 1L))
 		handle.unsubscribe()
 		WorldRenderHooks.render(frame(gameTime = 2L))
 
-		assertEquals(1L, seen?.gameTime)
+		assertEquals(1L, seen)
 	}
 
 	@Test
 	fun `a frame published from inside a handler borrows its own event`() {
 		val seen = mutableListOf<WorldRenderEvent>()
+		val times = mutableListOf<Long>()
 		var nested = false
 		bus.subscribe<WorldRenderEvent> { event ->
 			seen += event
+			times += event.gameTime
 			if (!nested) {
 				nested = true
 				WorldRenderHooks.render(frame(gameTime = 2L))
@@ -100,31 +110,26 @@ class WorldRenderHooksTest {
 		WorldRenderHooks.render(frame(gameTime = 1L))
 
 		assertNotSame(seen[0], seen[1])
-		assertEquals(2L, seen[1].gameTime)
-		assertEquals(1L, seen[0].gameTime)
+		assertEquals(listOf(1L, 2L), times)
 	}
 
 	@Test
-	fun `a disconnect releases the frame the shared event was holding`() {
+	fun `a frame releases its context when dispatch returns`() {
 		var seen: WorldRenderEvent? = null
 		bus.subscribe<WorldRenderEvent> { seen = it }
 		WorldRenderHooks.render(frame())
-
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
 
 		assertThrows(NullPointerException::class.java) { seen!!.collector }
 	}
 
 	@Test
-	fun `joining a world leaves the frame the shared event is holding alone`() {
-		var seen: WorldRenderEvent? = null
-		bus.subscribe<WorldRenderEvent> { seen = it }
+	fun `a frame exposes its game time while dispatch is active`() {
+		var seen = 0L
+		bus.subscribe<WorldRenderEvent> { seen = it.gameTime }
 		val frame = frame(gameTime = 3L)
 		WorldRenderHooks.render(frame)
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
-
-		assertEquals(3L, seen?.gameTime)
+		assertEquals(3L, seen)
 	}
 
 	@Test

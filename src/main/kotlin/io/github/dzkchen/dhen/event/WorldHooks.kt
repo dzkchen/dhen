@@ -35,7 +35,7 @@ internal object WorldHooks : GuardedHooks<WorldHooks.Channels> {
 		private val changes = bus.type<WorldChangeEvent>()
 		private val blocks = bus.type<BlockChangeEvent>()
 		private val unloads = bus.type<EntityUnloadEvent>()
-		private val blockEvents = ReusableEvent(::BlockChangeEvent)
+		private val blockEvents = ReusableEvent(::BlockChangeEvent, BlockChangeEvent::forget)
 
 		fun changed(phase: WorldChange) = changes.dispatch(WorldChangeEvent(phase))
 

@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.event
 
 import net.minecraft.ChatFormatting
+import net.minecraft.network.chat.CommonComponents
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.network.chat.TextColor
@@ -10,7 +11,7 @@ import java.util.Optional
 sealed class TextEvent : Event, Cancellable {
 	override var cancelled: Boolean = false
 
-	var text: Component = Component.empty()
+	var text: Component = CommonComponents.EMPTY
 		set(value) {
 			field = value
 			styledText = null
@@ -25,6 +26,10 @@ sealed class TextEvent : Event, Cancellable {
 
 	val stripped: String
 		get() = strippedText ?: withoutCodes(text.string).also { strippedText = it }
+
+	internal fun forget() {
+		text = CommonComponents.EMPTY
+	}
 }
 
 class ChatReceiveEvent internal constructor() : TextEvent()
@@ -38,6 +43,10 @@ class MessageSendEvent internal constructor() : Event, Cancellable {
 
 	var isCommand: Boolean = false
 		internal set
+
+	internal fun forget() {
+		message = ""
+	}
 }
 
 private val LEGACY_COLORS: Map<TextColor, ChatFormatting> = ChatFormatting.entries

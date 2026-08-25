@@ -17,21 +17,14 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 
 	private var channels: Channels? = null
 
-	private var disconnects: Handle? = null
-
 	private var changing = false
 
 	fun install(bus: EventBus) {
 		uninstall()
 		channels = Channels(bus)
-		disconnects = bus.subscribe<WorldChangeEvent> { change ->
-			if (change.phase == WorldChange.DISCONNECT) guarded("screen world change") { it.forget() }
-		}
 	}
 
 	override fun uninstall() {
-		disconnects?.unsubscribe()
-		disconnects = null
 		changing = false
 		channels = null
 	}
@@ -122,17 +115,11 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 		private val slotPre = bus.type<SlotRenderEvent.Pre>()
 		private val slotPost = bus.type<SlotRenderEvent.Post>()
 		private val tooltips = bus.type<TooltipEvent>()
-		private val preEvents = ReusableEvent(ScreenRenderEvent::Pre)
-		private val postEvents = ReusableEvent(ScreenRenderEvent::Post)
-		private val slotPreEvents = ReusableEvent(SlotRenderEvent::Pre)
-		private val slotPostEvents = ReusableEvent(SlotRenderEvent::Post)
-		private val tooltipEvents = ReusableEvent(::TooltipEvent)
-
-		fun forget() {
-			slotPreEvents.forget { it.forget() }
-			slotPostEvents.forget { it.forget() }
-			tooltipEvents.forget { it.forget() }
-		}
+		private val preEvents = ReusableEvent(ScreenRenderEvent::Pre, ScreenRenderEvent::forget)
+		private val postEvents = ReusableEvent(ScreenRenderEvent::Post, ScreenRenderEvent::forget)
+		private val slotPreEvents = ReusableEvent(SlotRenderEvent::Pre, SlotRenderEvent::forget)
+		private val slotPostEvents = ReusableEvent(SlotRenderEvent::Post, SlotRenderEvent::forget)
+		private val tooltipEvents = ReusableEvent(::TooltipEvent, TooltipEvent::forget)
 
 		fun changed(closing: Screen?, opening: Screen?): Screen? {
 			if (closing != null) closes.dispatch(GuiCloseEvent(closing))

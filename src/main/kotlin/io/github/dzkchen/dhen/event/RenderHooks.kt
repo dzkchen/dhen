@@ -11,19 +11,12 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 
 	private var channels: Channels? = null
 
-	private var disconnects: Handle? = null
-
 	fun install(bus: EventBus) {
 		uninstall()
 		channels = Channels(bus)
-		disconnects = bus.subscribe<WorldChangeEvent> { change ->
-			if (change.phase == WorldChange.DISCONNECT) guarded("entity render world change") { it.forget() }
-		}
 	}
 
 	override fun uninstall() {
-		disconnects?.unsubscribe()
-		disconnects = null
 		channels = null
 	}
 
@@ -43,9 +36,9 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 		private val glows = bus.type<EntityGlowEvent>()
 		private val renders = bus.type<EntityRenderEvent>()
 		private val bossBars = bus.type<BossBarUpdateEvent>()
-		private val glowEvents = ReusableEvent(::EntityGlowEvent)
-		private val renderEvents = ReusableEvent(::EntityRenderEvent)
-		private val bossBarEvents = ReusableEvent(::BossBarUpdateEvent)
+		private val glowEvents = ReusableEvent(::EntityGlowEvent, EntityGlowEvent::forget)
+		private val renderEvents = ReusableEvent(::EntityRenderEvent, EntityRenderEvent::forget)
+		private val bossBarEvents = ReusableEvent(::BossBarUpdateEvent, BossBarUpdateEvent::forget)
 
 		fun glow(entity: Entity, vanillaOutline: Int): Int {
 			if (!glows.hasSubscribers) return vanillaOutline
@@ -71,11 +64,6 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 			} finally {
 				renderEvents.release(event)
 			}
-		}
-
-		fun forget() {
-			glowEvents.forget { it.forget() }
-			renderEvents.forget { it.forget() }
 		}
 
 		fun bossBar(bossBar: BossEvent): Boolean {

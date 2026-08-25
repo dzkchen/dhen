@@ -53,6 +53,21 @@ class ReusableEventTest {
 
 		assertEquals(1, CountedEvent.built)
 	}
+
+	@Test
+	fun `release resets shared and nested instances`() {
+		val fresh = ReusableEvent(::ResettableEvent, ResettableEvent::reset)
+		val outer = fresh.borrow()
+		val inner = fresh.borrow()
+		outer.value = 1
+		inner.value = 2
+
+		fresh.release(inner)
+		fresh.release(outer)
+
+		assertEquals(0, outer.value)
+		assertEquals(0, inner.value)
+	}
 }
 
 private class CountedEvent : Event {
@@ -62,5 +77,13 @@ private class CountedEvent : Event {
 
 	companion object {
 		var built = 0
+	}
+}
+
+private class ResettableEvent : Event {
+	var value = 0
+
+	fun reset() {
+		value = 0
 	}
 }

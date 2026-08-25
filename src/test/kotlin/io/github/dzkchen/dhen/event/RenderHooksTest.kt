@@ -138,37 +138,41 @@ class RenderHooksTest {
 	}
 
 	@Test
-	fun `a disconnect releases the entity the shared glow event was holding`() {
+	fun `a glow event releases its entity when dispatch returns`() {
 		var seen: EntityGlowEvent? = null
 		bus.subscribe<EntityGlowEvent> { seen = it }
 		RenderHooks.entityOutline(uninitialized<ItemEntity>(), EntityRenderState.NO_OUTLINE)
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
-
 		assertThrows(NullPointerException::class.java) { seen!!.entity }
 	}
 
 	@Test
-	fun `a disconnect releases the entity the shared render event was holding`() {
+	fun `an entity render event releases its entity when dispatch returns`() {
 		var seen: EntityRenderEvent? = null
 		bus.subscribe<EntityRenderEvent> { seen = it }
 		RenderHooks.entityRenderCancelled(uninitialized<ItemEntity>())
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
-
 		assertThrows(NullPointerException::class.java) { seen!!.entity }
 	}
 
 	@Test
-	fun `joining a world leaves the entity the shared glow event is holding alone`() {
+	fun `a glow event exposes its entity while dispatch is active`() {
 		val entity = uninitialized<ItemEntity>()
-		var seen: EntityGlowEvent? = null
-		bus.subscribe<EntityGlowEvent> { seen = it }
+		var seen: ItemEntity? = null
+		bus.subscribe<EntityGlowEvent> { seen = it.entity as ItemEntity }
 		RenderHooks.entityOutline(entity, EntityRenderState.NO_OUTLINE)
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
+		assertSame(entity, seen)
+	}
 
-		assertSame(entity, seen?.entity)
+	@Test
+	fun `a boss bar event releases its bar when dispatch returns`() {
+		var seen: BossBarUpdateEvent? = null
+		bus.subscribe<BossBarUpdateEvent> { seen = it }
+
+		RenderHooks.bossBarCancelled(bossBar("Maxor"))
+
+		assertThrows(NullPointerException::class.java) { seen!!.bossBar }
 	}
 
 	@Test

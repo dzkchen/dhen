@@ -199,12 +199,10 @@ class ScreenHooksTest {
 	}
 
 	@Test
-	fun `a disconnect releases the container the shared slot event was holding`() {
+	fun `a slot event releases its container when dispatch returns`() {
 		var seen: SlotRenderEvent? = null
 		bus.subscribe<SlotRenderEvent.Pre> { seen = it }
 		ScreenHooks.beforeSlotRender(uninitialized<ContainerScreen>(), uninitialized<GuiGraphicsExtractor>(), slot())
-
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
 
 		assertThrows(NullPointerException::class.java) { seen!!.slot }
 		assertThrows(NullPointerException::class.java) { seen!!.screen }
@@ -212,22 +210,20 @@ class ScreenHooksTest {
 	}
 
 	@Test
-	fun `joining a world leaves the container the shared slot event is holding alone`() {
+	fun `a slot event exposes its container while dispatch is active`() {
 		val slot = slot()
-		var seen: SlotRenderEvent? = null
-		bus.subscribe<SlotRenderEvent.Pre> { seen = it }
+		var seen: Slot? = null
+		bus.subscribe<SlotRenderEvent.Pre> { seen = it.slot }
 		ScreenHooks.beforeSlotRender(uninitialized<ContainerScreen>(), uninitialized<GuiGraphicsExtractor>(), slot)
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
-
-		assertSame(slot, seen?.slot)
+		assertSame(slot, seen)
 	}
 
 	@Test
-	fun `a disconnect releases the item the shared tooltip event was holding`() {
+	fun `releasing a tooltip clears the item it was holding`() {
 		var seen: TooltipEvent? = null
 		bus.subscribe<TooltipEvent> { seen = it }
-		ScreenHooks.beforeTooltip(
+		val event = ScreenHooks.beforeTooltip(
 			uninitialized<ContainerScreen>(),
 			uninitialized<GuiGraphicsExtractor>(),
 			slot(),
@@ -235,13 +231,31 @@ class ScreenHooksTest {
 			listOf(Component.literal("Diamond")),
 			0,
 			0
-		)
+		)!!
 
-		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.DISCONNECT))
+		assertSame(event, seen)
+		assertEquals("Diamond", event.lines.single().string)
+		ScreenHooks.releaseTooltip(event)
 
 		assertThrows(NullPointerException::class.java) { seen!!.stack }
 		assertThrows(NullPointerException::class.java) { seen!!.screen }
 		assertTrue(seen!!.lines.isEmpty())
+	}
+
+	@Test
+	fun `a screen render event clears its screen and graphics when dispatch returns`() {
+		var seen: ScreenRenderEvent.Pre? = null
+		bus.subscribe<ScreenRenderEvent.Pre> { seen = it }
+
+		ScreenHooks.beforeScreenRender(
+			FakeScreen("render"),
+			uninitialized<GuiGraphicsExtractor>(),
+			0,
+			0
+		)
+
+		assertThrows(NullPointerException::class.java) { seen!!.screen }
+		assertThrows(NullPointerException::class.java) { seen!!.graphics }
 	}
 
 	@Test
