@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.util.text
 internal object PriceTables {
 	private const val POTION = "POTION_"
 	private const val RUNE = "_RUNE"
+	private const val ATTRIBUTE_SHARD = "ATTRIBUTE_SHARD_"
 	private const val NPC_SELL_PRICE = "npc_sell_price"
 
 	val PET_TIERS = arrayOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
@@ -36,8 +37,15 @@ internal object PriceTables {
 		return when {
 			name.startsWith(POTION) -> "POTION-${name.removePrefix(POTION)}-$tier"
 			name.endsWith(RUNE) -> "RUNE-${name.removeSuffix(RUNE)}-$tier"
+			name.startsWith(ATTRIBUTE_SHARD) -> attributeShardId(name, tier)
 			else -> PET_TIERS.getOrNull(tier.toIntOrNull() ?: -1)?.let { "PET-$name-$it" }
 		}
+	}
+
+	private fun attributeShardId(name: String, tier: String): String? {
+		val attribute = name.removePrefix(ATTRIBUTE_SHARD)
+		val level = tier.toIntOrNull() ?: return null
+		return if (attribute.isEmpty() || level <= 0) null else "ATTRIBUTE_SHARD-$attribute-$level"
 	}
 
 	private inline fun cheapest(body: String, marketId: (String) -> String?): Map<String, Double> {

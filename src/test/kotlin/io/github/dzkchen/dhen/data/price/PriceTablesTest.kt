@@ -27,6 +27,10 @@ class PriceTablesTest {
 		assertEquals("HYPERION", PriceTables.neuMarketId("HYPERION"))
 		assertEquals("POTION-HASTE-4", PriceTables.neuMarketId("POTION_HASTE;4"))
 		assertEquals("RUNE-DRAGON-3", PriceTables.neuMarketId("DRAGON_RUNE;3"))
+		assertEquals(
+			"ATTRIBUTE_SHARD-LIFE_REGENERATION-1",
+			PriceTables.neuMarketId("ATTRIBUTE_SHARD_LIFE_REGENERATION;1")
+		)
 		assertEquals("PET-AMMONITE-LEGENDARY", PriceTables.neuMarketId("AMMONITE;4"))
 		assertEquals("PET-GIRAFFE-EPIC", PriceTables.neuMarketId("GIRAFFE;3+100"))
 	}
@@ -35,6 +39,8 @@ class PriceTablesTest {
 	fun `a spare lowest bin key whose tier is not a pet tier is dropped rather than guessed`() {
 		assertNull(PriceTables.neuMarketId("SOMETHING;9"))
 		assertNull(PriceTables.neuMarketId("SOMETHING;X"))
+		assertNull(PriceTables.neuMarketId("ATTRIBUTE_SHARD_LIFE_REGENERATION;X"))
+		assertNull(PriceTables.neuMarketId("ATTRIBUTE_SHARD_;1"))
 	}
 
 	@Test

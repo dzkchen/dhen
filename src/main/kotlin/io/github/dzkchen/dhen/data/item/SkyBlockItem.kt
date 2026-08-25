@@ -132,6 +132,14 @@ class SkyBlockItem internal constructor(
 		private const val UNIQUE_RUNE = "UNIQUE_RUNE"
 		private const val POTION = "POTION"
 		private const val PET = "PET"
+		private const val ATTRIBUTE_SHARD = "ATTRIBUTE_SHARD"
+		private const val PARTY_HAT_CRAB = "PARTY_HAT_CRAB"
+		private const val PARTY_HAT_CRAB_ANIMATED = "PARTY_HAT_CRAB_ANIMATED"
+		private const val PARTY_HAT_SLOTH = "PARTY_HAT_SLOTH"
+		private const val BALLOON_HAT_2024 = "BALLOON_HAT_2024"
+		private const val BALLOON_HAT_2025 = "BALLOON_HAT_2025"
+		private const val CAKE_HAT_2026 = "CAKE_HAT_2026"
+		private const val ABICASE = "ABICASE"
 		private const val ENHANCED = "-ENHANCED"
 
 		private val DRILL_PARTS = listOf("drill_part_upgrade_module", "drill_part_engine", "drill_part_fuel_tank")
@@ -185,6 +193,12 @@ class SkyBlockItem internal constructor(
 			RUNE, UNIQUE_RUNE -> keyedLevel(RUNE, runes)
 			POTION -> potionId(tag)
 			PET -> if (pet == null) "" else petMarketId(pet)
+			ATTRIBUTE_SHARD -> attributeShardId(tag)
+			PARTY_HAT_CRAB, PARTY_HAT_CRAB_ANIMATED -> crabHatId(tag)
+			PARTY_HAT_SLOTH -> slothHatId(tag)
+			BALLOON_HAT_2024, BALLOON_HAT_2025 -> balloonHatId(tag)
+			CAKE_HAT_2026 -> cakeHatId(tag)
+			ABICASE -> phoneCaseId(tag)
 			else -> id
 		}
 
@@ -205,6 +219,36 @@ class SkyBlockItem internal constructor(
 			if (level <= 0) return ""
 			val enhanced = if (tag.getBooleanOr("enhanced", false)) ENHANCED else ""
 			return "$POTION-${potion.uppercase(Locale.ROOT)}-$level$enhanced"
+		}
+
+		private fun attributeShardId(tag: CompoundTag): String = keyedLevel(ATTRIBUTE_SHARD, levels(tag, "attributes"))
+
+		private fun crabHatId(tag: CompoundTag): String {
+			val color = tag.getStringOr("party_hat_color", "")
+			if (color.isEmpty()) return ""
+			val animated = if (tag.getIntOr("party_hat_year", 0) == 2022) "_ANIMATED" else ""
+			return "${PARTY_HAT_CRAB}_${color.uppercase(Locale.ROOT)}$animated"
+		}
+
+		private fun slothHatId(tag: CompoundTag): String {
+			val emoji = tag.getStringOr("party_hat_emoji", "")
+			return if (emoji.isEmpty()) "" else "${PARTY_HAT_SLOTH}_${emoji.uppercase(Locale.ROOT)}"
+		}
+
+		private fun balloonHatId(tag: CompoundTag): String {
+			val color = tag.getStringOr("party_hat_color", "")
+			val year = tag.getIntOr("party_hat_year", 0)
+			return if (color.isEmpty() || year <= 0) "" else "BALLOON_HAT_${year}_${color.uppercase(Locale.ROOT)}"
+		}
+
+		private fun cakeHatId(tag: CompoundTag): String {
+			val color = tag.getStringOr("party_hat_color", "")
+			return if (color.isEmpty()) "" else "${CAKE_HAT_2026}_${color.uppercase(Locale.ROOT)}"
+		}
+
+		private fun phoneCaseId(tag: CompoundTag): String {
+			val model = tag.getStringOr("model", "")
+			return if (model.isEmpty()) "" else "${ABICASE}_${model.uppercase(Locale.ROOT)}"
 		}
 
 		private fun levels(tag: CompoundTag, key: String, upperCaseKeys: Boolean = false): Map<String, Int> {

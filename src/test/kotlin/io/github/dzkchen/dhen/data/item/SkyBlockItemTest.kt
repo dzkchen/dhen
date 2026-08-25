@@ -97,6 +97,67 @@ class SkyBlockItemTest {
 	}
 
 	@Test
+	fun `an attribute shard takes the market id of its single attribute`() {
+		val attributes = CompoundTag().apply { putInt("life_regeneration", 1) }
+
+		assertEquals(
+			"ATTRIBUTE_SHARD-LIFE_REGENERATION-1",
+			marketId("ATTRIBUTE_SHARD") { put("attributes", attributes) }
+		)
+	}
+
+	@Test
+	fun `crab hats carry their color and animated year`() {
+		assertEquals("PARTY_HAT_CRAB_RED", marketId("PARTY_HAT_CRAB") { putString("party_hat_color", "red") })
+		assertEquals(
+			"PARTY_HAT_CRAB_BLUE_ANIMATED",
+			marketId("PARTY_HAT_CRAB_ANIMATED") {
+				putString("party_hat_color", "blue")
+				putInt("party_hat_year", 2022)
+			}
+		)
+	}
+
+	@Test
+	fun `a sloth hat carries its emoji`() {
+		assertEquals(
+			"PARTY_HAT_SLOTH_HAPPY",
+			marketId("PARTY_HAT_SLOTH") { putString("party_hat_emoji", "happy") }
+		)
+	}
+
+	@Test
+	fun `balloon hats carry their year and color`() {
+		assertEquals(
+			"BALLOON_HAT_2024_GREEN",
+			marketId("BALLOON_HAT_2024") {
+				putString("party_hat_color", "green")
+				putInt("party_hat_year", 2024)
+			}
+		)
+		assertEquals(
+			"BALLOON_HAT_2025_PURPLE",
+			marketId("BALLOON_HAT_2025") {
+				putString("party_hat_color", "purple")
+				putInt("party_hat_year", 2025)
+			}
+		)
+	}
+
+	@Test
+	fun `a cake hat carries its color`() {
+		assertEquals(
+			"CAKE_HAT_2026_PINK",
+			marketId("CAKE_HAT_2026") { putString("party_hat_color", "pink") }
+		)
+	}
+
+	@Test
+	fun `an abicase carries its model`() {
+		assertEquals("ABICASE_BLUE_BLUE", marketId("ABICASE") { putString("model", "blue_blue") })
+	}
+
+	@Test
 	fun `a pet takes its type and tier from the pet info json`() {
 		val item = SkyBlockItems.of(
 			stack {
@@ -281,6 +342,12 @@ class SkyBlockItemTest {
 	}
 
 	private fun stack(build: CompoundTag.() -> Unit): ItemStack = ItemFixture.stack(build)
+
+	private fun marketId(id: String, build: CompoundTag.() -> Unit): String =
+		SkyBlockItems.of(stack {
+			putString("id", id)
+			build()
+		}).marketId
 
 	private fun lored(vararg lines: String): ItemStack = ItemFixture.lored(*lines)
 
