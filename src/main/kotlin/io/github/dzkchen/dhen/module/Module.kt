@@ -37,6 +37,9 @@ abstract class Module(
 	@Volatile
 	var errorCount: Int = 0
 		private set
+	@Volatile
+	internal var lastErrorTrace: String? = null
+		private set
 
 	private val registrations = mutableListOf<Registration<out Event>>()
 	private val settingList = mutableListOf<Setting<*>>()
@@ -209,6 +212,7 @@ abstract class Module(
 
 	private fun resetErrorState() {
 		errorCount = 0
+		lastErrorTrace = null
 		warned = false
 		for (element in hudList) element.clearFailure()
 	}
@@ -217,6 +221,7 @@ abstract class Module(
 		log.error("Module '{}' handler threw", name, throwable)
 
 		var firstSinceEnable = false
+		var traceForNotice: String? = null
 		val overThreshold = synchronized(stateLock) {
 			val now = host.clock()
 			if (errorCount == 0 || now - windowStart > ERROR_WINDOW_MS) {
@@ -227,11 +232,16 @@ abstract class Module(
 			if (!warned) {
 				warned = true
 				firstSinceEnable = true
+				val trace = throwable.stackTraceToString()
+				lastErrorTrace = trace
+				traceForNotice = trace
 			}
 			errorCount >= ERROR_THRESHOLD
 		}
 
-		if (firstSinceEnable) notifyQuietly("Module '$name' encountered an error.")
+		if (firstSinceEnable) {
+			notifyQuietly("Module '$name' encountered an error. Click to copy its trace.", traceForNotice)
+		}
 
 		if (overThreshold && setEnabled(false)) {
 			notifyQuietly("Module '$name' auto-disabled after repeated errors.")
@@ -246,9 +256,9 @@ abstract class Module(
 		}
 	}
 
-	private fun notifyQuietly(message: String) {
+	private fun notifyQuietly(message: String, copyText: String? = null) {
 		try {
-			host.notifier.notify(this, message)
+			host.notifier.notify(this, message, copyText)
 		} catch (throwable: Throwable) {
 			log.error("Module '{}' notifier threw", name, throwable)
 		}

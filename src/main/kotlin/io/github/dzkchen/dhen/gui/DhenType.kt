@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
@@ -177,6 +178,13 @@ internal object DhenType {
 
 	fun overWorld(text: String): Component =
 		Component.literal(text).setStyle(style.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
+
+	fun copyableOverWorld(text: String, copyText: String): Component =
+		Component.literal(text).setStyle(
+			style
+				.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb)
+				.withClickEvent(ClickEvent.CopyToClipboard(copyText))
+		)
 
 	fun styled(text: String): Component = cached(text).component
 

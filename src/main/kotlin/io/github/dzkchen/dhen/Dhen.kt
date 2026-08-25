@@ -69,6 +69,7 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
@@ -85,9 +86,10 @@ object Dhen : ClientModInitializer {
 	private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
 	private val clientThread = ClientThreadDispatcher()
+	private val announcements = AnnouncementBuffer(ANNOUNCEMENT_CAPACITY)
 
 	val modules: ModuleManager = ModuleManager(
-		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announce),
+		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announceComponent),
 		clientDispatcher = clientThread,
 		anyScreenOpen = { Minecraft.getInstance().gui.screen() != null }
 	)
@@ -276,7 +278,10 @@ object Dhen : ClientModInitializer {
 
 	private fun worldChanged(phase: WorldChange) {
 		val client = Minecraft.getInstance()
-		if (client.isSameThread) failsafe.guard("world change") { WorldHooks.worldChanged(phase) }
+		if (client.isSameThread) failsafe.guard("world change") {
+			if (phase == WorldChange.JOIN) flushAnnouncements(client)
+			WorldHooks.worldChanged(phase)
+		}
 		else client.execute { worldChanged(phase) }
 	}
 
@@ -296,7 +301,18 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun announce(message: String) {
-		Minecraft.getInstance().player?.sendSystemMessage(DhenType.overWorld(message))
+		announceComponent(DhenType.overWorld(message))
+	}
+
+	private fun announceComponent(message: Component) {
+		val player = Minecraft.getInstance().player
+		if (player == null) announcements.add(message)
+		else player.sendSystemMessage(message)
+	}
+
+	private fun flushAnnouncements(client: Minecraft) {
+		val player = client.player ?: return
+		announcements.flush(player::sendSystemMessage)
 	}
 
 	private fun invalidateTextMeasurements() {
@@ -335,4 +351,6 @@ object Dhen : ClientModInitializer {
 
 	fun id(path: String): Identifier
 		= Identifier.fromNamespaceAndPath(MOD_ID, path)
+
+	private const val ANNOUNCEMENT_CAPACITY = 32
 }

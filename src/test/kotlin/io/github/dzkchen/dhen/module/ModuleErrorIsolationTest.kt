@@ -5,6 +5,8 @@ import io.github.dzkchen.dhen.event.EventBus
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -33,10 +35,14 @@ class ModuleErrorIsolationTest {
 
 	@Test
 	fun `chat warn fires once per enable not per error and names the module`() {
-		val notices = mutableListOf<Pair<Module, String>>()
+		val notices = mutableListOf<Triple<Module, String, String?>>()
 		val bus = EventBus()
 		val events = bus.type<TestEvent>()
-		val manager = ModuleManager(bus, { module, message -> notices += module to message }, { 0L })
+		val manager = ModuleManager(
+			bus,
+			{ module, message, copyText -> notices += Triple(module, message, copyText) },
+			{ 0L }
+		)
 		val module = ThrowingModule()
 		manager.register(module)
 		manager.enable(module)
@@ -48,6 +54,9 @@ class ModuleErrorIsolationTest {
 		assertEquals(1, notices.size)
 		assertSame(module, notices.single().first)
 		assertTrue(notices.single().second.contains(module.name))
+		assertNotNull(module.lastErrorTrace)
+		assertTrue(module.lastErrorTrace!!.contains("RuntimeException: boom"))
+		assertSame(module.lastErrorTrace, notices.single().third)
 	}
 
 	@Test
@@ -55,7 +64,7 @@ class ModuleErrorIsolationTest {
 		val notices = mutableListOf<String>()
 		val bus = EventBus()
 		val events = bus.type<TestEvent>()
-		val manager = ModuleManager(bus, { _, message -> notices += message }, { 0L })
+		val manager = ModuleManager(bus, { _, message, _ -> notices += message }, { 0L })
 		val module = ThrowingModule()
 		manager.register(module)
 		manager.enable(module)
@@ -74,6 +83,7 @@ class ModuleErrorIsolationTest {
 		manager.enable(module)
 		assertTrue(module.enabled)
 		assertEquals(0, module.errorCount)
+		assertNull(module.lastErrorTrace)
 
 		notices.clear()
 		repeat(Module.ERROR_THRESHOLD) { events.dispatch(TestEvent()) }
@@ -87,7 +97,7 @@ class ModuleErrorIsolationTest {
 	fun `throwing notifier does not escape the bus`() {
 		val bus = EventBus()
 		val events = bus.type<TestEvent>()
-		val manager = ModuleManager(bus, { _, _ -> throw IllegalStateException("chat down") }, { 0L })
+		val manager = ModuleManager(bus, { _, _, _ -> throw IllegalStateException("chat down") }, { 0L })
 		val module = ThrowingModule()
 		manager.register(module)
 		manager.enable(module)
@@ -124,7 +134,7 @@ class ModuleErrorIsolationTest {
 	fun `concurrent error reports lose no count and warn exactly once`() {
 		val notices = AtomicInteger()
 		val bus = EventBus()
-		val manager = ModuleManager(bus, { _, _ -> notices.incrementAndGet() }, { 0L })
+		val manager = ModuleManager(bus, { _, _, _ -> notices.incrementAndGet() }, { 0L })
 		val module = ThrowingModule()
 		manager.register(module)
 		manager.enable(module)
