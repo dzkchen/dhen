@@ -33,7 +33,13 @@ object SkyBlockLocation {
 		onHypixel = true
 	}
 
-	internal fun located(serverName: String, skyBlock: Boolean, mode: String?, map: String?) {
+	internal fun located(
+		serverName: String?,
+		skyBlock: Boolean,
+		mode: String?,
+		map: String?,
+		resolvedIsland: Island? = mode?.let(Island::ofMode)
+	) {
 		onHypixel = true
 		this.serverName = serverName
 		this.mode = mode
@@ -43,10 +49,17 @@ object SkyBlockLocation {
 		if (!skyBlock) {
 			island = Island.NONE
 			area = null
-		} else if (mode != null) {
-			val located = Island.ofMode(mode)
+		} else if (resolvedIsland != null) {
+			val guestHost = resolvedIsland.guestHost
 			area = map
-			if (located.guest != null) unconfirmedIsland = located else island = located
+			if (guestHost != null) {
+				isGuest = true
+				island = resolvedIsland
+			} else if (resolvedIsland.guest != null) {
+				unconfirmedIsland = resolvedIsland
+			} else {
+				island = resolvedIsland
+			}
 		}
 	}
 

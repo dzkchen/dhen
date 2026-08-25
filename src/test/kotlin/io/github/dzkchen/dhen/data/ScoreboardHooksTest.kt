@@ -44,6 +44,7 @@ class ScoreboardHooksTest {
 	fun uninstall() {
 		ScoreboardHooks.uninstall()
 		HypixelLocationHooks.uninstall()
+		TablistState.reset()
 		SkyBlockLocation.reset()
 	}
 
@@ -55,6 +56,24 @@ class ScoreboardHooksTest {
 		assertEquals(listOf("Purse: 1,234", " ⏣ Village", "Bank: 10M"), ScoreboardState.stripped)
 		assertEquals("SKYBLOCK", ScoreboardState.title)
 		assertEquals("SBScoreboard", ScoreboardState.objective)
+	}
+
+	@Test
+	fun `an objective change clears fallback location when visible lines stay identical`() {
+		HypixelLocationHooks.install(bus)
+		HypixelLocationHooks.greeted()
+		HypixelLocationHooks.modApiRefused()
+		TablistState.read(listOf(" Area: Hub"), listOf(" Area: Hub"))
+		sidebar("SKYBLOCK", "same" to 1)
+		ScoreboardHooks.refresh()
+		val published = updates.size
+
+		sidebar("Lobby", "same" to 1, objectiveName = "lobby")
+		ScoreboardHooks.refresh()
+
+		assertEquals(published, updates.size)
+		assertFalse(SkyBlockLocation.inSkyBlock)
+		assertEquals(Island.NONE, SkyBlockLocation.island)
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.diagnostic
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
+import io.github.dzkchen.dhen.data.HypixelModApi
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.ScoreboardState
 import io.github.dzkchen.dhen.data.SkyBlockLocation
@@ -355,6 +356,9 @@ class Diagnostics(
 				"modules.json v${ModulePersistence.version}"
 		)
 		for (hook in Dhen.hooks) if (!hook.active()) add("${hook.feed}: no feed, off until restart")
+		HypixelModApi.locationRefusal?.let {
+			add("Hypixel Mod API location: refused=$it, fallback=${HypixelModApi.locationFallbackActive}")
+		}
 		add(
 			if (!TickHooks.serverFeedActive()) "Server tick: no feed, the server tick feed is off until restart"
 			else "Server tick: tps=${rounded(ServerClock.tps.toDouble())}, " +

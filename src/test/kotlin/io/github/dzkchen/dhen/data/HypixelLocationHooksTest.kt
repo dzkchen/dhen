@@ -213,6 +213,15 @@ class HypixelLocationHooksTest {
 		assertEquals(Island.UNKNOWN, Island.ofMode("nope"))
 	}
 
+	@Test
+	fun `every fallback island has a unique display name`() {
+		val displayed = Island.entries.filter { it.displayName != null }
+
+		assertEquals(displayed.size, displayed.mapTo(mutableSetOf()) { it.displayName }.size)
+		assertEquals("Spider", Island.SPIDERS_DEN.displayName)
+		assertEquals("Galatea", Island.MOONGLADE_MARSH.displayName)
+	}
+
 	private fun hub() =
 		HypixelLocationHooks.located("mini1A", skyBlock = true, mode = "hub", map = "Hub")
 }

@@ -118,6 +118,7 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 
 		private fun cleared() {
 			ScoreboardState.heading("", "")
+			HypixelLocationHooks.scoreboardTitled("", "")
 			publish(emptyList(), emptyList())
 		}
 

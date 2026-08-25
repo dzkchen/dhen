@@ -41,6 +41,11 @@ internal object HypixelModApi : Hooks {
 	@Volatile
 	private var clientThread: (Runnable) -> Unit = minecraftThread
 
+	var locationRefusal: String? = null
+		private set
+
+	val locationFallbackActive: Boolean get() = HypixelLocationHooks.fallbackActive
+
 	fun install(clientThread: (Runnable) -> Unit = minecraftThread) {
 		this.clientThread = clientThread
 		if (registered) {
@@ -54,6 +59,7 @@ internal object HypixelModApi : Hooks {
 				PartyHooks.greeted()
 			}
 			handleEvent(ClientboundLocationPacket::class.java, ::located)
+				.onError { reason -> delivered("location error") { locationRefused(reason) } }
 			handle(ClientboundPartyInfoPacket::class.java) { partyInfo(it) }
 				.onError { reason -> delivered("party info error") { partyInfoRefused(reason) } }
 			listening = true
@@ -64,6 +70,8 @@ internal object HypixelModApi : Hooks {
 
 	override fun uninstall() {
 		listening = false
+		locationRefusal = null
+		HypixelLocationHooks.modApiSupported()
 	}
 
 	override fun active(): Boolean = listening
@@ -88,12 +96,16 @@ internal object HypixelModApi : Hooks {
 		failsafe.fail(label, throwable)
 	}
 
-	fun located(packet: ClientboundLocationPacket) = HypixelLocationHooks.located(
-		serverName = packet.serverName,
-		skyBlock = packet.serverType.orElse(null) == GameType.SKYBLOCK,
-		mode = packet.mode.orElse(null),
-		map = packet.map.orElse(null)
-	)
+	fun located(packet: ClientboundLocationPacket) {
+		locationRefusal = null
+		HypixelLocationHooks.modApiSupported()
+		HypixelLocationHooks.located(
+			serverName = packet.serverName,
+			skyBlock = packet.serverType.orElse(null) == GameType.SKYBLOCK,
+			mode = packet.mode.orElse(null),
+			map = packet.map.orElse(null)
+		)
+	}
 
 	fun partyInfo(packet: ClientboundPartyInfoPacket, nameOf: (UUID) -> String? = listedName) {
 		if (!packet.isInParty) return PartyHooks.reconciled(false, null, emptyMap(), 0)
@@ -135,6 +147,21 @@ internal object HypixelModApi : Hooks {
 				else -> false
 			}
 		)
+	}
+
+	internal fun locationRefused(reason: ErrorReason) {
+		logger.warn("Hypixel refused the location event: {}", reason)
+		locationRefusal = when (reason) {
+			is BuiltinErrorReason -> reason.name
+			else -> "id=${reason.id}"
+		}
+		when (reason) {
+			BuiltinErrorReason.DISABLED,
+				BuiltinErrorReason.INVALID_PACKET_VERSION,
+				BuiltinErrorReason.NO_LONGER_SUPPORTED -> HypixelLocationHooks.modApiRefused()
+
+			else -> HypixelLocationHooks.modApiSupported()
+		}
 	}
 
 	private fun roleOf(role: ClientboundPartyInfoPacket.PartyRole): PartyRole = when (role) {
