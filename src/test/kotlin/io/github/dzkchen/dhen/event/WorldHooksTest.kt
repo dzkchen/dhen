@@ -1,7 +1,10 @@
 package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.uninitialized
 import net.minecraft.core.BlockPos
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
 import org.junit.jupiter.api.AfterEach
@@ -53,6 +56,17 @@ class WorldHooksTest {
 		assertEquals(FIRST, pos)
 		assertSame(STONE, oldState)
 		assertSame(DIRT, newState)
+	}
+
+	@Test
+	fun `an entity unload carries the entity`() {
+		val entity = uninitialized<ArmorStand>()
+		var seen: Entity? = null
+		bus.subscribe<EntityUnloadEvent> { seen = it.entity }
+
+		WorldHooks.entityUnloaded(entity)
+
+		assertSame(entity, seen)
 	}
 
 	@Test
@@ -142,7 +156,7 @@ class WorldHooksTest {
 
 		private val FIRST = BlockPos(4, 64, 8)
 		private val SECOND = BlockPos(5, 65, 9)
-		private val STONE: BlockState = Blocks.STONE.defaultBlockState()
-		private val DIRT: BlockState = Blocks.DIRT.defaultBlockState()
+		private val STONE: BlockState get() = Blocks.STONE.defaultBlockState()
+		private val DIRT: BlockState get() = Blocks.DIRT.defaultBlockState()
 	}
 }

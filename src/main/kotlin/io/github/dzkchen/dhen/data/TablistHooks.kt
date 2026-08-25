@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
@@ -25,7 +26,6 @@ import net.minecraft.world.scores.PlayerTeam
 internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 	override val feed = "Tab list"
 
-	private const val BEFORE_FEATURES = 100
 	private const val TABLIST_ENTRIES = 80
 
 	private val displayOrder: Comparator<PlayerInfo> =

@@ -6,7 +6,6 @@
 	"client": [
 		"AbstractContainerScreenMixin",
 		"BossHealthOverlayMixin",
-		"ClientLevelEntityCallbacksMixin",
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
 		"EntityRenderDispatcherMixin",

@@ -51,6 +51,7 @@ import kotlinx.coroutines.cancel
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
@@ -222,6 +223,9 @@ object Dhen : ClientModInitializer {
 		ClientPlayConnectionEvents.INIT.register { _, _ -> worldChanged(WorldChange.INIT) }
 		ClientPlayConnectionEvents.JOIN.register { _, _, _ -> worldChanged(WorldChange.JOIN) }
 		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
+		ClientEntityEvents.ENTITY_UNLOAD.register { entity, _ ->
+			failsafe.guard("entity unload") { WorldHooks.entityUnloaded(entity) }
+		}
 		ClientLifecycleEvents.CLIENT_STOPPING.register {
 			stores.forEach { it.flush() }
 			ioScope.cancel()

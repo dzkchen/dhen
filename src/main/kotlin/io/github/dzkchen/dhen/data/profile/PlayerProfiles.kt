@@ -326,6 +326,7 @@ object PlayerProfiles {
 			return null
 		}
 
+		@Synchronized
 		fun write(key: String, value: V?, now: Long, generation: Int) {
 			if (entries.size >= maxEntries) {
 				entries.entries.removeIf { expired(it.value, now) }

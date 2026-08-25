@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.data.DataFixture
+import io.github.dzkchen.dhen.util.WebResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -181,7 +182,7 @@ class RepoSyncTest {
 	) : RepoTransport {
 		var downloads = 0
 
-		override fun text(url: String): String? = body
+		override fun response(url: String): WebResponse = WebResponse(body)
 
 		override fun download(url: String, destination: Path): Boolean {
 			downloads++

@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.party
 
 import io.github.dzkchen.dhen.data.HypixelModApi
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
@@ -14,7 +15,6 @@ import net.minecraft.client.Minecraft
 internal object PartyHooks : GuardedHooks<PartyHooks.Channels> {
 	override val feed = "Party"
 
-	private const val BEFORE_FEATURES = 100
 	private const val HYPIXEL_BRAND = "hypixel"
 
 	private val liveHypixelServer: () -> Boolean = {

@@ -2,6 +2,8 @@ package io.github.dzkchen.dhen.event
 
 import java.util.concurrent.ConcurrentHashMap
 
+internal const val BEFORE_FEATURES = 100
+
 class EventBus {
 	private val lock = Any()
 	private val types = ConcurrentHashMap<Class<out Event>, EventType<out Event>>()

@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.AreaChangeEvent
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
@@ -17,8 +18,6 @@ internal object HypixelLocationHooks : GuardedHooks<HypixelLocationHooks.Channel
 	private const val SKYBLOCK_OBJECTIVE = "SBScoreboard"
 	private const val AREA_PREFIX = "Area: "
 	private const val DUNGEON_PREFIX = "Dungeon: "
-	private const val BEFORE_FEATURES = 100
-
 	override val failsafe = Failsafe("Dhen {} failed, its island events are off until restart")
 
 	private var channels: Channels? = null

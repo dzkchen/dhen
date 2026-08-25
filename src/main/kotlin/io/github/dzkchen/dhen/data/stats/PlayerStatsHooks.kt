@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data.stats
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.ActionBarEvent
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
@@ -22,7 +23,6 @@ import kotlin.math.roundToInt
 internal object PlayerStatsHooks : GuardedHooks<PlayerStatsHooks.Channels> {
 	override val feed = "Player stats"
 
-	private const val BEFORE_FEATURES = 100
 	private const val NO_PLAYER = -1f
 
 	override val failsafe = Failsafe("Dhen {} failed, its action bar stats are off until restart")

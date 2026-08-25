@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
@@ -28,7 +29,6 @@ import net.minecraft.world.scores.Scoreboard
 internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 	override val feed = "Scoreboard"
 
-	private const val BEFORE_FEATURES = 100
 	private const val SIDEBAR_LINES = 15
 
 	private val displayOrder: Comparator<PlayerScoreEntry> =

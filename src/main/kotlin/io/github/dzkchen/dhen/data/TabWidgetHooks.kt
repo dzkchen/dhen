@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.data
 
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
@@ -11,8 +12,6 @@ import java.util.regex.Matcher
 
 internal object TabWidgetHooks : GuardedHooks<TabWidgetHooks.Channels> {
 	override val feed = "Tab list widgets"
-
-	private const val BEFORE_FEATURES = 100
 
 	override val failsafe = Failsafe("Dhen {} failed, its tab list widgets are off until restart")
 

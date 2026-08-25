@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.data.repo.RepoSync
 import io.github.dzkchen.dhen.data.repo.RepoTransport
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.json as parseJson
+import io.github.dzkchen.dhen.util.WebResponse
 import io.github.dzkchen.dhen.util.WebSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,7 @@ internal object DataFixture {
 	val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
 
 	val OFFLINE = object : RepoTransport {
-		override fun text(url: String): String? = null
+		override fun response(url: String): WebResponse = WebResponse(null)
 
 		override fun download(url: String, destination: Path): Boolean = false
 	}

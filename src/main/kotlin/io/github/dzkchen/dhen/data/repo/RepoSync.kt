@@ -4,7 +4,6 @@ import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.WebClient
 import io.github.dzkchen.dhen.util.WebResponse
-import io.github.dzkchen.dhen.util.WebSource
 import io.github.dzkchen.dhen.util.text
 import org.slf4j.LoggerFactory
 import java.net.http.HttpResponse
@@ -30,15 +29,15 @@ internal enum class SyncResult {
 
 internal data class SyncOutcome(val result: SyncResult, val retryAfter: Duration? = null)
 
-internal interface RepoTransport : WebSource {
+internal interface RepoTransport {
+	fun response(url: String): WebResponse
+
 	fun download(url: String, destination: Path): Boolean
 }
 
 internal class HttpRepoTransport(
 	private val web: WebClient = WebClient(mapOf("Accept" to "application/vnd.github+json"))
 ) : RepoTransport {
-	override fun text(url: String): String? = web.text(url)
-
 	override fun response(url: String): WebResponse = web.response(url)
 
 	override fun download(url: String, destination: Path): Boolean {

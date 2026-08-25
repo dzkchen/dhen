@@ -62,6 +62,10 @@ object MayorService {
 	@Volatile
 	private var askedAt = 0L
 
+	init {
+		require(POLL <= UNSEATED_REFRESH)
+	}
+
 	val required: Int get() = pump.count
 
 	internal val polling: Boolean get() = pump.polling

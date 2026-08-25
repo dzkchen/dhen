@@ -443,8 +443,6 @@ class ItemRepoTest {
 		@Volatile
 		var onProbe: () -> Unit = {}
 
-		override fun text(url: String): String? = response(url).body
-
 		override fun response(url: String): WebResponse {
 			probes++
 			onProbe()
