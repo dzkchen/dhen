@@ -235,7 +235,7 @@ class Diagnostics(
 	private fun placeOf(status: ProfileStatus): String =
 		listOfNotNull(status.mode, status.map).takeIf(List<String>::isNotEmpty)?.joinToString(", ", " (", ")") ?: ""
 
-	private fun rounded(value: Number): String = String.format(Locale.ROOT, "%.1f", value)
+	private fun rounded(value: Double): String = String.format(Locale.ROOT, "%.1f", value)
 
 	fun profileProxyShown(): String {
 		val saved = ClientPrefs.profileProxy.value
@@ -357,7 +357,7 @@ class Diagnostics(
 		for (hook in Dhen.hooks) if (!hook.active()) add("${hook.feed}: no feed, off until restart")
 		add(
 			if (!TickHooks.serverFeedActive()) "Server tick: no feed, the server tick feed is off until restart"
-			else "Server tick: tps=${rounded(ServerClock.tps)}, " +
+			else "Server tick: tps=${rounded(ServerClock.tps.toDouble())}, " +
 				"serverTicks=${ServerClock.ticks}, " +
 				"clientTicksSincePing=${ServerClock.clientTicksSinceServerTick}"
 		)

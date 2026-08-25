@@ -29,7 +29,7 @@ class CuratedConstantsTest {
 
 	@Test
 	fun `every turbo crop is capped twice, by the gourd and then the enchanted one`() {
-		for (crop in ENDCAPPED.filter { it.startsWith("TURBO_") }) {
+		for (crop in CuratedConstants.endcappedEnchants.filter { it.startsWith("TURBO_") }) {
 			assertEquals(
 				listOf(5 to "TURBO_GOURD", 6 to "ENCHANTED_TURBO_GOURD"),
 				CuratedConstants.endcaps(crop).map { it.requiredLevel to it.endcapItem }
@@ -38,8 +38,15 @@ class CuratedConstantsTest {
 	}
 
 	@Test
-	fun `every enchant Hypixel caps is in the table`() {
-		for (enchantment in ENDCAPPED) assertTrue(CuratedConstants.endcaps(enchantment).isNotEmpty(), enchantment)
+	fun `every endcapped enchant names a positive level and a non-blank item`() {
+		for (enchantment in CuratedConstants.endcappedEnchants) {
+			val endcaps = CuratedConstants.endcaps(enchantment)
+			assertTrue(endcaps.isNotEmpty(), enchantment)
+			for (endcap in endcaps) {
+				assertTrue(endcap.requiredLevel > 0, enchantment)
+				assertTrue(endcap.endcapItem.isNotBlank(), enchantment)
+			}
+		}
 	}
 
 	@Test
@@ -80,15 +87,5 @@ class CuratedConstantsTest {
 			CuratedConstants.crimsonPrestigeCost("HOT")
 		)
 		assertTrue(CuratedConstants.crimsonPrestigeCost("").isEmpty())
-	}
-
-	private companion object {
-		private val ENDCAPPED = listOf(
-			"BANE_OF_ARTHROPODS", "CHARM", "ENDER_SLAYER", "FOREST_PLEDGE", "FRAIL", "KARMA", "LUCK_OF_THE_SEA",
-			"PESTERMINATOR", "PISCARY", "SCAVENGER", "SCUBA", "SMITE", "SPIKED_HOOK", "VENOMOUS",
-			"TURBO_CACTUS", "TURBO_CANE", "TURBO_CARROT", "TURBO_COCO", "TURBO_MELON", "TURBO_MOONFLOWER",
-			"TURBO_MUSHROOMS", "TURBO_POTATO", "TURBO_PUMPKIN", "TURBO_ROSE", "TURBO_SUNFLOWER", "TURBO_WARTS",
-			"TURBO_WHEAT"
-		)
 	}
 }

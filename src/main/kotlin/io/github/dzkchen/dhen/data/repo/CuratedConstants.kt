@@ -64,6 +64,7 @@ internal object CuratedConstants {
 
 	val stackingEnchants: Set<String> =
 		setOf("ABSORB", "CHAMPION", "COMPACT", "CULTIVATING", "EXPERTISE", "HECATOMB", "TOXOPHILITE")
+	val endcappedEnchants: Set<String> = ENDCAPS.keys
 
 	fun endcaps(enchantment: String): List<EndcapEnchant> = ENDCAPS[enchantment].orEmpty()
 
