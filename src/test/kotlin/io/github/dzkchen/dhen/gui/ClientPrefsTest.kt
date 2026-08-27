@@ -279,7 +279,7 @@ class ClientPrefsTest {
 	fun `the core document keeps the collapsed columns and the client block side by side`() {
 		Effects.reduced = true
 
-		val core = CorePersistence.snapshot(ClickGuiState(linkedSetOf("DEV")))
+		val core = CorePersistence.snapshot(ClickGuiState(linkedSetOf("DEV")), welcomeShown = false)
 
 		assertEquals("DEV", core.getAsJsonObject("clickgui").getAsJsonArray("collapsed")[0].asString)
 		assertFalse(core.getAsJsonObject("clickgui").has("opened"))

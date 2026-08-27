@@ -89,6 +89,7 @@ object Dhen : ClientModInitializer {
 
 	private val clientThread = ClientThreadDispatcher()
 	private val announcements = AnnouncementBuffer(ANNOUNCEMENT_CAPACITY)
+	internal val firstRunExperience = FirstRunExperience(::persistCore, ::announceComponent)
 
 	val modules: ModuleManager = ModuleManager(
 		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announceComponent),
@@ -114,6 +115,7 @@ object Dhen : ClientModInitializer {
 			TabWidgetHooks,
 			PartyHooks,
 			PlayerStatsHooks,
+			firstRunExperience,
 			HypixelModApi
 		)
 	}
@@ -134,7 +136,8 @@ object Dhen : ClientModInitializer {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
-		clickGuiView = CorePersistence.apply(coreStore.load())
+		val coreState = CorePersistence.apply(coreStore.load())
+		clickGuiView = coreState.clickGui
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
@@ -246,6 +249,7 @@ object Dhen : ClientModInitializer {
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
+		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
 		Prices.install(ioScope, modules.eventBus, clientThread)
 		MayorService.install(ioScope, modules.eventBus, clientThread)
@@ -346,7 +350,7 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun persistCore() {
-		coreStore.save(CorePersistence.snapshot(clickGuiView))
+		coreStore.save(CorePersistence.snapshot(clickGuiView, firstRunExperience.shown))
 	}
 
 	internal fun clickGuiScreen(parent: Screen? = null): Screen? = failsafe.guard("click GUI open") {

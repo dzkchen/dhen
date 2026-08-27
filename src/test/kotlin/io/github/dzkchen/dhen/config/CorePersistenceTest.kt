@@ -41,7 +41,7 @@ class CorePersistenceTest {
 		Files.writeString(path, """{"version":1,"effects":{"reduced":true},"clickgui":{"collapsed":["DEV"]}}""")
 		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations)
 
-		val view = CorePersistence.apply(store.load())
+		val view = CorePersistence.apply(store.load()).clickGui
 
 		assertTrue(Effects.reduced)
 		assertEquals(setOf("DEV"), view.collapsed)
@@ -63,7 +63,7 @@ class CorePersistenceTest {
 		assertFalse(doc.getAsJsonObject("client").has("Layout"))
 		assertFalse(doc.getAsJsonObject("client").has("Arrow keys"))
 		assertTrue(doc.getAsJsonObject("client").has("Accent color"))
-		assertEquals(setOf("DEV"), CorePersistence.apply(doc).collapsed)
+		assertEquals(setOf("DEV"), CorePersistence.apply(doc).clickGui.collapsed)
 	}
 
 	@Test
@@ -99,7 +99,7 @@ class CorePersistenceTest {
 		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), CorePersistence.migrations, debounce = {})
 		store.load()
 
-		store.save(CorePersistence.snapshot(ClickGuiState(collapsed = linkedSetOf("DEV")))).join()
+		store.save(CorePersistence.snapshot(ClickGuiState(collapsed = linkedSetOf("DEV")), welcomeShown = false)).join()
 
 		val written = json(Files.readString(path))
 		assertFalse(written.has("panels"))
@@ -124,7 +124,7 @@ class CorePersistenceTest {
 		ClientPrefs.accent.value = Color(TEAL)
 		ClientPrefs.dhenFont.value = false
 
-		store.save(CorePersistence.snapshot(ClickGuiState())).join()
+		store.save(CorePersistence.snapshot(ClickGuiState(), welcomeShown = false)).join()
 		Effects.reduced = false
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		ClientPrefs.dhenFont.value = true
@@ -134,6 +134,19 @@ class CorePersistenceTest {
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
 		assertEquals(TEAL, DhenPalette.accent)
 		assertFalse(ClientPrefs.dhenFont.value)
+	}
+
+	@Test
+	fun `the first-run flag is absent on a fresh config and survives a round trip`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("core.json")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), CorePersistence.migrations, debounce = {})
+
+		assertFalse(CorePersistence.apply(store.load()).welcomeShown)
+
+		store.save(CorePersistence.snapshot(ClickGuiState(), welcomeShown = true)).join()
+
+		val restored = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations).load()
+		assertTrue(CorePersistence.apply(restored).welcomeShown)
 	}
 
 	private companion object {

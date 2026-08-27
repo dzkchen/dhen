@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
+import net.minecraft.network.chat.MutableComponent
 import net.minecraft.util.ARGB
 
 internal const val ELLIPSIS = "…"
@@ -190,7 +191,16 @@ internal object DhenType {
 	fun component(text: String): Component = Component.literal(text).setStyle(DhenFont.style())
 
 	fun overWorld(text: String): Component =
-		Component.literal(text).setStyle(DhenFont.messageStyle().withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
+		overWorldComponent(text)
+
+	fun clickableCommandOverWorld(prefix: String, command: String, suffix: String): Component =
+		overWorldComponent(prefix)
+			.append(
+				overWorldComponent(command).withStyle { style ->
+					style.withClickEvent(ClickEvent.RunCommand(command))
+				}
+			)
+			.append(overWorldComponent(suffix))
 
 	fun copyableOverWorld(text: String, copyText: String): Component =
 		Component.literal(text).setStyle(
@@ -198,6 +208,9 @@ internal object DhenType {
 				.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb)
 				.withClickEvent(ClickEvent.CopyToClipboard(copyText))
 		)
+
+	private fun overWorldComponent(text: String): MutableComponent =
+		Component.literal(text).setStyle(DhenFont.messageStyle().withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
 
 	fun styled(text: String): Component = cached(text).component
 

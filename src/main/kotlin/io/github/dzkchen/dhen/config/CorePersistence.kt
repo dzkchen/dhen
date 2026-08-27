@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.util.flagOrNull
 import io.github.dzkchen.dhen.util.obj
 
 internal object CorePersistence {
+	private const val WELCOME_SHOWN = "welcomeShown"
 	private const val DRAGGABLE_PANELS = "panels"
 	private const val EFFECTS_BLOCK = "effects"
 	private const val REDUCED_KEY = "reduced"
@@ -22,13 +23,18 @@ internal object CorePersistence {
 		{ doc: JsonObject -> dropRetiredLayoutKeys(doc) }
 	)
 
-	fun apply(doc: JsonObject): ClickGuiState {
+	fun apply(doc: JsonObject): CoreState {
 		ClientPrefs.read(doc)
-		return ClickGuiView.read(doc)
+		return CoreState(
+			clickGui = ClickGuiView.read(doc),
+			welcomeShown = doc.get(WELCOME_SHOWN).flagOrNull() ?: false
+		)
 	}
 
-	fun snapshot(view: ClickGuiState): JsonObject =
-		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view))
+	fun snapshot(view: ClickGuiState, welcomeShown: Boolean): JsonObject =
+		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view)).apply {
+			addProperty(WELCOME_SHOWN, welcomeShown)
+		}
 
 	private fun dropRetiredLayoutKeys(doc: JsonObject) {
 		doc.obj(ClickGuiView.CLICK_GUI)?.remove(ACCORDION_OPENED)
@@ -43,3 +49,8 @@ internal object CorePersistence {
 		if (!client.has(Effects.REDUCED)) client.addProperty(Effects.REDUCED, stored)
 	}
 }
+
+internal class CoreState(
+	val clickGui: ClickGuiState,
+	val welcomeShown: Boolean
+)

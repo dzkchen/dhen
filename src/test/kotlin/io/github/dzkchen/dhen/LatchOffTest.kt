@@ -49,6 +49,7 @@ class LatchOffTest {
 		TabWidgetHooks.install(bus)
 		PartyHooks.install(bus)
 		PlayerStatsHooks.install(bus)
+		Dhen.firstRunExperience.install(bus, alreadyShown = true)
 		HypixelModApi.install()
 		WorldRenderProbe.install(bus)
 		WorldRenderProbe.toggle()
@@ -92,7 +93,8 @@ class LatchOffTest {
 		val installed = setOf(
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
 			InteractionHooks, WorldRenderHooks, TickHooks, HypixelLocationHooks, ScoreboardHooks,
-			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, HypixelModApi
+			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, Dhen.firstRunExperience,
+			HypixelModApi
 		)
 		assertEquals(installed, Dhen.hooks.toSet())
 		assertEquals(Dhen.hooks.size, Dhen.hooks.mapTo(mutableSetOf(), Hooks::feed).size)
