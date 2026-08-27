@@ -20,7 +20,7 @@ internal class ClickGuiShellScreen(
 	private val persistModules: () -> Unit,
 	private val fontChanged: () -> Unit,
 	private val parent: Screen? = null
-) : Screen(Component.literal("Dhen")) {
+) : LiveWorldScreen(Component.literal("Dhen")) {
 	private val field = ClickGuiColumnField(view, { width }, { height })
 	private val panel = ClickGuiPrefsPanel({ width }, { height })
 	private val chrome = ClickGuiChrome({ width }, { height }, ::drawTabBody)

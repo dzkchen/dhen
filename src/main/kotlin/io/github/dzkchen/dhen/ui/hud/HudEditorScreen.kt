@@ -3,13 +3,13 @@ package io.github.dzkchen.dhen.ui.hud
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.LiveWorldScreen
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.RoundedQuad
 import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
@@ -18,7 +18,7 @@ import org.lwjgl.glfw.GLFW
 internal class HudEditorScreen(
 	manager: ModuleManager,
 	private val persist: () -> Unit
-) : Screen(Component.literal("Dhen HUD Editor")) {
+) : LiveWorldScreen(Component.literal("Dhen HUD Editor")) {
 	private val editor = HudEditor(manager, ::measure)
 	private var hovered: HudTarget? = null
 	private var labelled: HudTarget? = null
