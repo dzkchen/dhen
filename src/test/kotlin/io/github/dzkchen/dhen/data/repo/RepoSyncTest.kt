@@ -1,17 +1,26 @@
 package io.github.dzkchen.dhen.data.repo
 
+import com.sun.net.httpserver.HttpServer
 import io.github.dzkchen.dhen.data.DataFixture
 import io.github.dzkchen.dhen.util.WebResponse
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayOutputStream
+import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration as JavaDuration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.time.Duration.Companion.seconds
 
 class RepoSyncTest {
 	@TempDir
@@ -90,6 +99,21 @@ class RepoSyncTest {
 	}
 
 	@Test
+	fun `a truncated archive leaves the last complete repo and marker byte for byte intact`() {
+		sync(FakeTransport("abc123", archive("items/OLD.json" to "old"))).sync()
+		val oldItem = Files.readAllBytes(root().resolve("items/OLD.json"))
+		val oldMarker = Files.readAllBytes(home.resolve("repo.commit"))
+		val complete = archive("items/NEW.json" to "new")
+		val truncated = complete.copyOf(complete.size / 2)
+
+		assertEquals(SyncResult.UNREADABLE, sync(FakeTransport("def456", truncated)).sync().result)
+
+		assertArrayEquals(oldItem, Files.readAllBytes(root().resolve("items/OLD.json")))
+		assertArrayEquals(oldMarker, Files.readAllBytes(home.resolve("repo.commit")))
+		assertFalse(Files.exists(root().resolve("items/NEW.json")))
+	}
+
+	@Test
 	fun `an archive entry that climbs out of the repo directory is refused`() {
 		val escaping = archive("../escaped.json" to "{}")
 
@@ -138,7 +162,7 @@ class RepoSyncTest {
 	}
 
 	@Test
-	fun `a sync that got as far as downloading unpacks all of it however late nobody wants it`() {
+	fun `a sync that got as far as downloading publishes all of it however late nobody wants it`() {
 		val transport = FakeTransport("abc123", archive("items/A.json" to "{}", "items/B.json" to "{}"))
 		var checks = 0
 
@@ -147,6 +171,72 @@ class RepoSyncTest {
 		assertTrue(Files.isRegularFile(root().resolve("items/A.json")))
 		assertTrue(Files.isRegularFile(root().resolve("items/B.json")))
 		assertEquals("abc123", sync(transport).syncedCommit())
+		assertFalse(hasStagingDirectory())
+	}
+
+	@Test
+	fun `an older installation finishing after a newer one cannot replace its files`() {
+		val downloaded = CountDownLatch(1)
+		val release = CountDownLatch(1)
+		val executor = Executors.newSingleThreadExecutor()
+		val old = FakeTransport("abc123", archive("items/OLD.json" to "old")) {
+			downloaded.countDown()
+			release.await()
+		}
+		try {
+			val oldResult = executor.submit<SyncOutcome> { sync(old).sync() }
+			assertTrue(downloaded.await(10, TimeUnit.SECONDS))
+
+			assertEquals(
+				SyncResult.UPDATED,
+				sync(FakeTransport("def456", archive("items/NEW.json" to "new"))).sync().result
+			)
+			release.countDown()
+
+			assertEquals(SyncResult.ABANDONED, oldResult.get(10, TimeUnit.SECONDS).result)
+			assertEquals("def456", sync(old).syncedCommit())
+			assertTrue(Files.isRegularFile(root().resolve("items/NEW.json")))
+			assertFalse(Files.exists(root().resolve("items/OLD.json")))
+			assertFalse(hasStagingDirectory())
+		} finally {
+			release.countDown()
+			executor.shutdownNow()
+		}
+	}
+
+	@Test
+	@Timeout(10)
+	fun `the archive request deadline releases a transfer whose peer withholds the body`() {
+		val bodyWithheld = CountDownLatch(1)
+		val release = CountDownLatch(1)
+		val executor = Executors.newSingleThreadExecutor { task ->
+			Thread(task, "repo-timeout-server").apply { isDaemon = true }
+		}
+		val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+		server.executor = executor
+		server.createContext("/") { exchange ->
+			exchange.sendResponseHeaders(200, 1_024)
+			bodyWithheld.countDown()
+			release.await()
+			exchange.close()
+		}
+		server.start()
+		try {
+			val started = System.nanoTime()
+			val downloaded = HttpRepoTransport(archiveDeadline = JavaDuration.ofSeconds(1)).download(
+				"http://127.0.0.1:${server.address.port}/archive",
+				home.resolve("withheld.zip")
+			)
+			val elapsed = System.nanoTime() - started
+
+			assertTrue(bodyWithheld.await(5, TimeUnit.SECONDS))
+			assertFalse(downloaded)
+			assertTrue(elapsed < 5.seconds.inWholeNanoseconds)
+		} finally {
+			release.countDown()
+			server.stop(0)
+			executor.shutdownNow()
+		}
 	}
 
 	@Test
@@ -159,6 +249,10 @@ class RepoSyncTest {
 	private fun root(): Path = home.resolve("repo")
 
 	private fun sync(transport: RepoTransport) = RepoSync(DataFixture.NEU, root(), transport)
+
+	private fun hasStagingDirectory(): Boolean = Files.list(home).use { paths ->
+		paths.anyMatch { it.fileName.toString().startsWith(".repo-sync-") }
+	}
 
 	private fun archive(vararg entries: Pair<String, String>): ByteArray {
 		val bytes = ByteArrayOutputStream()
@@ -178,7 +272,8 @@ class RepoSyncTest {
 		private val commit: String?,
 		private val zip: ByteArray,
 		private val downloadable: Boolean = true,
-		private val body: String? = commit?.let { "{\"sha\":\"$it\",\"commit\":{}}" }
+		private val body: String? = commit?.let { "{\"sha\":\"$it\",\"commit\":{}}" },
+		private val afterWrite: () -> Unit = {}
 	) : RepoTransport {
 		var downloads = 0
 
@@ -189,6 +284,7 @@ class RepoSyncTest {
 			if (!downloadable) return false
 			destination.parent?.let(Files::createDirectories)
 			Files.write(destination, zip)
+			afterWrite()
 			return true
 		}
 	}

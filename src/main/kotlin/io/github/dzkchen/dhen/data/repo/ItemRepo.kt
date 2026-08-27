@@ -72,15 +72,26 @@ object ItemRepo {
 		retryAfter: Duration = RETRY_AFTER
 	) {
 		uninstall()
-		val owner = Host(scope, root, sync, clock, retryAfter)
-		published.set(Published(owner, RepoState.IDLE))
-		host = owner
+		val owner = Host(scope, sync, clock, retryAfter)
+		sync.changeInstallation {
+			published.set(Published(owner, RepoState.IDLE))
+			host = owner
+		}
 	}
 
 	internal fun uninstall() {
-		host = null
-		published.set(Published(null, RepoState.IDLE))
-		pump.reset()
+		val owner = host
+		if (owner == null) {
+			published.set(Published(null, RepoState.IDLE))
+			pump.reset()
+			return
+		}
+		owner.sync.changeInstallation {
+			if (host !== owner) return@changeInstallation
+			host = null
+			published.set(Published(null, RepoState.IDLE))
+			pump.reset()
+		}
 	}
 
 	private suspend fun drive(owner: Host) = coroutineScope {
@@ -125,13 +136,15 @@ object ItemRepo {
 				return
 			}
 			if (result != SyncResult.UPDATED && result != SyncResult.UP_TO_DATE) {
-				log.warn("Dhen could not refresh the item repo ({}), reading whatever is already on disk", result)
+				log.warn("Dhen could not refresh the item repo ({}), reading the last complete repo on disk", result)
 			}
-			Reading(
-				ItemCatalog.read(owner.root.resolve(ITEMS)),
-				RepoConstants.read(owner.root.resolve(CONSTANTS)),
-				owner.sync.syncedCommit()
-			)
+			owner.sync.readMarked { root, commit ->
+				Reading(
+					ItemCatalog.read(root.resolve(ITEMS)),
+					RepoConstants.read(root.resolve(CONSTANTS)),
+					commit
+				)
+			}
 		} catch (throwable: Throwable) {
 			log.error("Dhen could not load the item repo", throwable)
 			null
@@ -165,7 +178,6 @@ object ItemRepo {
 
 	private class Host(
 		val scope: CoroutineScope,
-		val root: Path,
 		val sync: RepoSync,
 		val clock: NanoClock,
 		val retryAfter: Duration

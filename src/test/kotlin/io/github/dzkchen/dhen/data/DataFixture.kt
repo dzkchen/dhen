@@ -45,6 +45,7 @@ internal object DataFixture {
 		for ((id, body) in items) Files.writeString(root.resolve("items/$id.json"), body)
 		if (constants.isNotEmpty()) Files.createDirectories(root.resolve("constants"))
 		for ((name, body) in constants) Files.writeString(root.resolve("constants/$name.json"), body)
+		Files.writeString(root.resolveSibling("${root.fileName}.commit"), "fixture")
 		ItemRepo.install(scope, root, RepoSync(NEU, root, OFFLINE))
 		ItemRepo.require()
 	}

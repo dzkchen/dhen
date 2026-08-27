@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -103,6 +104,7 @@ class ItemRepoTest {
 			home.resolve("repo/items/ASPECT_OF_THE_END.json"),
 			"{\"internalname\":\"ASPECT_OF_THE_END\",\"displayname\":\"§5Aspect of the End\"}"
 		)
+		Files.writeString(home.resolve("repo.commit"), "abc123")
 		transport.reachable = false
 		install()
 
@@ -110,6 +112,23 @@ class ItemRepoTest {
 
 		assertEquals(RepoState.READY, ItemRepo.state)
 		assertEquals(1, ItemRepo.size)
+	}
+
+	@Test
+	fun `an unreachable repo refuses unmarked content left on disk`() {
+		Files.createDirectories(home.resolve("repo/items"))
+		Files.writeString(
+			home.resolve("repo/items/ASPECT_OF_THE_END.json"),
+			"{\"internalname\":\"ASPECT_OF_THE_END\",\"displayname\":\"§5Aspect of the End\"}"
+		)
+		transport.reachable = false
+		install()
+
+		ItemRepo.require()
+
+		assertEquals(RepoState.UNAVAILABLE, ItemRepo.state)
+		assertEquals(0, ItemRepo.size)
+		assertNull(ItemRepo.commit)
 	}
 
 	@Test
@@ -287,6 +306,38 @@ class ItemRepoTest {
 	}
 
 	@Test
+	fun `uninstall does not wait for a marked repo read to finish`() {
+		Files.createDirectories(home.resolve("repo/items"))
+		Files.writeString(home.resolve("repo/items/A.json"), "{}")
+		Files.writeString(home.resolve("repo.commit"), "abc123")
+		val reading = CountDownLatch(1)
+		val release = CountDownLatch(1)
+		val uninstalled = CountDownLatch(1)
+		val executor = Executors.newFixedThreadPool(2)
+		val root = home.resolve("repo")
+		val repo = RepoSync(DataFixture.NEU, root, transport)
+		ItemRepo.install(scope, root, repo, clock = { nanos })
+		try {
+			executor.submit {
+				repo.readMarked { _, _ ->
+					reading.countDown()
+					release.await()
+				}
+			}
+			assertTrue(reading.await(10, TimeUnit.SECONDS))
+			executor.submit {
+				ItemRepo.uninstall()
+				uninstalled.countDown()
+			}
+
+			assertTrue(uninstalled.await(1, TimeUnit.SECONDS))
+		} finally {
+			release.countDown()
+			executor.shutdownNow()
+		}
+	}
+
+	@Test
 	fun `a download that finishes after the repo was reinstalled does not fill the new one`() {
 		install()
 		transport.onDownload = {
@@ -313,7 +364,7 @@ class ItemRepoTest {
 		ItemRepo.require()
 
 		assertEquals(RepoState.READY, ItemRepo.state)
-		assertEquals(1, transport.downloads)
+		assertEquals(2, transport.downloads)
 	}
 
 	@Test
