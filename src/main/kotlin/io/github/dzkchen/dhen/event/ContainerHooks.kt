@@ -57,7 +57,8 @@ internal object ContainerHooks : GuardedHooks<ContainerHooks.Channels> {
 		subscriptions = arrayOf(
 			bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) },
 			bus.subscribe<PacketSendEvent> { sent(it.packet) },
-			bus.subscribe<WorldChangeEvent> { forgetTrackedContainer() }
+			bus.subscribe<WorldChangeEvent> { forgetTrackedContainer() },
+			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) forgetTrackedContainer() }
 		)
 	}
 

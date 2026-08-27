@@ -1,11 +1,13 @@
 package io.github.dzkchen.dhen.event
 
+import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
 import io.github.dzkchen.dhen.util.TickClock
+import io.github.dzkchen.dhen.util.delayServerTicks
 import io.github.dzkchen.dhen.util.delayTicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -172,6 +174,41 @@ class TickHooksTest {
 	}
 
 	@Test
+	fun `an island change resets the server clock and cancels a pending server wait`() {
+		val scope = CoroutineScope(Dispatchers.Unconfined)
+		val waiting = scope.launch { delayServerTicks(500) }
+		try {
+			receive(timePacket())
+			nanos += 4 * SECOND
+			receive(timePacket())
+			assertEquals(5f, ServerClock.tps)
+			bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.HUB, Island.NONE))
+			assertEquals(5f, ServerClock.tps)
+			assertFalse(waiting.isCancelled)
+
+			bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
+
+			assertEquals(20f, ServerClock.tps)
+			assertTrue(waiting.isCancelled)
+		} finally {
+			scope.cancel()
+		}
+	}
+
+	@Test
+	fun `leaving skyblock cancels a pending server wait without a disconnect`() {
+		val scope = CoroutineScope(Dispatchers.Unconfined)
+		val waiting = scope.launch { delayServerTicks(500) }
+		try {
+			bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.NONE, Island.HUB))
+
+			assertTrue(waiting.isCancelled)
+		} finally {
+			scope.cancel()
+		}
+	}
+
+	@Test
 	fun `a throwing subscriber drops the tick channels instead of reaching the packet path`() {
 		bus.subscribe<ServerTickEvent> { error("boom") }
 
@@ -238,6 +275,8 @@ class TickHooksTest {
 
 		assertEquals(0, ticks)
 		assertEquals(0, clientTicks)
+		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
+		assertFalse(bus.type<IslandChangeEvent>().hasSubscribers)
 	}
 
 	private fun timePacket() = ClientboundSetTimePacket(0L, emptyMap())

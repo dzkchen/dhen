@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.data
 import io.github.dzkchen.dhen.event.AreaChangeEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.IslandChangeEvent
+import net.minecraft.network.chat.Component
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import org.junit.jupiter.api.AfterEach
@@ -220,6 +221,32 @@ class HypixelLocationHooksTest {
 		assertEquals(displayed.size, displayed.mapTo(mutableSetOf()) { it.displayName }.size)
 		assertEquals("Spider", Island.SPIDERS_DEN.displayName)
 		assertEquals("Galatea", Island.MOONGLADE_MARSH.displayName)
+	}
+
+	@Test
+	fun `an island reset cannot feed a fallback warp back to none`() {
+		var names = listOf(Component.literal(" Area: Hub"))
+		ScoreboardHooks.install(bus) { null }
+		TablistHooks.install(bus) { names }
+		try {
+			HypixelLocationHooks.greeted()
+			ScoreboardState.heading("SBScoreboard", "SKYBLOCK")
+			TablistHooks.refresh()
+			HypixelLocationHooks.modApiRefused()
+			assertEquals(Island.HUB, SkyBlockLocation.island)
+
+			names = listOf(Component.literal(" Area: Dungeon Hub"))
+			TablistHooks.refresh()
+
+			assertEquals(Island.DUNGEON_HUB, SkyBlockLocation.island)
+			assertEquals(Island.HUB to Island.DUNGEON_HUB, islands.last().let { it.previous to it.island })
+			assertEquals(listOf(" Area: Dungeon Hub"), TablistState.stripped)
+		} finally {
+			ScoreboardHooks.uninstall()
+			TablistHooks.uninstall()
+			ScoreboardState.reset()
+			TablistState.reset()
+		}
 	}
 
 	private fun hub() =

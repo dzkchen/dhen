@@ -1,9 +1,11 @@
 package io.github.dzkchen.dhen.data.party
 
+import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PartyEvent
 import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
@@ -356,6 +358,17 @@ class PartyHooksTest {
 
 		assertFalse(PartyHooks.requesting)
 		assertEquals(0, requests)
+	}
+
+	@Test
+	fun `an island change preserves the party roster`() {
+		chat("You have joined [MVP+] Alice's party!")
+
+		bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
+
+		assertTrue(PartyState.inParty)
+		assertEquals(listOf("Alice", "Me"), PartyState.members)
+		assertEquals("Alice", PartyState.leader)
 	}
 
 	@Test

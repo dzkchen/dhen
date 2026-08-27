@@ -184,6 +184,17 @@ class ScoreboardHooksTest {
 	}
 
 	@Test
+	fun `changing islands forgets the sidebar it read on the last one`() {
+		sidebar("SKYBLOCK", "Purse: 1,234" to 1)
+		ScoreboardHooks.refresh()
+
+		bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
+
+		assertTrue(ScoreboardState.lines.isEmpty())
+		assertEquals("", ScoreboardState.title)
+	}
+
+	@Test
 	fun `a guest title settles the island the location packet could not`() {
 		val islands = mutableListOf<IslandChangeEvent>()
 		HypixelLocationHooks.install(bus)
@@ -200,6 +211,7 @@ class ScoreboardHooksTest {
 		assertTrue(SkyBlockLocation.isGuest)
 		assertFalse(SkyBlockLocation.awaitingGuestTitle)
 		assertEquals(listOf(Island.NONE to Island.PRIVATE_ISLAND_GUEST), islands.map { it.previous to it.island })
+		assertEquals("SKYBLOCK GUEST", ScoreboardState.title)
 	}
 
 	@Test

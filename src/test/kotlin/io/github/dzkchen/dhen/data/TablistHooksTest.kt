@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data
 
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChange
@@ -118,6 +119,18 @@ class TablistHooksTest {
 		} finally {
 			WorldHooks.uninstall()
 		}
+
+		assertTrue(TablistState.lines.isEmpty())
+		assertEquals("", TablistState.footer)
+	}
+
+	@Test
+	fun `changing islands forgets the tab list it read on the last one`() {
+		names = listOf(Component.literal("Info"))
+		TablistHooks.refresh()
+		framed("ranks.hypixel.net")
+
+		bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
 
 		assertTrue(TablistState.lines.isEmpty())
 		assertEquals("", TablistState.footer)

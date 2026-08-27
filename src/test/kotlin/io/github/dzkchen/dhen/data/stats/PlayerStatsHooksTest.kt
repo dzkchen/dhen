@@ -1,8 +1,10 @@
 package io.github.dzkchen.dhen.data.stats
 
+import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.event.ActionBarEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PlayerStatsEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
@@ -201,6 +203,16 @@ class PlayerStatsHooksTest {
 		read("§c1,530/1,530❤     §a1,204❈ Defense")
 
 		bus.type<WorldChangeEvent>().dispatch(WorldChangeEvent(WorldChange.JOIN))
+
+		assertEquals(0, PlayerStats.health)
+		assertEquals(0, PlayerStats.defense)
+	}
+
+	@Test
+	fun `an island change forgets every stat`() {
+		read("§c1,530/1,530❤     §a1,204❈ Defense")
+
+		bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
 
 		assertEquals(0, PlayerStats.health)
 		assertEquals(0, PlayerStats.defense)

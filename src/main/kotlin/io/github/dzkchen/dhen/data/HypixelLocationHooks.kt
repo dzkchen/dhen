@@ -24,6 +24,7 @@ internal object HypixelLocationHooks : GuardedHooks<HypixelLocationHooks.Channel
 
 	private var subscriptions: Array<Handle> = emptyArray()
 	private var fallback = false
+	private var fallbackUpdating = false
 
 	val islandChanges: Int get() = channels?.islandChanges ?: 0
 
@@ -42,6 +43,7 @@ internal object HypixelLocationHooks : GuardedHooks<HypixelLocationHooks.Channel
 		subscriptions.forEach(Handle::unsubscribe)
 		subscriptions = emptyArray()
 		fallback = false
+		fallbackUpdating = false
 		channels = null
 		SkyBlockLocation.reset()
 	}
@@ -77,8 +79,13 @@ internal object HypixelLocationHooks : GuardedHooks<HypixelLocationHooks.Channel
 	private fun disconnected() = guarded("Hypixel disconnect") { it.disconnected() }
 
 	private fun fallbackUpdated() {
-		if (!fallback || !SkyBlockLocation.onHypixel) return
-		guarded("location fallback") { it.fallback() }
+		if (!fallback || !SkyBlockLocation.onHypixel || fallbackUpdating) return
+		fallbackUpdating = true
+		try {
+			guarded("location fallback") { it.fallback() }
+		} finally {
+			fallbackUpdating = false
+		}
 	}
 
 	internal class Channels(bus: EventBus) {

@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.TablistUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChange
@@ -46,7 +47,8 @@ internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 		subscriptions = arrayOf(
 			bus.subscribe<PacketReceiveEvent.Post>(BEFORE_FEATURES) { received(it.packet) },
 			bus.subscribe<ClientTickEvent.Start>(BEFORE_FEATURES) { ticked() },
-			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() }
+			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() },
+			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) forgetIsland() }
 		)
 	}
 
@@ -74,6 +76,8 @@ internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 
 	private fun forget() = guarded("tab list world change") { it.forget() }
 
+	private fun forgetIsland() = guarded("tab list island change") { it.forgetIsland() }
+
 	private fun listed(): List<Component> {
 		val connection = Minecraft.getInstance().connection ?: return emptyList()
 		return connection.listedOnlinePlayers.sortedWith(displayOrder).take(TABLIST_ENTRIES).map(::displayName)
@@ -86,6 +90,7 @@ internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 		private val updates = bus.type<TablistUpdateEvent>()
 		private var pending = false
 		private var reframed = false
+		private var refreshing = false
 
 		fun dirty() {
 			pending = true
@@ -103,6 +108,10 @@ internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 			publish(emptyList(), emptyList())
 		}
 
+		fun forgetIsland() {
+			if (!refreshing) forget()
+		}
+
 		fun flush() {
 			if (!pending) return
 			pending = false
@@ -110,15 +119,20 @@ internal object TablistHooks : GuardedHooks<TablistHooks.Channels> {
 		}
 
 		fun refresh() {
-			val names = players()
-			val lines = ArrayList<String>(names.size)
-			val stripped = ArrayList<String>(names.size)
-			for (name in names) {
-				val line = legacyCodes(name)
-				lines += line
-				stripped += withoutCodes(line)
+			refreshing = true
+			try {
+				val names = players()
+				val lines = ArrayList<String>(names.size)
+				val stripped = ArrayList<String>(names.size)
+				for (name in names) {
+					val line = legacyCodes(name)
+					lines += line
+					stripped += withoutCodes(line)
+				}
+				publish(lines, stripped)
+			} finally {
+				refreshing = false
 			}
-			publish(lines, stripped)
 		}
 
 		private fun publish(lines: List<String>, stripped: List<String>) {

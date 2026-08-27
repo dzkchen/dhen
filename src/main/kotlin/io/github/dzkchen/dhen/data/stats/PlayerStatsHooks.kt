@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PlayerStatsEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
@@ -43,7 +44,8 @@ internal object PlayerStatsHooks : GuardedHooks<PlayerStatsHooks.Channels> {
 		subscriptions = arrayOf(
 			bus.subscribe<ActionBarEvent>(BEFORE_FEATURES) { if (inSkyBlock()) parsed(it) },
 			bus.subscribe<ClientTickEvent.End>(BEFORE_FEATURES) { if (inSkyBlock()) ticked() },
-			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() }
+			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() },
+			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) forget() }
 		)
 	}
 

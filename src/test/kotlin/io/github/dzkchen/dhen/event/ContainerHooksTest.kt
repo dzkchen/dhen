@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.data.Island
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
@@ -127,6 +128,16 @@ class ContainerHooksTest {
 	}
 
 	@Test
+	fun `an island change forgets the container it was tracking`() {
+		receive(ClientboundOpenScreenPacket(WINDOW, MenuType.GENERIC_9x6, TITLE))
+
+		bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.CATACOMBS, Island.HUB))
+		receive(ClientboundContainerClosePacket(WINDOW))
+
+		assertTrue(closed.isEmpty())
+	}
+
+	@Test
 	fun `uninstalling drops the packet subscriptions`() {
 		ContainerHooks.uninstall()
 
@@ -136,6 +147,7 @@ class ContainerHooksTest {
 		assertTrue(closed.isEmpty())
 		assertFalse(ContainerHooks.active())
 		assertFalse(bus.type<WorldChangeEvent>().hasSubscribers)
+		assertFalse(bus.type<IslandChangeEvent>().hasSubscribers)
 	}
 
 	private fun changeWorld() {

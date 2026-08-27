@@ -17,20 +17,23 @@ internal object TickHooks : GuardedHooks<TickHooks.ServerChannels> {
 	private var clientChannels: ClientChannels? = null
 
 	private var serverSubscriptions: Array<Handle> = emptyArray()
-	private var resetSubscription: Handle? = null
+	private var resetSubscriptions: Array<Handle> = emptyArray()
 
 	fun install(bus: EventBus, clock: NanoClock = NanoClock.SYSTEM) {
 		uninstall()
 		serverChannels = ServerChannels(bus, clock)
 		clientChannels = ClientChannels(bus)
 		serverSubscriptions = arrayOf(bus.subscribe<PacketReceiveEvent.Post> { received(it.packet) })
-		resetSubscription = bus.subscribe<WorldChangeEvent> { worldChanged() }
+		resetSubscriptions = arrayOf(
+			bus.subscribe<WorldChangeEvent> { worldChanged() },
+			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) worldChanged() }
+		)
 	}
 
 	override fun uninstall() {
 		disableServerChannels()
-		resetSubscription?.unsubscribe()
-		resetSubscription = null
+		resetSubscriptions.forEach(Handle::unsubscribe)
+		resetSubscriptions = emptyArray()
 		clientChannels = null
 	}
 

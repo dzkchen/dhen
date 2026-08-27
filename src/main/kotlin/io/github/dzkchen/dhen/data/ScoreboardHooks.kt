@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.ScoreboardAreaChangeEvent
 import io.github.dzkchen.dhen.event.ScoreboardUpdateEvent
@@ -49,7 +50,8 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		subscriptions = arrayOf(
 			bus.subscribe<PacketReceiveEvent.Post>(BEFORE_FEATURES) { received(it.packet) },
 			bus.subscribe<ClientTickEvent.Start>(BEFORE_FEATURES) { ticked() },
-			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() }
+			bus.subscribe<WorldChangeEvent> { if (it.phase != WorldChange.INIT) forget() },
+			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) forgetIsland() }
 		)
 	}
 
@@ -73,6 +75,8 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 
 	private fun forget() = guarded("scoreboard world change") { it.forget() }
 
+	private fun forgetIsland() = guarded("scoreboard island change") { it.forgetIsland() }
+
 	private fun changesSidebar(packet: Packet<*>): Boolean = packet is ClientboundSetScorePacket ||
 		packet is ClientboundResetScorePacket ||
 		packet is ClientboundSetObjectivePacket ||
@@ -83,6 +87,7 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		private val updates = bus.type<ScoreboardUpdateEvent>()
 		private val areas = bus.type<ScoreboardAreaChangeEvent>()
 		private var pending = false
+		private var refreshing = false
 
 		fun dirty() {
 			pending = true
@@ -93,6 +98,10 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 			cleared()
 		}
 
+		fun forgetIsland() {
+			if (!refreshing) forget()
+		}
+
 		fun flush() {
 			if (!pending) return
 			pending = false
@@ -100,20 +109,25 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		}
 
 		fun refresh() {
-			val scoreboard = sidebar()
-			val objective = scoreboard?.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return cleared()
-			ScoreboardState.heading(objective.name, legacyCodes(objective.displayName))
-			HypixelLocationHooks.scoreboardTitled(objective.name, ScoreboardState.strippedTitle)
-			val lines = ArrayList<String>(SIDEBAR_LINES)
-			val stripped = ArrayList<String>(SIDEBAR_LINES)
-			for (entry in scoreboard.listPlayerScores(objective).sortedWith(displayOrder)) {
-				if (entry.isHidden) continue
-				if (lines.size == SIDEBAR_LINES) break
-				val line = joined(scoreboard.getPlayersTeam(entry.owner()), entry)
-				lines += line
-				stripped += withoutCodes(line)
+			refreshing = true
+			try {
+				val scoreboard = sidebar()
+				val objective = scoreboard?.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return cleared()
+				ScoreboardState.heading(objective.name, legacyCodes(objective.displayName))
+				HypixelLocationHooks.scoreboardTitled(objective.name, ScoreboardState.strippedTitle)
+				val lines = ArrayList<String>(SIDEBAR_LINES)
+				val stripped = ArrayList<String>(SIDEBAR_LINES)
+				for (entry in scoreboard.listPlayerScores(objective).sortedWith(displayOrder)) {
+					if (entry.isHidden) continue
+					if (lines.size == SIDEBAR_LINES) break
+					val line = joined(scoreboard.getPlayersTeam(entry.owner()), entry)
+					lines += line
+					stripped += withoutCodes(line)
+				}
+				publish(lines, stripped)
+			} finally {
+				refreshing = false
 			}
-			publish(lines, stripped)
 		}
 
 		private fun cleared() {
