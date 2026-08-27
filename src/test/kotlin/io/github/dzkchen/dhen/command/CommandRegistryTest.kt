@@ -94,6 +94,17 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `core command tree has no ambiguities`() {
+		val dispatcher = CommandDispatcher<Any>()
+		registry().install(dispatcher)
+		var ambiguities = 0
+
+		dispatcher.findAmbiguities { _, _, _, _ -> ambiguities++ }
+
+		assertEquals(0, ambiguities)
+	}
+
+	@Test
 	fun `handle unregisters the command`() {
 		val registry = registry()
 		val handle = registry.register("solo", owner = "test") {

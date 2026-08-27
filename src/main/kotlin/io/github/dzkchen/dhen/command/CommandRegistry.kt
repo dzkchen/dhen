@@ -2,10 +2,13 @@ package io.github.dzkchen.dhen.command
 
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import com.mojang.brigadier.builder.RequiredArgumentBuilder.argument
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.event.Handle
@@ -217,7 +220,10 @@ class CommandRegistry<S>(
 						}
 					)
 					.then(
-						argument<S, String>("item", StringArgumentType.greedyString()).executes { context ->
+						argument<S, String>(
+							"item",
+							excluding("download", StringArgumentType.greedyString())
+						).executes { context ->
 							val query = StringArgumentType.getString(context, "item")
 							for (line in diagnostics.marketLines(query)) feedback(context.source, line)
 							Command.SINGLE_SUCCESS
@@ -250,7 +256,10 @@ class CommandRegistry<S>(
 						}
 					)
 					.then(
-						argument<S, String>("item", StringArgumentType.greedyString()).executes { context ->
+						argument<S, String>(
+							"item",
+							excluding("download", StringArgumentType.greedyString())
+						).executes { context ->
 							val query = StringArgumentType.getString(context, "item")
 							for (line in diagnostics.itemLines(query)) feedback(context.source, line)
 							Command.SINGLE_SUCCESS
@@ -271,14 +280,20 @@ class CommandRegistry<S>(
 									.executes { context -> persisted(context.source, diagnostics.profileProxyCleared()) }
 							)
 							.then(
-								argument<S, String>("address", StringArgumentType.greedyString()).executes { context ->
+								argument<S, String>(
+									"address",
+									excluding("clear", StringArgumentType.greedyString())
+								).executes { context ->
 									val address = StringArgumentType.getString(context, "address")
 									report(context.source, diagnostics.profileProxy(address, persistCore))
 								}
 							)
 					)
 					.then(
-						argument<S, String>("name", StringArgumentType.word()).executes { context ->
+						argument<S, String>(
+							"name",
+							excluding("url", StringArgumentType.word())
+						).executes { context ->
 							val name = StringArgumentType.getString(context, "name")
 							report(context.source, "Looking up $name…")
 							answering(context.source) { notify -> diagnostics.profileLookup(name, notify) }
@@ -302,9 +317,27 @@ class CommandRegistry<S>(
 
 	private fun wireName(name: String): String = name.replace(' ', '_')
 
+	private fun excluding(literal: String, delegate: StringArgumentType): ArgumentType<String> =
+		LiteralExcludingStringArgument(literal, delegate)
+
 	private companion object {
 		private val RESERVED = setOf("dhen", "dh")
 	}
+}
+
+private class LiteralExcludingStringArgument(
+	private val literal: String,
+	private val delegate: StringArgumentType
+) : ArgumentType<String> {
+	override fun parse(reader: StringReader): String {
+		val start = reader.cursor
+		val value = delegate.parse(reader)
+		if (value != literal) return value
+		reader.cursor = start
+		throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(reader)
+	}
+
+	override fun getExamples(): Collection<String> = delegate.examples
 }
 
 class RegisteredCommand<S> internal constructor(
