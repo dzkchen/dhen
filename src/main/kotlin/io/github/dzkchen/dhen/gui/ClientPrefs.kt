@@ -36,6 +36,12 @@ internal object ClientPrefs {
 		description = "Highlight color for every Dhen surface."
 	)
 
+	val dhenFont = BooleanSetting(
+		"Dhen font",
+		true,
+		description = "Use Inter for Minecraft's default font and Dhen text."
+	)
+
 	val reload = ActionSetting(
 		"Reload themes",
 		description = "Read the themes folder again without restarting."
@@ -60,7 +66,7 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(theme, accent, reload, browse)),
+		PrefSection("Appearance", listOf(theme, accent, dhenFont, reload, browse)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 
@@ -68,10 +74,12 @@ internal object ClientPrefs {
 
 	private var accentSource = theme.preferred
 
-	fun sync() {
+	fun sync(): Boolean {
+		val fontChanged = DhenFont.synchronize(dhenFont.on)
 		val selected = selected()
 		if (theme.preferred != accentSource) accent.value = Color(selected.accent)
 		applySelection(selected)
+		return fontChanged
 	}
 
 	fun adopt() {
@@ -83,7 +91,10 @@ internal object ClientPrefs {
 	}
 
 	fun read(doc: JsonObject) {
-		SettingCodec.readInto(doc.obj(CLIENT), stored, CLIENT)
+		val client = doc.obj(CLIENT)
+		if (client?.has(dhenFont.name) != true) dhenFont.reset()
+		SettingCodec.readInto(client, stored, CLIENT)
+		DhenFont.synchronize(dhenFont.on)
 		applySelection(selected())
 	}
 

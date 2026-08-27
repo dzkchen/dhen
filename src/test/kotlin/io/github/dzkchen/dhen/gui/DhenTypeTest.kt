@@ -7,8 +7,11 @@ import net.minecraft.client.gui.Font
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.FontDescription
+import net.minecraft.network.chat.Style
+import net.minecraft.resources.Identifier
 import net.minecraft.util.ARGB
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -20,8 +23,10 @@ import org.joml.Matrix4f
 import java.lang.reflect.Proxy
 
 class DhenTypeTest {
+	@BeforeEach
 	@AfterEach
 	fun resetSeam() {
+		DhenFont.resetForTest()
 		DhenType.invalidateMeasurements()
 		DhenType.fontOptionsChanged(forceUnicode = false, japaneseGlyphVariants = false)
 	}
@@ -123,6 +128,81 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `disabled Dhen text uses the empty vanilla style and enabled text uses Inter`() {
+		DhenFont.synchronize(false)
+
+		assertEquals(Style.EMPTY, DhenType.component("Combat").style)
+
+		DhenFont.synchronize(true)
+
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenType.component("Combat").style.font)
+	}
+
+	@Test
+	fun `the enabled resolver replaces only Minecraft default font descriptions`() {
+		val custom = FontDescription.Resource(Identifier.fromNamespaceAndPath("example", "custom"))
+		val markerCollision = FontDescription.Resource(Identifier.fromNamespaceAndPath("dhen", "message"))
+		val atlas = FontDescription.AtlasSprite(
+			Identifier.fromNamespaceAndPath("example", "icons"),
+			Identifier.fromNamespaceAndPath("example", "star")
+		)
+
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
+		assertSame(custom, DhenFont.resolve(custom))
+		assertSame(markerCollision, DhenFont.resolve(markerCollision))
+		assertSame(atlas, DhenFont.resolve(atlas))
+	}
+
+	@Test
+	fun `the disabled resolver preserves Minecraft default`() {
+		val explicitInter = FontDescription.Resource(DhenType.fontId)
+		DhenFont.synchronize(false)
+
+		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
+		assertSame(explicitInter, DhenFont.resolve(explicitInter))
+	}
+
+	@Test
+	fun `an existing Dhen chat component follows both font transitions`() {
+		val message = DhenType.overWorld("Toggled Test Module")
+
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(message.style.font))
+
+		DhenFont.synchronize(false)
+
+		assertSame(FontDescription.DEFAULT, DhenFont.resolve(message.style.font))
+
+		DhenFont.synchronize(true)
+
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(message.style.font))
+	}
+
+	@Test
+	fun `latching the font off prevents settings from restoring it during the session`() {
+		assertTrue(DhenFont.latchOff())
+		val revision = DhenFont.revision
+
+		assertFalse(DhenFont.synchronize(true))
+		assertEquals(revision, DhenFont.revision)
+		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a font transition rebuilds shared styled components while the same state does nothing`() {
+		val enabled = DhenType.styled("Combat")
+		val revision = DhenFont.revision
+
+		assertFalse(DhenFont.synchronize(true))
+		assertEquals(revision, DhenFont.revision)
+		assertSame(enabled, DhenType.styled("Combat"))
+
+		assertTrue(DhenFont.synchronize(false))
+		val disabled = DhenType.styled("Combat")
+		assertNotSame(enabled, disabled)
+		assertEquals(Style.EMPTY, disabled.style)
+	}
+
+	@Test
 	fun `repeating a string reuses its styled component`() {
 		val first = DhenType.styled("Combat")
 		assertSame(first, DhenType.styled("Combat"))
@@ -187,6 +267,21 @@ class DhenTypeTest {
 		memo.invalidate()
 
 		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(2, font.measurements)
+	}
+
+	@Test
+	fun `a memo remeasures once for each font revision without joining the shared cache`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		memo.width(font, "abc")
+
+		DhenFont.synchronize(false)
+
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
+		assertEquals(2, font.measurements)
+		assertFalse(DhenFont.synchronize(false))
 		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
 		assertEquals(2, font.measurements)
 	}

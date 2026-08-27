@@ -18,6 +18,7 @@ internal class ClickGuiShellScreen(
 	view: ClickGuiState,
 	private val persistCore: () -> Unit,
 	private val persistModules: () -> Unit,
+	private val fontChanged: () -> Unit,
 	private val parent: Screen? = null
 ) : Screen(Component.literal("Dhen")) {
 	private val field = ClickGuiColumnField(view, { width }, { height })
@@ -294,9 +295,10 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun persistClient() {
-		ClientPrefs.sync()
+		val changedFont = ClientPrefs.sync()
 		field.relayout()
 		panel.reclamp()
+		if (changedFont) fontChanged()
 		persistCore()
 	}
 

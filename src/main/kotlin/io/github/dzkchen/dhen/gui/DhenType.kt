@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
 import com.mojang.blaze3d.vertex.PoseStack
-import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -9,8 +8,6 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
-import net.minecraft.network.chat.Style
-import net.minecraft.resources.Identifier
 import net.minecraft.util.ARGB
 
 internal const val ELLIPSIS = "…"
@@ -83,6 +80,7 @@ private fun measure(font: Font, component: Component): Int = font.width(componen
 private fun measure(font: Font, text: String): Int = measure(font, DhenType.component(text))
 
 internal class TextMemo {
+	private var revision = DhenFont.revision
 	private var source = ""
 	private var sourceWidth = UNMEASURED
 	private var shown = ""
@@ -93,12 +91,14 @@ internal class TextMemo {
 	private val band = RoomBand()
 
 	fun width(font: Font, text: String): Int {
+		synchronize()
 		hold(text)
 		if (shownWidth == UNMEASURED) shownWidth = measure(font, component)
 		return shownWidth
 	}
 
 	fun fit(font: Font, text: String, maxWidth: Int, fromEnd: Boolean = false): String {
+		synchronize()
 		val room = maxOf(maxWidth, 0)
 		if (text != source) {
 			source = text
@@ -129,11 +129,13 @@ internal class TextMemo {
 	}
 
 	fun text(graphics: GuiGraphicsExtractor, font: Font, text: String, x: Int, y: Int, color: Int, shadow: Boolean = false) {
+		synchronize()
 		hold(text)
 		graphics.text(font, component, x, y, color, shadow)
 	}
 
 	fun shadowed(graphics: GuiGraphicsExtractor, font: Font, text: String, x: Int, y: Int, color: Int, scale: Float) {
+		synchronize()
 		hold(text)
 		val pose = graphics.pose()
 		val offset = DhenType.shadowOffset(scale)
@@ -147,6 +149,14 @@ internal class TextMemo {
 		sourceWidth = UNMEASURED
 		shownWidth = UNMEASURED
 		band.clear()
+	}
+
+	private fun synchronize() {
+		val current = DhenFont.revision
+		if (revision == current) return
+		revision = current
+		component = DhenType.component(shown)
+		invalidate()
 	}
 
 	private fun hold(text: String) {
@@ -164,12 +174,10 @@ internal class TextMemo {
 internal object DhenType {
 	const val CACHE_LIMIT = 512
 
-	private const val FONT_NAME = "inter"
 	private const val LOAD_FACTOR = 0.75f
 
-	val fontId: Identifier = Identifier.fromNamespaceAndPath(Dhen.MOD_ID, FONT_NAME)
+	val fontId = DhenFont.id
 
-	private val style: Style = Style.EMPTY.withFont(FontDescription.Resource(fontId))
 	private val cache = object : LinkedHashMap<String, Styled>(CACHE_LIMIT, LOAD_FACTOR, true) {
 		override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Styled>): Boolean = size > CACHE_LIMIT
 	}
@@ -179,14 +187,14 @@ internal object DhenType {
 
 	fun memo(): TextMemo = TextMemo()
 
-	fun component(text: String): Component = Component.literal(text).setStyle(style)
+	fun component(text: String): Component = Component.literal(text).setStyle(DhenFont.style())
 
 	fun overWorld(text: String): Component =
-		Component.literal(text).setStyle(style.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
+		Component.literal(text).setStyle(DhenFont.messageStyle().withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb))
 
 	fun copyableOverWorld(text: String, copyText: String): Component =
 		Component.literal(text).setStyle(
-			style
+			DhenFont.messageStyle()
 				.withColor(Color(DhenPalette.TEXT_ON_WORLD).rgb)
 				.withClickEvent(ClickEvent.CopyToClipboard(copyText))
 		)
@@ -258,6 +266,10 @@ internal object DhenType {
 
 	fun invalidateMeasurements() {
 		for (entry in cache.values) entry.width = UNMEASURED
+	}
+
+	internal fun fontChanged() {
+		cache.clear()
 	}
 
 	private fun measured(font: Font, entry: Styled): Int {

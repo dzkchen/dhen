@@ -32,6 +32,7 @@ import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
+import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -259,6 +260,7 @@ object Dhen : ClientModInitializer {
 	internal fun latchOff() {
 		if (latched) return
 		latched = true
+		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::shutdown)
 		contained("hook registry") { hooks.forEach { contained(it.feed, it::uninstall) } }
@@ -325,6 +327,11 @@ object Dhen : ClientModInitializer {
 		(Minecraft.getInstance().gui.screen() as? ClickGuiShellScreen)?.invalidateMeasurements()
 	}
 
+	private fun fontChanged() {
+		invalidateTextMeasurements()
+		Minecraft.getInstance().gui.hud.chat.rescaleChat()
+	}
+
 	private fun resetHudLayout(): Int {
 		val reset = hudRuntime.resetLayouts()
 		if (reset > 0) persistModules()
@@ -349,6 +356,7 @@ object Dhen : ClientModInitializer {
 			clickGuiView,
 			persistCore = ::persistCore,
 			persistModules = ::persistModules,
+			fontChanged = ::fontChanged,
 			parent = parent
 		)
 	}

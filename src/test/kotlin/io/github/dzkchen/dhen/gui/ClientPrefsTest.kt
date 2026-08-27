@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.theme.ThemeFixture
 import io.github.dzkchen.dhen.theme.ThemeFormat
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.Color
+import net.minecraft.network.chat.FontDescription
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -27,8 +28,10 @@ class ClientPrefsTest {
 	@BeforeEach
 	@AfterEach
 	fun restoreDefaults() {
+		DhenFont.resetForTest()
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
+		ClientPrefs.dhenFont.value = true
 		ThemeFixture.forgetDiscovered(config)
 		ClientPrefs.theme.value = ThemeStore.DEFAULT_ID
 		ClientPrefs.adopt()
@@ -41,16 +44,19 @@ class ClientPrefsTest {
 		ClientPrefs.accent.value = Color(TEAL)
 		Effects.reduced = true
 		ClientPrefs.splash.value = false
+		ClientPrefs.dhenFont.value = false
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
+		ClientPrefs.dhenFont.value = true
 
 		ClientPrefs.read(written)
 
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
 		assertTrue(Effects.reduced)
 		assertFalse(ClientPrefs.splash.value)
+		assertFalse(ClientPrefs.dhenFont.value)
 	}
 
 	@Test
@@ -135,6 +141,13 @@ class ClientPrefsTest {
 			listOf(ClientPrefs.splash),
 			ClientPrefs.sections.single { it.title == "Client" }.settings.filter { it.isVisible }
 		)
+	}
+
+	@Test
+	fun `the Dhen font toggle defaults on in Appearance`() {
+		assertTrue(ClientPrefs.dhenFont.default)
+		assertTrue(ClientPrefs.dhenFont.on)
+		assertTrue(ClientPrefs.sections.single { it.title == "Appearance" }.settings.contains(ClientPrefs.dhenFont))
 	}
 
 	@Test
@@ -231,6 +244,19 @@ class ClientPrefsTest {
 		assertFalse(Effects.reduced)
 		assertTrue(ClientPrefs.splash.default)
 		assertTrue(ClientPrefs.splash.value)
+		assertTrue(ClientPrefs.dhenFont.value)
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a client block missing the Dhen font key resolves it to on`() {
+		ClientPrefs.dhenFont.value = false
+		ClientPrefs.sync()
+
+		ClientPrefs.read(json("""{"client":{"Splash screen":false}}"""))
+
+		assertTrue(ClientPrefs.dhenFont.value)
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
 	}
 
 	@Test

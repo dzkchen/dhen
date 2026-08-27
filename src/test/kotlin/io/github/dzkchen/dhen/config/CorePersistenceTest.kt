@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.config
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.util.Color
@@ -107,8 +108,10 @@ class CorePersistenceTest {
 
 	@AfterEach
 	fun restoreClientDefaults() {
+		DhenFont.resetForTest()
 		Effects.reduced = false
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
+		ClientPrefs.dhenFont.value = true
 		ClientPrefs.sync()
 	}
 
@@ -119,15 +122,18 @@ class CorePersistenceTest {
 		store.load()
 		Effects.reduced = true
 		ClientPrefs.accent.value = Color(TEAL)
+		ClientPrefs.dhenFont.value = false
 
 		store.save(CorePersistence.snapshot(ClickGuiState())).join()
 		Effects.reduced = false
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
+		ClientPrefs.dhenFont.value = true
 		CorePersistence.apply(ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations).load())
 
 		assertTrue(Effects.reduced)
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
 		assertEquals(TEAL, DhenPalette.accent)
+		assertFalse(ClientPrefs.dhenFont.value)
 	}
 
 	private companion object {

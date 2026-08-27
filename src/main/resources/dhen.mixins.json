@@ -9,6 +9,7 @@
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
 		"EntityRenderDispatcherMixin",
+		"FontManagerMixin",
 		"GuiMixin",
 		"KeyboardHandlerMixin",
 		"LevelChunkMixin",
