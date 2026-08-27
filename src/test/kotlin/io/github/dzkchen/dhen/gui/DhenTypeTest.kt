@@ -1,8 +1,13 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
+import com.mojang.blaze3d.vertex.PoseStack
 import io.github.dzkchen.dhen.json
+import net.minecraft.client.gui.Font
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector
+import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.FontDescription
+import net.minecraft.util.ARGB
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -11,6 +16,8 @@ import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.joml.Matrix4f
+import java.lang.reflect.Proxy
 
 class DhenTypeTest {
 	@AfterEach
@@ -32,6 +39,81 @@ class DhenTypeTest {
 		assertEquals(1f, DhenType.shadowOffset(0f))
 		assertEquals(1f, DhenType.shadowOffset(-2f))
 		assertEquals(1f, DhenType.shadowOffset(Float.NaN))
+	}
+
+	@Test
+	fun `world shadow submits the dim offset copy in an earlier order than the foreground`() {
+		val submissions = mutableListOf<WorldTextSubmission>()
+		val orderedCollectors = (0..1).associateWith { order ->
+			Proxy.newProxyInstance(
+				OrderedSubmitNodeCollector::class.java.classLoader,
+				arrayOf(OrderedSubmitNodeCollector::class.java)
+			) { _, method, arguments ->
+				if (method.name != "submitText") throw UnsupportedOperationException(method.name)
+				val submittedPose = arguments[0] as PoseStack
+				submissions += WorldTextSubmission(order, arguments.copyOf(), Matrix4f(submittedPose.last().pose()))
+				null
+			} as OrderedSubmitNodeCollector
+		}
+		val requestedOrders = mutableListOf<Int>()
+		val collector = Proxy.newProxyInstance(
+			SubmitNodeCollector::class.java.classLoader,
+			arrayOf(SubmitNodeCollector::class.java)
+		) { _, method, arguments ->
+			if (method.name != "order") throw UnsupportedOperationException(method.name)
+			val order = arguments[0] as Int
+			requestedOrders += order
+			orderedCollectors.getValue(order)
+		} as SubmitNodeCollector
+		val pose = PoseStack()
+		pose.translate(1.25f, -2.5f, 3.75f)
+		val expectedPose = Matrix4f(pose.last().pose())
+		val text = "collect submits"
+		val expectedLabel = DhenType.styled(text).visualOrderText
+		val color = 0x8080C0FF.toInt()
+		val displayMode = Font.DisplayMode.POLYGON_OFFSET
+		val lightCoords = 0x00120034
+
+		DhenType.shadowedWorldText(
+			collector,
+			pose,
+			text,
+			10f,
+			20f,
+			color,
+			displayMode,
+			lightCoords
+		)
+
+		assertEquals(2, submissions.size)
+		assertEquals(listOf(0, 1), requestedOrders)
+		val shadow = submissions[0].arguments
+		val foreground = submissions[1].arguments
+		assertEquals(0, submissions[0].order)
+		assertEquals(1, submissions[1].order)
+		assertSame(pose, shadow[0])
+		assertSame(pose, foreground[0])
+		assertEquals(expectedPose, submissions[0].pose)
+		assertEquals(expectedPose, submissions[1].pose)
+		assertEquals(expectedPose, Matrix4f(pose.last().pose()))
+		assertEquals(10.5f, shadow[1])
+		assertEquals(20.5f, shadow[2])
+		assertSame(expectedLabel, shadow[3])
+		assertSame(expectedLabel, foreground[3])
+		assertFalse(shadow[4] as Boolean)
+		assertFalse(foreground[4] as Boolean)
+		assertEquals(displayMode, shadow[5])
+		assertEquals(displayMode, foreground[5])
+		assertEquals(lightCoords, shadow[6])
+		assertEquals(lightCoords, foreground[6])
+		assertEquals(ARGB.scaleRGB(color, 0.25f), shadow[7])
+		assertEquals(color, foreground[7])
+		assertEquals(0, shadow[8])
+		assertEquals(0, shadow[9])
+		assertEquals(0, foreground[8])
+		assertEquals(0, foreground[9])
+		assertEquals(10f, foreground[1])
+		assertEquals(20f, foreground[2])
 	}
 
 	@Test
@@ -271,7 +353,7 @@ class DhenTypeTest {
 	private fun tenPerCharacter(text: String): Int = text.length * 10
 
 	@Test
-	fun `no dhen surface draws or measures text outside the seam`() {
+	fun `no dhen code draws or measures text outside the seam`() {
 		val scanned = SourceScan.files()
 		assertTrue(scanned.any { it.name == SEAM }) { "scan missed the sources at ${SourceScan.MAIN.absolutePath}" }
 		assertTrue(scanned.any { it.extension == "java" }) { "scan missed the mixins at ${SourceScan.MAIN.absolutePath}" }
@@ -329,6 +411,8 @@ class DhenTypeTest {
 	}
 
 	private companion object {
+		data class WorldTextSubmission(val order: Int, val arguments: Array<Any?>, val pose: Matrix4f)
+
 		const val FITTING = "abcdef"
 		const val MEMO_NEIGHBOUR = "Cooldown"
 		const val ROCKET = "🚀"
@@ -337,6 +421,6 @@ class DhenTypeTest {
 		const val FACE = "inter.ttf"
 		const val MINIMUM_FACE_BYTES = 1024
 		val TRUETYPE_TAG = byteArrayOf(0x00, 0x01, 0x00, 0x00)
-		val RAW_TEXT = Regex("""graphics\.text\(|font\.width\(|font\.lineHeight""")
+		val RAW_TEXT = Regex("""graphics\.text\(|font\.width\(|font\.lineHeight|submitText\(""")
 	}
 }

@@ -272,21 +272,20 @@ internal object WorldRenderProbe {
 
 	private fun label(collector: SubmitNodeCollector, pose: PoseStack, camera: CameraRenderState, at: Vec3, text: String) {
 		val font: Font = Minecraft.getInstance().font
+		val left = -DhenType.width(font, text) / 2f
 		pose.pushPose()
 		pose.translate(at)
 		pose.mulPose(camera.orientation)
 		pose.scale(LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE)
-		collector.submitText(
+		DhenType.shadowedWorldText(
+			collector,
 			pose,
-			-DhenType.width(font, text) / 2f,
+			text,
+			left,
 			0f,
-			DhenType.styled(text).visualOrderText,
-			true,
-			Font.DisplayMode.SEE_THROUGH,
-			LightCoordsUtil.FULL_BRIGHT,
 			DhenPalette.TEXT_ON_WORLD,
-			0,
-			0
+			Font.DisplayMode.SEE_THROUGH,
+			LightCoordsUtil.FULL_BRIGHT
 		)
 		pose.popPose()
 	}

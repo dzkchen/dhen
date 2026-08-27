@@ -1,9 +1,11 @@
 package io.github.dzkchen.dhen.gui
 
+import com.mojang.blaze3d.vertex.PoseStack
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
@@ -15,6 +17,9 @@ internal const val ELLIPSIS = "…"
 
 private const val UNMEASURED = -1
 private const val SHADOW_PIXELS = 1f
+private const val WORLD_SHADOW_OFFSET = 0.5f
+private const val WORLD_SHADOW_ORDER = 0
+private const val WORLD_FOREGROUND_ORDER = 1
 private const val SHADOW_DIM = 0.25f
 
 internal class RoomBand {
@@ -198,6 +203,43 @@ internal object DhenType {
 		shadow: Boolean = false
 	) {
 		graphics.text(font, styled(text), x, y, color, shadow)
+	}
+
+	fun shadowedWorldText(
+		collector: SubmitNodeCollector,
+		pose: PoseStack,
+		text: String,
+		x: Float,
+		y: Float,
+		color: Int,
+		displayMode: Font.DisplayMode,
+		lightCoords: Int
+	) {
+		val label = styled(text).visualOrderText
+		collector.order(WORLD_SHADOW_ORDER).submitText(
+			pose,
+			x + WORLD_SHADOW_OFFSET,
+			y + WORLD_SHADOW_OFFSET,
+			label,
+			false,
+			displayMode,
+			lightCoords,
+			ARGB.scaleRGB(color, SHADOW_DIM),
+			0,
+			0
+		)
+		collector.order(WORLD_FOREGROUND_ORDER).submitText(
+			pose,
+			x,
+			y,
+			label,
+			false,
+			displayMode,
+			lightCoords,
+			color,
+			0,
+			0
+		)
 	}
 
 	fun shadowOffset(scale: Float): Float =
