@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.util.Color
+import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
 
 internal object SettingCodec {
@@ -37,6 +38,7 @@ internal object SettingCodec {
 		is ColorSetting -> JsonPrimitive(setting.value.argb)
 		is KeybindSetting -> JsonPrimitive(setting.value)
 		is SelectorSetting -> JsonPrimitive(setting.preferred)
+		is SoundSetting -> JsonPrimitive(setting.value.location().toString())
 		is StringSetting -> JsonPrimitive(setting.value)
 		else -> null
 	}
@@ -49,6 +51,7 @@ internal object SettingCodec {
 			is ColorSetting -> setting.value = Color(element.asInt)
 			is KeybindSetting -> setting.value = element.asInt
 			is SelectorSetting -> setting.value = element.asString
+			is SoundSetting -> setting.select(Identifier.parse(element.asString))
 			is StringSetting -> setting.value = element.asString
 			else -> {}
 		}
