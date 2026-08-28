@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.util.ARGB
+import net.minecraft.util.FormattedCharSequence
 
 internal const val ELLIPSIS = "…"
 
@@ -165,6 +166,21 @@ internal class TextMemo {
 		graphics.text(font, component, x, y, color, false)
 	}
 
+	fun shadowedWorldText(
+		collector: SubmitNodeCollector,
+		pose: PoseStack,
+		text: String,
+		x: Float,
+		y: Float,
+		color: Int,
+		displayMode: Font.DisplayMode,
+		lightCoords: Int
+	) {
+		synchronize()
+		hold(text)
+		DhenType.shadowedWorldText(collector, pose, component.visualOrderText, x, y, color, displayMode, lightCoords)
+	}
+
 	fun invalidate() {
 		sourceWidth = UNMEASURED
 		shownWidth = UNMEASURED
@@ -263,7 +279,19 @@ internal object DhenType {
 		displayMode: Font.DisplayMode,
 		lightCoords: Int
 	) {
-		val label = styled(text).visualOrderText
+		shadowedWorldText(collector, pose, styled(text).visualOrderText, x, y, color, displayMode, lightCoords)
+	}
+
+	internal fun shadowedWorldText(
+		collector: SubmitNodeCollector,
+		pose: PoseStack,
+		label: FormattedCharSequence,
+		x: Float,
+		y: Float,
+		color: Int,
+		displayMode: Font.DisplayMode,
+		lightCoords: Int
+	) {
 		collector.order(WORLD_SHADOW_ORDER).submitText(
 			pose,
 			x + WORLD_SHADOW_OFFSET,

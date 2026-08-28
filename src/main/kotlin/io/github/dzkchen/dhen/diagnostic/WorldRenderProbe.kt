@@ -7,7 +7,10 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.render.WorldDepth
+import io.github.dzkchen.dhen.render.WorldDraw
 import io.github.dzkchen.dhen.render.WorldRenderTypes
+import io.github.dzkchen.dhen.render.withRestoredWorldPose
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -17,6 +20,7 @@ import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.core.BlockPos
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.phys.Vec3
 import kotlin.math.cos
@@ -68,9 +72,7 @@ internal object WorldRenderProbe {
 	fun toggle(): Boolean {
 		val current = subscription
 		subscription = if (current == null) {
-			bus.subscribe<WorldRenderEvent> {
-				draw(it.collector, it.pose, it.camera, it.gameTime, -SPREAD, "collect submits")
-			}
+			bus.subscribe<WorldRenderEvent>(handler = ::drawCollect)
 		} else {
 			current.unsubscribe()
 			null
@@ -81,7 +83,7 @@ internal object WorldRenderProbe {
 	fun afterTranslucentTerrain(context: LevelRenderContext) {
 		if (subscription == null) return
 		val level = context.levelState()
-		draw(
+		drawDirect(
 			context.submitNodeCollector(),
 			context.poseStack(),
 			level.cameraRenderState,
@@ -91,7 +93,39 @@ internal object WorldRenderProbe {
 		)
 	}
 
-	private fun draw(
+	private fun drawCollect(event: WorldRenderEvent) {
+		val camera = event.camera
+		val wire = blockCorner(camera, -SPREAD)
+		val filled = blockCorner(camera, -SPREAD + FILL_OFFSET)
+		val beam = blockCorner(camera, -SPREAD + BEAM_OFFSET)
+		WorldDraw.drawWireBox(event, BlockPos.containing(wire), DhenPalette.accent)
+		WorldDraw.drawFilledBox(
+			event,
+			BlockPos.containing(filled),
+			translucentAccent(),
+			WorldDepth.THROUGH_WALLS
+		)
+		WorldDraw.drawTexturedQuad(
+			event,
+			BeaconRenderer.BEAM_LOCATION,
+			filled.add(0.5, QUAD_LIFT, 0.5),
+			QUAD_HALF * 2f,
+			QUAD_HALF * 2f,
+			camera.yRot + QUAD_TOWARD_CAMERA.toFloat(),
+			DhenPalette.accent
+		)
+		WorldDraw.drawTracer(event, wire.add(0.5, 0.5, 0.5), DhenPalette.accentMuted)
+		WorldDraw.drawBeaconBeam(event, BlockPos.containing(beam), DhenPalette.accent, BEAM_HEIGHT)
+		WorldDraw.drawText(
+			event,
+			"collect submits",
+			wire.add(0.5, LABEL_HEIGHT, 0.5),
+			DhenPalette.TEXT_ON_WORLD,
+			depth = WorldDepth.THROUGH_WALLS
+		)
+	}
+
+	private fun drawDirect(
 		collector: SubmitNodeCollector,
 		pose: PoseStack,
 		camera: CameraRenderState,
@@ -99,14 +133,14 @@ internal object WorldRenderProbe {
 		sideways: Double,
 		stage: String
 	) {
-		val wire = blockCorner(camera, sideways)
-		val filled = blockCorner(camera, sideways + FILL_OFFSET)
+		val wire = relative(blockCorner(camera, sideways), camera)
+		val filled = relative(blockCorner(camera, sideways + FILL_OFFSET), camera)
 
 		wireBox(collector, pose, wire, DhenPalette.accent)
 		filledBox(collector, pose, filled, translucentAccent())
 		texturedQuad(collector, pose, camera, filled.add(0.5, QUAD_LIFT, 0.5))
 		tracer(collector, pose, camera, wire.add(0.5, 0.5, 0.5), DhenPalette.accentMuted)
-		beacon(collector, pose, blockCorner(camera, sideways + BEAM_OFFSET), gameTime)
+		beacon(collector, pose, relative(blockCorner(camera, sideways + BEAM_OFFSET), camera), gameTime)
 		label(collector, pose, camera, wire.add(0.5, LABEL_HEIGHT, 0.5), stage)
 	}
 
@@ -114,11 +148,17 @@ internal object WorldRenderProbe {
 		val ahead = Vec3.directionFromRotation(0f, camera.yRot)
 		val side = Vec3.directionFromRotation(0f, camera.yRot + 90f)
 		return Vec3(
-			floor(camera.pos.x + ahead.x * REACH + side.x * sideways) - camera.pos.x,
-			floor(camera.pos.y) - 1.0 - camera.pos.y,
-			floor(camera.pos.z + ahead.z * REACH + side.z * sideways) - camera.pos.z
+			floor(camera.pos.x + ahead.x * REACH + side.x * sideways),
+			floor(camera.pos.y) - 1.0,
+			floor(camera.pos.z + ahead.z * REACH + side.z * sideways)
 		)
 	}
+
+	private fun relative(pos: Vec3, camera: CameraRenderState): Vec3 = Vec3(
+		pos.x - camera.pos.x,
+		pos.y - camera.pos.y,
+		pos.z - camera.pos.z
+	)
 
 	private fun translucentAccent(): Int = DhenPalette.mix(DhenPalette.accent, DhenPalette.GLASS_SHEEN, 0.5f)
 
@@ -209,40 +249,40 @@ internal object WorldRenderProbe {
 	private fun beacon(collector: SubmitNodeCollector, pose: PoseStack, at: Vec3, gameTime: Long) {
 		val client = Minecraft.getInstance()
 		val spin = Math.floorMod(gameTime, BEAM_PERIOD) + client.deltaTracker.getGameTimeDeltaPartialTick(false)
-		pose.pushPose()
-		pose.translate(at)
-		BeaconRenderer.submitBeaconBeam(
-			pose,
-			collector,
-			BeaconRenderer.BEAM_LOCATION,
-			1f,
-			spin,
-			0,
-			BEAM_HEIGHT,
-			DhenPalette.accent,
-			BeaconRenderer.SOLID_BEAM_RADIUS,
-			BeaconRenderer.BEAM_GLOW_RADIUS
-		)
-		pose.popPose()
+		withRestoredWorldPose(pose) {
+			translate(at)
+			BeaconRenderer.submitBeaconBeam(
+				this,
+				collector,
+				BeaconRenderer.BEAM_LOCATION,
+				1f,
+				spin,
+				0,
+				BEAM_HEIGHT,
+				DhenPalette.accent,
+				BeaconRenderer.SOLID_BEAM_RADIUS,
+				BeaconRenderer.BEAM_GLOW_RADIUS
+			)
+		}
 	}
 
 	private fun label(collector: SubmitNodeCollector, pose: PoseStack, camera: CameraRenderState, at: Vec3, text: String) {
 		val font: Font = Minecraft.getInstance().font
 		val left = -DhenType.width(font, text) / 2f
-		pose.pushPose()
-		pose.translate(at)
-		pose.mulPose(camera.orientation)
-		pose.scale(LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE)
-		DhenType.shadowedWorldText(
-			collector,
-			pose,
-			text,
-			left,
-			0f,
-			DhenPalette.TEXT_ON_WORLD,
-			Font.DisplayMode.SEE_THROUGH,
-			LightCoordsUtil.FULL_BRIGHT
-		)
-		pose.popPose()
+		withRestoredWorldPose(pose) {
+			translate(at)
+			mulPose(camera.orientation)
+			scale(LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE)
+			DhenType.shadowedWorldText(
+				collector,
+				this,
+				text,
+				left,
+				0f,
+				DhenPalette.TEXT_ON_WORLD,
+				Font.DisplayMode.SEE_THROUGH,
+				LightCoordsUtil.FULL_BRIGHT
+			)
+		}
 	}
 }

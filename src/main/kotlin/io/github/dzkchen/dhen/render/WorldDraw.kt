@@ -1,21 +1,68 @@
 package io.github.dzkchen.dhen.render
 
+import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
 import io.github.dzkchen.dhen.event.WorldRenderEvent
+import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.TextMemo
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
+import net.minecraft.client.renderer.blockentity.BeaconRenderer
+import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.core.BlockPos
+import net.minecraft.resources.Identifier
+import net.minecraft.util.LightCoordsUtil
 import net.minecraft.util.Mth
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 internal fun cameraRelative(world: Double, camera: Double): Float = (world - camera).toFloat()
 
 internal fun worldLineSpan(dx: Float, dy: Float, dz: Float): Float = sqrt(dx * dx + dy * dy + dz * dz)
 
+internal fun worldTextDisplayMode(depth: WorldDepth): Font.DisplayMode = when (depth) {
+	WorldDepth.TESTED -> Font.DisplayMode.NORMAL
+	WorldDepth.THROUGH_WALLS -> Font.DisplayMode.SEE_THROUGH
+}
+
+internal fun worldBeaconRadiusScale(
+	centerX: Double,
+	centerZ: Double,
+	cameraX: Double,
+	cameraZ: Double,
+	isScoping: Boolean
+): Float {
+	if (isScoping) return 1f
+	val dx = cameraX - centerX
+	val dz = cameraZ - centerZ
+	return max(1f, (sqrt(dx * dx + dz * dz) / 96.0).toFloat())
+}
+
+internal fun worldQuadRightX(yaw: Float): Float = cos(Math.toRadians(yaw.toDouble())).toFloat()
+
+internal fun worldQuadRightZ(yaw: Float): Float = sin(Math.toRadians(yaw.toDouble())).toFloat()
+
+internal inline fun <T> withRestoredWorldPose(pose: PoseStack, block: PoseStack.() -> T): T {
+	val parent = pose.last()
+	pose.pushPose()
+	return try {
+		pose.block()
+	} finally {
+		while (pose.last() !== parent) pose.popPose()
+	}
+}
+
 internal object WorldDraw {
 	private const val DEFAULT_LINE_WIDTH = 3f
 	private const val DEGREES_TO_RADIANS = Math.PI.toFloat() / 180f
 	private const val TRACER_DROP = 0.2f
+	private const val WORLD_TEXT_SCALE = 0.025f
+	private const val BEAM_PERIOD = 40L
 
 	private val wireEdges = intArrayOf(
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -160,6 +207,138 @@ internal object WorldDraw {
 		depth
 	)
 
+	fun drawText(
+		event: WorldRenderEvent,
+		text: String,
+		pos: Vec3,
+		color: Int,
+		scale: Float = 1f,
+		depth: WorldDepth = WorldDepth.TESTED
+	) = drawTextInternal(event, null, text, pos, color, scale, depth)
+
+	fun drawText(
+		event: WorldRenderEvent,
+		memo: TextMemo,
+		text: String,
+		pos: Vec3,
+		color: Int,
+		scale: Float = 1f,
+		depth: WorldDepth = WorldDepth.TESTED
+	) = drawTextInternal(event, memo, text, pos, color, scale, depth)
+
+	fun drawBeaconBeam(
+		event: WorldRenderEvent,
+		pos: BlockPos,
+		color: Int,
+		height: Int = BeaconRenderer.MAX_RENDER_Y
+	) {
+		val camera = event.camera.pos
+		val client = Minecraft.getInstance()
+		val radiusScale = worldBeaconRadiusScale(
+			pos.x + 0.5,
+			pos.z + 0.5,
+			camera.x,
+			camera.z,
+			client.player?.isScoping == true
+		)
+		val animationTime = Math.floorMod(event.gameTime, BEAM_PERIOD).toFloat() +
+			client.deltaTracker.getGameTimeDeltaPartialTick(false)
+		withRestoredWorldPose(event.pose) {
+			translate(
+				cameraRelative(pos.x.toDouble(), camera.x),
+				cameraRelative(pos.y.toDouble(), camera.y),
+				cameraRelative(pos.z.toDouble(), camera.z)
+			)
+			BeaconRenderer.submitBeaconBeam(
+				this,
+				event.collector,
+				BeaconRenderer.BEAM_LOCATION,
+				1f,
+				animationTime,
+				0,
+				height,
+				color,
+				BeaconRenderer.SOLID_BEAM_RADIUS * radiusScale,
+				BeaconRenderer.BEAM_GLOW_RADIUS * radiusScale
+			)
+		}
+	}
+
+	fun drawTexturedQuad(
+		event: WorldRenderEvent,
+		texture: Identifier,
+		pos: Vec3,
+		width: Float,
+		height: Float,
+		yaw: Float,
+		color: Int
+	) {
+		if (!width.isFinite() || !height.isFinite() || width <= 0f || height <= 0f) return
+		val camera = event.camera.pos
+		val x = cameraRelative(pos.x, camera.x)
+		val y = cameraRelative(pos.y, camera.y)
+		val z = cameraRelative(pos.z, camera.z)
+		val halfWidth = width * 0.5f
+		val halfHeight = height * 0.5f
+		val rightX = worldQuadRightX(yaw)
+		val rightZ = worldQuadRightZ(yaw)
+		event.collector.submitCustomGeometry(event.pose, RenderTypes.entityCutout(texture)) { _, buffer ->
+			quadVertex(buffer, x - rightX * halfWidth, y - halfHeight, z - rightZ * halfWidth, 0f, 1f, -rightZ, rightX, color)
+			quadVertex(buffer, x - rightX * halfWidth, y + halfHeight, z - rightZ * halfWidth, 0f, 0f, -rightZ, rightX, color)
+			quadVertex(buffer, x + rightX * halfWidth, y + halfHeight, z + rightZ * halfWidth, 1f, 0f, -rightZ, rightX, color)
+			quadVertex(buffer, x + rightX * halfWidth, y - halfHeight, z + rightZ * halfWidth, 1f, 1f, -rightZ, rightX, color)
+		}
+	}
+
+	private fun drawTextInternal(
+		event: WorldRenderEvent,
+		memo: TextMemo?,
+		text: String,
+		pos: Vec3,
+		color: Int,
+		scale: Float,
+		depth: WorldDepth
+	) {
+		if (!scale.isFinite() || scale <= 0f) return
+		val font = Minecraft.getInstance().font
+		val left = -(memo?.width(font, text) ?: DhenType.width(font, text)) / 2f
+		val camera = event.camera
+		val textScale = WORLD_TEXT_SCALE * scale
+		val displayMode = worldTextDisplayMode(depth)
+		withRestoredWorldPose(event.pose) {
+			translate(
+				cameraRelative(pos.x, camera.pos.x),
+				cameraRelative(pos.y, camera.pos.y),
+				cameraRelative(pos.z, camera.pos.z)
+			)
+			mulPose(camera.orientation)
+			scale(textScale, -textScale, textScale)
+			if (memo == null) {
+				DhenType.shadowedWorldText(
+					event.collector,
+					this,
+					text,
+					left,
+					0f,
+					color,
+					displayMode,
+					LightCoordsUtil.FULL_BRIGHT
+				)
+			} else {
+				memo.shadowedWorldText(
+					event.collector,
+					this,
+					text,
+					left,
+					0f,
+					color,
+					displayMode,
+					LightCoordsUtil.FULL_BRIGHT
+				)
+			}
+		}
+	}
+
 	fun drawFilledBox(
 		event: WorldRenderEvent,
 		pos: BlockPos,
@@ -293,5 +472,24 @@ internal object WorldDraw {
 	) {
 		buffer.addVertex(x0, y0, z0).setColor(color).setNormal(normalX, normalY, normalZ).setLineWidth(width)
 		buffer.addVertex(x1, y1, z1).setColor(color).setNormal(normalX, normalY, normalZ).setLineWidth(width)
+	}
+
+	private fun quadVertex(
+		buffer: VertexConsumer,
+		x: Float,
+		y: Float,
+		z: Float,
+		u: Float,
+		v: Float,
+		normalX: Float,
+		normalZ: Float,
+		color: Int
+	) {
+		buffer.addVertex(x, y, z)
+			.setColor(color)
+			.setUv(u, v)
+			.setOverlay(OverlayTexture.NO_OVERLAY)
+			.setLight(LightCoordsUtil.FULL_BRIGHT)
+			.setNormal(normalX, 0f, normalZ)
 	}
 }
