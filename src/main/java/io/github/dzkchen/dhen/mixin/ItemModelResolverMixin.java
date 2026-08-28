@@ -18,10 +18,10 @@ public abstract class ItemModelResolverMixin {
 			target = "Lnet/minecraft/world/item/ItemStack;get(Lnet/minecraft/core/component/DataComponentType;)Ljava/lang/Object;"
 		)
 	)
-	private Identifier dhen$revertAxeModel(
-		final Identifier model,
+	private Object dhen$revertAxeModel(
+		final Object model,
 		@Local(argsOnly = true) final ItemStack stack
 	) {
-		return RevertAxes.model(stack, model);
+		return RevertAxes.model(stack, (Identifier) model);
 	}
 }
