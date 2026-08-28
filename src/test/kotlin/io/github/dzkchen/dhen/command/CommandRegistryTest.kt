@@ -263,6 +263,23 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `sounds opens the manager through both roots`() {
+		var opened = 0
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			openSoundManager = { opened++ }
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen sounds", Any())
+		dispatcher.execute("dh sounds", Any())
+
+		assertEquals(2, opened)
+		assertEquals("Opening the Sound Manager.", captured.last())
+	}
+
+	@Test
 	fun `reset-all resets the HUD layout through both roots and reports the count`() {
 		var resets = 0
 		var pending = 3

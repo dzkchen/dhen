@@ -30,6 +30,7 @@ class CommandRegistry<S>(
 	private val showAlert: () -> Unit = {},
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
+	private val openSoundManager: () -> Unit = {},
 	private val setSoundVolume: (Identifier, Int) -> Int = { _, percent -> percent },
 	private val feedback: (S, String) -> Unit
 ) {
@@ -68,7 +69,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | reset-all | effects | theme")
+				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme")
 			}
 			.then(
 				literal<S>("module").then(
@@ -99,6 +100,12 @@ class CommandRegistry<S>(
 				literal<S>("edit").executes { context ->
 					openHudEditor()
 					report(context.source, "Opening the HUD editor.")
+				}
+			)
+			.then(
+				literal<S>("sounds").executes { context ->
+					openSoundManager()
+					report(context.source, "Opening the Sound Manager.")
 				}
 			)
 			.then(resetAllCommand())

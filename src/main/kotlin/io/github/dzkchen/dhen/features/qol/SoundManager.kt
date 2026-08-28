@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.features.qol
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -18,6 +19,13 @@ object SoundManager : Module(
 	category = Category.QOL,
 	description = "Adjusts the volume of individual game sounds."
 ) {
+	internal val openScreen = ActionSetting(
+		"Open Sound Manager",
+		description = "Browse sounds and adjust their individual volume."
+	)
+	@Suppress("unused")
+	private val openScreenAction by openScreen
+
 	private val volumeLock = Any()
 	private val recentLock = Any()
 	private val recentIds = arrayOfNulls<Identifier>(RECENT_LIMIT)

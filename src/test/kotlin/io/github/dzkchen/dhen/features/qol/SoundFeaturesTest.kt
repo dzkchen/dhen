@@ -107,6 +107,7 @@ class SoundFeaturesTest {
 		}
 
 		assertTrue(SoundManager.recentSoundIds().isEmpty())
+		assertEquals(listOf("Open Sound Manager"), SoundManager.settings.map { it.name })
 	}
 
 	@Test

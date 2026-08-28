@@ -40,6 +40,7 @@ import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
@@ -159,11 +160,13 @@ object Dhen : ClientModInitializer {
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
 			available = { !failsafe.failed },
 			persistModules = ::persistModules,
+			openSoundManager = ::openSoundManager,
 			setSoundVolume = SoundManager::setVolumePercent
 		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
+		SoundManager.openScreen.value = ::openSoundManager
 		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, SoundManager, ArrowHitSound, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
@@ -386,6 +389,12 @@ object Dhen : ClientModInitializer {
 			fontChanged = ::fontChanged,
 			parent = parent
 		)
+	}
+
+	private fun openSoundManager() {
+		val client = Minecraft.getInstance()
+		val parent = client.gui.screen() as? ClickGuiShellScreen ?: clickGuiScreen() ?: return
+		client.gui.setScreen(SoundManagerScreen(parent))
 	}
 
 	fun id(path: String): Identifier

@@ -36,6 +36,8 @@ internal class ScrollingStack(
 		return true
 	}
 
+	fun scrollTo(offset: Int) = state.scrollTo(offset, max())
+
 	fun reveal(index: Int) = revealSpan(startOf(index), extentAt.applyAsInt(index))
 
 	fun revealSpan(spanStart: Int, extent: Int) = state.reveal(spanStart, extent, window(), max())
