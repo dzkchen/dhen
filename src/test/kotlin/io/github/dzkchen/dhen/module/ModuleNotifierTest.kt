@@ -14,7 +14,7 @@ class ModuleNotifierTest {
 		val announced = mutableListOf<Component>()
 		val notifier = ModuleNotifier.chatBacked({ queued += it }, { announced += it })
 
-		notifier.notify(PlaceholderModule(), "Module 'Test Module' encountered an error.", null)
+		notifier.notify(TestModule(), "Module 'Test Module' encountered an error.", null)
 
 		assertTrue(announced.isEmpty())
 
@@ -30,10 +30,12 @@ class ModuleNotifierTest {
 		val announced = mutableListOf<Component>()
 		val notifier = ModuleNotifier.chatBacked({ queued += it }, { announced += it })
 
-		notifier.notify(PlaceholderModule(), "Click to copy.", "retained trace")
+		notifier.notify(TestModule(), "Click to copy.", "retained trace")
 		queued.forEach(Runnable::run)
 
 		val click = announced.single().style.clickEvent as ClickEvent.CopyToClipboard
 		assertEquals("retained trace", click.value)
 	}
+
+	private class TestModule : Module("Test Module", Category.DEV, "Test module")
 }

@@ -29,6 +29,7 @@ import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
+import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -37,11 +38,9 @@ import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
-import io.github.dzkchen.dhen.module.PlaceholderModule
 import io.github.dzkchen.dhen.render.WorldRenderTypes
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
-import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
@@ -157,24 +156,7 @@ object Dhen : ClientModInitializer {
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
-		modules.registerAll(
-			PlaceholderModule(),
-			PlaceholderModule(
-				name = "Test Overlay",
-				category = Category.VISUAL,
-				description = "Second placeholder for search and keyboard navigation.",
-				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
-				hudAnchor = HudAnchor.TOP_RIGHT,
-				hudBackground = true
-			),
-			PlaceholderModule(
-				name = "Sample Timer",
-				category = Category.COMBAT,
-				description = "Third placeholder; matches a search on its description only.",
-				toggleKey = GLFW.GLFW_KEY_UNKNOWN,
-				hudAnchor = HudAnchor.BOTTOM_RIGHT
-			)
-		)
+		modules.register(AutoSprint)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
