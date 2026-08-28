@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.ui.hud
 
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
@@ -14,12 +15,16 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
+import org.slf4j.LoggerFactory
 
 internal class HudEditorScreen(
 	manager: ModuleManager,
-	private val persist: () -> Unit
+	private val persist: () -> Unit,
+	coreElements: List<HudElement> = emptyList(),
+	private val opened: () -> Unit = {},
+	private val closed: () -> Unit = {}
 ) : LiveWorldScreen(Component.literal("Dhen HUD Editor")) {
-	private val editor = HudEditor(manager, ::measure)
+	private val editor = HudEditor(manager, ::measure, coreElements)
 	private var hovered: HudTarget? = null
 	private var labelled: HudTarget? = null
 	private var labelledScale = 0.0f
@@ -28,6 +33,7 @@ internal class HudEditorScreen(
 	private val bannerText = Array(HINTS.size + 1) { DhenType.memo() }
 
 	override fun init() {
+		opened()
 		editor.layout(width, height)
 	}
 
@@ -87,32 +93,31 @@ internal class HudEditorScreen(
 
 	override fun removed() {
 		if (editor.release()) persist()
+		closed()
 		super.removed()
 	}
 
 	private fun measure(target: HudTarget) {
-		if (target.rendering && measureElement(target)) return
+		try {
+			if (target.rendering) {
+				val elementWidth = target.element.width(font)
+				val elementHeight = target.element.height(font, height)
+				if (elementWidth > 0 && elementHeight > 0) {
+					target.placeholder = false
+					target.contentWidth = elementWidth
+					target.contentHeight = elementHeight
+					return
+				}
+			}
+		} catch (throwable: Throwable) {
+			target.element.markFailed()
+			val module = target.module
+			if (module == null) LOGGER.error("Core HUD element '{}' failed in the editor", target.element.name, throwable)
+			else module.reportError(throwable)
+		}
 		target.placeholder = true
 		target.contentWidth = DhenType.width(font, target.element.name) + 2 * PLACEHOLDER_PAD
 		target.contentHeight = DhenType.lineHeight(font) + 2 * PLACEHOLDER_PAD
-	}
-
-	private fun measureElement(target: HudTarget): Boolean {
-		val elementWidth: Int
-		val elementHeight: Int
-		try {
-			elementWidth = target.element.width(font)
-			elementHeight = target.element.height(font)
-		} catch (throwable: Throwable) {
-			target.element.markFailed()
-			target.module.reportError(throwable)
-			return false
-		}
-		if (elementWidth <= 0 || elementHeight <= 0) return false
-		target.placeholder = false
-		target.contentWidth = elementWidth
-		target.contentHeight = elementHeight
-		return true
 	}
 
 	private fun drawGuides(graphics: GuiGraphicsExtractor) {
@@ -177,12 +182,13 @@ internal class HudEditorScreen(
 			labelled = target
 			labelledScale = element.scale
 			labelledAnchor = element.anchor
-			label = "${target.module.name} - ${element.name}  $labelledAnchor  x$labelledScale"
+			label = "${target.ownerName} - ${element.name}  $labelledAnchor  x$labelledScale"
 		}
 		return label
 	}
 
 	private companion object {
+		val LOGGER = LoggerFactory.getLogger(Dhen.MOD_ID)
 		const val PLACEHOLDER_PAD = 2
 		const val GUIDE_THICKNESS = 1
 		const val OUTLINE_RADIUS = 3f

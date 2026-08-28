@@ -442,6 +442,18 @@ class HudEditorTest {
 		return HudEditor(manager, metrics)
 	}
 
+	@Test
+	fun `a core element is an ordinary movable editor target`() {
+		val core = FixedHudElement("Alerts", anchor = HudAnchor.MIDDLE_CENTER)
+		val editor = HudEditor(ModuleManager(), metrics, listOf(core))
+
+		editor.layout(WIDTH, HEIGHT)
+
+		assertEquals(1, editor.targets.size)
+		assertEquals("Dhen", editor.targets.single().ownerName)
+		assertTrue(editor.press(editor.targets.single().x, editor.targets.single().y))
+	}
+
 	private val metrics = HudMetrics { target ->
 		target.placeholder = !target.rendering
 		target.contentWidth = ELEMENT_WIDTH

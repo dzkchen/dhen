@@ -30,6 +30,9 @@ abstract class HudElement(
 	val isActive: Boolean
 		get() = visible && !failed
 
+	internal open val hasContent: Boolean
+		get() = true
+
 	fun resetToDeclared(): Boolean {
 		if (
 			anchor == declaredAnchor &&
@@ -56,7 +59,15 @@ abstract class HudElement(
 
 	abstract fun height(font: Font): Int
 
+	internal open fun height(font: Font, screenHeight: Int): Int = height(font)
+
 	abstract fun render(graphics: GuiGraphicsExtractor, font: Font)
+
+	internal open fun placeY(screenHeight: Int, height: Int): Int =
+		HudLayout.placeOnScreen(anchor.vertical, screenHeight, height, offsetY)
+
+	internal open fun offsetYFor(anchor: HudAnchor, screenHeight: Int, height: Int, position: Int): Int =
+		HudLayout.offsetFor(anchor.vertical, screenHeight, height, position)
 
 	open fun invalidateMeasurement() = Unit
 

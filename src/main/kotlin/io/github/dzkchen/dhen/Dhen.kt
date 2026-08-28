@@ -39,6 +39,7 @@ import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.module.PlaceholderModule
 import io.github.dzkchen.dhen.theme.ThemeRuntime
+import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
 import io.github.dzkchen.dhen.ui.hud.HudRuntime
@@ -96,7 +97,7 @@ object Dhen : ClientModInitializer {
 		clientDispatcher = clientThread,
 		currentScreen = { Minecraft.getInstance().gui.screen() }
 	)
-	private val hudRuntime = HudRuntime(modules)
+	private val hudRuntime = HudRuntime(modules, DhenAlert.elements)
 
 	internal val hooks: List<Hooks> by lazy {
 		listOf(
@@ -136,7 +137,7 @@ object Dhen : ClientModInitializer {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
-		val coreState = CorePersistence.apply(coreStore.load())
+		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::announce) {
 			Util.getPlatform().openPath(it)
@@ -148,6 +149,7 @@ object Dhen : ClientModInitializer {
 			resetHudLayout = ::resetHudLayout,
 			themes = themes,
 			toggleWorldRender = WorldRenderProbe::toggle,
+			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
 			available = { !failsafe.failed }
 		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
@@ -194,7 +196,10 @@ object Dhen : ClientModInitializer {
 		)
 		ClientTickEvents.START_CLIENT_TICK.register { client ->
 			if (failsafe.failed) latchOff()
-			else if (client.level != null) failsafe.guard("client tick start") { TickHooks.clientTickStarted() }
+			else {
+				DhenAlert.tick()
+				if (client.level != null) failsafe.guard("client tick start") { TickHooks.clientTickStarted() }
+			}
 		}
 		ClientTickEvents.END_CLIENT_TICK.register { client ->
 			if (failsafe.failed) latchOff()
@@ -264,6 +269,7 @@ object Dhen : ClientModInitializer {
 	internal fun latchOff() {
 		if (latched) return
 		latched = true
+		DhenAlert.clear()
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::shutdown)
@@ -289,6 +295,7 @@ object Dhen : ClientModInitializer {
 	private fun worldChanged(phase: WorldChange) {
 		val client = Minecraft.getInstance()
 		if (client.isSameThread) failsafe.guard("world change") {
+			DhenAlert.clear()
 			if (phase == WorldChange.JOIN) flushAnnouncements(client)
 			WorldHooks.worldChanged(phase)
 		}
@@ -307,7 +314,15 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun openHudEditor() = clientThread.dispatch(EmptyCoroutineContext) {
-		Minecraft.getInstance().gui.setScreen(HudEditorScreen(modules, ::persistModules))
+		Minecraft.getInstance().gui.setScreen(
+			HudEditorScreen(
+				modules,
+				::persistHudLayouts,
+				hudRuntime.coreElements,
+				DhenAlert::beginPreview,
+				DhenAlert::endPreview
+			)
+		)
 	}
 
 	private fun announce(message: String) {
@@ -338,7 +353,7 @@ object Dhen : ClientModInitializer {
 
 	private fun resetHudLayout(): Int {
 		val reset = hudRuntime.resetLayouts()
-		if (reset > 0) persistModules()
+		if (reset > 0) persistHudLayouts()
 		return reset
 	}
 
@@ -349,8 +364,13 @@ object Dhen : ClientModInitializer {
 		moduleStore.save(ModulePersistence.snapshot(modules))
 	}
 
+	private fun persistHudLayouts() {
+		persistModules()
+		persistCore()
+	}
+
 	private fun persistCore() {
-		coreStore.save(CorePersistence.snapshot(clickGuiView, firstRunExperience.shown))
+		coreStore.save(CorePersistence.snapshot(clickGuiView, firstRunExperience.shown, hudRuntime.coreElements))
 	}
 
 	internal fun clickGuiScreen(parent: Screen? = null): Screen? = failsafe.guard("click GUI open") {

@@ -24,6 +24,7 @@ class CommandRegistry<S>(
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
+	private val showAlert: () -> Unit = {},
 	private val available: () -> Boolean = { true },
 	private val feedback: (S, String) -> Unit
 ) {
@@ -165,6 +166,12 @@ class CommandRegistry<S>(
 				literal<S>("deep")
 					.then(deepMode("on", true))
 					.then(deepMode("off", false))
+			)
+			.then(
+				literal<S>("alert").executes { context ->
+					showAlert()
+					report(context.source, "Showing the Dhen alert preview.")
+				}
 			)
 			.then(
 				literal<S>("worldrender").executes { context ->

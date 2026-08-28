@@ -3,9 +3,11 @@ package io.github.dzkchen.dhen.gui
 import com.google.gson.JsonObject
 import com.mojang.blaze3d.vertex.PoseStack
 import io.github.dzkchen.dhen.json
+import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector
 import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
@@ -256,6 +258,18 @@ class DhenTypeTest {
 
 		assertEquals(4 * STUB_GLYPH_WIDTH, memo.width(font, "abcd"))
 		assertEquals(2, font.measurements)
+	}
+
+	@Test
+	fun `a memo measures structured components without flattening their style`() {
+		val font = StubFont()
+		val memo = DhenType.memo()
+		val component = Component.literal("abc").withStyle(ChatFormatting.RED)
+
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, component))
+		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, component.copy()))
+		assertEquals(1, font.measurements)
+		assertEquals(0xFF5555, component.style.color?.value)
 	}
 
 	@Test

@@ -130,6 +130,17 @@ class HudRegistrationTest {
 	}
 
 	@Test
+	fun `core layouts join reset without pretending to be modules`() {
+		val core = FixedHudElement("Core", offsetY = -12)
+		val runtime = HudRuntime(ModuleManager(), listOf(core))
+		core.offsetY = 50
+
+		assertEquals(1, runtime.resetLayouts())
+		assertEquals(-12, core.offsetY)
+		assertEquals(0, runtime.resetLayouts())
+	}
+
+	@Test
 	fun `an element declared hidden resets back to hidden`() {
 		val element = FixedHudElement("Quiet", visible = false)
 

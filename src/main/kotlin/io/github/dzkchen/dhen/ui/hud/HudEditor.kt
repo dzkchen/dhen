@@ -8,8 +8,12 @@ internal fun interface HudMetrics {
 	fun measure(target: HudTarget)
 }
 
-internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics) {
-	val targets: List<HudTarget> = targetsOf(manager)
+internal class HudEditor(
+	manager: ModuleManager,
+	private val metrics: HudMetrics,
+	coreElements: List<HudElement> = emptyList()
+) {
+	val targets: List<HudTarget> = targetsOf(manager, coreElements)
 
 	var selected: HudTarget? = null
 		private set
@@ -42,7 +46,7 @@ internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics
 			target.width = HudLayout.scaled(target.contentWidth, scale)
 			target.height = HudLayout.scaled(target.contentHeight, scale)
 			target.x = HudLayout.placeOnScreen(target.element.anchor.horizontal, screenWidth, target.width, target.element.offsetX)
-			target.y = HudLayout.placeOnScreen(target.element.anchor.vertical, screenHeight, target.height, target.element.offsetY)
+			target.y = target.element.placeY(screenHeight, target.height)
 		}
 	}
 
@@ -126,7 +130,7 @@ internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics
 			clearGuides()
 		}
 		val offsetX = HudLayout.offsetFor(target.element.anchor.horizontal, screenWidth, target.width, x)
-		val offsetY = HudLayout.offsetFor(target.element.anchor.vertical, screenHeight, target.height, y)
+		val offsetY = target.element.offsetYFor(target.element.anchor, screenHeight, target.height, y)
 		if (offsetX == target.element.offsetX && offsetY == target.element.offsetY) return false
 		target.element.offsetX = offsetX
 		target.element.offsetY = offsetY
@@ -172,12 +176,12 @@ internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics
 		if (best == target.element.anchor) return
 		target.element.anchor = best
 		target.element.offsetX = HudLayout.offsetFor(best.horizontal, screenWidth, target.width, target.x)
-		target.element.offsetY = HudLayout.offsetFor(best.vertical, screenHeight, target.height, target.y)
+		target.element.offsetY = target.element.offsetYFor(best, screenHeight, target.height, target.y)
 	}
 
 	private fun anchorCost(anchor: HudAnchor, target: HudTarget): Int =
 		abs(HudLayout.offsetFor(anchor.horizontal, screenWidth, target.width, target.x)) +
-			abs(HudLayout.offsetFor(anchor.vertical, screenHeight, target.height, target.y))
+			abs(target.element.offsetYFor(anchor, screenHeight, target.height, target.y))
 
 	private fun clearGuides() {
 		horizontalSnap.clear()
@@ -223,11 +227,12 @@ internal class HudEditor(manager: ModuleManager, private val metrics: HudMetrics
 		private const val SNAP_LIMIT = 5
 		private const val EDGES = 2
 
-		private fun targetsOf(manager: ModuleManager): List<HudTarget> {
+		private fun targetsOf(manager: ModuleManager, coreElements: List<HudElement>): List<HudTarget> {
 			val targets = mutableListOf<HudTarget>()
 			for (module in manager.ordered) {
 				for (element in module.hudElements) targets += HudTarget(module, element)
 			}
+			for (element in coreElements) targets += HudTarget(null, element)
 			return targets
 		}
 	}

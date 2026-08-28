@@ -2,7 +2,7 @@ package io.github.dzkchen.dhen.ui.hud
 
 import io.github.dzkchen.dhen.module.Module
 
-internal class HudTarget(val module: Module, val element: HudElement) {
+internal class HudTarget(val module: Module?, val element: HudElement) {
 	var contentWidth: Int = 0
 	var contentHeight: Int = 0
 	var placeholder: Boolean = false
@@ -12,7 +12,9 @@ internal class HudTarget(val module: Module, val element: HudElement) {
 	var height: Int = 0
 
 	val rendering: Boolean
-		get() = module.enabled && element.isActive
+		get() = (module?.enabled ?: true) && element.isActive && element.hasContent
+	val ownerName: String
+		get() = module?.name ?: "Dhen"
 
 	fun contains(px: Int, py: Int): Boolean =
 		px >= x && px < x + width && py >= y && py < y + height

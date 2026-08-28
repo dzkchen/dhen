@@ -5,6 +5,8 @@ import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.Effects
+import io.github.dzkchen.dhen.ui.hud.FixedHudElement
+import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.util.Color
 import kotlinx.coroutines.CoroutineScope
@@ -147,6 +149,22 @@ class CorePersistenceTest {
 
 		val restored = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations).load()
 		assertTrue(CorePersistence.apply(restored).welcomeShown)
+	}
+
+	@Test
+	fun `a core HUD layout survives the core document round trip`() {
+		val saved = FixedHudElement("Alerts")
+		saved.anchor = HudAnchor.BOTTOM_RIGHT
+		saved.offsetX = -18
+		saved.scale = 1.4f
+		val doc = CorePersistence.snapshot(ClickGuiState(), welcomeShown = false, listOf(saved))
+		val restored = FixedHudElement("Alerts")
+
+		CorePersistence.apply(doc, listOf(restored))
+
+		assertEquals(HudAnchor.BOTTOM_RIGHT, restored.anchor)
+		assertEquals(-18, restored.offsetX)
+		assertEquals(1.4f, restored.scale)
 	}
 
 	private companion object {

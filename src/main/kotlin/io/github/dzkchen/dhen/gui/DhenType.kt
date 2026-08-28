@@ -85,6 +85,7 @@ internal class TextMemo {
 	private var source = ""
 	private var sourceWidth = UNMEASURED
 	private var shown = ""
+	private var shownComponent: Component? = null
 	private var component = BLANK
 	private var shownWidth = UNMEASURED
 	private var fitted = ""
@@ -92,6 +93,13 @@ internal class TextMemo {
 	private val band = RoomBand()
 
 	fun width(font: Font, text: String): Int {
+		synchronize()
+		hold(text)
+		if (shownWidth == UNMEASURED) shownWidth = measure(font, component)
+		return shownWidth
+	}
+
+	fun width(font: Font, text: Component): Int {
 		synchronize()
 		hold(text)
 		if (shownWidth == UNMEASURED) shownWidth = measure(font, component)
@@ -146,6 +154,17 @@ internal class TextMemo {
 		graphics.text(font, component, x, y, color, false)
 	}
 
+	fun shadowed(graphics: GuiGraphicsExtractor, font: Font, text: Component, x: Int, y: Int, color: Int, scale: Float) {
+		synchronize()
+		hold(text)
+		val pose = graphics.pose()
+		val offset = DhenType.shadowOffset(scale)
+		pose.translate(offset, offset)
+		graphics.text(font, component, x, y, ARGB.scaleRGB(color, SHADOW_DIM), false)
+		pose.translate(-offset, -offset)
+		graphics.text(font, component, x, y, color, false)
+	}
+
 	fun invalidate() {
 		sourceWidth = UNMEASURED
 		shownWidth = UNMEASURED
@@ -156,14 +175,22 @@ internal class TextMemo {
 		val current = DhenFont.revision
 		if (revision == current) return
 		revision = current
-		component = DhenType.component(shown)
+		if (shownComponent == null) component = DhenType.component(shown)
 		invalidate()
 	}
 
 	private fun hold(text: String) {
-		if (text == shown) return
+		if (shownComponent == null && text == shown) return
+		shownComponent = null
 		shown = text
 		component = DhenType.component(text)
+		shownWidth = UNMEASURED
+	}
+
+	private fun hold(text: Component) {
+		if (text == shownComponent) return
+		shownComponent = text
+		component = text
 		shownWidth = UNMEASURED
 	}
 

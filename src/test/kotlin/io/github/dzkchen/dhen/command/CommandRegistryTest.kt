@@ -436,6 +436,20 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `debug alert invokes the core preview through both command roots`() {
+		var shown = 0
+		val registry = CommandRegistry<Any>(ModuleManager(), showAlert = { shown++ }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug alert", Any())
+		dispatcher.execute("dh debug alert", Any())
+
+		assertEquals(2, shown)
+		assertEquals(listOf("Showing the Dhen alert preview.", "Showing the Dhen alert preview."), captured)
+	}
+
+	@Test
 	fun `debug reports the island and area the location feed is holding`() {
 		val manager = ModuleManager()
 		HypixelLocationHooks.install(manager.eventBus)

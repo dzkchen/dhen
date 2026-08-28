@@ -5,6 +5,8 @@ import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClickGuiView
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.Effects
+import io.github.dzkchen.dhen.ui.hud.HudElement
+import io.github.dzkchen.dhen.ui.hud.HudPersistence
 import io.github.dzkchen.dhen.util.flagOrNull
 import io.github.dzkchen.dhen.util.obj
 
@@ -14,6 +16,7 @@ internal object CorePersistence {
 	private const val EFFECTS_BLOCK = "effects"
 	private const val REDUCED_KEY = "reduced"
 	private const val ACCORDION_OPENED = "opened"
+	private const val HUD = "hud"
 
 	private val RETIRED_CLIENT_KEYS = arrayOf("Layout", "Arrow keys")
 
@@ -23,17 +26,19 @@ internal object CorePersistence {
 		{ doc: JsonObject -> dropRetiredLayoutKeys(doc) }
 	)
 
-	fun apply(doc: JsonObject): CoreState {
+	fun apply(doc: JsonObject, hudElements: List<HudElement> = emptyList()): CoreState {
 		ClientPrefs.read(doc)
+		doc.obj(HUD)?.let { HudPersistence.apply(hudElements, it) }
 		return CoreState(
 			clickGui = ClickGuiView.read(doc),
 			welcomeShown = doc.get(WELCOME_SHOWN).flagOrNull() ?: false
 		)
 	}
 
-	fun snapshot(view: ClickGuiState, welcomeShown: Boolean): JsonObject =
+	fun snapshot(view: ClickGuiState, welcomeShown: Boolean, hudElements: List<HudElement> = emptyList()): JsonObject =
 		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view)).apply {
 			addProperty(WELCOME_SHOWN, welcomeShown)
+			if (hudElements.isNotEmpty()) add(HUD, HudPersistence.snapshot(hudElements))
 		}
 
 	private fun dropRetiredLayoutKeys(doc: JsonObject) {
