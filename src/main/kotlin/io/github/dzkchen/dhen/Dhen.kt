@@ -151,7 +151,8 @@ object Dhen : ClientModInitializer {
 			themes = themes,
 			toggleWorldRender = WorldRenderProbe::toggle,
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
-			available = { !failsafe.failed }
+			available = { !failsafe.failed },
+			persistModules = ::persistModules
 		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
 		}

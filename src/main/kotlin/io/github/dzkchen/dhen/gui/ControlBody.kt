@@ -26,7 +26,8 @@ internal class ControlBody(built: List<SettingControl>) {
 		mouseX: Int,
 		mouseY: Int,
 		visibleTop: Int,
-		visibleBottom: Int
+		visibleBottom: Int,
+		tooltip: ClickGuiTooltip
 	) {
 		val pointerY = if (mouseX in left until left + width && mouseY in visibleTop until visibleBottom) mouseY else NO_POINTER
 		var y = top
@@ -35,7 +36,7 @@ internal class ControlBody(built: List<SettingControl>) {
 			val extent = control.extent
 			if (extent == 0) continue
 			if (y >= visibleBottom) break
-			if (y + extent > visibleTop) control.draw(graphics, font, left, y, width, pointerY)
+			if (y + extent > visibleTop) control.draw(graphics, font, left, y, width, pointerY, tooltip)
 			y += extent
 		}
 	}

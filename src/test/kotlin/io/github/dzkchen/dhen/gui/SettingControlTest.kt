@@ -238,6 +238,29 @@ class SettingControlTest {
 	}
 
 	@Test
+	fun `slider value text focuses and commits through setting coercion`() {
+		val setting = NumberSetting("n", default = 4.0, min = 0.0, max = 10.0, step = 2.0)
+		val control = SliderControl(setting)
+		assertEquals(ControlPress.FOCUS, control.press(WIDTH - 1, 0, WIDTH))
+		control.keyPressed(GLFW.GLFW_KEY_BACKSPACE, 0)
+		"9.6".forEach { control.charTyped(it.code) }
+
+		assertEquals(ControlKey.COMMITTED, control.keyPressed(GLFW.GLFW_KEY_ENTER, 0))
+		assertEquals(10.0, setting.value)
+	}
+
+	@Test
+	fun `slider value text escape cancels without changing the setting`() {
+		val setting = NumberSetting("n", default = 4.0, min = 0.0, max = 10.0)
+		val control = SliderControl(setting)
+		control.press(WIDTH - 1, 0, WIDTH)
+		control.charTyped('9'.code)
+
+		assertEquals(ControlKey.CANCELLED, control.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0))
+		assertEquals(4.0, setting.value)
+	}
+
+	@Test
 	fun `text control focuses, edits, and commits on enter`() {
 		val setting = StringSetting("s", default = "ab", maxLength = 5)
 		val control = TextControl(setting)

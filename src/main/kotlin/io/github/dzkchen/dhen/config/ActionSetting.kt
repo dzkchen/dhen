@@ -7,4 +7,6 @@ class ActionSetting(
 ) : Setting<() -> Unit>(name, description) {
 
 	override var value: () -> Unit = default
+
+	override fun reset() = Unit
 }

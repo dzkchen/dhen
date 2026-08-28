@@ -71,8 +71,18 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	fun renderable(): Boolean = guarded(false, false) { setting.isVisible }
 
-	fun draw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) =
-		guarded(Unit, Unit) { onDraw(graphics, font, x, y, width, pointerY) }
+	fun draw(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		x: Int,
+		y: Int,
+		width: Int,
+		pointerY: Int,
+		tooltip: ClickGuiTooltip
+	) = guarded(Unit, Unit) {
+		onDraw(graphics, font, x, y, width, pointerY)
+		if (hovering(y, pointerY) && setting.description.isNotEmpty()) tooltip.hover(setting.description, x, width, y)
+	}
 
 	fun press(localX: Int, localY: Int, width: Int): ControlPress? =
 		guarded(null, null) { onPress(localX, localY, width) }

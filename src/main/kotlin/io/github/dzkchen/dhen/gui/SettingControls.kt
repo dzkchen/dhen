@@ -23,6 +23,7 @@ private const val SLIDER_LABEL_INSET = 1
 private const val SLIDER_TRACK_INSET = 3
 private const val SLIDER_TRACK_HEIGHT = 3
 private const val SLIDER_KNOB_RADIUS = 3
+private const val SLIDER_DRAFT_MAX_LENGTH = 32
 private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
 private const val DROPDOWN_GLYPH = "⌄"
@@ -79,18 +80,37 @@ internal class ToggleControl(private val boolean: BooleanSetting) : SettingContr
 	}
 }
 
-internal class SliderControl(private val number: NumberSetting) : SettingControl(number) {
+internal class SliderControl(private val number: NumberSetting) : EditableControl(number) {
 	private var cachedValue = Double.NaN
 	private var cachedText = ""
+	private var valueWidth = 0
+
+	override val maxLength: Int
+		get() = SLIDER_DRAFT_MAX_LENGTH
+
+	override fun committedText(): String = displayValue()
+
+	override fun accepts(codepoint: Int): Boolean =
+		codepoint in '0'.code..'9'.code || codepoint == '.'.code || codepoint == '-'.code
+
+	override fun commit(text: String): Boolean {
+		val parsed = text.toDoubleOrNull() ?: return false
+		val before = number.value
+		number.value = parsed
+		return number.value != before
+	}
 
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		val labelTop = y + SLIDER_LABEL_INSET
 		val hovered = hovering(y, pointerY)
-		val value = displayValue()
-		val valueWidth = valueText.width(font, value)
-		val label = labelText.fit(font, number.name, labelRoom(width, valueWidth + CONTROL_TEXT_INSET))
+		val caretRoom = if (editing) CARET_WIDTH else 0
+		val value = valueText.fit(font, editText(), width - 2 * CONTROL_TEXT_INSET - caretRoom, editing)
+		valueWidth = valueText.width(font, value)
+		val label = labelText.fit(font, number.name, labelRoom(width, valueWidth + caretRoom + CONTROL_TEXT_INSET))
 		labelText.text(graphics, font, label, x + CONTROL_TEXT_INSET, labelTop, DhenPalette.label(hovered))
-		valueText.text(graphics, font, value, x + width - valueWidth - CONTROL_TEXT_INSET, labelTop, DhenPalette.TEXT_PRIMARY)
+		val valueRight = x + width - CONTROL_TEXT_INSET - caretRoom
+		valueText.text(graphics, font, value, valueRight - valueWidth, labelTop, DhenPalette.TEXT_PRIMARY)
+		if (editing) caret(graphics, font, x + width - CONTROL_TEXT_INSET, labelTop)
 		val right = x + width
 		val bottom = y + CONTROL_ROW_HEIGHT - SLIDER_TRACK_INSET
 		val top = bottom - SLIDER_TRACK_HEIGHT
@@ -100,6 +120,9 @@ internal class SliderControl(private val number: NumberSetting) : SettingControl
 	}
 
 	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
+		val valueLeft = width - CONTROL_TEXT_INSET - valueWidth
+		val trackTop = CONTROL_ROW_HEIGHT - SLIDER_TRACK_INSET - SLIDER_TRACK_HEIGHT
+		if (localX >= valueLeft && localY < trackTop) return super.onPress(localX, localY, width)
 		number.value = valueAt(localX, width)
 		return ControlPress.TRACK
 	}

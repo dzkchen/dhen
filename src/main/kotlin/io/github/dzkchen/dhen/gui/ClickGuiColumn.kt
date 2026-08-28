@@ -200,7 +200,7 @@ internal class ClickGuiColumn(
 		val chevronColor = if (hovered) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
 		DhenType.text(graphics, font, chevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
 
-		if (hovered && module.description.isNotEmpty()) tooltip.hover(module.description, left, rowTop)
+		if (hovered && module.description.isNotEmpty()) tooltip.hover(module.description, left, COLUMN_WIDTH, rowTop)
 	}
 
 	private fun drawSettings(
@@ -216,7 +216,18 @@ internal class ClickGuiColumn(
 		mouseY: Int
 	) {
 		SharpGui.fill(graphics, left + HAIRLINE_INSET, top, left + COLUMN_WIDTH - HAIRLINE_INSET, top + areaHeight, GlassGui.canvas())
-		controls[index].draw(graphics, font, left + CONTENT_PAD, top + SETTINGS_PAD, CONTROLS_WIDTH, mouseX, mouseY, visibleTop, visibleBottom)
+		controls[index].draw(
+			graphics,
+			font,
+			left + CONTENT_PAD,
+			top + SETTINGS_PAD,
+			CONTROLS_WIDTH,
+			mouseX,
+			mouseY,
+			visibleTop,
+			visibleBottom,
+			tooltip
+		)
 	}
 
 	private fun settingsHeight(index: Int): Int {

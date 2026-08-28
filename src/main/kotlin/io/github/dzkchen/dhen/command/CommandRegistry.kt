@@ -26,6 +26,7 @@ class CommandRegistry<S>(
 	private val toggleWorldRender: () -> Boolean = { false },
 	private val showAlert: () -> Unit = {},
 	private val available: () -> Boolean = { true },
+	private val persistModules: () -> Unit = {},
 	private val feedback: (S, String) -> Unit
 ) {
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
@@ -63,7 +64,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				report(context.source, "Dhen commands: /$name module <name> toggle | debug | edit | reset-all | effects | theme")
+				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | reset-all | effects | theme")
 			}
 			.then(
 				literal<S>("module").then(
@@ -76,6 +77,16 @@ class CommandRegistry<S>(
 								if (module == null) return@executes report(context.source, "No module named '$raw'.")
 								manager.toggle(module)
 								report(context.source, "Toggled ${module.name}: ${if (module.enabled) "enabled" else "disabled"}")
+							}
+						)
+						.then(
+							literal<S>("reset").executes { context ->
+								val raw = StringArgumentType.getString(context, "name")
+								val module = manager.modules.firstOrNull { wireName(it.name).equals(raw, ignoreCase = true) }
+								if (module == null) return@executes report(context.source, "No module named '$raw'.")
+								for (setting in module.settings) setting.reset()
+								persistModules()
+								report(context.source, "Reset ${module.name} settings to their defaults.")
 							}
 						)
 				)

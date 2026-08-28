@@ -53,33 +53,38 @@ internal object ClickGuiPaint {
 }
 
 internal class ClickGuiTooltip {
+	private val textMemo = DhenType.memo()
 	private var text: String? = null
-	private var columnLeft = 0
+	private var hostLeft = 0
+	private var hostWidth = 0
 	private var rowTop = 0
 
 	fun clear() {
 		text = null
 	}
 
-	fun hover(description: String, columnLeft: Int, rowTop: Int) {
+	fun hover(description: String, hostLeft: Int, hostWidth: Int, rowTop: Int) {
 		text = description
-		this.columnLeft = columnLeft
+		this.hostLeft = hostLeft
+		this.hostWidth = hostWidth
 		this.rowTop = rowTop
 	}
 
+	fun invalidateMeasurement() = textMemo.invalidate()
+
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, viewportWidth: Int, viewportHeight: Int) {
 		val shown = text ?: return
-		val measured = DhenType.width(font, shown) + 2 * TOOLTIP_PAD
+		val measured = textMemo.width(font, shown) + 2 * TOOLTIP_PAD
 		val boxWidth = minOf(measured, viewportWidth - 2 * MARGIN)
 		val boxHeight = DhenType.lineHeight(font) + 2 * TOOLTIP_PAD
-		val left = ClickGuiShell.tooltipLeft(columnLeft, COLUMN_WIDTH, boxWidth, viewportWidth, TOOLTIP_GAP, MARGIN)
+		val left = ClickGuiShell.tooltipLeft(hostLeft, hostWidth, boxWidth, viewportWidth, TOOLTIP_GAP, MARGIN)
 		val top = ClickGuiShell.tooltipTop(rowTop, boxHeight, viewportHeight, MARGIN)
 		val right = left + boxWidth
 		val bottom = top + boxHeight
 		val truncated = measured > boxWidth
 		GlassGui.roundedFrame(graphics, left, top, right, bottom, TOOLTIP_RADIUS, GlassGui.raised(), DhenPalette.BORDER)
 		if (truncated) graphics.enableScissor(left, top, right, bottom)
-		DhenType.text(graphics, font, shown, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_SECONDARY)
+		textMemo.text(graphics, font, shown, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_SECONDARY)
 		if (truncated) graphics.disableScissor()
 	}
 }

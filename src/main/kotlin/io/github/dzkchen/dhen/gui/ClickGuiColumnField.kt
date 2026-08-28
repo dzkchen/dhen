@@ -40,6 +40,7 @@ internal class ClickGuiColumnField(
 
 	fun invalidateMeasurements(font: Font) {
 		glyphs.measure(font)
+		tooltip.invalidateMeasurement()
 		for (i in columns.indices) columns[i].invalidateMeasurements()
 	}
 

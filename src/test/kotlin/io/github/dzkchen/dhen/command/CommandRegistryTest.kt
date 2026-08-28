@@ -4,8 +4,10 @@ import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.SkyBlockLocation
@@ -219,6 +221,31 @@ class CommandRegistryTest {
 		dispatcher.execute("dhen module Nope toggle", Any())
 
 		assertEquals("No module named 'Nope'.", captured.last())
+	}
+
+	@Test
+	fun `module reset restores setting defaults persists once and preserves actions`() {
+		val manager = ModuleManager()
+		val module = ResetModule()
+		manager.register(module)
+		module.amount.value = 9.0
+		var runs = 0
+		module.action.value = { runs++ }
+		var persisted = 0
+		val registry = CommandRegistry<Any>(
+			manager,
+			persistModules = { persisted++ }
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen module Reset_Module reset", Any())
+
+		assertEquals(4.0, module.amount.value)
+		module.action.value()
+		assertEquals(1, runs)
+		assertEquals(1, persisted)
+		assertEquals("Reset Reset Module settings to their defaults.", captured.last())
 	}
 
 	@Test
@@ -753,6 +780,20 @@ class CommandRegistryTest {
 		category = Category.DEV,
 		description = "Toggle target for command tests."
 	)
+
+	private class ResetModule : Module(
+		name = "Reset Module",
+		category = Category.DEV,
+		description = "Reset target for command tests."
+	) {
+		val amount = NumberSetting("Amount", 4.0, 0.0, 10.0)
+		@Suppress("unused")
+		private val amountValue by amount
+
+		val action = ActionSetting("Action")
+		@Suppress("unused")
+		private val actionValue by action
+	}
 
 	private class DebugEvent : Event
 

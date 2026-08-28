@@ -25,7 +25,8 @@ internal class PrefCard(section: PrefSection) {
 		visibleTop: Int,
 		visibleBottom: Int,
 		mouseX: Int,
-		mouseY: Int
+		mouseY: Int,
+		tooltip: ClickGuiTooltip
 	) {
 		val right = left + PANEL_WIDTH
 		val headerBottom = top + HEADER_HEIGHT
@@ -39,7 +40,18 @@ internal class PrefCard(section: PrefSection) {
 			DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, contentTop, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 			return
 		}
-		body.draw(graphics, font, contentLeft, contentTop, PANEL_CONTROLS_WIDTH, mouseX, mouseY, visibleTop, visibleBottom)
+		body.draw(
+			graphics,
+			font,
+			contentLeft,
+			contentTop,
+			PANEL_CONTROLS_WIDTH,
+			mouseX,
+			mouseY,
+			visibleTop,
+			visibleBottom,
+			tooltip
+		)
 	}
 }
 
@@ -48,6 +60,7 @@ internal class ClickGuiPrefsPanel(
 	private val viewportHeight: IntSupplier
 ) : ControlHost {
 	private val cards: List<PrefCard> = ClientPrefs.sections.map(::PrefCard)
+	private val tooltip = ClickGuiTooltip()
 	private val stack = ScrollingStack(FIELD_TOP, SECTION_GAP, MARGIN, { cards.size }, viewportHeight, { index -> cards[index].height })
 
 	private val fieldBottom: Int
@@ -58,12 +71,14 @@ internal class ClickGuiPrefsPanel(
 	fun scrollBy(delta: Int): Boolean = stack.scrollBy(delta)
 
 	fun invalidateMeasurements() {
+		tooltip.invalidateMeasurement()
 		for (i in cards.indices) cards[i].invalidateMeasurements()
 	}
 
 	override fun revealSpan(screenTop: Int, extent: Int) = stack.revealSpan(stack.localOf(screenTop), extent)
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {
+		tooltip.clear()
 		val left = panelLeft()
 		val max = stack.max()
 		val clipped = max > ClickGuiScroll.TOP
@@ -75,12 +90,16 @@ internal class ClickGuiPrefsPanel(
 			if (top >= bottom) break
 			val content = card.body.height
 			val cardHeight = card.heightOf(content)
-			if (top + cardHeight > FIELD_TOP) card.draw(graphics, font, left, top, content, FIELD_TOP, bottom, mouseX, mouseY)
+			if (top + cardHeight > FIELD_TOP) {
+				card.draw(graphics, font, left, top, content, FIELD_TOP, bottom, mouseX, mouseY, tooltip)
+			}
 			top += cardHeight + SECTION_GAP
 		}
-		if (!clipped) return
-		graphics.disableScissor()
-		ClickGuiPaint.scrollbar(graphics, left + PANEL_WIDTH, FIELD_TOP, bottom - FIELD_TOP, stack.offset, max)
+		if (clipped) {
+			graphics.disableScissor()
+			ClickGuiPaint.scrollbar(graphics, left + PANEL_WIDTH, FIELD_TOP, bottom - FIELD_TOP, stack.offset, max)
+		}
+		tooltip.draw(graphics, font, viewportWidth.asInt, viewportHeight.asInt)
 	}
 
 	fun controlAt(hit: ControlHit, x: Int, y: Int): SettingControl? {
