@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
+import io.github.dzkchen.dhen.config.SoundSetting
 import io.github.dzkchen.dhen.config.StringSetting
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -67,6 +68,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	protected open fun onCaptureMouse(button: Int): ControlKey = ControlKey.IGNORED
 
+	protected open fun onScroll(localX: Int, localY: Int, width: Int, delta: Int): Boolean = false
+
 	protected open fun onBlur(): Boolean = false
 
 	fun renderable(): Boolean = guarded(false, false) { setting.isVisible }
@@ -96,6 +99,9 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	fun captureMouse(button: Int): ControlKey =
 		guarded(ControlKey.IGNORED, ControlKey.CANCELLED) { onCaptureMouse(button) }
+
+	fun scroll(localX: Int, localY: Int, width: Int, delta: Int): Boolean =
+		guarded(false, true) { onScroll(localX, localY, width, delta) }
 
 	fun blur(): Boolean = guarded(false, false) { onBlur() }
 
@@ -195,5 +201,6 @@ internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is ColorSetting -> ColorControl(setting)
 	is KeybindSetting -> KeybindControl(setting)
 	is ActionSetting -> ActionControl(setting)
+	is SoundSetting -> SoundControl(setting)
 	else -> null
 }

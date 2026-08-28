@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.bootstrapMinecraft
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
@@ -8,15 +9,18 @@ import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
+import io.github.dzkchen.dhen.config.SoundSetting
 import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.Color
+import net.minecraft.sounds.SoundEvents
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
 
@@ -30,6 +34,7 @@ class SettingControlTest {
 		assertInstanceOf(ColorControl::class.java, controlFor(ColorSetting("c", Color.rgba(0, 0, 0))))
 		assertInstanceOf(KeybindControl::class.java, controlFor(KeybindSetting("k")))
 		assertInstanceOf(ActionControl::class.java, controlFor(ActionSetting("a")))
+		assertInstanceOf(SoundControl::class.java, controlFor(SoundSetting("sound", SoundEvents.NOTE_BLOCK_HARP.value())))
 	}
 
 	@Test
@@ -175,6 +180,94 @@ class SettingControlTest {
 
 		assertTrue(host.offset < scrolled) { "a shorter list cannot leave the offset it needed when it was tall" }
 		assertEquals(host.max(), host.offset)
+	}
+
+	@Test
+	fun `a sound control opens focused at a bounded five-row height and collapses cleanly`() {
+		val control = SoundControl(SoundSetting("Sound", SoundEvents.NOTE_BLOCK_HARP.value()))
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+
+		assertEquals(ControlPress.FOCUS, control.press(0, 0, WIDTH))
+		assertTrue(control.expanded)
+		assertTrue(control.acceptsTextInput)
+		assertEquals(
+			CONTROL_ROW_HEIGHT + 2 * LIST_PAD + SOUND_SEARCH_HEIGHT + SOUND_VISIBLE_ROWS * LIST_ROW_HEIGHT,
+			control.height
+		)
+
+		assertTrue(control.collapse())
+		assertFalse(control.expanded)
+		assertFalse(control.acceptsTextInput)
+		assertEquals(CONTROL_ROW_HEIGHT, control.height)
+		assertFalse(control.collapse())
+	}
+
+	@Test
+	fun `sound search matches pretty names and identifiers without case sensitivity`() {
+		val harp = SoundSetting.options.first { it.identifier == SoundEvents.NOTE_BLOCK_HARP.value().location() }
+
+		assertTrue(soundMatches(harp, "nOtE_bLoCk_HaRp"))
+		assertTrue(soundMatches(harp, harp.identifier.toString().uppercase()))
+		assertFalse(soundMatches(harp, "definitely_missing_sound"))
+	}
+
+	@Test
+	fun `sound search keyboard editing and mouse selection update the setting and close the list`() {
+		val harp = SoundEvents.NOTE_BLOCK_HARP.value()
+		val setting = SoundSetting("Sound", SoundEvents.ARROW_HIT_PLAYER)
+		val control = SoundControl(setting)
+		control.press(0, 0, WIDTH)
+		"${harp.location()}x".forEach { control.charTyped(it.code) }
+		assertEquals(ControlKey.CONSUMED, control.keyPressed(GLFW.GLFW_KEY_BACKSPACE, 0))
+
+		assertEquals(ControlPress.CHANGED, control.press(0, SOUND_ROWS_TOP, WIDTH))
+		assertEquals(harp, setting.value)
+		assertFalse(control.expanded)
+		assertFalse(control.acceptsTextInput)
+	}
+
+	@Test
+	fun `sound search keeps focus on its search area and lets escape collapse the overlay`() {
+		val control = SoundControl(SoundSetting("Sound", SoundEvents.NOTE_BLOCK_HARP.value()))
+		control.press(0, 0, WIDTH)
+		control.blur()
+		assertFalse(control.acceptsTextInput)
+
+		assertEquals(ControlPress.FOCUS, control.press(0, CONTROL_ROW_HEIGHT + LIST_PAD, WIDTH))
+		assertTrue(control.acceptsTextInput)
+		assertEquals(ControlKey.IGNORED, control.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0))
+		assertTrue(control.collapse())
+		assertFalse(control.acceptsTextInput)
+	}
+
+	@Test
+	fun `sound list scroll changes which bounded row is selected without moving over the search field`() {
+		val matches = SoundSetting.options.filter { soundMatches(it, "entity") }
+		assertTrue(matches.size > SOUND_VISIBLE_ROWS)
+		val setting = SoundSetting("Sound", SoundEvents.NOTE_BLOCK_HARP.value())
+		val control = SoundControl(setting)
+		control.press(0, 0, WIDTH)
+		"entity".forEach { control.charTyped(it.code) }
+
+		assertFalse(control.scroll(0, CONTROL_ROW_HEIGHT + LIST_PAD, WIDTH, -1))
+		assertTrue(control.scroll(0, SOUND_ROWS_TOP, WIDTH, -1))
+		assertEquals(ControlPress.CHANGED, control.press(0, SOUND_ROWS_TOP, WIDTH))
+		assertEquals(matches[1].sound, setting.value)
+	}
+
+	@Test
+	fun `a filtered sound list remains bounded and returns its room after collapse`() {
+		val control = SoundControl(SoundSetting("Sound", SoundEvents.NOTE_BLOCK_HARP.value()))
+		val body = ControlBody(listOf(control, ToggleControl(BooleanSetting("below"))))
+		control.press(0, 0, WIDTH)
+		val openHeight = control.height
+		"definitely_missing_sound".forEach { control.charTyped(it.code) }
+
+		assertEquals(openHeight + CONTROL_ROW_HEIGHT, body.height)
+		assertEquals(ControlPress.FOCUS, control.press(0, SOUND_ROWS_TOP, WIDTH))
+		assertEquals(openHeight + CONTROL_ROW_HEIGHT, body.height)
+		assertTrue(control.collapse())
+		assertEquals(2 * CONTROL_ROW_HEIGHT, body.height)
 	}
 
 	@Test
@@ -364,6 +457,10 @@ class SettingControlTest {
 		val SQUARE_RIGHT = pickerStripLeft(WIDTH) - 1
 		val OPTIONS = listOf("A", "B", "C")
 		val OPTION_POOL = listOf("A", "B", "C", "D", "E")
+
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() = bootstrapMinecraft()
 	}
 
 	@Test

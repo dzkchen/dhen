@@ -209,10 +209,14 @@ internal class ClickGuiShellScreen(
 		if (dragged != null) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		val delta = ((scrollY + scrollX) * SCROLL_STEP).roundToInt()
 		if (delta == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		val listed = overlay
+		val x = mouseX.toInt()
+		val y = mouseY.toInt()
+		if (listed != null && controlAt(x, y) === listed && listed.scroll(x - hit.left, y - hit.top, hit.width, delta)) return true
 		if (!chrome.onFeatures) {
 			return panel.scrollBy(delta) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 		}
-		if (field.scrollBy(mouseX.toInt(), mouseY.toInt(), delta)) return true
+		if (field.scrollBy(x, y, delta)) return true
 		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
 	}
 
@@ -234,6 +238,7 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun pressControl(control: SettingControl, x: Int, y: Int): ControlPress? {
+		val previousHeight = control.height
 		val result = control.press(x - hit.left, y - hit.top, hit.width)
 		when (result) {
 			ControlPress.TRACK -> {
@@ -248,8 +253,9 @@ internal class ClickGuiShellScreen(
 		}
 		syncOverlay(control)
 		reflowQuarantined(control)
-		if (result == ControlPress.CHANGED || result == ControlPress.RESIZED) reflowHost(control)
-		if (result == ControlPress.RESIZED && control.expanded) hit.reveal(control.height)
+		val resized = result == ControlPress.RESIZED || control.height != previousHeight
+		if (result == ControlPress.CHANGED || resized) reflowHost(control)
+		if (resized && control.expanded) hit.reveal(control.height)
 		return result
 	}
 
@@ -276,6 +282,7 @@ internal class ClickGuiShellScreen(
 	private fun collapseOverlay(): Boolean {
 		val control = overlay ?: return false
 		overlay = null
+		if (focused === control) focused = null
 		if (!control.collapse()) return false
 		reflowHost(control)
 		return true
