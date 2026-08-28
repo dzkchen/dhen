@@ -29,7 +29,10 @@ import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
+import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
+import io.github.dzkchen.dhen.features.qol.NoItemPlace
+import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -157,7 +160,7 @@ object Dhen : ClientModInitializer {
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
-		modules.register(AutoSprint)
+		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
