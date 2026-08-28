@@ -139,16 +139,26 @@ class CorePersistenceTest {
 	}
 
 	@Test
-	fun `the first-run flag is absent on a fresh config and survives a round trip`(@TempDir dir: Path) = runBlocking {
+	fun `the onboarding flags are absent on a fresh config and survive a round trip`(@TempDir dir: Path) = runBlocking {
 		val path = dir.resolve("core.json")
 		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), CorePersistence.migrations, debounce = {})
 
-		assertFalse(CorePersistence.apply(store.load()).welcomeShown)
+		val fresh = CorePersistence.apply(store.load())
+		assertFalse(fresh.welcomeShown)
+		assertFalse(fresh.hypixelNoticeShown)
 
-		store.save(CorePersistence.snapshot(ClickGuiState(), welcomeShown = true)).join()
+		store.save(
+			CorePersistence.snapshot(
+				ClickGuiState(),
+				welcomeShown = true,
+				hypixelNoticeShown = true
+			)
+		).join()
 
 		val restored = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations).load()
-		assertTrue(CorePersistence.apply(restored).welcomeShown)
+		val state = CorePersistence.apply(restored)
+		assertTrue(state.welcomeShown)
+		assertTrue(state.hypixelNoticeShown)
 	}
 
 	@Test
@@ -157,7 +167,7 @@ class CorePersistenceTest {
 		saved.anchor = HudAnchor.BOTTOM_RIGHT
 		saved.offsetX = -18
 		saved.scale = 1.4f
-		val doc = CorePersistence.snapshot(ClickGuiState(), welcomeShown = false, listOf(saved))
+		val doc = CorePersistence.snapshot(ClickGuiState(), welcomeShown = false, hudElements = listOf(saved))
 		val restored = FixedHudElement("Alerts")
 
 		CorePersistence.apply(doc, listOf(restored))

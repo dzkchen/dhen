@@ -12,6 +12,7 @@ import io.github.dzkchen.dhen.util.obj
 
 internal object CorePersistence {
 	private const val WELCOME_SHOWN = "welcomeShown"
+	private const val HYPIXEL_NOTICE_SHOWN = "hypixelNoticeShown"
 	private const val DRAGGABLE_PANELS = "panels"
 	private const val EFFECTS_BLOCK = "effects"
 	private const val REDUCED_KEY = "reduced"
@@ -31,13 +32,20 @@ internal object CorePersistence {
 		doc.obj(HUD)?.let { HudPersistence.apply(hudElements, it) }
 		return CoreState(
 			clickGui = ClickGuiView.read(doc),
-			welcomeShown = doc.get(WELCOME_SHOWN).flagOrNull() ?: false
+			welcomeShown = doc.get(WELCOME_SHOWN).flagOrNull() ?: false,
+			hypixelNoticeShown = doc.get(HYPIXEL_NOTICE_SHOWN).flagOrNull() ?: false
 		)
 	}
 
-	fun snapshot(view: ClickGuiState, welcomeShown: Boolean, hudElements: List<HudElement> = emptyList()): JsonObject =
+	fun snapshot(
+		view: ClickGuiState,
+		welcomeShown: Boolean,
+		hypixelNoticeShown: Boolean = false,
+		hudElements: List<HudElement> = emptyList()
+	): JsonObject =
 		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view)).apply {
 			addProperty(WELCOME_SHOWN, welcomeShown)
+			addProperty(HYPIXEL_NOTICE_SHOWN, hypixelNoticeShown)
 			if (hudElements.isNotEmpty()) add(HUD, HudPersistence.snapshot(hudElements))
 		}
 
@@ -57,5 +65,6 @@ internal object CorePersistence {
 
 internal class CoreState(
 	val clickGui: ClickGuiState,
-	val welcomeShown: Boolean
+	val welcomeShown: Boolean,
+	val hypixelNoticeShown: Boolean
 )

@@ -91,6 +91,7 @@ object Dhen : ClientModInitializer {
 	private val clientThread = ClientThreadDispatcher()
 	private val announcements = AnnouncementBuffer(ANNOUNCEMENT_CAPACITY)
 	internal val firstRunExperience = FirstRunExperience(::persistCore, ::announceComponent)
+	internal val automationNotice = AutomationNotice(::persistCore, ::announce)
 
 	val modules: ModuleManager = ModuleManager(
 		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announceComponent),
@@ -240,11 +241,12 @@ object Dhen : ClientModInitializer {
 		PlayerStatsHooks.install(modules.eventBus)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
+		automationNotice.install(coreState.hypixelNoticeShown)
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
 		Prices.install(ioScope, modules.eventBus, clientThread)
 		MayorService.install(ioScope, modules.eventBus, clientThread)
 		PlayerProfiles.install(ioScope, clientThread, baseUrl = { ClientPrefs.profileProxy.value })
-		HypixelModApi.install()
+		HypixelModApi.install(onHello = automationNotice::hypixelConnected)
 		WorldRenderProbe.install(modules.eventBus)
 		LOGGER.info("Dhen initialized")
 	}
@@ -355,7 +357,14 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun persistCore() {
-		coreStore.save(CorePersistence.snapshot(clickGuiView, firstRunExperience.shown, hudRuntime.coreElements))
+		coreStore.save(
+			CorePersistence.snapshot(
+				clickGuiView,
+				firstRunExperience.shown,
+				automationNotice.hypixelNoticeShown,
+				hudRuntime.coreElements
+			)
+		)
 	}
 
 	internal fun clickGuiScreen(parent: Screen? = null): Screen? = failsafe.guard("click GUI open") {

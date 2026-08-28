@@ -40,24 +40,23 @@ internal object HypixelModApi : Hooks {
 
 	@Volatile
 	private var clientThread: (Runnable) -> Unit = minecraftThread
+	private var onHello: () -> Unit = {}
 
 	var locationRefusal: String? = null
 		private set
 
 	val locationFallbackActive: Boolean get() = HypixelLocationHooks.fallbackActive
 
-	fun install(clientThread: (Runnable) -> Unit = minecraftThread) {
+	fun install(onHello: () -> Unit = {}, clientThread: (Runnable) -> Unit = minecraftThread) {
 		this.clientThread = clientThread
+		this.onHello = onHello
 		if (registered) {
 			listening = true
 			return
 		}
 		registered = true
 		try {
-			handle(ClientboundHelloPacket::class.java) {
-				HypixelLocationHooks.greeted()
-				PartyHooks.greeted()
-			}
+			handle(ClientboundHelloPacket::class.java) { greeted() }
 			handleEvent(ClientboundLocationPacket::class.java, ::located)
 				.onError { reason -> delivered("location error") { locationRefused(reason) } }
 			handle(ClientboundPartyInfoPacket::class.java) { partyInfo(it) }
@@ -70,6 +69,7 @@ internal object HypixelModApi : Hooks {
 
 	override fun uninstall() {
 		listening = false
+		onHello = {}
 		locationRefusal = null
 		HypixelLocationHooks.modApiSupported()
 	}
@@ -79,6 +79,12 @@ internal object HypixelModApi : Hooks {
 	fun delivered(label: String, block: () -> Unit) {
 		if (!listening) return
 		clientThread { guarded(label, block) }
+	}
+
+	internal fun greeted() {
+		HypixelLocationHooks.greeted()
+		PartyHooks.greeted()
+		onHello()
 	}
 
 	private fun guarded(label: String, block: () -> Unit) {

@@ -44,6 +44,17 @@ class HypixelModApiTest {
 	}
 
 	@Test
+	fun `the hello handshake reaches the installed onboarding callback`() {
+		var onboardingCalls = 0
+		HypixelModApi.install(onHello = { onboardingCalls++ }, clientThread = { it.run() })
+
+		HypixelModApi.greeted()
+
+		assertEquals(1, onboardingCalls)
+		assertTrue(SkyBlockLocation.onHypixel)
+	}
+
+	@Test
 	fun `a skyblock location packet lands in the fields it names`() {
 		HypixelModApi.located(ClientboundLocationPacket("mini5B", GameType.SKYBLOCK, "lobbyname", "dungeon", "Dungeon"))
 
