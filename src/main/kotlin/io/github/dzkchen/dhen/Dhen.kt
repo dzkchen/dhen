@@ -38,6 +38,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.module.PlaceholderModule
+import io.github.dzkchen.dhen.render.WorldRenderTypes
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
@@ -254,6 +255,7 @@ object Dhen : ClientModInitializer {
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
+		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
 		Prices.install(ioScope, modules.eventBus, clientThread)

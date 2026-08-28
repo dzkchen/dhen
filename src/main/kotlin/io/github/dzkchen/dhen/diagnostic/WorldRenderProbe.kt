@@ -1,32 +1,24 @@
 package io.github.dzkchen.dhen.diagnostic
 
-import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexConsumer
-import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.render.IrisCompat
-import io.github.dzkchen.dhen.render.IrisShaderProgram
+import io.github.dzkchen.dhen.render.WorldRenderTypes
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
-import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.blockentity.BeaconRenderer
-import net.minecraft.client.renderer.rendertype.LayeringTransform
-import net.minecraft.client.renderer.rendertype.OutputTarget
-import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.client.renderer.rendertype.RenderTypes
 import net.minecraft.client.renderer.state.level.CameraRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.phys.Vec3
-import java.util.Optional
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
@@ -46,42 +38,6 @@ internal object WorldRenderProbe {
 	private const val QUAD_LIFT = 2.0
 	private const val QUAD_HALF = 0.5f
 	private const val QUAD_TOWARD_CAMERA = 180.0
-
-	private val LINES_THROUGH_WALLS: RenderPipeline by lazy {
-		RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
-			.withLocation(Dhen.id("pipeline/lines_through_walls"))
-			.withDepthStencilState(Optional.empty())
-			.build()
-			.also { IrisCompat.assignOnce(it, IrisShaderProgram.LINES) }
-	}
-
-	private val FILLED_THROUGH_WALLS: RenderPipeline by lazy {
-		RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-			.withLocation(Dhen.id("pipeline/filled_through_walls"))
-			.withDepthStencilState(Optional.empty())
-			.build()
-			.also { IrisCompat.assignOnce(it, IrisShaderProgram.BASIC) }
-	}
-
-	private val THROUGH_WALL_LINES: RenderType by lazy {
-		RenderType.create(
-			"dhen_lines_through_walls",
-			RenderSetup.builder(LINES_THROUGH_WALLS)
-				.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-				.setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
-				.createRenderSetup()
-		)
-	}
-
-	private val THROUGH_WALL_FILL: RenderType by lazy {
-		RenderType.create(
-			"dhen_filled_through_walls",
-			RenderSetup.builder(FILLED_THROUGH_WALLS)
-				.sortOnUpload()
-				.setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-				.createRenderSetup()
-		)
-	}
 
 	private val WIRE_EDGES = intArrayOf(
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -184,7 +140,7 @@ internal object WorldRenderProbe {
 	}
 
 	private fun filledBox(collector: SubmitNodeCollector, pose: PoseStack, min: Vec3, color: Int) {
-		collector.submitCustomGeometry(pose, THROUGH_WALL_FILL) { _, buffer ->
+		collector.submitCustomGeometry(pose, WorldRenderTypes.filledThroughWalls) { _, buffer ->
 			for (index in FILL_CORNERS) {
 				buffer.addVertex(axis(min.x, index, 0), axis(min.y, index, 1), axis(min.z, index, 2)).setColor(color)
 			}
@@ -209,7 +165,7 @@ internal object WorldRenderProbe {
 
 	private fun tracer(collector: SubmitNodeCollector, pose: PoseStack, camera: CameraRenderState, to: Vec3, color: Int) {
 		val from = Vec3.directionFromRotation(camera.xRot, camera.yRot).subtract(0.0, TRACER_DROP, 0.0)
-		collector.submitCustomGeometry(pose, THROUGH_WALL_LINES) { _, buffer ->
+		collector.submitCustomGeometry(pose, WorldRenderTypes.linesThroughWalls) { _, buffer ->
 			line(
 				buffer,
 				from.x.toFloat(), from.y.toFloat(), from.z.toFloat(),
