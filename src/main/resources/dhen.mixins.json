@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [],
 	"client": [
+		"AbstractSoundInstanceMixin",
 		"AbstractContainerScreenMixin",
 		"BlockItemMixin",
 		"BossHealthOverlayMixin",
@@ -22,6 +23,7 @@
 		"PlayerMixin",
 		"RecipeBookComponentMixin",
 		"ScreenMixin",
+		"SoundManagerMixin",
 		"ServerboundChatCommandPacketAccessor",
 		"ServerboundChatPacketAccessor",
 		"SystemChatPacketAccessor"

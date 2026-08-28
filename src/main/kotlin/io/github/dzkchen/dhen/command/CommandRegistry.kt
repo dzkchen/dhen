@@ -4,6 +4,7 @@ import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.arguments.ArgumentType
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
@@ -14,6 +15,8 @@ import io.github.dzkchen.dhen.diagnostic.Diagnostics
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.commands.arguments.IdentifierArgument
+import net.minecraft.resources.Identifier
 import java.util.Locale
 
 class CommandRegistry<S>(
@@ -27,6 +30,7 @@ class CommandRegistry<S>(
 	private val showAlert: () -> Unit = {},
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
+	private val setSoundVolume: (Identifier, Int) -> Int = { _, percent -> percent },
 	private val feedback: (S, String) -> Unit
 ) {
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
@@ -189,6 +193,7 @@ class CommandRegistry<S>(
 					report(context.source, "World-render probe ${if (toggleWorldRender()) "on" else "off"}.")
 				}
 			)
+			.then(soundCommand())
 			.then(
 				literal<S>("party").executes { context ->
 					for (line in diagnostics.partyLines()) feedback(context.source, line)
@@ -318,6 +323,17 @@ class CommandRegistry<S>(
 						}
 					)
 			)
+
+	private fun soundCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("sound").then(
+			argument<S, Identifier>("identifier", IdentifierArgument.id()).then(
+				argument<S, Int>("percent", IntegerArgumentType.integer()).executes { context ->
+					val identifier = context.getArgument("identifier", Identifier::class.java)
+					val percent = setSoundVolume(identifier, IntegerArgumentType.getInteger(context, "percent"))
+					report(context.source, "Set $identifier to $percent% volume.")
+				}
+			)
+		)
 
 	private fun persisted(source: S, message: String): Int {
 		persistCore()

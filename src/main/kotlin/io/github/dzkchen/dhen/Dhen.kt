@@ -30,8 +30,10 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.qol.ArrowFix
+import io.github.dzkchen.dhen.features.qol.ArrowHitSound
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
+import io.github.dzkchen.dhen.features.qol.SoundManager
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
@@ -141,6 +143,7 @@ object Dhen : ClientModInitializer {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
+		SoundManager.install(flushedOnStop(configRoot.resolve("sounds.json"), emptyList()))
 		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::announce) {
@@ -155,12 +158,13 @@ object Dhen : ClientModInitializer {
 			toggleWorldRender = WorldRenderProbe::toggle,
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
 			available = { !failsafe.failed },
-			persistModules = ::persistModules
+			persistModules = ::persistModules,
+			setSoundVolume = SoundManager::setVolumePercent
 		) { source, message ->
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
-		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, RevertAxes)
+		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, SoundManager, ArrowHitSound, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
@@ -269,6 +273,7 @@ object Dhen : ClientModInitializer {
 		contained("price feed", Prices::uninstall)
 		contained("mayor feed", MayorService::uninstall)
 		contained("player profiles", PlayerProfiles::uninstall)
+		contained("sound manager", SoundManager::uninstall)
 	}
 
 	internal fun contained(label: String, teardown: () -> Unit) {
@@ -286,6 +291,7 @@ object Dhen : ClientModInitializer {
 		val client = Minecraft.getInstance()
 		if (client.isSameThread) failsafe.guard("world change") {
 			DhenAlert.clear()
+			SoundManager.clearRecentSounds()
 			if (phase == WorldChange.JOIN) flushAnnouncements(client)
 			WorldHooks.worldChanged(phase)
 		}

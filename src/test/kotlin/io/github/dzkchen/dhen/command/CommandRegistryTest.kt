@@ -477,6 +477,29 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `debug sound validates the identifier and reports the persisted normalized percent`() {
+		var identifier: String? = null
+		var requested = -1
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			setSoundVolume = { sound, percent ->
+				identifier = sound.toString()
+				requested = percent
+				165
+			}
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug sound minecraft:block.note_block.harp 163", Any())
+		assertThrows(CommandSyntaxException::class.java) { dispatcher.execute("dh debug sound BAD 50", Any()) }
+
+		assertEquals("minecraft:block.note_block.harp", identifier)
+		assertEquals(163, requested)
+		assertEquals(listOf("Set minecraft:block.note_block.harp to 165% volume."), captured)
+	}
+
+	@Test
 	fun `debug reports the island and area the location feed is holding`() {
 		val manager = ModuleManager()
 		HypixelLocationHooks.install(manager.eventBus)
