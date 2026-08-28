@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundEvent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -42,9 +43,51 @@ class SoundManagerScreenTest {
 		assertTrue(filterSounds(sorted, SoundCategory.RECENT, "").isEmpty())
 	}
 
+	@Test
+	fun `recent sounds keep source order skip unknown ids and search without regrouping`() {
+		val wolf = sound("entity.wolf.howl")
+		val harp = sound("block.note_block.harp")
+		val sounds = mapOf(wolf.identifier to wolf, harp.identifier to harp)
+		val recent = listOf(wolf.identifier, id("missing"), harp.identifier)
+
+		assertEquals(
+			listOf(SoundCategory.RECENT),
+			filterRecentSounds(sounds, recent, "").filterIsInstance<SoundHeader>().map { it.category }
+		)
+		assertEquals(listOf(wolf, harp), filterRecentSounds(sounds, recent, "").filterIsInstance<ManagedSound>())
+		assertEquals(listOf(harp), filterRecentSounds(sounds, recent, "harp").filterIsInstance<ManagedSound>())
+		assertTrue(filterRecentSounds(sounds, recent, "missing").isEmpty())
+	}
+
+	@Test
+	fun `sound slider clamps and snaps across the zero to two hundred percent range`() {
+		assertEquals(0, soundVolumePercent(80, 100, 140))
+		assertEquals(0, soundVolumePercent(100, 100, 140))
+		assertEquals(5, soundVolumePercent(103, 100, 140))
+		assertEquals(100, soundVolumePercent(170, 100, 140))
+		assertEquals(200, soundVolumePercent(240, 100, 140))
+		assertEquals(200, soundVolumePercent(260, 100, 140))
+	}
+
+	@Test
+	fun `wheel scroll eases for two hundred milliseconds and then holds`() {
+		assertEquals(12f, animatedSoundScroll(12f, 112f, 0L))
+		assertTrue(animatedSoundScroll(12f, 112f, 100L) in 62f..111f)
+		assertEquals(112f, animatedSoundScroll(12f, 112f, 200L))
+		assertEquals(112f, animatedSoundScroll(12f, 112f, 500L))
+	}
+
+	@Test
+	fun `scrollbar drag preserves its grab point and reaches both ends`() {
+		assertEquals(28, ClickGuiScroll.thumbHeight(215, 215, 2_000, 28))
+		assertEquals(0, soundScrollOffset(40, 40, 215, 28, 14, 500))
+		assertEquals(500, soundScrollOffset(241, 40, 215, 28, 14, 500))
+		assertEquals(249, soundScrollOffset(147, 40, 215, 28, 14, 500))
+	}
+
 	private fun sound(path: String): ManagedSound {
 		val identifier = id(path)
-		return ManagedSound(identifier, soundCleanName(identifier), soundCategory(identifier))
+		return ManagedSound(identifier, soundCleanName(identifier), soundCategory(identifier), SoundEvent.createVariableRangeEvent(identifier))
 	}
 
 	private fun id(path: String): Identifier = Identifier.withDefaultNamespace(path)

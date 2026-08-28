@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.features.qol.SoundManager
 import io.github.dzkchen.dhen.input.TextInputTarget
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -9,6 +10,8 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundEvent
+import net.minecraft.util.Util
 import org.lwjgl.glfw.GLFW
 import java.util.Locale
 import kotlin.math.ceil
@@ -17,15 +20,26 @@ import kotlin.math.roundToInt
 internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(Component.literal(TITLE)), TextInputTarget {
 	private val sounds = BuiltInRegistries.SOUND_EVENT.entrySet().map { entry ->
 		val identifier = entry.key.identifier()
-		ManagedSound(identifier, soundCleanName(identifier), soundCategory(identifier))
+		ManagedSound(identifier, soundCleanName(identifier), soundCategory(identifier), entry.value)
 	}.sortedBy { sound -> sound.identifier.toString() }
+	private val soundsById = sounds.associateBy(ManagedSound::identifier)
 	private var visible: List<SoundListItem> = emptyList()
 	private val rows = ScrollingStack(0, 0, 0, { visible.size }, { VIEW_HEIGHT }, { ROW_HEIGHT })
 	private val titleMemo = DhenType.memo()
 	private val searchMemo = DhenType.memo()
+	private val playMemo = DhenType.memo()
 	private var category = SoundCategory.ALL
 	private var query = ""
 	private var searchFocused = false
+	private var recentSoundsVersion = -1L
+	private var recentIdentifiers: List<Identifier> = emptyList()
+	private var scrollShown = 0f
+	private var scrollFrom = 0f
+	private var scrollStartedAt = 0L
+	private var scrollAnimating = false
+	private var draggedSound: ManagedSound? = null
+	private var draggingScrollbar = false
+	private var scrollbarDragOffset = 0
 
 	override val textInputFocused: Boolean
 		get() = searchFocused
@@ -46,6 +60,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	}
 
 	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+		refreshRecent()
 		val left = (width - WINDOW_WIDTH) / 2
 		val top = (height - WINDOW_HEIGHT) / 2
 		val right = left + WINDOW_WIDTH
@@ -66,7 +81,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		SharpGui.fill(graphics, left + HAIRLINE_INSET, top + HAIRLINE_INSET, right - HAIRLINE_INSET, top + 2, DhenPalette.accent)
 		drawCentered(graphics, titleMemo, TITLE, sidebarRight, right, top + TITLE_TOP, DhenPalette.TEXT_PRIMARY)
 		drawCategories(graphics, mouseX, mouseY, left, top)
-		drawList(graphics, mouseX, mouseY, left, top)
+		drawList(graphics, mouseX, mouseY, left, top, currentScroll(Util.getMillis()).roundToInt())
 		drawSearch(graphics, left, bottom)
 	}
 
@@ -100,12 +115,11 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		}
 	}
 
-	private fun drawList(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, left: Int, top: Int) {
+	private fun drawList(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, left: Int, top: Int, offset: Int) {
 		val viewLeft = left + VIEW_LEFT
 		val viewTop = top + VIEW_TOP
 		val viewRight = viewLeft + VIEW_WIDTH
 		val viewBottom = viewTop + VIEW_HEIGHT
-		val offset = rows.offset
 		graphics.enableScissor(viewLeft, viewTop, viewRight, viewBottom)
 		var index = maxOf(0, offset / ROW_HEIGHT)
 		val end = minOf(visible.size, index + ceil(VIEW_HEIGHT.toDouble() / ROW_HEIGHT).toInt() + 1)
@@ -118,7 +132,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			index++
 		}
 		graphics.disableScissor()
-		drawScrollbar(graphics, left, viewTop)
+		drawScrollbar(graphics, left, viewTop, offset)
 	}
 
 	private fun drawHeader(graphics: GuiGraphicsExtractor, header: SoundHeader, left: Int, top: Int) {
@@ -134,19 +148,74 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		mouseX: Int,
 		mouseY: Int
 	) {
+		val playLeft = left + VIEW_WIDTH - PLAY_WIDTH - ROW_SIDE_PAD
+		val sliderLeft = playLeft - CONTROL_GAP - SLIDER_WIDTH
+		val sliderRight = sliderLeft + SLIDER_WIDTH
+		val playTop = top + PLAY_TOP
+		val playBottom = playTop + PLAY_HEIGHT
 		if (mouseX in left until left + VIEW_WIDTH && mouseY in top until top + ROW_HEIGHT) {
 			RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.interactive())
 		}
-		val shown = sound.memo.fit(font, sound.cleanName, VIEW_WIDTH - NAME_PAD - ROW_SIDE_PAD)
+		val shown = sound.memo.fit(font, sound.cleanName, sliderLeft - left - NAME_PAD - NAME_CONTROL_GAP)
 		sound.memo.text(graphics, font, shown, left + NAME_PAD, textTop(top, ROW_HEIGHT), DhenPalette.TEXT_PRIMARY)
+		val volume = SoundManager.getVolumePercent(sound.identifier)
+		val value = sound.volumeLabel(volume)
+		sound.valueMemo.text(
+			graphics,
+			font,
+			value,
+			sliderRight - sound.valueMemo.width(font, value),
+			top + VALUE_TOP,
+			DhenPalette.TEXT_SECONDARY
+		)
+		val progress = volume.toFloat() / MAX_VOLUME_PERCENT
+		val edge = RoundedGui.capsuleTrack(
+			graphics,
+			sliderLeft,
+			top + SLIDER_TOP,
+			sliderRight,
+			top + SLIDER_TOP + SLIDER_HEIGHT,
+			progress,
+			GlassGui.raised(),
+			DhenPalette.accent
+		)
+		RoundedGui.circle(
+			graphics,
+			edge.coerceIn(sliderLeft + SLIDER_KNOB_RADIUS, sliderRight - SLIDER_KNOB_RADIUS),
+			top + SLIDER_TOP + SLIDER_HEIGHT / 2,
+			SLIDER_KNOB_RADIUS,
+			DhenPalette.TEXT_PRIMARY
+		)
+		val playHovered = mouseX in playLeft until playLeft + PLAY_WIDTH && mouseY in playTop until playBottom
+		RoundedGui.fill(
+			graphics,
+			playLeft,
+			playTop,
+			playLeft + PLAY_WIDTH,
+			playBottom,
+			PLAY_RADIUS,
+			if (playHovered) DhenPalette.accentMuted else GlassGui.raised()
+		)
+		drawCentered(
+			graphics,
+			playMemo,
+			PLAY_LABEL,
+			playLeft,
+			playLeft + PLAY_WIDTH,
+			textTop(playTop, PLAY_HEIGHT),
+			if (playHovered) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
+		)
 	}
 
-	private fun drawScrollbar(graphics: GuiGraphicsExtractor, left: Int, viewTop: Int) {
+	private fun drawScrollbar(graphics: GuiGraphicsExtractor, left: Int, viewTop: Int, offset: Int) {
 		val max = rows.max()
-		if (max <= 0) return
+		if (max <= 0) {
+			draggingScrollbar = false
+			return
+		}
 		val trackLeft = left + SCROLLBAR_LEFT
 		val thumbHeight = ClickGuiScroll.thumbHeight(VIEW_HEIGHT, VIEW_HEIGHT, max, MIN_THUMB_HEIGHT)
-		val thumbTop = ClickGuiScroll.thumbTop(viewTop, VIEW_HEIGHT, thumbHeight, rows.offset, max)
+		val thumbTop = ClickGuiScroll.thumbTop(viewTop, VIEW_HEIGHT, thumbHeight, offset, max)
 		RoundedGui.pill(graphics, trackLeft, viewTop, trackLeft + SCROLLBAR_WIDTH, viewTop + VIEW_HEIGHT, GlassGui.raised())
 		RoundedGui.pill(graphics, trackLeft, thumbTop, trackLeft + SCROLLBAR_WIDTH, thumbTop + thumbHeight, DhenPalette.accentMuted)
 	}
@@ -203,12 +272,86 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			return true
 		}
 		searchFocused = false
+		val viewLeft = left + VIEW_LEFT
+		val viewTop = top + VIEW_TOP
+		val maxScroll = rows.max()
+		if (maxScroll > 0) {
+			val trackLeft = left + SCROLLBAR_LEFT
+			if (mouseX in trackLeft - SCROLLBAR_HIT_PAD until trackLeft + SCROLLBAR_WIDTH + SCROLLBAR_HIT_PAD &&
+				mouseY in viewTop until viewTop + VIEW_HEIGHT
+			) {
+				val offset = currentScroll(Util.getMillis()).roundToInt()
+				val thumbHeight = ClickGuiScroll.thumbHeight(VIEW_HEIGHT, VIEW_HEIGHT, maxScroll, MIN_THUMB_HEIGHT)
+				val thumbTop = ClickGuiScroll.thumbTop(viewTop, VIEW_HEIGHT, thumbHeight, offset, maxScroll)
+				scrollbarDragOffset = if (mouseY in thumbTop until thumbTop + thumbHeight) mouseY - thumbTop else thumbHeight / 2
+				draggingScrollbar = true
+				if (mouseY in thumbTop until thumbTop + thumbHeight) {
+					rows.scrollTo(offset)
+					snapScroll(rows.offset.toFloat())
+				} else {
+					dragScrollbar(mouseY, viewTop, thumbHeight, maxScroll)
+				}
+				return true
+			}
+		}
+		if (mouseX in viewLeft until viewLeft + VIEW_WIDTH && mouseY in viewTop until viewTop + VIEW_HEIGHT) {
+			val offset = currentScroll(Util.getMillis()).roundToInt()
+			val index = (mouseY - viewTop + offset) / ROW_HEIGHT
+			val sound = visible.getOrNull(index) as? ManagedSound
+			if (sound != null) {
+				val rowTop = viewTop + index * ROW_HEIGHT - offset
+				val playLeft = viewLeft + VIEW_WIDTH - PLAY_WIDTH - ROW_SIDE_PAD
+				val sliderLeft = playLeft - CONTROL_GAP - SLIDER_WIDTH
+				if (mouseX in playLeft until playLeft + PLAY_WIDTH && mouseY in rowTop + PLAY_TOP until rowTop + PLAY_TOP + PLAY_HEIGHT) {
+					SoundManager.playPreview(sound.event)
+					return true
+				}
+				if (mouseX in sliderLeft - SLIDER_HIT_PAD until sliderLeft + SLIDER_WIDTH + SLIDER_HIT_PAD) {
+					draggedSound = sound
+					setVolume(sound, mouseX, sliderLeft)
+					return true
+				}
+			}
+		}
 		return super.mouseClicked(event, doubleClick)
+	}
+
+	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
+		val sound = draggedSound
+		if (sound != null) {
+			val left = (width - WINDOW_WIDTH) / 2
+			val viewLeft = left + VIEW_LEFT
+			val playLeft = viewLeft + VIEW_WIDTH - PLAY_WIDTH - ROW_SIDE_PAD
+			setVolume(sound, event.x().toInt(), playLeft - CONTROL_GAP - SLIDER_WIDTH)
+			return true
+		}
+		if (draggingScrollbar) {
+			val top = (height - WINDOW_HEIGHT) / 2
+			val viewTop = top + VIEW_TOP
+			val maxScroll = rows.max()
+			if (maxScroll > 0) {
+				val thumbHeight = ClickGuiScroll.thumbHeight(VIEW_HEIGHT, VIEW_HEIGHT, maxScroll, MIN_THUMB_HEIGHT)
+				dragScrollbar(event.y().toInt(), viewTop, thumbHeight, maxScroll)
+			}
+			return true
+		}
+		return super.mouseDragged(event, dragX, dragY)
+	}
+
+	override fun mouseReleased(event: MouseButtonEvent): Boolean {
+		if (draggedSound == null && !draggingScrollbar) return super.mouseReleased(event)
+		draggedSound = null
+		draggingScrollbar = false
+		return true
 	}
 
 	override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
 		val delta = ((scrollY + scrollX) * ROW_HEIGHT * WHEEL_ROWS).roundToInt()
-		if (delta == 0 || !rows.scrollBy(delta)) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		if (delta == 0) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		val now = Util.getMillis()
+		val current = currentScroll(now)
+		if (!rows.scrollBy(delta)) return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)
+		beginScroll(current, now)
 		return true
 	}
 
@@ -233,9 +376,72 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	override fun onClose() = minecraft.gui.setScreen(parent)
 
-	private fun updateFilter() {
-		visible = filterSounds(sounds, category, query.lowercase(Locale.ROOT))
-		rows.scrollTo(0)
+	private fun updateFilter(resetScroll: Boolean = true) {
+		val lowered = query.lowercase(Locale.ROOT)
+		visible = if (category == SoundCategory.RECENT) recentSounds(lowered) else filterSounds(sounds, category, lowered)
+		if (resetScroll) {
+			rows.scrollTo(0)
+			snapScroll(0f)
+		} else {
+			val previousTarget = rows.offset
+			rows.reclamp()
+			if (rows.offset != previousTarget) snapScroll(minOf(scrollShown, rows.offset.toFloat()))
+		}
+	}
+
+	private fun recentSounds(lowered: String): List<SoundListItem> {
+		refreshRecentIdentifiers()
+		return filterRecentSounds(soundsById, recentIdentifiers, lowered)
+	}
+
+	private fun refreshRecentIdentifiers() {
+		if (recentSoundsVersion == SoundManager.recentSoundsVersion) return
+		var version: Long
+		var identifiers: List<Identifier>
+		do {
+			version = SoundManager.recentSoundsVersion
+			identifiers = SoundManager.recentSoundIds()
+		} while (version != SoundManager.recentSoundsVersion)
+		recentIdentifiers = identifiers
+		recentSoundsVersion = version
+	}
+
+	private fun refreshRecent() {
+		if (category == SoundCategory.RECENT && recentSoundsVersion != SoundManager.recentSoundsVersion) updateFilter(resetScroll = false)
+	}
+
+	private fun setVolume(sound: ManagedSound, mouseX: Int, sliderLeft: Int) {
+		val percent = soundVolumePercent(mouseX, sliderLeft, SLIDER_WIDTH)
+		if (percent != SoundManager.getVolumePercent(sound.identifier)) SoundManager.setVolumePercent(sound.identifier, percent)
+	}
+
+	private fun dragScrollbar(mouseY: Int, viewTop: Int, thumbHeight: Int, maxScroll: Int) {
+		rows.scrollTo(soundScrollOffset(mouseY, viewTop, VIEW_HEIGHT, thumbHeight, scrollbarDragOffset, maxScroll))
+		snapScroll(rows.offset.toFloat())
+	}
+
+	private fun beginScroll(current: Float, now: Long) {
+		scrollShown = current
+		scrollFrom = current
+		scrollStartedAt = now
+		scrollAnimating = current != rows.offset.toFloat()
+	}
+
+	private fun currentScroll(now: Long): Float {
+		if (!scrollAnimating) {
+			scrollShown = rows.offset.toFloat()
+			return scrollShown
+		}
+		val target = rows.offset.toFloat()
+		scrollShown = if (Effects.reduced) target else animatedSoundScroll(scrollFrom, target, now - scrollStartedAt)
+		if (scrollShown == target) scrollAnimating = false
+		return scrollShown
+	}
+
+	private fun snapScroll(offset: Float) {
+		scrollShown = offset
+		scrollFrom = offset
+		scrollAnimating = false
 	}
 
 	private fun drawCentered(
@@ -275,8 +481,22 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		const val ROW_RADIUS = 3f
 		const val ROW_SIDE_PAD = 8
 		const val NAME_PAD = 5
+		const val NAME_CONTROL_GAP = 12
+		const val SLIDER_WIDTH = 140
+		const val SLIDER_TOP = 17
+		const val SLIDER_HEIGHT = 5
+		const val SLIDER_KNOB_RADIUS = 3
+		const val SLIDER_HIT_PAD = 5
+		const val VALUE_TOP = 4
+		const val CONTROL_GAP = 8
+		const val PLAY_LABEL = "Play"
+		const val PLAY_WIDTH = 34
+		const val PLAY_HEIGHT = 15
+		const val PLAY_TOP = 6
+		const val PLAY_RADIUS = 3f
 		const val SCROLLBAR_LEFT = 522
 		const val SCROLLBAR_WIDTH = 6
+		const val SCROLLBAR_HIT_PAD = 3
 		const val MIN_THUMB_HEIGHT = 28
 		const val SEARCH_LEFT = 207
 		const val SEARCH_WIDTH = 200
@@ -310,10 +530,22 @@ internal class SoundHeader(val category: SoundCategory) : SoundListItem {
 internal class ManagedSound(
 	val identifier: Identifier,
 	val cleanName: String,
-	val category: SoundCategory
+	val category: SoundCategory,
+	val event: SoundEvent
 ) : SoundListItem {
 	val memo = DhenType.memo()
+	val valueMemo = DhenType.memo()
 	val searchText = "$identifier $cleanName"
+	private var shownVolume = Int.MIN_VALUE
+	private var shownVolumeLabel = ""
+
+	fun volumeLabel(percent: Int): String {
+		if (shownVolume != percent) {
+			shownVolume = percent
+			shownVolumeLabel = "$percent%"
+		}
+		return shownVolumeLabel
+	}
 }
 
 internal fun soundCleanName(identifier: Identifier): String {
@@ -361,3 +593,48 @@ internal fun filterSounds(sounds: List<ManagedSound>, category: SoundCategory, q
 		group++
 	}
 }
+
+internal fun filterRecentSounds(
+	soundsById: Map<Identifier, ManagedSound>,
+	recentIdentifiers: List<Identifier>,
+	query: String
+): List<SoundListItem> = buildList {
+	var headerAdded = false
+	for (identifier in recentIdentifiers) {
+		val sound = soundsById[identifier] ?: continue
+		if (!sound.searchText.contains(query)) continue
+		if (!headerAdded) {
+			add(SoundHeader(SoundCategory.RECENT))
+			headerAdded = true
+		}
+		add(sound)
+	}
+}
+
+internal fun soundVolumePercent(mouseX: Int, sliderLeft: Int, sliderWidth: Int): Int {
+	if (sliderWidth <= 0) return 0
+	val relative = (mouseX - sliderLeft).coerceIn(0, sliderWidth)
+	val raw = (relative.toDouble() * MAX_VOLUME_PERCENT / sliderWidth).roundToInt()
+	return ((raw + VOLUME_STEP_PERCENT / 2) / VOLUME_STEP_PERCENT) * VOLUME_STEP_PERCENT
+}
+
+internal fun animatedSoundScroll(from: Float, target: Float, elapsed: Long): Float =
+	GlassGui.tween(from, target, elapsed, SCROLL_MILLIS)
+
+internal fun soundScrollOffset(
+	mouseY: Int,
+	trackTop: Int,
+	trackHeight: Int,
+	thumbHeight: Int,
+	dragOffset: Int,
+	maxScroll: Int
+): Int {
+	val travel = maxOf(0, trackHeight - thumbHeight)
+	if (travel == 0 || maxScroll <= 0) return 0
+	val thumbTop = (mouseY - trackTop - dragOffset).coerceIn(0, travel)
+	return ((thumbTop.toLong() * maxScroll + travel / 2) / travel).toInt()
+}
+
+private const val MAX_VOLUME_PERCENT = 200
+private const val VOLUME_STEP_PERCENT = 5
+private const val SCROLL_MILLIS = 200L
