@@ -17,6 +17,7 @@
 		"MouseHandlerMixin",
 		"MultiPlayerGameModeMixin",
 		"PacketProcessorMixin",
+		"RecipeBookComponentMixin",
 		"ScreenMixin",
 		"ServerboundChatCommandPacketAccessor",
 		"ServerboundChatPacketAccessor",

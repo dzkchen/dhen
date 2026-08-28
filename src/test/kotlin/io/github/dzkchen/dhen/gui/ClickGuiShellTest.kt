@@ -1,10 +1,21 @@
 package io.github.dzkchen.dhen.gui
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.function.IntUnaryOperator
 
 class ClickGuiShellTest {
+	@Test
+	fun `only the features tab routes typed characters into search`() {
+		val chrome = ClickGuiChrome({ VIEWPORT_WIDTH }, { 260 }) { _, _, _ -> }
+
+		assertTrue(chrome.acceptsTextInput)
+		chrome.switchTab(1)
+		assertFalse(chrome.acceptsTextInput)
+	}
+
 	@Test
 	fun `a column taller than the viewport is cut to what the viewport can show`() {
 		assertEquals(200, ClickGuiShell.clampedColumnHeight(naturalHeight = 200, headerHeight = 18, available = 260))

@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.input.KeybindRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
 import io.github.dzkchen.dhen.util.NanoClock
+import net.minecraft.client.gui.screens.Screen
 import java.util.Collections
 import java.util.Locale
 
@@ -13,10 +14,10 @@ class ModuleManager(
 	private val clock: () -> Long = System::currentTimeMillis,
 	val clientDispatcher: ClientThreadDispatcher = ClientThreadDispatcher(),
 	nanoClock: NanoClock = NanoClock.SYSTEM,
-	anyScreenOpen: () -> Boolean = { false }
+	currentScreen: () -> Screen? = { null }
 ) {
 	val profiler = HandlerProfiler(nanoClock)
-	private val keybindRuntime = KeybindRuntime(eventBus, anyScreenOpen)
+	private val keybindRuntime = KeybindRuntime(eventBus, currentScreen)
 	private val modulesByName = linkedMapOf<String, Module>()
 	private val modulesByCategory = linkedMapOf<Category, MutableList<Module>>()
 	private val registrationOrder = mutableListOf<Module>()

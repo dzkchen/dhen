@@ -1,17 +1,19 @@
 package io.github.dzkchen.dhen.input
 
 import io.github.dzkchen.dhen.config.KeybindSetting
+import io.github.dzkchen.dhen.config.KeybindScreenPolicy
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.InputAction
 import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.MouseInputEvent
 import io.github.dzkchen.dhen.module.Module
+import net.minecraft.client.gui.screens.Screen
 import org.lwjgl.glfw.GLFW
 
 internal class KeybindRuntime(
 	eventBus: EventBus,
-	private val anyScreenOpen: () -> Boolean
+	private val currentScreen: () -> Screen?
 ) {
 	private var bindings = emptyArray<Binding>()
 
@@ -40,14 +42,22 @@ internal class KeybindRuntime(
 	}
 
 	private fun activate(code: Int) {
-		if (anyScreenOpen()) return
+		val screenState = keybindScreenState(currentScreen())
 		val bindings = bindings
 		var index = 0
 		while (index < bindings.size) {
 			val binding = bindings[index]
-			if (binding.setting.code == code) binding.module.activateKeybind(binding.setting)
+			if (binding.setting.code == code && allows(binding.setting.screenPolicy, screenState)) {
+				binding.module.activateKeybind(binding.setting)
+			}
 			index++
 		}
+	}
+
+	private fun allows(policy: KeybindScreenPolicy, state: KeybindScreenState): Boolean = when (policy) {
+		KeybindScreenPolicy.NO_SCREEN -> state == KeybindScreenState.NONE
+		KeybindScreenPolicy.NON_TEXT_SCREEN -> state != KeybindScreenState.TEXT_INPUT
+		KeybindScreenPolicy.ALWAYS -> true
 	}
 
 	private companion object {

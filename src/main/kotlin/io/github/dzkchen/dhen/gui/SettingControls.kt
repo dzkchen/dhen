@@ -231,6 +231,9 @@ internal abstract class EditableControl(setting: Setting<*>) : SettingControl(se
 	protected abstract fun accepts(codepoint: Int): Boolean
 	protected abstract fun commit(text: String): Boolean
 
+	override val acceptsTextInput: Boolean
+		get() = editing
+
 	protected open fun initialDraft(): String = committedText()
 
 	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {

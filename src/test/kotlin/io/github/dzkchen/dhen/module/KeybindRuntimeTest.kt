@@ -1,14 +1,23 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.uninitialized
 import io.github.dzkchen.dhen.config.KeybindSetting
+import io.github.dzkchen.dhen.config.KeybindScreenPolicy
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.InputAction
 import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.MouseInputEvent
+import io.github.dzkchen.dhen.input.TextInputTarget
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.lwjgl.glfw.GLFW
 
 class KeybindRuntimeTest {
@@ -44,26 +53,21 @@ class KeybindRuntimeTest {
 		assertEquals(1, module.activations)
 	}
 
-	@Test
-	fun `no binding fires while a screen is open`() {
-		val bus = EventBus()
-		var screenOpen = false
-		val manager = ModuleManager(bus, anyScreenOpen = { screenOpen })
-		val module = KeybindModule()
-		manager.register(module)
-		manager.enable(module)
-		val keys = bus.type<KeyInputEvent>()
+	@TestFactory
+	fun `every screen policy decides each screen state`() = screenCases.flatMap { screen ->
+		KeybindScreenPolicy.entries.map { policy ->
+			dynamicTest("$policy with ${screen.name}") {
+				val bus = EventBus()
+				val manager = ModuleManager(bus, currentScreen = screen.screen)
+				val module = KeybindModule(policy)
+				manager.register(module)
+				manager.enable(module)
 
-		screenOpen = true
-		keys.dispatch(key(GLFW.GLFW_KEY_K))
-		bus.type<MouseInputEvent>().dispatch(MouseInputEvent(GLFW.GLFW_MOUSE_BUTTON_4, InputAction.PRESS, 0))
+				bus.type<KeyInputEvent>().dispatch(key(GLFW.GLFW_KEY_K))
 
-		assertEquals(0, module.activations)
-
-		screenOpen = false
-		keys.dispatch(key(GLFW.GLFW_KEY_K))
-
-		assertEquals(1, module.activations)
+				assertEquals(if (policy in screen.allowed) 1 else 0, module.activations)
+			}
+		}
 	}
 
 	@Test
@@ -134,12 +138,12 @@ class KeybindRuntimeTest {
 
 	private fun key(code: Int, action: InputAction = InputAction.PRESS) = KeyInputEvent(code, action, 0, 0)
 
-	private class KeybindModule : Module(
+	private class KeybindModule(policy: KeybindScreenPolicy = KeybindScreenPolicy.NO_SCREEN) : Module(
 		name = "Keybind Module",
 		category = Category.QOL,
 		description = "Tests keybind callbacks."
 	) {
-		private val setting = KeybindSetting("Action", GLFW.GLFW_KEY_K).onPress { activations++ }
+		private val setting = KeybindSetting("Action", GLFW.GLFW_KEY_K, screenPolicy = policy).onPress { activations++ }
 
 		@Suppress("unused")
 		private val keybind by setting
@@ -170,5 +174,26 @@ class KeybindRuntimeTest {
 		private val keybind by KeybindSetting("Throw", GLFW.GLFW_KEY_K).onPress {
 			error("boom")
 		}
+	}
+
+	private class TestScreen(
+		override val textInputFocused: Boolean
+	) : Screen(uninitialized<Minecraft>(), uninitialized<Font>(), Component.empty()), TextInputTarget
+
+	private data class ScreenCase(
+		val name: String,
+		val allowed: Set<KeybindScreenPolicy>,
+		val screen: () -> Screen?
+	)
+
+	private companion object {
+		val screenCases = listOf(
+			ScreenCase("no screen", KeybindScreenPolicy.entries.toSet()) { null },
+			ScreenCase(
+				"plain screen",
+				setOf(KeybindScreenPolicy.NON_TEXT_SCREEN, KeybindScreenPolicy.ALWAYS)
+			) { TestScreen(false) },
+			ScreenCase("text-input screen", setOf(KeybindScreenPolicy.ALWAYS)) { TestScreen(true) }
+		)
 	}
 }

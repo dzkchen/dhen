@@ -47,6 +47,9 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 	open val expanded: Boolean
 		get() = false
 
+	open val acceptsTextInput: Boolean
+		get() = false
+
 	val extent: Int
 		get() = if (renderable()) height else 0
 

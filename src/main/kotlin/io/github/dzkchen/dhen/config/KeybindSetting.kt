@@ -2,10 +2,17 @@ package io.github.dzkchen.dhen.config
 
 import org.lwjgl.glfw.GLFW
 
+enum class KeybindScreenPolicy {
+	NO_SCREEN,
+	NON_TEXT_SCREEN,
+	ALWAYS
+}
+
 class KeybindSetting(
 	name: String,
 	override val default: Int = GLFW.GLFW_KEY_UNKNOWN,
-	description: String = ""
+	description: String = "",
+	val screenPolicy: KeybindScreenPolicy = KeybindScreenPolicy.NO_SCREEN
 ) : Setting<Int>(name, description) {
 	private var onPress: (() -> Unit)? = null
 

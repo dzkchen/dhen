@@ -519,6 +519,19 @@ class SettingControlTest {
 	}
 
 	@Test
+	fun `only an armed editable control accepts text input`() {
+		val text = TextControl(StringSetting("text"))
+		val keybind = KeybindControl(KeybindSetting("key"))
+
+		assertFalse(text.acceptsTextInput)
+		assertFalse(keybind.acceptsTextInput)
+		text.press(0, 0, 100)
+		keybind.press(0, 0, 100)
+		assertTrue(text.acceptsTextInput)
+		assertFalse(keybind.acceptsTextInput)
+	}
+
+	@Test
 	fun `keybind control unbinds on escape`() {
 		val setting = KeybindSetting("k", default = GLFW.GLFW_KEY_J)
 		val control = KeybindControl(setting)

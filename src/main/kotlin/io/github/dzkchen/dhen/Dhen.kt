@@ -94,7 +94,7 @@ object Dhen : ClientModInitializer {
 	val modules: ModuleManager = ModuleManager(
 		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announceComponent),
 		clientDispatcher = clientThread,
-		anyScreenOpen = { Minecraft.getInstance().gui.screen() != null }
+		currentScreen = { Minecraft.getInstance().gui.screen() }
 	)
 	private val hudRuntime = HudRuntime(modules)
 

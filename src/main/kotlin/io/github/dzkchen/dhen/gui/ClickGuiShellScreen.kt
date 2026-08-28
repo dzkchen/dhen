@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.input.TextInputTarget
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -20,7 +21,7 @@ internal class ClickGuiShellScreen(
 	private val persistModules: () -> Unit,
 	private val fontChanged: () -> Unit,
 	private val parent: Screen? = null
-) : LiveWorldScreen(Component.literal("Dhen")) {
+) : LiveWorldScreen(Component.literal("Dhen")), TextInputTarget {
 	private val field = ClickGuiColumnField(view, { width }, { height })
 	private val panel = ClickGuiPrefsPanel({ width }, { height })
 	private val chrome = ClickGuiChrome({ width }, { height }, ::drawTabBody)
@@ -33,6 +34,9 @@ internal class ClickGuiShellScreen(
 	private var overlay: SettingControl? = null
 	private var seenOptionCounts = SelectorSetting.optionCountRevision
 	private var swallowCharKey = GLFW.GLFW_KEY_UNKNOWN
+
+	override val textInputFocused: Boolean
+		get() = liveFocus?.acceptsTextInput ?: chrome.acceptsTextInput
 
 	override fun init() {
 		blurFocus()

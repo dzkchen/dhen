@@ -32,6 +32,9 @@ internal class ClickGuiChrome(
 	val onFeatures: Boolean
 		get() = activeTab == FEATURES_TAB
 
+	val acceptsTextInput: Boolean
+		get() = onFeatures
+
 	fun measure(font: Font) {
 		for (i in TAB_LABELS.indices) tabWidths[i] = DhenType.width(font, TAB_LABELS[i]) + 2 * TAB_PAD
 		barWidth = 2 * BAR_PAD + ClickGuiShell.segmentsWidth(tabWidths, TAB_GAP)
