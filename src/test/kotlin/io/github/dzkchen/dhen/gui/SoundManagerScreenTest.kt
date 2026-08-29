@@ -84,13 +84,42 @@ class SoundManagerScreenTest {
 	}
 
 	@Test
-	fun `sound slider clamps and snaps across the zero to two hundred percent range`() {
-		assertEquals(0, soundVolumePercent(80, 100, 140))
-		assertEquals(0, soundVolumePercent(100, 100, 140))
-		assertEquals(5, soundVolumePercent(103, 100, 140))
-		assertEquals(100, soundVolumePercent(170, 100, 140))
-		assertEquals(200, soundVolumePercent(240, 100, 140))
-		assertEquals(200, soundVolumePercent(260, 100, 140))
+	fun `the rules list is sorted searchable and resolves an identifier the catalogue lost`() {
+		val wolf = sound("entity.wolf.howl")
+		val harp = sound("block.note_block.harp")
+		val known = mapOf(wolf.identifier to wolf, harp.identifier to harp)
+		val gone = id("removed.mod.sound")
+		val resolve: (Identifier) -> ManagedSound = { identifier -> known[identifier] ?: sound(identifier.path) }
+		val ruled = listOf(wolf.identifier, gone, harp.identifier)
+
+		val rows = filterRuleSounds(ruled, "", resolve)
+
+		assertEquals(listOf(SoundCategory.RULES), rows.filterIsInstance<SoundHeader>().map { it.category })
+		assertEquals(
+			listOf(harp.identifier, wolf.identifier, gone),
+			rows.filterIsInstance<ManagedSound>().map { it.identifier }
+		)
+		assertEquals(listOf(harp), filterRuleSounds(ruled, "harp", resolve).filterIsInstance<ManagedSound>())
+		assertTrue(filterRuleSounds(emptyList(), "", resolve).isEmpty())
+	}
+
+	@Test
+	fun `every slider clamps and snaps inside its own range`() {
+		assertEquals(0, steppedSliderValue(80, 100, 140, VOLUME_RANGE))
+		assertEquals(0, steppedSliderValue(100, 100, 140, VOLUME_RANGE))
+		assertEquals(5, steppedSliderValue(103, 100, 140, VOLUME_RANGE))
+		assertEquals(100, steppedSliderValue(170, 100, 140, VOLUME_RANGE))
+		assertEquals(200, steppedSliderValue(240, 100, 140, VOLUME_RANGE))
+		assertEquals(200, steppedSliderValue(260, 100, 140, VOLUME_RANGE))
+		assertEquals(0, steppedSliderValue(80, 100, 110, REPLACEMENT_VOLUME_RANGE))
+		assertEquals(50, steppedSliderValue(155, 100, 110, REPLACEMENT_VOLUME_RANGE))
+		assertEquals(100, steppedSliderValue(240, 100, 110, REPLACEMENT_VOLUME_RANGE))
+		assertEquals(50, steppedSliderValue(80, 100, 110, PITCH_RANGE))
+		assertEquals(125, steppedSliderValue(155, 100, 110, PITCH_RANGE))
+		assertEquals(200, steppedSliderValue(240, 100, 110, PITCH_RANGE))
+		assertEquals("0.50", pitchLabel(50))
+		assertEquals("1.25", pitchLabel(125))
+		assertEquals("2.00", pitchLabel(200))
 	}
 
 	@Test

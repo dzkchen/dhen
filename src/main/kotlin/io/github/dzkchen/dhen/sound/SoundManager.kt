@@ -33,6 +33,7 @@ object SoundManager {
 	private val replacementDispatch = ReplacementDispatch(::dispatchReplacement)
 
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(::liftMultipliersIntoRules)
+	internal val authoritative: Set<String> = setOf(RULES)
 
 	internal val recentSoundsVersion: Long
 		get() = recentVersion
@@ -59,6 +60,7 @@ object SoundManager {
 
 	@JvmStatic
 	fun onSoundPlay(sound: SoundInstance): Boolean {
+		if (sound is SubstituteSound) return false
 		val identifier = sound.identifier
 		recordPlayedIdentifier(identifier)
 		return applyRule(identifier)
@@ -75,21 +77,69 @@ object SoundManager {
 		return true
 	}
 
-	internal fun hasRule(identifier: Identifier): Boolean {
+	internal fun hasRule(identifier: Identifier): Boolean = !rules.isDefault(identifier)
+
+	internal fun replacementOf(identifier: Identifier): Identifier? {
 		val snapshot = rules
 		val index = snapshot.indexOf(identifier)
-		return index >= 0 && (snapshot.volumes[index] != DEFAULT_VOLUME || snapshot.replacements[index] != null)
+		return if (index < 0) null else snapshot.replacements[index]
+	}
+
+	internal fun replacementVolumeOf(identifier: Identifier): Float {
+		val snapshot = rules
+		val index = snapshot.indexOf(identifier)
+		return if (index < 0) MAX_REPLACEMENT_VOLUME else snapshot.replacementVolumes[index]
+	}
+
+	internal fun replacementPitchOf(identifier: Identifier): Float {
+		val snapshot = rules
+		val index = snapshot.indexOf(identifier)
+		return if (index < 0) DEFAULT_PITCH else snapshot.replacementPitches[index]
+	}
+
+	internal fun ruledIdentifiers(): List<Identifier> {
+		val snapshot = rules
+		return buildList {
+			for (index in 0 until snapshot.size) {
+				val identifier = snapshot.identifiers[index] ?: continue
+				if (!snapshot.isDefaultAt(index)) add(identifier)
+			}
+		}
 	}
 
 	internal fun getVolumePercent(identifier: Identifier): Int =
 		(volumeOf(identifier) * PERCENT_SCALE).roundToInt()
 
 	internal fun setVolumePercent(identifier: Identifier, percent: Int): Int = synchronized(ruleLock) {
-		val installed = store ?: return@synchronized getVolumePercent(identifier)
 		val normalized = normalizePercent(percent)
-		rules = rules.withVolume(identifier, normalized / PERCENT_SCALE)
-		installed.save(encode(rules))
+		if (store == null) return@synchronized getVolumePercent(identifier)
+		publish(rules.withVolume(identifier, normalized / PERCENT_SCALE), identifier)
 		normalized
+	}
+
+	internal fun setReplacement(identifier: Identifier, replacement: Identifier?, volume: Float, pitch: Float) =
+		synchronized(ruleLock) {
+			if (store == null) return@synchronized
+			publish(
+				rules.withReplacement(
+					identifier,
+					replacement,
+					volume.coerceIn(MUTED, MAX_REPLACEMENT_VOLUME),
+					pitch.coerceIn(MIN_PITCH, MAX_PITCH)
+				),
+				identifier
+			)
+		}
+
+	internal fun removeRule(identifier: Identifier) = synchronized(ruleLock) {
+		val installed = store ?: return@synchronized
+		rules = rules.without(identifier) ?: return@synchronized
+		installed.save(encode(rules))
+	}
+
+	private fun publish(updated: RuleSnapshot, identifier: Identifier) {
+		rules = if (updated.isDefault(identifier)) updated.without(identifier) ?: updated else updated
+		store?.save(encode(rules))
 	}
 
 	internal fun recordPlayedIdentifier(identifier: Identifier) = synchronized(recentLock) {
@@ -134,6 +184,13 @@ object SoundManager {
 		}
 	}
 
+	internal fun playOriginal(identifier: Identifier) {
+		val client = Minecraft.getInstance()
+		client.execute {
+			playSubstitute(identifier, PREVIEW_VOLUME, PREVIEW_PITCH, client.soundManager::play)
+		}
+	}
+
 	internal fun playSubstitute(
 		replacement: Identifier,
 		volume: Float,
@@ -150,10 +207,13 @@ object SoundManager {
 
 	private fun dispatchReplacement(replacement: Identifier, volume: Float, pitch: Float) {
 		val client = Minecraft.getInstance()
+		val level = if (previewing()) volume * PREVIEW_VOLUME else volume
 		client.execute {
-			playSubstitute(replacement, volume, pitch, client.soundManager::play)
+			playSubstitute(replacement, level, pitch, client.soundManager::play)
 		}
 	}
+
+	private fun previewing(): Boolean = synchronized(recentLock) { suppressRecentDepth != 0 }
 
 	private fun liftMultipliersIntoRules(doc: JsonObject) {
 		val multipliers = doc.remove(MULTIPLIERS) as? JsonObject ?: return
@@ -249,12 +309,52 @@ object SoundManager {
 			return -1
 		}
 
+		fun isDefault(identifier: Identifier): Boolean {
+			val index = indexOf(identifier)
+			return index < 0 || isDefaultAt(index)
+		}
+
+		fun isDefaultAt(index: Int): Boolean = volumes[index] == DEFAULT_VOLUME && replacements[index] == null
+
 		fun withVolume(identifier: Identifier, volume: Float): RuleSnapshot {
 			val index = indexOf(identifier)
 			if (index < 0) return appended(identifier, volume)
 			val changed = volumes.copyOf()
 			changed[index] = volume
 			return RuleSnapshot(identifiers, changed, replacements, replacementVolumes, replacementPitches, size)
+		}
+
+		fun withReplacement(identifier: Identifier, replacement: Identifier?, volume: Float, pitch: Float): RuleSnapshot {
+			val index = indexOf(identifier)
+			if (index < 0) {
+				return appended(identifier, DEFAULT_VOLUME).withReplacement(identifier, replacement, volume, pitch)
+			}
+			val changedReplacements = replacements.copyOf()
+			val changedVolumes = replacementVolumes.copyOf()
+			val changedPitches = replacementPitches.copyOf()
+			changedReplacements[index] = replacement
+			changedVolumes[index] = volume
+			changedPitches[index] = pitch
+			return RuleSnapshot(identifiers, volumes, changedReplacements, changedVolumes, changedPitches, size)
+		}
+
+		fun without(identifier: Identifier): RuleSnapshot? {
+			val index = indexOf(identifier)
+			if (index < 0) return null
+			val last = size - 1
+			val keptIdentifiers = identifiers.copyOf()
+			val keptVolumes = volumes.copyOf()
+			val keptReplacements = replacements.copyOf()
+			val keptReplacementVolumes = replacementVolumes.copyOf()
+			val keptReplacementPitches = replacementPitches.copyOf()
+			keptIdentifiers[index] = keptIdentifiers[last]
+			keptVolumes[index] = keptVolumes[last]
+			keptReplacements[index] = keptReplacements[last]
+			keptReplacementVolumes[index] = keptReplacementVolumes[last]
+			keptReplacementPitches[index] = keptReplacementPitches[last]
+			keptIdentifiers[last] = null
+			keptReplacements[last] = null
+			return RuleSnapshot(keptIdentifiers, keptVolumes, keptReplacements, keptReplacementVolumes, keptReplacementPitches, last)
 		}
 
 		private fun appended(identifier: Identifier, volume: Float): RuleSnapshot {

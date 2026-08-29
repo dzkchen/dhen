@@ -20,6 +20,7 @@ class ConfigStore(
 	private val path: Path,
 	private val scope: CoroutineScope,
 	private val migrations: List<(JsonObject) -> Unit> = emptyList(),
+	private val authoritative: Set<String> = emptySet(),
 	private val debounce: suspend () -> Unit = { delay(DEFAULT_DEBOUNCE) },
 	private val gson: Gson = JsonFile.pretty
 ) {
@@ -72,7 +73,7 @@ class ConfigStore(
 	}
 
 	private fun write(snapshot: JsonObject) {
-		val merged = deepMerge(base, snapshot)
+		val merged = deepMerge(base, snapshot, authoritative)
 		merged.addProperty("version", stampedVersion)
 		base = merged
 		try {
@@ -107,11 +108,11 @@ class ConfigStore(
 		}
 	}
 
-	private fun deepMerge(base: JsonObject, overlay: JsonObject): JsonObject {
+	private fun deepMerge(base: JsonObject, overlay: JsonObject, replaced: Set<String> = emptySet()): JsonObject {
 		val result = base.deepCopy()
 		for ((key, value) in overlay.entrySet()) {
 			val existing = result.get(key)
-			if (existing is JsonObject && value is JsonObject) result.add(key, deepMerge(existing, value))
+			if (key !in replaced && existing is JsonObject && value is JsonObject) result.add(key, deepMerge(existing, value))
 			else result.add(key, value)
 		}
 		return result

@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.sound
 import io.github.dzkchen.dhen.bootstrapMinecraft
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.gui.ClientPrefs
+import io.github.dzkchen.dhen.json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import net.minecraft.client.resources.sounds.AbstractSoundInstance
@@ -221,6 +222,85 @@ class SoundManagerTest {
 	}
 
 	@Test
+	fun `a removed rule is gone from the file and stays gone after a reload`() {
+		val path = directory.resolve("sounds.json")
+		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
+		val orb = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
+		SoundManager.install(store(path))
+
+		SoundManager.setVolumePercent(orb, 0)
+		SoundManager.setReplacement(arrow, SoundEvents.NOTE_BLOCK_HARP.value().location(), 0.75f, 1.5f)
+		SoundManager.removeRule(arrow)
+
+		assertFalse(Files.readString(path).contains("arrow"))
+		assertFalse(SoundManager.hasRule(arrow))
+		assertTrue(SoundManager.hasRule(orb))
+
+		SoundManager.uninstall()
+		SoundManager.install(store(path))
+
+		assertFalse(SoundManager.hasRule(arrow))
+		assertNull(SoundManager.replacementOf(arrow))
+		assertEquals(0, SoundManager.getVolumePercent(orb))
+	}
+
+	@Test
+	fun `a rule that returns to its defaults leaves the file without disturbing the others`() {
+		val path = directory.resolve("sounds.json")
+		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
+		val orb = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
+		SoundManager.install(store(path))
+
+		SoundManager.setReplacement(orb, harp, 0.4f, 1.5f)
+		SoundManager.setReplacement(harp, SoundEvents.ARROW_HIT_PLAYER.location(), 1f, 1f)
+		SoundManager.setVolumePercent(harp, 40)
+		SoundManager.setReplacement(harp, null, 1f, 1f)
+
+		assertTrue(SoundManager.hasRule(harp))
+		assertTrue(Files.readString(path).contains("note_block.harp"))
+
+		SoundManager.setVolumePercent(harp, 100)
+
+		assertFalse(SoundManager.hasRule(harp))
+		assertFalse(json(Files.readString(path)).getAsJsonObject("rules").has(harp.toString()))
+
+		SoundManager.uninstall()
+		SoundManager.install(store(path))
+
+		assertFalse(SoundManager.hasRule(harp))
+		assertEquals(Replacement(harp, 0.4f, 1.5f), dispatchedFor(orb))
+	}
+
+	@Test
+	fun `a replacement written from the editor round trips and lists as a rule`() {
+		val path = directory.resolve("sounds.json")
+		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
+		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
+		SoundManager.install(store(path))
+
+		SoundManager.setReplacement(arrow, harp, 9f, 0.1f)
+
+		assertEquals(harp, SoundManager.replacementOf(arrow))
+		assertEquals(1f, SoundManager.replacementVolumeOf(arrow))
+		assertEquals(0.5f, SoundManager.replacementPitchOf(arrow))
+
+		SoundManager.uninstall()
+		SoundManager.install(store(path))
+
+		assertEquals(listOf(arrow), SoundManager.ruledIdentifiers())
+		assertEquals(Replacement(harp, 1f, 0.5f), dispatchedFor(arrow))
+	}
+
+	@Test
+	fun `a substitute never enters recents`() {
+		SoundManager.playSubstitute(SoundEvents.NOTE_BLOCK_HARP.value().location(), 1f, 1f) { instance ->
+			assertFalse(SoundManager.onSoundPlay(instance))
+		}
+
+		assertTrue(SoundManager.recentSoundIds().isEmpty())
+	}
+
+	@Test
 	fun `recents are unique capped newest first and reset only on mutation`() {
 		val before = SoundManager.recentSoundsVersion
 		val identifiers = List(101) { Identifier.fromNamespaceAndPath("test", "sound_$it") }
@@ -271,8 +351,13 @@ class SoundManagerTest {
 		return dispatched
 	}
 
-	private fun store(path: Path): ConfigStore =
-		ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), SoundManager.migrations, debounce = {})
+	private fun store(path: Path): ConfigStore = ConfigStore(
+		path,
+		CoroutineScope(Dispatchers.Unconfined),
+		SoundManager.migrations,
+		SoundManager.authoritative,
+		debounce = {}
+	)
 
 	private companion object {
 		@JvmStatic

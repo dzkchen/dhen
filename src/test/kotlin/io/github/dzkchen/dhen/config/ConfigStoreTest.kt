@@ -110,6 +110,21 @@ class ConfigStoreTest {
 	}
 
 	@Test
+	fun `an authoritative key is written whole while every other key still merges`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("sounds.json")
+		Files.writeString(path, """{"version":0,"rules":{"kept":{"volume":0.5},"dropped":{"volume":0.25}},"other":{"mystery":1}}""")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), authoritative = setOf("rules"), debounce = {})
+		store.load()
+
+		store.save(json("""{"rules":{"kept":{"volume":0.5}},"other":{"fresh":2}}""")).join()
+
+		val written = json(Files.readString(path))
+		assertEquals(setOf("kept"), written.getAsJsonObject("rules").keySet())
+		assertEquals(1, written.getAsJsonObject("other").get("mystery").asInt)
+		assertEquals(2, written.getAsJsonObject("other").get("fresh").asInt)
+	}
+
+	@Test
 	fun `debounce coalesces rapid saves into one write of the latest snapshot`(@TempDir dir: Path) = runBlocking {
 		val gate = CompletableDeferred<Unit>()
 		val path = dir.resolve("core.json")

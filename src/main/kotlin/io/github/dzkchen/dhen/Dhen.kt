@@ -144,7 +144,9 @@ object Dhen : ClientModInitializer {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
-		SoundManager.install(flushedOnStop(configRoot.resolve("sounds.json"), SoundManager.migrations))
+		SoundManager.install(
+			flushedOnStop(configRoot.resolve("sounds.json"), SoundManager.migrations, SoundManager.authoritative)
+		)
 		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
@@ -360,8 +362,11 @@ object Dhen : ClientModInitializer {
 		return reset
 	}
 
-	private fun flushedOnStop(path: Path, migrations: List<(JsonObject) -> Unit>): ConfigStore =
-		ConfigStore(path, ioScope, migrations).also { stores += it }
+	private fun flushedOnStop(
+		path: Path,
+		migrations: List<(JsonObject) -> Unit>,
+		authoritative: Set<String> = emptySet()
+	): ConfigStore = ConfigStore(path, ioScope, migrations, authoritative).also { stores += it }
 
 	private fun persistModules() {
 		moduleStore.save(ModulePersistence.snapshot(modules))
