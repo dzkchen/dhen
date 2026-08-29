@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.features
 
 import io.github.dzkchen.dhen.data.item.ItemFixture
+import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
+import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.visual.RevertAxes
@@ -19,16 +21,22 @@ import org.junit.jupiter.api.Test
 
 class SimpleTogglesTest {
 	@Test
-	fun `declares the three native modules`() {
+	fun `declares the five native modules`() {
 		assertEquals("Arrow Fix", ArrowFix.name)
 		assertEquals(Category.QOL, ArrowFix.category)
 		assertEquals("No Item Place", NoItemPlace.name)
 		assertEquals(Category.QOL, NoItemPlace.category)
 		assertEquals("Revert Axes", RevertAxes.name)
 		assertEquals(Category.VISUAL, RevertAxes.category)
+		assertEquals("Spoof as Vanilla", SpoofAsVanilla.name)
+		assertEquals(Category.PRIVACY, SpoofAsVanilla.category)
+		assertEquals("Channel Spoofing", ChannelSpoofing.name)
+		assertEquals(Category.PRIVACY, ChannelSpoofing.category)
 		assertTrue(ArrowFix.settings.isEmpty())
 		assertTrue(NoItemPlace.settings.isEmpty())
 		assertTrue(RevertAxes.settings.isEmpty())
+		assertTrue(SpoofAsVanilla.settings.isEmpty())
+		assertTrue(ChannelSpoofing.settings.isEmpty())
 	}
 
 	@Test

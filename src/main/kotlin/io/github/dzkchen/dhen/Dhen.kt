@@ -29,6 +29,8 @@ import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
+import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
+import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
@@ -43,6 +45,7 @@ import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
+import io.github.dzkchen.dhen.privacy.ModRegistry
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.WorldRenderTypes
@@ -175,7 +178,16 @@ object Dhen : ClientModInitializer {
 		themes.reload()
 		fonts.prime()
 		ClientPrefs.openSoundManager.value = ::openSoundManager
-		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, Tweaks, RevertAxes, TimeChanger)
+		modules.registerAll(
+			AutoSprint,
+			ArrowFix,
+			NoItemPlace,
+			Tweaks,
+			RevertAxes,
+			TimeChanger,
+			SpoofAsVanilla,
+			ChannelSpoofing
+		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
@@ -237,6 +249,9 @@ object Dhen : ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
 		ClientEntityEvents.ENTITY_UNLOAD.register { entity, _ ->
 			failsafe.guard("entity unload") { WorldHooks.entityUnloaded(entity) }
+		}
+		ClientLifecycleEvents.CLIENT_STARTED.register {
+			failsafe.guard("mod registry") { ModRegistry.prime() }
 		}
 		ClientLifecycleEvents.CLIENT_STOPPING.register {
 			stores.forEach { it.flush() }
