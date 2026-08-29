@@ -151,7 +151,9 @@ object Dhen : ClientModInitializer {
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
-		val fonts = FontRuntime(configRoot, ioScope, clientThread, ::fontChanged, ::announce)
+		val fonts = FontRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
+			Util.getPlatform().openPath(it)
+		}
 		val commands = CommandRegistry<FabricClientCommandSource>(
 			modules,
 			openHudEditor = ::openHudEditor,

@@ -16,6 +16,8 @@ internal object ThemeStore {
 	const val MAX_NAME = 32
 
 	private const val MAX_MANIFEST_BYTES = 64L * 1024L
+	private const val COPY = "-copy"
+	private const val MAX_COPIES = 32
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
@@ -45,6 +47,19 @@ internal object ThemeStore {
 
 	fun legal(id: String): Boolean =
 		id.length in 1..MAX_NAME && id.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' || it == '_' }
+
+	fun claim(base: String, free: (String) -> Boolean): String? {
+		for (copy in 0..MAX_COPIES) {
+			val suffix = when (copy) {
+				0 -> ""
+				1 -> COPY
+				else -> "$COPY-$copy"
+			}
+			val id = base.take(MAX_NAME - suffix.length) + suffix
+			if (legal(id) && free(id)) return id
+		}
+		return null
+	}
 
 	private fun discover(root: Path): List<ThemeEntry> {
 		if (!Files.isDirectory(root)) return emptyList()

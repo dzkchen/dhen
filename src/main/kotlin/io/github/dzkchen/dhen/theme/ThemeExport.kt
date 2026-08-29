@@ -10,9 +10,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 internal object ThemeExport {
-	private const val COPY = "-copy"
-	private const val MAX_COPIES = 32
-
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	fun write(root: Path, name: String, metadata: ThemeEntry?, resolved: DhenTheme): Path {
@@ -39,20 +36,14 @@ internal object ThemeExport {
 	}
 
 	private fun claim(themes: Path, name: String): Path? {
-		for (copy in 0..MAX_COPIES) {
-			val suffix = when (copy) {
-				0 -> ""
-				1 -> COPY
-				else -> "$COPY-$copy"
-			}
-			val id = name.take(ThemeStore.MAX_NAME - suffix.length) + suffix
-			if (!ThemeStore.legal(id) || ThemeStore.reserved(id)) continue
-			try {
-				return Files.createDirectory(themes.resolve(id))
-			} catch (_: FileAlreadyExistsException) {
-				continue
-			}
-		}
-		return null
+		var folder: Path? = null
+		ThemeStore.claim(name) { id -> !ThemeStore.reserved(id) && created(themes.resolve(id))?.also { folder = it } != null }
+		return folder
+	}
+
+	private fun created(folder: Path): Path? = try {
+		Files.createDirectory(folder)
+	} catch (_: FileAlreadyExistsException) {
+		null
 	}
 }

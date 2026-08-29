@@ -48,12 +48,22 @@ internal object ClientPrefs {
 		FontStore.INTER,
 		FontStore.names,
 		listed = true,
-		description = "Face Dhen text draws in, and the game's default font while Dhen font is on."
+		description = "Face Dhen and Minecraft's default text draw in right now."
+	)
+
+	val addFont = ActionSetting(
+		"Add font...",
+		description = "Choose a TrueType file; Dhen copies it in and starts using it."
+	)
+
+	val browseFonts = ActionSetting(
+		"Open fonts folder",
+		description = "Show the folder fonts are dropped into in your file browser."
 	)
 
 	val reloadFonts = ActionSetting(
 		"Reload fonts",
-		description = "Read the fonts folder again without restarting."
+		description = "Re-read files you changed by hand in the fonts folder."
 	)
 
 	val reload = ActionSetting(
@@ -80,7 +90,7 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, reloadFonts, reload, browse)),
+		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

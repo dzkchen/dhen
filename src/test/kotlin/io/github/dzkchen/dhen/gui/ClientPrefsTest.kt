@@ -155,6 +155,35 @@ class ClientPrefsTest {
 	}
 
 	@Test
+	fun `Appearance offers the font rows in the order a first-time user needs them`() {
+		assertEquals(
+			listOf("Theme", "Accent color", "Dhen font", "Font", "Add font...", "Open fonts folder", "Reload fonts", "Reload themes", "Open themes folder"),
+			ClientPrefs.sections.single { it.title == "Appearance" }.settings.map { it.name }
+		)
+	}
+
+	@Test
+	fun `a face installed by the button is drawn at once, turns the toggle on and is written down`() {
+		val serif = face("Serif")
+		ClientPrefs.dhenFont.value = false
+		ClientPrefs.sync()
+
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.dhenFont.on = true
+		assertTrue(ClientPrefs.adopt())
+
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+
+		val client = ClientPrefs.writeInto(JsonObject()).getAsJsonObject("client")
+
+		assertEquals("Serif", client.get("Font").asString)
+		assertTrue(client.get("Dhen font").asBoolean)
+		assertFalse(client.has("Add font..."))
+		assertFalse(client.has("Open fonts folder"))
+		assertFalse(client.has("Reload fonts"))
+	}
+
+	@Test
 	fun `the Dhen font toggle defaults on in Appearance`() {
 		assertTrue(ClientPrefs.dhenFont.default)
 		assertTrue(ClientPrefs.dhenFont.on)

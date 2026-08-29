@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.command.ThemeCommands
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenTheme
+import io.github.dzkchen.dhen.util.reason
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,7 +77,7 @@ internal class ThemeRuntime(
 				Files.createDirectories(root.resolve(ThemeStore.DIRECTORY))
 			} catch (e: Exception) {
 				log.warn("{} under {}", failure, root, e)
-				withContext(client) { notify("$failure: ${reason(e)}") }
+				withContext(client) { notify("$failure: ${e.reason()}") }
 				return@launch
 			}
 			withContext(client) { open(folder, notify) }
@@ -89,7 +90,7 @@ internal class ThemeRuntime(
 				work()
 			} catch (e: Exception) {
 				log.warn("{} under {}", failure, root, e)
-				withContext(client) { notify("$failure: ${reason(e)}") }
+				withContext(client) { notify("$failure: ${e.reason()}") }
 				return@launch
 			}
 			withContext(client) {
@@ -104,11 +105,9 @@ internal class ThemeRuntime(
 			reveal(folder)
 		} catch (e: Exception) {
 			log.warn("Could not show the themes folder {}", folder, e)
-			notify("Could not open ${ThemeStore.DIRECTORY}: ${reason(e)}")
+			notify("Could not open ${ThemeStore.DIRECTORY}: ${e.reason()}")
 		}
 	}
-
-	private fun reason(e: Exception): String = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
 
 	private companion object {
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)

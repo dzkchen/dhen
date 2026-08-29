@@ -8,8 +8,10 @@ import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.numberOrNull
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 
 internal class FontFace(
 	val name: String,
@@ -36,6 +38,9 @@ internal object FontStore {
 	const val DEFAULT_SIZE = 9.5
 	const val DEFAULT_OVERSAMPLE = 4.0
 
+	private const val UNNAMED = "Font"
+	private const val PARTIAL = ".tmp"
+
 	private const val MAX_FACE_BYTES = 16L * 1024L * 1024L
 	private const val MAX_SIDECAR_BYTES = 8L * 1024L
 	private const val MIN_SIZE = 0.5
@@ -48,6 +53,8 @@ internal object FontStore {
 	private const val SHIFT_PAIR = 2
 
 	private val truetypeTag = byteArrayOf(0, 1, 0, 0)
+
+	private val separators = Regex("[^A-Za-z0-9_-]+")
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
@@ -69,6 +76,48 @@ internal object FontStore {
 
 	@Synchronized
 	fun refresh(): List<FontFace> = scan()
+
+	fun folder(): Path =
+		Files.createDirectories(checkNotNull(root) { "Dhen has not found its config folder yet" }.resolve(DIRECTORY))
+
+	@Synchronized
+	fun importFrom(source: Path): String {
+		reject(source)?.let { throw IOException(it) }
+		val folder = folder()
+		val taken = discover()
+		if (taken.size >= MAX_FONTS) throw IOException("the fonts folder already holds the $MAX_FONTS faces Dhen shows")
+		val name = free(folder, derived(source), taken) ?: throw IOException("that name and every copy of it is taken")
+		val destination = folder.resolve(name + EXTENSION)
+		val partial = folder.resolve(name + EXTENSION + PARTIAL)
+		try {
+			Files.copy(source, partial, StandardCopyOption.REPLACE_EXISTING)
+			Files.move(partial, destination)
+		} catch (e: Exception) {
+			discard(partial)
+			throw e
+		}
+		return name
+	}
+
+	private fun discard(partial: Path) {
+		try {
+			Files.deleteIfExists(partial)
+		} catch (e: Exception) {
+			log.warn("Left a partly copied font behind at {}", partial, e)
+		}
+	}
+
+	private fun derived(source: Path): String {
+		val stem = source.fileName.toString().dropLast(EXTENSION.length)
+		return separators.replace(stem, "-").trim('-', '_').take(ThemeStore.MAX_NAME).trim('-', '_').ifEmpty { UNNAMED }
+	}
+
+	private fun free(folder: Path, base: String, taken: List<FontFace>): String? = ThemeStore.claim(base) { name ->
+		!reserved(name) &&
+			taken.none { it.name.equals(name, ignoreCase = true) } &&
+			!Files.exists(folder.resolve(name + EXTENSION)) &&
+			!Files.exists(folder.resolve(name + SIDECAR))
+	}
 
 	@Synchronized
 	private fun scanned(): List<FontFace> = if (root == null) emptyList() else discovered ?: scan()
@@ -129,24 +178,26 @@ internal object FontStore {
 			log.warn("Ignoring the font '{}': another font already answers to that name", name)
 			return null
 		}
-		if (!truetype(file, name)) return null
+		reject(file)?.let {
+			log.warn("Ignoring the font '{}': {}", name, it)
+			return null
+		}
 		return tuned(file, name)
 	}
 
-	private fun truetype(file: Path, name: String): Boolean {
+	private fun reject(file: Path): String? {
+		if (!file.fileName.toString().endsWith(EXTENSION, ignoreCase = true)) return "only files ending in $EXTENSION are fonts"
 		try {
+			if (!Files.isRegularFile(file)) return "it is not a file"
 			val bytes = Files.size(file)
-			if (bytes > MAX_FACE_BYTES) {
-				log.warn("Ignoring the font '{}': {} bytes is too large to be a face", name, bytes)
-				return false
-			}
+			if (bytes > MAX_FACE_BYTES) return "$bytes bytes is too large to be a face"
 			val tag = Files.newInputStream(file).use { it.readNBytes(truetypeTag.size) }
-			if (tag.contentEquals(truetypeTag)) return true
-			log.warn("Ignoring the font '{}': the vanilla loader reads TrueType outlines only, not OpenType or collections", name)
+			if (!tag.contentEquals(truetypeTag)) return "the game draws TrueType outlines only, not OpenType or collections"
 		} catch (e: Exception) {
-			log.warn("Ignoring the font '{}': it could not be read", name, e)
+			log.warn("Could not read the font file {}", file, e)
+			return "it could not be read"
 		}
-		return false
+		return null
 	}
 
 	private fun tuned(file: Path, name: String): FontFace {
