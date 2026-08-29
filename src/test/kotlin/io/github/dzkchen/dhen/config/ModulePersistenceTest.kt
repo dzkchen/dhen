@@ -19,6 +19,22 @@ import java.nio.file.Path
 
 class ModulePersistenceTest {
 	@Test
+	fun `the retired Sound Manager block is migrated out and the rest is left alone`(@TempDir dir: Path) {
+		val path = dir.resolve("modules.json")
+		Files.writeString(
+			path,
+			"""{"modules":{"Sound Manager":{"enabled":true,"settings":{"Open Sound Manager":1}},"Sample":{"enabled":true}}}"""
+		)
+
+		val loaded = ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations).load()
+
+		val modules = loaded.getAsJsonObject("modules")
+		assertFalse(modules.has("Sound Manager"))
+		assertTrue(modules.has("Sample"))
+		assertEquals(ModulePersistence.version, loaded.get("version").asInt)
+	}
+
+	@Test
 	fun `enabled state and settings survive a simulated restart`(@TempDir dir: Path) = runBlocking {
 		val path = dir.resolve("modules.json")
 

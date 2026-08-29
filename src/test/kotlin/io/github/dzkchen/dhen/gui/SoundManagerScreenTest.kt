@@ -1,9 +1,11 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.bootstrapMinecraft
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 
 class SoundManagerScreenTest {
@@ -18,13 +20,35 @@ class SoundManagerScreenTest {
 	@Test
 	fun `categories follow identifier path prefixes`() {
 		assertEquals(SoundCategory.BLOCKS, soundCategory(id("block.note_block.harp")))
-		assertEquals(SoundCategory.HOSTILE_MOBS, soundCategory(id("entity.hostile.zombie.hurt")))
-		assertEquals(SoundCategory.NEUTRAL_MOBS, soundCategory(id("entity.wolf.howl")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.wolf.howl")))
 		assertEquals(SoundCategory.MUSIC, soundCategory(id("music.menu")))
+		assertEquals(SoundCategory.MUSIC, soundCategory(id("music_disc.pigstep")))
 		assertEquals(SoundCategory.AMBIENT, soundCategory(id("ambient.cave")))
+		assertEquals(SoundCategory.AMBIENT, soundCategory(id("weather.rain")))
 		assertEquals(SoundCategory.ITEMS, soundCategory(id("item.armor.equip_iron")))
 		assertEquals(SoundCategory.UI, soundCategory(id("ui.button.click")))
-		assertEquals(SoundCategory.MISC, soundCategory(id("weather.rain")))
+		assertEquals(SoundCategory.MISC, soundCategory(id("intentionally_blank")))
+	}
+
+	@Test
+	fun `mob categories come from the entity type the sound is named after`() {
+		assertEquals(SoundCategory.HOSTILE_MOBS, soundCategory(id("entity.hostile.death")))
+		assertEquals(SoundCategory.HOSTILE_MOBS, soundCategory(id("entity.zombified_piglin.angry")))
+		assertEquals(SoundCategory.HOSTILE_MOBS, soundCategory(id("entity.blaze.hurt")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.villager.trade")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.axolotl.splash")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.bat.takeoff")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.iron_golem.hurt")))
+		assertEquals(SoundCategory.PLAYER, soundCategory(id("entity.player.levelup")))
+		assertEquals(SoundCategory.MISC, soundCategory(id("entity.item.pickup")))
+		assertEquals(SoundCategory.MISC, soundCategory(id("entity.experience_orb.pickup")))
+		assertEquals(SoundCategory.MISC, soundCategory(id("entity.generic.explode")))
+	}
+
+	@Test
+	fun `the two placeable entities that drop themselves are knowingly filed as passive`() {
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.armor_stand.hit")))
+		assertEquals(SoundCategory.PASSIVE_MOBS, soundCategory(id("entity.mannequin.hurt")))
 	}
 
 	@Test
@@ -35,7 +59,7 @@ class SoundManagerScreenTest {
 		val sorted = listOf(harp, wolf, click)
 
 		assertEquals(
-			listOf(SoundCategory.BLOCKS, SoundCategory.NEUTRAL_MOBS, SoundCategory.UI),
+			listOf(SoundCategory.BLOCKS, SoundCategory.PASSIVE_MOBS, SoundCategory.UI),
 			filterSounds(sorted, SoundCategory.ALL, "").filterIsInstance<SoundHeader>().map { it.category }
 		)
 		assertEquals(listOf(wolf), filterSounds(sorted, SoundCategory.ALL, "wolf howl").filterIsInstance<ManagedSound>())
@@ -91,4 +115,10 @@ class SoundManagerScreenTest {
 	}
 
 	private fun id(path: String): Identifier = Identifier.withDefaultNamespace(path)
+
+	companion object {
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() = bootstrapMinecraft()
+	}
 }

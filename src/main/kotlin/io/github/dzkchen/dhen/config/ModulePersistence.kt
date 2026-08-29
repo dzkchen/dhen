@@ -10,8 +10,12 @@ import org.slf4j.LoggerFactory
 
 object ModulePersistence {
 	private const val HUD = "hud"
+	private const val MODULES = "modules"
+	private const val RETIRED_SOUND_MANAGER_MODULE = "Sound Manager"
 
-	internal val migrations: List<(JsonObject) -> Unit> = emptyList()
+	internal val migrations: List<(JsonObject) -> Unit> = listOf(
+		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) }
+	)
 	internal val version: Int
 		get() = migrations.size
 
@@ -26,11 +30,11 @@ object ModulePersistence {
 			if (module.hudElements.isNotEmpty()) entry.add(HUD, HudPersistence.snapshot(module.hudElements))
 			modules.add(module.name, entry)
 		}
-		return JsonObject().apply { add("modules", modules) }
+		return JsonObject().apply { add(MODULES, modules) }
 	}
 
 	fun apply(manager: ModuleManager, doc: JsonObject) {
-		val modules = doc.obj("modules") ?: return
+		val modules = doc.obj(MODULES) ?: return
 		for ((name, element) in modules.entrySet()) {
 			val module = manager[name] ?: continue
 			val entry = element as? JsonObject ?: continue

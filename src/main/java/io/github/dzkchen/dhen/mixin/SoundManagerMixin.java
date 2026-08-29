@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.mixin;
 
 import io.github.dzkchen.dhen.features.qol.ArrowHitSound;
-import io.github.dzkchen.dhen.features.qol.SoundManager;
+import io.github.dzkchen.dhen.sound.SoundManager;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundEngine;
 import org.spongepowered.asm.mixin.Mixin;

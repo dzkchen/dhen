@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
-import io.github.dzkchen.dhen.features.qol.SoundManager
 import io.github.dzkchen.dhen.input.TextInputTarget
+import io.github.dzkchen.dhen.sound.SoundManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.util.Util
+import net.minecraft.world.entity.MobCategory
 import org.lwjgl.glfw.GLFW
 import java.util.Locale
 import kotlin.math.ceil
@@ -513,7 +514,8 @@ internal enum class SoundCategory(val title: String) {
 	RECENT("Recent"),
 	BLOCKS("Blocks"),
 	HOSTILE_MOBS("Hostile Mobs"),
-	NEUTRAL_MOBS("Neutral Mobs"),
+	PASSIVE_MOBS("Passive Mobs"),
+	PLAYER("Player"),
 	MUSIC("Music"),
 	AMBIENT("Ambient"),
 	ITEMS("Items"),
@@ -559,15 +561,32 @@ internal fun soundCleanName(identifier: Identifier): String {
 	return trimmed.replace('.', ' ').replace('_', ' ')
 }
 
-internal fun soundCategory(identifier: Identifier): SoundCategory = when {
-	identifier.path.startsWith("block") -> SoundCategory.BLOCKS
-	identifier.path.startsWith("entity.hostile") -> SoundCategory.HOSTILE_MOBS
-	identifier.path.startsWith("entity") -> SoundCategory.NEUTRAL_MOBS
-	identifier.path.startsWith("music") -> SoundCategory.MUSIC
-	identifier.path.startsWith("ambient") -> SoundCategory.AMBIENT
-	identifier.path.startsWith("item") -> SoundCategory.ITEMS
-	identifier.path.startsWith("ui") -> SoundCategory.UI
-	else -> SoundCategory.MISC
+internal fun soundCategory(identifier: Identifier): SoundCategory {
+	val path = identifier.path
+	return when {
+		path.startsWith(GENERIC_HOSTILE_PREFIX) -> SoundCategory.HOSTILE_MOBS
+		path.startsWith(ENTITY_PREFIX) -> entitySoundCategory(entitySoundOwner(path))
+		path.startsWith("block") -> SoundCategory.BLOCKS
+		path.startsWith("music") -> SoundCategory.MUSIC
+		path.startsWith("ambient") || path.startsWith("weather") -> SoundCategory.AMBIENT
+		path.startsWith("item") -> SoundCategory.ITEMS
+		path.startsWith("ui") -> SoundCategory.UI
+		else -> SoundCategory.MISC
+	}
+}
+
+private fun entitySoundOwner(path: String): String {
+	val end = path.indexOf('.', ENTITY_PREFIX.length)
+	return if (end < 0) path.substring(ENTITY_PREFIX.length) else path.substring(ENTITY_PREFIX.length, end)
+}
+
+private fun entitySoundCategory(owner: String): SoundCategory {
+	val key = Identifier.withDefaultNamespace(owner)
+	if (key == PLAYER_TYPE) return SoundCategory.PLAYER
+	if (!BuiltInRegistries.ENTITY_TYPE.containsKey(key)) return SoundCategory.MISC
+	val type = BuiltInRegistries.ENTITY_TYPE.getValue(key)
+	if (type.category == MobCategory.MONSTER) return SoundCategory.HOSTILE_MOBS
+	return if (type.defaultLootTable.isPresent) SoundCategory.PASSIVE_MOBS else SoundCategory.MISC
 }
 
 internal fun filterSounds(sounds: List<ManagedSound>, category: SoundCategory, query: String): List<SoundListItem> = buildList {
@@ -635,6 +654,9 @@ internal fun soundScrollOffset(
 	return ((thumbTop.toLong() * maxScroll + travel / 2) / travel).toInt()
 }
 
+private const val ENTITY_PREFIX = "entity."
+private const val GENERIC_HOSTILE_PREFIX = "entity.hostile."
+private val PLAYER_TYPE = Identifier.withDefaultNamespace("player")
 private const val MAX_VOLUME_PERCENT = 200
 private const val VOLUME_STEP_PERCENT = 5
 private const val SCROLL_MILLIS = 200L

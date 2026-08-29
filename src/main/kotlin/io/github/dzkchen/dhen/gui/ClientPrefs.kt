@@ -76,6 +76,11 @@ internal object ClientPrefs {
 		description = "Show the folder themes are dropped into in your file browser."
 	)
 
+	val openSoundManager = ActionSetting(
+		"Open Sound Manager",
+		description = "Browse every game sound and adjust its volume."
+	)
+
 	val splash = BooleanSetting(
 		"Splash screen",
 		true,
@@ -91,6 +96,7 @@ internal object ClientPrefs {
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
+		PrefSection("Sounds", listOf(openSoundManager)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

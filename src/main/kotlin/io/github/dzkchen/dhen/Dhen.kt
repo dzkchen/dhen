@@ -33,7 +33,6 @@ import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.ArrowHitSound
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
-import io.github.dzkchen.dhen.features.qol.SoundManager
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
@@ -46,6 +45,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.WorldRenderTypes
+import io.github.dzkchen.dhen.sound.SoundManager
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
@@ -171,8 +171,8 @@ object Dhen : ClientModInitializer {
 		}
 		themes.reload()
 		fonts.prime()
-		SoundManager.openScreen.value = ::openSoundManager
-		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, SoundManager, ArrowHitSound, RevertAxes)
+		ClientPrefs.openSoundManager.value = ::openSoundManager
+		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, ArrowHitSound, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
@@ -299,7 +299,7 @@ object Dhen : ClientModInitializer {
 		val client = Minecraft.getInstance()
 		if (client.isSameThread) failsafe.guard("world change") {
 			DhenAlert.clear()
-			SoundManager.clearRecentSounds()
+			if (phase == WorldChange.DISCONNECT) SoundManager.clearRecentSounds()
 			if (phase == WorldChange.JOIN) flushAnnouncements(client)
 			WorldHooks.worldChanged(phase)
 		}

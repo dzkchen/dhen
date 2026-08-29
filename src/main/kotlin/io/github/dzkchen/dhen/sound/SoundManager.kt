@@ -1,11 +1,8 @@
-package io.github.dzkchen.dhen.features.qol
+package io.github.dzkchen.dhen.sound
 
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.Dhen
-import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.ConfigStore
-import io.github.dzkchen.dhen.module.Category
-import io.github.dzkchen.dhen.module.Module
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.client.resources.sounds.SoundInstance
@@ -14,18 +11,7 @@ import net.minecraft.sounds.SoundEvent
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
 
-object SoundManager : Module(
-	name = "Sound Manager",
-	category = Category.QOL,
-	description = "Adjusts the volume of individual game sounds."
-) {
-	internal val openScreen = ActionSetting(
-		"Open Sound Manager",
-		description = "Browse sounds and adjust their individual volume."
-	)
-	@Suppress("unused")
-	private val openScreenAction by openScreen
-
+object SoundManager {
 	private val volumeLock = Any()
 	private val recentLock = Any()
 	private val recentIds = arrayOfNulls<Identifier>(RECENT_LIMIT)
@@ -56,7 +42,6 @@ object SoundManager : Module(
 
 	@JvmStatic
 	fun getMultiplier(identifier: Identifier): Float {
-		if (!enabled) return DEFAULT_MULTIPLIER
 		val snapshot = volumes
 		for (index in 0 until snapshot.size) {
 			if (snapshot.identifiers[index] == identifier) return snapshot.multipliers[index]
@@ -68,9 +53,10 @@ object SoundManager : Module(
 		(volumes.multiplier(identifier) * PERCENT_SCALE).roundToInt()
 
 	internal fun setVolumePercent(identifier: Identifier, percent: Int): Int = synchronized(volumeLock) {
+		val installed = store ?: return@synchronized getVolumePercent(identifier)
 		val normalized = normalizePercent(percent)
 		volumes = volumes.with(identifier, normalized / PERCENT_SCALE)
-		store?.save(encode(volumes))
+		installed.save(encode(volumes))
 		normalized
 	}
 

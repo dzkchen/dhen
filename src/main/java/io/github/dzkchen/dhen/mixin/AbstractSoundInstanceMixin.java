@@ -1,7 +1,7 @@
 package io.github.dzkchen.dhen.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import io.github.dzkchen.dhen.features.qol.SoundManager;
+import io.github.dzkchen.dhen.sound.SoundManager;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
