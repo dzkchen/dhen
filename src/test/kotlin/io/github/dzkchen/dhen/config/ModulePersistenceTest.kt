@@ -19,17 +19,18 @@ import java.nio.file.Path
 
 class ModulePersistenceTest {
 	@Test
-	fun `the retired Sound Manager block is migrated out and the rest is left alone`(@TempDir dir: Path) {
+	fun `the retired Sound Manager and Arrow Hit Sound blocks are migrated out and the rest is left alone`(@TempDir dir: Path) {
 		val path = dir.resolve("modules.json")
 		Files.writeString(
 			path,
-			"""{"modules":{"Sound Manager":{"enabled":true,"settings":{"Open Sound Manager":1}},"Sample":{"enabled":true}}}"""
+			"""{"modules":{"Sound Manager":{"enabled":true,"settings":{"Open Sound Manager":1}},"Arrow Hit Sound":{"enabled":true,"settings":{"Sound":"minecraft:block.note_block.harp"}},"Sample":{"enabled":true}}}"""
 		)
 
 		val loaded = ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations).load()
 
 		val modules = loaded.getAsJsonObject("modules")
 		assertFalse(modules.has("Sound Manager"))
+		assertFalse(modules.has("Arrow Hit Sound"))
 		assertTrue(modules.has("Sample"))
 		assertEquals(ModulePersistence.version, loaded.get("version").asInt)
 	}

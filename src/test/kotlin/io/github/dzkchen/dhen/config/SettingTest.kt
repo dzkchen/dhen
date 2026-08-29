@@ -9,11 +9,9 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.resources.Identifier
-import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundEvents
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -159,34 +157,6 @@ class SettingTest {
 		SettingCodec.readInto(block, listOf(setting), "Sound Fixture")
 
 		assertEquals(harp, setting.value)
-	}
-
-	@Test
-	fun `sound helper registers its four settings and previews the current values`() {
-		val previews = mutableListOf<Triple<SoundEvent, Float, Float>>()
-		val module = SoundFixture { sound, volume, pitch -> previews += Triple(sound, volume, pitch) }
-		val arrow = SoundEvents.ARROW_HIT_PLAYER
-
-		assertEquals(listOf("Sound", "Volume", "Pitch", "Play Sound"), module.settings.map { it.name })
-		module.soundSettings.sound.value = arrow
-		module.soundSettings.volume.amount = 0.8
-		module.soundSettings.pitch.amount = 1.4
-		module.soundSettings.play.value.invoke()
-
-		assertEquals(listOf(Triple(arrow, 0.8f, 1.4f)), previews)
-	}
-
-	@Test
-	fun `sound preview builds five fresh UI instances`() {
-		val sound = SoundEvents.NOTE_BLOCK_HARP.value()
-		val instances = mutableListOf<Any>()
-
-		previewInstances(sound, 0.5f, 1.0f) { instances += it }
-
-		assertEquals(5, instances.size)
-		for (left in instances.indices) {
-			for (right in left + 1 until instances.size) assertNotSame(instances[left], instances[right])
-		}
 	}
 
 	@Test
@@ -390,14 +360,6 @@ class SettingTest {
 		val run by runSetting
 
 		fun currentSpeed(): Double = speedSetting.amount
-	}
-
-	private class SoundFixture(preview: (SoundEvent, Float, Float) -> Unit) : Module(
-		name = "Sound Fixture",
-		category = Category.QOL,
-		description = "Fixture for grouped sound settings."
-	) {
-		val soundSettings = createSoundSettings("Sound", SoundEvents.NOTE_BLOCK_HARP.value(), preview)
 	}
 
 	@Suppress("unused")

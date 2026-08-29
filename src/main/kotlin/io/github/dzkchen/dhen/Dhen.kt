@@ -30,7 +30,6 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.qol.ArrowFix
-import io.github.dzkchen.dhen.features.qol.ArrowHitSound
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.visual.RevertAxes
@@ -145,7 +144,7 @@ object Dhen : ClientModInitializer {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
-		SoundManager.install(flushedOnStop(configRoot.resolve("sounds.json"), emptyList()))
+		SoundManager.install(flushedOnStop(configRoot.resolve("sounds.json"), SoundManager.migrations))
 		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
@@ -172,7 +171,7 @@ object Dhen : ClientModInitializer {
 		themes.reload()
 		fonts.prime()
 		ClientPrefs.openSoundManager.value = ::openSoundManager
-		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, ArrowHitSound, RevertAxes)
+		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->

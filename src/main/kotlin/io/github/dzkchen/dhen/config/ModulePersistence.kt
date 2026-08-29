@@ -12,9 +12,11 @@ object ModulePersistence {
 	private const val HUD = "hud"
 	private const val MODULES = "modules"
 	private const val RETIRED_SOUND_MANAGER_MODULE = "Sound Manager"
+	private const val RETIRED_ARROW_HIT_SOUND_MODULE = "Arrow Hit Sound"
 
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(
-		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) }
+		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) },
+		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_ARROW_HIT_SOUND_MODULE) }
 	)
 	internal val version: Int
 		get() = migrations.size

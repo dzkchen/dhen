@@ -157,6 +157,16 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		if (mouseX in left until left + VIEW_WIDTH && mouseY in top until top + ROW_HEIGHT) {
 			RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.interactive())
 		}
+		if (SoundManager.hasRule(sound.identifier)) {
+			RoundedGui.pill(
+				graphics,
+				left,
+				top + RULE_MARKER_INSET,
+				left + RULE_MARKER_WIDTH,
+				top + ROW_HEIGHT - RULE_MARKER_INSET,
+				DhenPalette.accent
+			)
+		}
 		val shown = sound.memo.fit(font, sound.cleanName, sliderLeft - left - NAME_PAD - NAME_CONTROL_GAP)
 		sound.memo.text(graphics, font, shown, left + NAME_PAD, textTop(top, ROW_HEIGHT), DhenPalette.TEXT_PRIMARY)
 		val volume = SoundManager.getVolumePercent(sound.identifier)
@@ -482,6 +492,8 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		const val ROW_RADIUS = 3f
 		const val ROW_SIDE_PAD = 8
 		const val NAME_PAD = 5
+		const val RULE_MARKER_WIDTH = 2
+		const val RULE_MARKER_INSET = 5
 		const val NAME_CONTROL_GAP = 12
 		const val SLIDER_WIDTH = 140
 		const val SLIDER_TOP = 17
