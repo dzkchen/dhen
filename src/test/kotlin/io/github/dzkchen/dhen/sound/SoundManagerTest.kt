@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.sound
 
-import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.bootstrapMinecraft
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -31,10 +30,7 @@ class SoundManagerTest {
 	lateinit var directory: Path
 
 	@AfterEach
-	fun release() {
-		SoundManager.uninstall()
-		CustomSoundPack.uninstall()
-	}
+	fun release() = SoundManager.uninstall()
 
 	@Test
 	fun `multiplier writes normalize persist and publish to the sound thread`() {
@@ -235,39 +231,46 @@ class SoundManagerTest {
 	}
 
 	@Test
-	fun `a substitute plays an identifier the sound registry does not hold and is exempt from its own volume rule`() {
-		val custom = Identifier.fromNamespaceAndPath("dhen", "custom/airhorn")
-		assertNull(BuiltInRegistries.SOUND_EVENT.getValue(custom))
-
+	fun `a registered substitute is exempt from its own volume rule`() {
+		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
 		val played = mutableListOf<SoundInstance>()
-		SoundManager.playSubstitute(custom, 1f, 1f) { played += it }
+		SoundManager.playSubstitute(harp, 1f, 1f) { played += it }
 
-		assertEquals(custom, played.single().identifier)
+		assertEquals(harp, played.single().identifier)
 		assertInstanceOf(SubstituteSound::class.java, played.single())
 		assertFalse(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_HARP.value(), 1f, 1f) is SubstituteSound)
 	}
 
 	@Test
-	fun `a removed custom replacement passes the original while a present one dispatches`() {
+	fun `an unregistered replacement is rejected instead of silencing the original`() {
 		val path = directory.resolve("sounds.json")
-		val sounds = directory.resolve(CustomSoundPack.DIRECTORY)
-		Files.createDirectories(sounds)
-		Files.write(sounds.resolve("horn.ogg"), byteArrayOf(1))
-		CustomSoundPack.install(directory, CoroutineScope(Dispatchers.Unconfined))
-		CustomSoundPack.refresh {}
 		SoundManager.install(store(path))
 		val original = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
-		val custom = Dhen.id("custom/horn")
+		val custom = Identifier.fromNamespaceAndPath("dhen", "custom/horn")
+		assertNull(BuiltInRegistries.SOUND_EVENT.getValue(custom))
+
 		SoundManager.setReplacement(original, custom, 0.75f, 1.5f)
-
-		assertEquals(Replacement(custom, 0.75f, 1.5f), dispatchedFor(original))
-
-		Files.delete(sounds.resolve("horn.ogg"))
-		CustomSoundPack.refresh {}
 
 		var dispatched = 0
 		assertFalse(SoundManager.applyRule(original) { _, _, _ -> dispatched++ })
 		assertEquals(0, dispatched)
+		assertNull(SoundManager.replacementOf(original))
+		assertFalse(Files.readString(path).contains(custom.toString()))
+	}
+
+	@Test
+	fun `a persisted unregistered replacement is ignored after custom sound rollback`() {
+		val path = directory.resolve("sounds.json")
+		val original = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
+		Files.writeString(
+			path,
+			"""{"rules":{"$original":{"replacement":"dhen:custom/horn"}}}"""
+		)
+
+		SoundManager.install(store(path))
+
+		assertNull(SoundManager.replacementOf(original))
+		assertFalse(SoundManager.applyRule(original) { _, _, _ -> })
 	}
 
 	@Test
@@ -383,11 +386,9 @@ class SoundManagerTest {
 	@Test
 	fun `the manager is opened from the Settings tab and owns no module row`() {
 		assertEquals(
-			listOf("Open Sound Manager", "Open sounds folder", "Reload custom sounds"),
+			listOf("Open Sound Manager"),
 			ClientPrefs.sections.single { it.title == "Sounds" }.settings.map { it.name }
 		)
-		assertTrue(ClientPrefs.openSoundsFolder.description.contains(CustomSoundPack.acceptedFormats()))
-		assertTrue(ClientPrefs.reloadCustomSounds.description.contains(CustomSoundPack.acceptedFormats()))
 	}
 
 	private fun requested(instance: SoundInstance, member: String): Float =

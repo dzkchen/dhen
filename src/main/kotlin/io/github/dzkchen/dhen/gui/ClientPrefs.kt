@@ -11,7 +11,6 @@ import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.SettingCodec
 import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.font.FontStore
-import io.github.dzkchen.dhen.sound.CustomSoundPack
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.Color
 import io.github.dzkchen.dhen.util.obj
@@ -82,16 +81,6 @@ internal object ClientPrefs {
 		description = "Browse every game sound and adjust its volume."
 	)
 
-	val openSoundsFolder = ActionSetting(
-		"Open sounds folder",
-		description = "Show where custom ${CustomSoundPack.acceptedFormats()} files are dropped."
-	)
-
-	val reloadCustomSounds = ActionSetting(
-		"Reload custom sounds",
-		description = "Re-read custom ${CustomSoundPack.acceptedFormats()} files without restarting."
-	)
-
 	val splash = BooleanSetting(
 		"Splash screen",
 		true,
@@ -107,7 +96,7 @@ internal object ClientPrefs {
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
-		PrefSection("Sounds", listOf(openSoundManager, openSoundsFolder, reloadCustomSounds)),
+		PrefSection("Sounds", listOf(openSoundManager)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

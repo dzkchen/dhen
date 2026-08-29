@@ -11,6 +11,7 @@ import io.github.dzkchen.dhen.util.text
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.client.resources.sounds.SoundInstance
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.slf4j.LoggerFactory
@@ -90,7 +91,6 @@ object SoundManager {
 		if (index < 0) return false
 		if (snapshot.volumes[index] == MUTED) return true
 		val replacement = snapshot.replacements[index] ?: return false
-		if (CustomSoundPack.isMissingCustom(replacement)) return false
 		dispatch.play(replacement, snapshot.replacementVolumes[index], snapshot.replacementPitches[index])
 		return true
 	}
@@ -148,11 +148,12 @@ object SoundManager {
 	) =
 		synchronized(ruleLock) {
 			if (store == null) return@synchronized
+			val registered = replacement?.takeIf(BuiltInRegistries.SOUND_EVENT::containsKey)
 			publish(
 				rules.withReplacement(
 					identifier,
 					matchPitch,
-					replacement,
+					registered,
 					volume.coerceIn(MUTED, MAX_REPLACEMENT_VOLUME),
 					pitch.coerceIn(MIN_PITCH, MAX_PITCH)
 				),
@@ -352,7 +353,10 @@ object SoundManager {
 	private fun ruleReplacement(rawIdentifier: String, rule: JsonObject): Identifier? {
 		if (!rule.has(REPLACEMENT)) return null
 		val replacement = rule.text(REPLACEMENT)?.let(Identifier::tryParse)
-		if (replacement == null) log.warn("Ignoring bad {} in sound rule for {}", REPLACEMENT, rawIdentifier)
+		if (replacement == null || !BuiltInRegistries.SOUND_EVENT.containsKey(replacement)) {
+			log.warn("Ignoring invalid or unregistered {} in sound rule for {}", REPLACEMENT, rawIdentifier)
+			return null
+		}
 		return replacement
 	}
 

@@ -44,8 +44,6 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.WorldRenderTypes
-import io.github.dzkchen.dhen.sound.CustomSoundActions
-import io.github.dzkchen.dhen.sound.CustomSoundPack
 import io.github.dzkchen.dhen.sound.SoundManager
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
@@ -144,10 +142,6 @@ object Dhen : ClientModInitializer {
 
 	private fun initialize() {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
-		val customSounds = CustomSoundActions(ioScope, clientThread, ::announce, { Util.getPlatform().openPath(it) }) {
-			Minecraft.getInstance().reloadResourcePacks()
-		}
-		CustomSoundPack.install(configRoot, ioScope, customSounds::afterInitialScan)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
 		SoundManager.install(
@@ -289,7 +283,6 @@ object Dhen : ClientModInitializer {
 		contained("mayor feed", MayorService::uninstall)
 		contained("player profiles", PlayerProfiles::uninstall)
 		contained("sound manager", SoundManager::uninstall)
-		contained("custom sound pack", CustomSoundPack::uninstall)
 	}
 
 	internal fun contained(label: String, teardown: () -> Unit) {
