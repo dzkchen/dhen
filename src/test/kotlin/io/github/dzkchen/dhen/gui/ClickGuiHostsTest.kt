@@ -3,10 +3,13 @@ package io.github.dzkchen.dhen.gui
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
+import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.function.IntSupplier
 
@@ -46,6 +49,46 @@ class ClickGuiHostsTest {
 			body.at(1),
 			body.hit(ControlHit(), column, 0, column.bodyTop(0), CONTROLS_WIDTH, hitY)
 		)
+	}
+
+	@Test
+	fun `a module with no settings has no expansion`() {
+		val module = moduleOf()
+		val column = columnOf(module)
+		val closed = column.height
+
+		column.toggleSettings(module)
+
+		assertEquals(closed, column.height)
+		assertEquals(ClickGuiShell.NONE, column.settingsRowAt(FIELD_TOP + HEADER_HEIGHT + ROW_HEIGHT))
+		assertFalse(column.chevronContains(COLUMN_WIDTH - 1, module))
+	}
+
+	@Test
+	fun `a module with a setting keeps its chevron and expands by one control row`() {
+		val module = moduleOf(BooleanSetting("Only"))
+		val column = columnOf(module)
+		val closed = column.height
+
+		assertTrue(column.chevronContains(COLUMN_WIDTH - 1, module))
+
+		column.toggleSettings(module)
+
+		assertEquals(closed + 2 * SETTINGS_PAD + CONTROL_ROW_HEIGHT, column.height)
+	}
+
+	@Test
+	fun `a module whose every setting is hidden keeps its chevron but opens no band`() {
+		val module = moduleOf(BooleanSetting("Gated").withDependency { false })
+		val column = columnOf(module)
+		val closed = column.height
+
+		assertTrue(column.chevronContains(COLUMN_WIDTH - 1, module))
+
+		column.toggleSettings(module)
+
+		assertEquals(closed, column.height)
+		assertEquals(ClickGuiShell.NONE, column.settingsRowAt(FIELD_TOP + HEADER_HEIGHT + ROW_HEIGHT))
 	}
 
 	private fun columnOf(module: Module): ClickGuiColumn = ClickGuiColumn(

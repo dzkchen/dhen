@@ -136,7 +136,7 @@ internal class ClickGuiShellScreen(
 		val module = column.rowAt(y)
 		if (module != null) {
 			field.focusOn(module)
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !field.onChevron(slot, x)) manager.toggle(module)
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !field.onChevron(slot, x, module)) manager.toggle(module)
 			else column.toggleSettings(module)
 			return
 		}

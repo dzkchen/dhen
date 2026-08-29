@@ -12,6 +12,9 @@ internal class ControlBody(built: List<SettingControl>) {
 	private val controls = built.toMutableList()
 	private val extentAt = IntUnaryOperator { index -> controls[index].extent }
 
+	val isEmpty: Boolean
+		get() = controls.isEmpty()
+
 	val height: Int
 		get() = ClickGuiShell.spanTotal(controls.size, extentAt, NO_GAP)
 

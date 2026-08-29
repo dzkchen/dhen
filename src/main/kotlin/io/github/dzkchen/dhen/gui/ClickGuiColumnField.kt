@@ -81,7 +81,7 @@ internal class ClickGuiColumnField(
 		return if (y < FIELD_TOP + visible[slot].height) slot else ClickGuiShell.NONE
 	}
 
-	fun onChevron(slot: Int, x: Int): Boolean = visible[slot].chevronContains(x - stack.originOf(slot))
+	fun onChevron(slot: Int, x: Int, module: Module): Boolean = visible[slot].chevronContains(x - stack.originOf(slot), module)
 
 	fun toggleCollapsed(column: ClickGuiColumn) {
 		column.toggleCollapsed()

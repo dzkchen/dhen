@@ -88,8 +88,8 @@ internal class ClickGuiColumn(
 		return if (row == ClickGuiShell.NONE) null else modules[visibleRows[row]]
 	}
 
-	fun chevronContains(localX: Int): Boolean =
-		localX >= COLUMN_WIDTH - CONTENT_PAD - glyphs.chevron - CHEVRON_HIT_SLOP
+	fun chevronContains(localX: Int, module: Module): Boolean =
+		isExpandable(module) && localX >= COLUMN_WIDTH - CONTENT_PAD - glyphs.chevron - CHEVRON_HIT_SLOP
 
 	fun settingsRowAt(y: Int): Int {
 		val localY = bodyLocal(y) ?: return ClickGuiShell.NONE
@@ -106,6 +106,7 @@ internal class ClickGuiColumn(
 	}
 
 	fun toggleSettings(module: Module) {
+		if (!isExpandable(module)) return
 		if (!expanded.remove(module.name)) expanded.add(module.name)
 		reclamp()
 	}
@@ -117,6 +118,15 @@ internal class ClickGuiColumn(
 		}
 		if (changed) reclamp()
 		return changed
+	}
+
+	private fun isExpandable(index: Int): Boolean = !controls[index].isEmpty
+
+	private fun isExpandable(module: Module): Boolean {
+		for (i in modules.indices) {
+			if (modules[i] === module) return isExpandable(i)
+		}
+		return false
 	}
 
 	private fun bodyLocal(y: Int): Int? {
@@ -153,7 +163,7 @@ internal class ClickGuiColumn(
 			val areaHeight = settingsHeight(index)
 			val nextTop = rowTop + ROW_HEIGHT + areaHeight
 			if (nextTop > visibleTop) {
-				drawRow(graphics, font, modules[index], left, rowTop, pointerY, focus)
+				drawRow(graphics, font, index, left, rowTop, pointerY, focus)
 				if (areaHeight > 0) {
 					drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, visibleTop, visibleBottom, mouseX, mouseY)
 				}
@@ -169,12 +179,13 @@ internal class ClickGuiColumn(
 	private fun drawRow(
 		graphics: GuiGraphicsExtractor,
 		font: Font,
-		module: Module,
+		index: Int,
 		left: Int,
 		rowTop: Int,
 		pointerY: Int,
 		focus: Module?
 	) {
+		val module = modules[index]
 		val right = left + COLUMN_WIDTH
 		val rowBottom = rowTop + ROW_HEIGHT
 		val hovered = pointerY in rowTop until rowBottom
@@ -196,9 +207,11 @@ internal class ClickGuiColumn(
 		val nameLeft = left + ClickGuiShell.centeredLeft(COLUMN_WIDTH, DhenType.width(font, module.name))
 		DhenType.text(graphics, font, module.name, nameLeft, labelTop, nameColor)
 
-		val chevron = if (module.name in expanded) CHEVRON_EXPANDED else CHEVRON_COLLAPSED
-		val chevronColor = if (hovered) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
-		DhenType.text(graphics, font, chevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
+		if (isExpandable(index)) {
+			val chevron = if (module.name in expanded) CHEVRON_EXPANDED else CHEVRON_COLLAPSED
+			val chevronColor = if (hovered) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
+			DhenType.text(graphics, font, chevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
+		}
 
 		if (hovered && module.description.isNotEmpty()) tooltip.hover(module.description, left, COLUMN_WIDTH, rowTop)
 	}
@@ -232,7 +245,8 @@ internal class ClickGuiColumn(
 
 	private fun settingsHeight(index: Int): Int {
 		if (modules[index].name !in expanded) return 0
-		return 2 * SETTINGS_PAD + controls[index].height
+		val body = controls[index].height
+		return if (body == 0) 0 else 2 * SETTINGS_PAD + body
 	}
 
 	fun invalidateMeasurements() {
