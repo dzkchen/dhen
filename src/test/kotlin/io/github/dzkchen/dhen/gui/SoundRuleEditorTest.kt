@@ -1,10 +1,8 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
-import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.sound.SoundManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import io.github.dzkchen.dhen.sound.soundStore
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundEvents
@@ -24,15 +22,7 @@ class SoundRuleEditorTest {
 	private val editor = SoundRuleEditor()
 
 	@BeforeEach
-	fun install() = SoundManager.install(
-		ConfigStore(
-			directory.resolve("sounds.json"),
-			CoroutineScope(Dispatchers.Unconfined),
-			SoundManager.migrations,
-			SoundManager.authoritative,
-			debounce = {}
-		)
-	)
+	fun install() = SoundManager.install(soundStore(directory.resolve("sounds.json")))
 
 	@AfterEach
 	fun release() = SoundManager.uninstall()

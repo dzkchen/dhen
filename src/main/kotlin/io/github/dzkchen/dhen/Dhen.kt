@@ -301,7 +301,7 @@ object Dhen : ClientModInitializer {
 		val client = Minecraft.getInstance()
 		if (client.isSameThread) failsafe.guard("world change") {
 			DhenAlert.clear()
-			if (phase == WorldChange.DISCONNECT) SoundManager.clearRecentSounds()
+			if (phase == WorldChange.DISCONNECT) SoundManager.forgetPlayback()
 			if (phase == WorldChange.JOIN) flushAnnouncements(client)
 			WorldHooks.worldChanged(phase)
 		}

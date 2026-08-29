@@ -20,7 +20,9 @@ import kotlin.math.roundToInt
 
 internal val ANY_PITCH = Float.NaN
 
-internal const val RECENT_RAW_LIMIT = 64
+internal const val RECENT_RAW_LIMIT = 256
+
+internal const val PENDING_REPLACEMENT_LIMIT = 32
 
 internal data class RecentSound(val identifier: Identifier, val pitch: Float)
 
@@ -30,8 +32,14 @@ object SoundManager {
 	private val ruleLock = Any()
 	private val recentLock = Any()
 	private val replacementLock = Any()
+	private val pendingLock = Any()
 	private val recentIds = arrayOfNulls<Identifier>(RECENT_RAW_LIMIT)
 	private val recentPitches = FloatArray(RECENT_RAW_LIMIT)
+	private val pendingIds = arrayOfNulls<Identifier>(PENDING_REPLACEMENT_LIMIT)
+	private val pendingVolumes = FloatArray(PENDING_REPLACEMENT_LIMIT)
+	private val pendingPitches = FloatArray(PENDING_REPLACEMENT_LIMIT)
+	private var pendingHead = 0L
+	private var pendingTail = 0L
 
 	@Volatile
 	private var rules = RuleSnapshot.EMPTY
@@ -39,12 +47,15 @@ object SoundManager {
 	internal var recordedStarts = 0L
 		private set
 	@Volatile
-	private var replacing = false
+	private var replacingDepth = 0
 	@Volatile
 	private var recentBase = 0L
 	private var suppressRecentDepth = 0
 	private var store: ConfigStore? = null
 	private val replacementDispatch = ReplacementDispatch(::dispatchReplacement)
+	private val enginePlay: (SoundInstance) -> Unit = { Minecraft.getInstance().soundManager.play(it) }
+	private val clientSchedule: (Runnable) -> Unit = { Minecraft.getInstance().execute(it) }
+	private val pendingReplacement = Runnable { playPendingReplacement(enginePlay) }
 
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(::liftMultipliersIntoRules, ::wrapRulesInArrays)
 	internal val authoritative: Set<String> = setOf(RULES)
@@ -59,7 +70,12 @@ object SoundManager {
 			store = null
 			rules = RuleSnapshot.EMPTY
 		}
+		forgetPlayback()
+	}
+
+	internal fun forgetPlayback() {
 		clearRecentSounds()
+		clearPendingReplacements()
 	}
 
 	@JvmStatic
@@ -86,14 +102,13 @@ object SoundManager {
 		pitch: Float = DEFAULT_PITCH,
 		dispatch: ReplacementDispatch = replacementDispatch
 	): Boolean {
-		if (replacing) return false
+		if (replacingDepth != 0) return false
 		val snapshot = rules
 		val index = snapshot.matchingIndex(identifier, pitch)
 		if (index < 0) return false
 		if (snapshot.volumes[index] == MUTED) return true
 		val replacement = snapshot.replacements[index] ?: return false
-		dispatch.play(replacement, snapshot.replacementVolumes[index], snapshot.replacementPitches[index])
-		return true
+		return dispatch.play(replacement, snapshot.replacementVolumes[index], snapshot.replacementPitches[index])
 	}
 
 	internal fun hasRule(identifier: Identifier, matchPitch: Float = ANY_PITCH): Boolean =
@@ -252,20 +267,57 @@ object SoundManager {
 		pitch: Float,
 		play: (SoundInstance) -> Unit
 	) = synchronized(replacementLock) {
-		replacing = true
+		replacingDepth++
 		try {
 			play(SubstituteSound(replacement, volume, pitch))
 		} finally {
-			replacing = false
+			replacingDepth--
 		}
 	}
 
-	private fun dispatchReplacement(replacement: Identifier, volume: Float, pitch: Float) {
-		val client = Minecraft.getInstance()
-		val level = if (previewing()) volume * PREVIEW_VOLUME else volume
-		client.execute {
-			playSubstitute(replacement, level, pitch, client.soundManager::play)
+	internal fun dispatchReplacement(
+		replacement: Identifier,
+		volume: Float,
+		pitch: Float,
+		schedule: (Runnable) -> Unit = clientSchedule
+	): Boolean {
+		if (!offerReplacement(replacement, if (previewing()) volume * PREVIEW_VOLUME else volume, pitch)) return false
+		schedule(pendingReplacement)
+		return true
+	}
+
+	internal fun offerReplacement(replacement: Identifier, volume: Float, pitch: Float): Boolean =
+		synchronized(pendingLock) {
+			if (pendingTail - pendingHead >= PENDING_REPLACEMENT_LIMIT) return@synchronized false
+			val slot = (pendingTail % PENDING_REPLACEMENT_LIMIT).toInt()
+			pendingIds[slot] = replacement
+			pendingVolumes[slot] = volume
+			pendingPitches[slot] = pitch
+			pendingTail++
+			true
 		}
+
+	internal fun playPendingReplacement(play: (SoundInstance) -> Unit): Boolean {
+		var replacement: Identifier? = null
+		var volume = 0f
+		var pitch = 0f
+		synchronized(pendingLock) {
+			if (pendingHead != pendingTail) {
+				val slot = (pendingHead % PENDING_REPLACEMENT_LIMIT).toInt()
+				replacement = pendingIds[slot]
+				volume = pendingVolumes[slot]
+				pitch = pendingPitches[slot]
+				pendingIds[slot] = null
+				pendingHead++
+			}
+		}
+		val pending = replacement ?: return false
+		playSubstitute(pending, volume, pitch, play)
+		return true
+	}
+
+	private fun clearPendingReplacements() = synchronized(pendingLock) {
+		while (pendingHead != pendingTail) pendingIds[(pendingHead++ % PENDING_REPLACEMENT_LIMIT).toInt()] = null
 	}
 
 	private fun previewing(): Boolean = synchronized(recentLock) { suppressRecentDepth != 0 }
@@ -381,7 +433,7 @@ object SoundManager {
 	}
 
 	internal fun interface ReplacementDispatch {
-		fun play(replacement: Identifier, volume: Float, pitch: Float)
+		fun play(replacement: Identifier, volume: Float, pitch: Float): Boolean
 	}
 
 	private class RuleSnapshot(

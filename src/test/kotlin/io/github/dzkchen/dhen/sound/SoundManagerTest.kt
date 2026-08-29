@@ -1,12 +1,8 @@
 package io.github.dzkchen.dhen.sound
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
-import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.json
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import net.minecraft.client.resources.sounds.AbstractSoundInstance
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.core.registries.BuiltInRegistries
@@ -35,7 +31,7 @@ class SoundManagerTest {
 	@Test
 	fun `multiplier writes normalize persist and publish to the sound thread`() {
 		val path = directory.resolve("sounds.json")
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
 
 		assertEquals(165, SoundManager.setVolumePercent(harp, 163))
@@ -49,7 +45,7 @@ class SoundManagerTest {
 		assertEquals(1.65f, fromSoundThread.get())
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		assertEquals(165, SoundManager.getVolumePercent(harp))
 		assertEquals(1.65f, SoundManager.volumeOf(harp))
 		assertEquals(0, SoundManager.setVolumePercent(harp, -20))
@@ -69,7 +65,7 @@ class SoundManagerTest {
 			"""{"multipliers":{"minecraft:block.note_block.harp":1.63,"bad id":0.5,"minecraft:broken":"value"}}"""
 		)
 
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(165, SoundManager.getVolumePercent(SoundEvents.NOTE_BLOCK_HARP.value().location()))
 		assertEquals(100, SoundManager.getVolumePercent(Identifier.withDefaultNamespace("broken")))
@@ -83,7 +79,7 @@ class SoundManagerTest {
 			"""{"rules":{"bad id":{"volume":0.0},"minecraft:broken":4,"minecraft:block.note_block.harp":{"volume":0.5}}}"""
 		)
 
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(50, SoundManager.getVolumePercent(SoundEvents.NOTE_BLOCK_HARP.value().location()))
 		assertEquals(100, SoundManager.getVolumePercent(Identifier.withDefaultNamespace("broken")))
@@ -95,7 +91,7 @@ class SoundManagerTest {
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
 		Files.writeString(path, """{"multipliers":{"minecraft:block.note_block.harp":0.4}}""")
 
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		assertEquals(40, SoundManager.getVolumePercent(harp))
 
 		assertEquals(45, SoundManager.setVolumePercent(harp, 45))
@@ -104,14 +100,14 @@ class SoundManagerTest {
 		assertTrue(written.contains("rules"))
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		assertEquals(45, SoundManager.getVolumePercent(harp))
 	}
 
 	@Test
 	fun `a rule is only a rule once it differs from the default`() {
 		val path = directory.resolve("sounds.json")
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
 
 		assertFalse(SoundManager.hasRule(harp))
@@ -131,14 +127,14 @@ class SoundManagerTest {
 			path,
 			"""{"rules":{"minecraft:entity.arrow.hit_player":{"volume":1.0,"replacement":"minecraft:block.note_block.harp","replacementVolume":0.75,"replacementPitch":1.5}}}"""
 		)
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertTrue(SoundManager.hasRule(arrow))
 		assertEquals(Replacement(SoundEvents.NOTE_BLOCK_HARP.value().location(), 0.75f, 1.5f), dispatchedFor(arrow))
 
 		SoundManager.setVolumePercent(arrow, 60)
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(60, SoundManager.getVolumePercent(arrow))
 		assertEquals(Replacement(SoundEvents.NOTE_BLOCK_HARP.value().location(), 0.75f, 1.5f), dispatchedFor(arrow))
@@ -156,7 +152,7 @@ class SoundManagerTest {
 				"minecraft:entity.experience_orb.pickup":{"replacement":"minecraft:block.note_block.harp"}
 			}}""".trimIndent()
 		)
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(Replacement(SoundEvents.NOTE_BLOCK_HARP.value().location(), 1f, 0.5f), dispatchedFor(arrow))
 		assertEquals(Replacement(SoundEvents.NOTE_BLOCK_HARP.value().location(), 1f, 1f), dispatchedFor(orb))
@@ -172,12 +168,12 @@ class SoundManagerTest {
 			path,
 			"""{"rules":{"minecraft:entity.arrow.hit_player":{"volume":0.0,"replacement":"minecraft:block.note_block.harp"}}}"""
 		)
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		var dispatched = 0
-		assertTrue(SoundManager.applyRule(arrow) { _, _, _ -> dispatched++ })
+		assertTrue(SoundManager.applyRule(arrow) { _, _, _ -> dispatched++; true })
 		assertEquals(0, dispatched)
-		assertFalse(SoundManager.applyRule(harp) { _, _, _ -> dispatched++ })
+		assertFalse(SoundManager.applyRule(harp) { _, _, _ -> dispatched++; true })
 		assertEquals(0, dispatched)
 	}
 
@@ -186,7 +182,7 @@ class SoundManagerTest {
 		val path = directory.resolve("sounds.json")
 		val sound = SoundEvents.FLINTANDSTEEL_USE.location()
 		val pitch = 0.74603176f
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		SoundManager.setVolumePercent(sound, 35)
 		SoundManager.setVolumePercent(sound, 0, pitch)
 
@@ -196,7 +192,7 @@ class SoundManagerTest {
 		assertFalse(SoundManager.applyRule(sound, pitch + 0.0002f))
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(2, SoundManager.ruledSounds().count { it.identifier == sound })
 		assertEquals(0f, SoundManager.volumeOf(sound, pitch))
@@ -214,20 +210,20 @@ class SoundManagerTest {
 				"minecraft:block.note_block.harp":{"replacement":"minecraft:entity.arrow.hit_player"}
 			}}""".trimIndent()
 		)
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		val played = mutableListOf<SoundInstance>()
 		SoundManager.playSubstitute(SoundEvents.NOTE_BLOCK_HARP.value().location(), 0.75f, 1.5f) { instance ->
 			played += instance
-			assertFalse(SoundManager.applyRule(instance.identifier) { _, _, _ -> })
-			assertFalse(SoundManager.applyRule(arrow) { _, _, _ -> })
+			assertFalse(SoundManager.applyRule(instance.identifier) { _, _, _ -> true })
+			assertFalse(SoundManager.applyRule(arrow) { _, _, _ -> true })
 		}
 
 		assertEquals(1, played.size)
 		assertEquals(SoundEvents.NOTE_BLOCK_HARP.value().location(), played.single().identifier)
-		assertEquals(0.75f, requested(played.single(), "volume"))
-		assertEquals(1.5f, requested(played.single(), "pitch"))
-		assertTrue(SoundManager.applyRule(arrow) { _, _, _ -> })
+		assertEquals(0.75f, requestedField(played.single(), "volume"))
+		assertEquals(1.5f, requestedField(played.single(), "pitch"))
+		assertTrue(SoundManager.applyRule(arrow) { _, _, _ -> true })
 	}
 
 	@Test
@@ -244,7 +240,7 @@ class SoundManagerTest {
 	@Test
 	fun `an unregistered replacement is rejected instead of silencing the original`() {
 		val path = directory.resolve("sounds.json")
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 		val original = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
 		val custom = Identifier.fromNamespaceAndPath("dhen", "custom/horn")
 		assertNull(BuiltInRegistries.SOUND_EVENT.getValue(custom))
@@ -252,7 +248,7 @@ class SoundManagerTest {
 		SoundManager.setReplacement(original, custom, 0.75f, 1.5f)
 
 		var dispatched = 0
-		assertFalse(SoundManager.applyRule(original) { _, _, _ -> dispatched++ })
+		assertFalse(SoundManager.applyRule(original) { _, _, _ -> dispatched++; true })
 		assertEquals(0, dispatched)
 		assertNull(SoundManager.replacementOf(original))
 		assertFalse(Files.readString(path).contains(custom.toString()))
@@ -267,10 +263,10 @@ class SoundManagerTest {
 			"""{"rules":{"$original":{"replacement":"dhen:custom/horn"}}}"""
 		)
 
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertNull(SoundManager.replacementOf(original))
-		assertFalse(SoundManager.applyRule(original) { _, _, _ -> })
+		assertFalse(SoundManager.applyRule(original) { _, _, _ -> true })
 	}
 
 	@Test
@@ -278,7 +274,7 @@ class SoundManagerTest {
 		val path = directory.resolve("sounds.json")
 		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
 		val orb = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		SoundManager.setVolumePercent(orb, 0)
 		SoundManager.setReplacement(arrow, SoundEvents.NOTE_BLOCK_HARP.value().location(), 0.75f, 1.5f)
@@ -289,7 +285,7 @@ class SoundManagerTest {
 		assertTrue(SoundManager.hasRule(orb))
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertFalse(SoundManager.hasRule(arrow))
 		assertNull(SoundManager.replacementOf(arrow))
@@ -301,7 +297,7 @@ class SoundManagerTest {
 		val path = directory.resolve("sounds.json")
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
 		val orb = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		SoundManager.setReplacement(orb, harp, 0.4f, 1.5f)
 		SoundManager.setReplacement(harp, SoundEvents.ARROW_HIT_PLAYER.location(), 1f, 1f)
@@ -317,7 +313,7 @@ class SoundManagerTest {
 		assertFalse(json(Files.readString(path)).getAsJsonObject("rules").has(harp.toString()))
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertFalse(SoundManager.hasRule(harp))
 		assertEquals(Replacement(harp, 0.4f, 1.5f), dispatchedFor(orb))
@@ -328,7 +324,7 @@ class SoundManagerTest {
 		val path = directory.resolve("sounds.json")
 		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		SoundManager.setReplacement(arrow, harp, 9f, 0.1f)
 
@@ -337,7 +333,7 @@ class SoundManagerTest {
 		assertEquals(0.5f, SoundManager.replacementPitchOf(arrow))
 
 		SoundManager.uninstall()
-		SoundManager.install(store(path))
+		SoundManager.install(soundStore(path))
 
 		assertEquals(listOf(arrow), SoundManager.ruledSounds().map { it.identifier })
 		assertEquals(Replacement(harp, 1f, 0.5f), dispatchedFor(arrow))
@@ -438,7 +434,7 @@ class SoundManagerTest {
 
 	@Test
 	fun `a snapshot taken while playback records stays coherent and bounded`() {
-		val identifiers = List(512) { Identifier.fromNamespaceAndPath("test", "overlap_$it") }
+		val identifiers = List(RECENT_RAW_LIMIT * 2) { Identifier.fromNamespaceAndPath("test", "overlap_$it") }
 		val recorder = Thread {
 			for (identifier in identifiers) SoundManager.recordPlayedSound(identifier, 1f)
 		}
@@ -461,7 +457,7 @@ class SoundManagerTest {
 	@Test
 	fun `manager preview does not enter recents`() {
 		SoundManager.playPreview(SoundEvents.NOTE_BLOCK_HARP.value()) { sound ->
-			SoundManager.recordPlayedSound(sound.identifier, requested(sound, "pitch"))
+			SoundManager.recordPlayedSound(sound.identifier, requestedField(sound, "pitch"))
 		}
 
 		assertTrue(SoundManager.rawRecentSounds().isEmpty())
@@ -477,27 +473,17 @@ class SoundManagerTest {
 
 	private fun suffix(recent: RecentSound): Int = recent.identifier.path.substringAfterLast('_').toInt()
 
-	private fun requested(instance: SoundInstance, member: String): Float =
-		AbstractSoundInstance::class.java.getDeclaredField(member).apply { isAccessible = true }.getFloat(instance)
-
 	private data class Replacement(val identifier: Identifier, val volume: Float, val pitch: Float)
 
 	private fun dispatchedFor(identifier: Identifier): Replacement? {
 		var dispatched: Replacement? = null
 		val cancelled = SoundManager.applyRule(identifier) { replacement, volume, pitch ->
 			dispatched = Replacement(replacement, volume, pitch)
+			true
 		}
 		assertTrue(cancelled)
 		return dispatched
 	}
-
-	private fun store(path: Path): ConfigStore = ConfigStore(
-		path,
-		CoroutineScope(Dispatchers.Unconfined),
-		SoundManager.migrations,
-		SoundManager.authoritative,
-		debounce = {}
-	)
 
 	private companion object {
 		@JvmStatic

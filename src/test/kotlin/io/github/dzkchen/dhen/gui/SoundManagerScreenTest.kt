@@ -135,7 +135,7 @@ class SoundManagerScreenTest {
 	fun `the banner counts starts played since the snapshot and stops at the ring size`() {
 		assertEquals("Sound Manager", recentBannerLabel("Sound Manager", 0))
 		assertEquals("Sound Manager · 3 played", recentBannerLabel("Sound Manager", 3))
-		assertEquals("Sound Manager · 64+ played", recentBannerLabel("Sound Manager", RECENT_RAW_LIMIT))
+		assertEquals("Sound Manager · $RECENT_RAW_LIMIT+ played", recentBannerLabel("Sound Manager", RECENT_RAW_LIMIT))
 	}
 
 	@Test
