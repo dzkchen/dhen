@@ -35,6 +35,7 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.SoundManager
 import io.github.dzkchen.dhen.features.visual.RevertAxes
+import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -147,9 +148,10 @@ object Dhen : ClientModInitializer {
 		SoundManager.install(flushedOnStop(configRoot.resolve("sounds.json"), emptyList()))
 		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
-		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::announce) {
+		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
+		val fonts = FontRuntime(configRoot, ioScope, clientThread, ::fontChanged, ::announce)
 		val commands = CommandRegistry<FabricClientCommandSource>(
 			modules,
 			openHudEditor = ::openHudEditor,
@@ -166,6 +168,7 @@ object Dhen : ClientModInitializer {
 			source.sendFeedback(DhenType.overWorld(message))
 		}
 		themes.reload()
+		fonts.prime()
 		SoundManager.openScreen.value = ::openSoundManager
 		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, SoundManager, ArrowHitSound, RevertAxes)
 		ModulePersistence.apply(modules, moduleStore.load())

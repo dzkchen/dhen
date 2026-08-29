@@ -3,6 +3,10 @@ package io.github.dzkchen.dhen.gui
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
+import io.github.dzkchen.dhen.font.DhenFontPack
+import io.github.dzkchen.dhen.font.FontFace
+import io.github.dzkchen.dhen.font.FontFixture
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.json
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.theme.ThemeFixture
@@ -29,6 +33,8 @@ class ClientPrefsTest {
 	@AfterEach
 	fun restoreDefaults() {
 		DhenFont.resetForTest()
+		FontStore.resetForTest()
+		ClientPrefs.font.value = FontStore.INTER
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
 		ClientPrefs.dhenFont.value = true
@@ -258,6 +264,46 @@ class ClientPrefsTest {
 		assertTrue(ClientPrefs.dhenFont.value)
 		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
 	}
+
+	@Test
+	fun `the font picker offers Inter plus every face on disk, and drawing follows the choice`() {
+		val serif = face("Serif")
+
+		ClientPrefs.font.value = "Serif"
+		assertTrue(ClientPrefs.adopt())
+
+		assertEquals(listOf(FontStore.INTER, "Serif"), ClientPrefs.font.options)
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `the Dhen font toggle still hands the game back its own face while a user face is picked`() {
+		face("Serif")
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.adopt()
+
+		ClientPrefs.dhenFont.value = false
+		assertTrue(ClientPrefs.sync())
+
+		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a picked face that is not on disk draws Inter and is taken up again when it comes back`() {
+		ClientPrefs.read(json("""{"client":{"Font":"Serif"}}"""))
+		ClientPrefs.adopt()
+
+		assertEquals(FontStore.INTER, ClientPrefs.font.value)
+		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
+
+		val serif = face("Serif")
+		assertTrue(ClientPrefs.adopt())
+
+		assertEquals("Serif", ClientPrefs.font.value)
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	private fun face(name: String): FontFace = FontFixture.face(config, name)
 
 	@Test
 	fun `a malformed accent leaves the one already loaded`() {

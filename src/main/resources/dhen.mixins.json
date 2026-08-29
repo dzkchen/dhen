@@ -8,6 +8,7 @@
 		"AbstractContainerScreenMixin",
 		"BlockItemMixin",
 		"BossHealthOverlayMixin",
+		"BuiltInPackSourceMixin",
 		"ClientPacketListenerMixin",
 		"ConnectionMixin",
 		"EntityRenderDispatcherMixin",

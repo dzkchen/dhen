@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
 import com.mojang.blaze3d.vertex.PoseStack
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.json
 import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
@@ -131,11 +132,11 @@ class DhenTypeTest {
 
 	@Test
 	fun `disabled Dhen text uses the empty vanilla style and enabled text uses Inter`() {
-		DhenFont.synchronize(false)
+		DhenFont.synchronize(false, FontStore.INTER)
 
 		assertEquals(Style.EMPTY, DhenType.component("Combat").style)
 
-		DhenFont.synchronize(true)
+		DhenFont.synchronize(true, FontStore.INTER)
 
 		assertEquals(FontDescription.Resource(DhenType.fontId), DhenType.component("Combat").style.font)
 	}
@@ -158,7 +159,7 @@ class DhenTypeTest {
 	@Test
 	fun `the disabled resolver preserves Minecraft default`() {
 		val explicitInter = FontDescription.Resource(DhenType.fontId)
-		DhenFont.synchronize(false)
+		DhenFont.synchronize(false, FontStore.INTER)
 
 		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
 		assertSame(explicitInter, DhenFont.resolve(explicitInter))
@@ -170,11 +171,11 @@ class DhenTypeTest {
 
 		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(message.style.font))
 
-		DhenFont.synchronize(false)
+		DhenFont.synchronize(false, FontStore.INTER)
 
 		assertSame(FontDescription.DEFAULT, DhenFont.resolve(message.style.font))
 
-		DhenFont.synchronize(true)
+		DhenFont.synchronize(true, FontStore.INTER)
 
 		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(message.style.font))
 	}
@@ -184,7 +185,7 @@ class DhenTypeTest {
 		assertTrue(DhenFont.latchOff())
 		val revision = DhenFont.revision
 
-		assertFalse(DhenFont.synchronize(true))
+		assertFalse(DhenFont.synchronize(true, FontStore.INTER))
 		assertEquals(revision, DhenFont.revision)
 		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
 	}
@@ -194,11 +195,11 @@ class DhenTypeTest {
 		val enabled = DhenType.styled("Combat")
 		val revision = DhenFont.revision
 
-		assertFalse(DhenFont.synchronize(true))
+		assertFalse(DhenFont.synchronize(true, FontStore.INTER))
 		assertEquals(revision, DhenFont.revision)
 		assertSame(enabled, DhenType.styled("Combat"))
 
-		assertTrue(DhenFont.synchronize(false))
+		assertTrue(DhenFont.synchronize(false, FontStore.INTER))
 		val disabled = DhenType.styled("Combat")
 		assertNotSame(enabled, disabled)
 		assertEquals(Style.EMPTY, disabled.style)
@@ -291,11 +292,11 @@ class DhenTypeTest {
 		val memo = DhenType.memo()
 		memo.width(font, "abc")
 
-		DhenFont.synchronize(false)
+		DhenFont.synchronize(false, FontStore.INTER)
 
 		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
 		assertEquals(2, font.measurements)
-		assertFalse(DhenFont.synchronize(false))
+		assertFalse(DhenFont.synchronize(false, FontStore.INTER))
 		assertEquals(3 * STUB_GLYPH_WIDTH, memo.width(font, "abc"))
 		assertEquals(2, font.measurements)
 	}

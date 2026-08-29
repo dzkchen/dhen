@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.theme
 
+import io.github.dzkchen.dhen.font.FontFixture
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenTheme
@@ -23,6 +25,7 @@ class ThemeRuntimeTest {
 	private val said = mutableListOf<String>()
 	private val revealed = mutableListOf<Path>()
 	private var persisted = 0
+	private var retyped = 0
 
 	private lateinit var themes: ThemeRuntime
 
@@ -33,6 +36,7 @@ class ThemeRuntimeTest {
 			CoroutineScope(Dispatchers.Unconfined),
 			Dispatchers.Unconfined,
 			{ persisted++ },
+			{ retyped++ },
 			{ said.add(it) },
 			{ revealed.add(it) }
 		)
@@ -42,6 +46,9 @@ class ThemeRuntimeTest {
 	@AfterEach
 	fun restoreDefaults() {
 		ThemeFixture.forgetDiscovered(config)
+		FontStore.resetForTest()
+		ClientPrefs.font.value = FontStore.INTER
+		retyped = 0
 		ClientPrefs.theme.value = ThemeStore.DEFAULT_ID
 		ClientPrefs.adopt()
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
@@ -52,6 +59,17 @@ class ThemeRuntimeTest {
 	fun unwireButtons() {
 		ClientPrefs.reload.reset()
 		ClientPrefs.browse.reset()
+	}
+
+	@Test
+	fun `a reload that takes up a different face re-types the surfaces holding the old one`() {
+		ClientPrefs.font.value = "Serif"
+		FontFixture.face(config, "Serif")
+
+		themes.reload {}
+
+		assertEquals("Serif", ClientPrefs.font.value)
+		assertEquals(1, retyped)
 	}
 
 	@Test

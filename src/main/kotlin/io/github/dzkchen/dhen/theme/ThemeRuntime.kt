@@ -17,6 +17,7 @@ internal class ThemeRuntime(
 	private val scope: CoroutineScope,
 	private val client: CoroutineContext,
 	private val persist: () -> Unit,
+	private val fontChanged: () -> Unit,
 	private val chat: (String) -> Unit,
 	private val reveal: (Path) -> Unit
 ) : ThemeCommands {
@@ -38,7 +39,7 @@ internal class ThemeRuntime(
 	override fun select(name: String): String {
 		val entry = ThemeStore.find(name) ?: return "No theme named '$name'. Try /dhen theme list."
 		ClientPrefs.theme.value = entry.id
-		ClientPrefs.sync()
+		if (ClientPrefs.sync()) fontChanged()
 		persist()
 		return "Theme set to '${entry.id}'."
 	}
@@ -92,7 +93,7 @@ internal class ThemeRuntime(
 				return@launch
 			}
 			withContext(client) {
-				ClientPrefs.adopt()
+				if (ClientPrefs.adopt()) fontChanged()
 				notify(say(done))
 			}
 		}

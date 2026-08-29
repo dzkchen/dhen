@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.SettingCodec
 import io.github.dzkchen.dhen.config.StringSetting
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.theme.ThemeStore
 import io.github.dzkchen.dhen.util.Color
 import io.github.dzkchen.dhen.util.obj
@@ -42,6 +43,19 @@ internal object ClientPrefs {
 		description = "Use Inter for Minecraft's default font and Dhen text."
 	)
 
+	val font = SelectorSetting(
+		"Font",
+		FontStore.INTER,
+		FontStore.names,
+		listed = true,
+		description = "Face Dhen text draws in, and the game's default font while Dhen font is on."
+	)
+
+	val reloadFonts = ActionSetting(
+		"Reload fonts",
+		description = "Read the fonts folder again without restarting."
+	)
+
 	val reload = ActionSetting(
 		"Reload themes",
 		description = "Read the themes folder again without restarting."
@@ -66,7 +80,7 @@ internal object ClientPrefs {
 
 	val sections: List<PrefSection> = listOf(
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
-		PrefSection("Appearance", listOf(theme, accent, dhenFont, reload, browse)),
+		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, reloadFonts, reload, browse)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 
@@ -75,26 +89,30 @@ internal object ClientPrefs {
 	private var accentSource = theme.preferred
 
 	fun sync(): Boolean {
-		val fontChanged = DhenFont.synchronize(dhenFont.on)
+		val fontChanged = DhenFont.synchronize(dhenFont.on, font.value)
 		val selected = selected()
 		if (theme.preferred != accentSource) accent.value = Color(selected.accent)
 		applySelection(selected)
 		return fontChanged
 	}
 
-	fun adopt() {
+	fun adopt(): Boolean {
 		theme.options = ThemeStore.ids
 		if (ThemeStore.find(theme.preferred) == null) {
 			log.warn("Theme '{}' is not in the themes folder; drawing '{}' until it is back", theme.preferred, theme.value)
 		}
-		sync()
+		font.options = FontStore.names
+		if (font.options.none { it.equals(font.preferred, ignoreCase = true) }) {
+			log.warn("Font '{}' is not in the fonts folder; drawing '{}' until it is back", font.preferred, font.value)
+		}
+		return sync()
 	}
 
 	fun read(doc: JsonObject) {
 		val client = doc.obj(CLIENT)
 		if (client?.has(dhenFont.name) != true) dhenFont.reset()
 		SettingCodec.readInto(client, stored, CLIENT)
-		DhenFont.synchronize(dhenFont.on)
+		DhenFont.synchronize(dhenFont.on, font.value)
 		applySelection(selected())
 	}
 
