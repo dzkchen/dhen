@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.theme
 
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.gui.DhenTheme
 import io.github.dzkchen.dhen.json
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -94,6 +95,24 @@ class ThemeFormatTest {
 
 			assertEquals(DhenTheme.DEFAULT.tabMillis, theme.tabMillis, bad)
 			assertEquals(PROBE_MOTION.toLong(), theme.toggleMillis, bad)
+		}
+	}
+
+	@Test
+	fun `a theme names the face it is drawn in, and naming none means the bundled one`() {
+		assertEquals(FontStore.INTER, parse("{}").theme.font)
+		assertEquals(FontStore.INTER, parse("""{"font":"Inter"}""").theme.font)
+		assertEquals(FontStore.VANILLA, parse("""{"font":"Vanilla"}""").theme.font)
+		assertEquals("Serif", parse("""{"font":"Serif"}""").theme.font)
+	}
+
+	@Test
+	fun `a face a folder could never hold costs the token and nothing else`() {
+		for (bad in listOf("\"My Font\"", "\"\"", "\"${"x".repeat(33)}\"", "\"../escape\"", "9", "null", "[]")) {
+			val theme = parse("""{"font":$bad,"colors":{"canvas":"$PROBE_HEX"}}""").theme
+
+			assertEquals(FontStore.INTER, theme.font, bad)
+			assertEquals(PROBE, theme.canvas, bad)
 		}
 	}
 

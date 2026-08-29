@@ -47,12 +47,16 @@ class ClientPrefsTest {
 
 	@Test
 	fun `every setting the tab shows survives a write and read round trip`() {
+		face("Serif")
+		ClientPrefs.adopt()
+		ClientPrefs.font.value = "Serif"
 		ClientPrefs.accent.value = Color(TEAL)
 		Effects.reduced = true
 		ClientPrefs.splash.value = false
 		ClientPrefs.dhenFont.value = false
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.accent.value = Color(DhenPalette.DEFAULT_ACCENT)
+		ClientPrefs.font.value = FontStore.INTER
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
 		ClientPrefs.dhenFont.value = true
@@ -60,6 +64,7 @@ class ClientPrefsTest {
 		ClientPrefs.read(written)
 
 		assertEquals(TEAL, ClientPrefs.accent.value.argb)
+		assertEquals("Serif", ClientPrefs.font.value)
 		assertTrue(Effects.reduced)
 		assertFalse(ClientPrefs.splash.value)
 		assertFalse(ClientPrefs.dhenFont.value)
@@ -226,7 +231,7 @@ class ClientPrefsTest {
 		ClientPrefs.read(json("""{"client":{"Accent color":$TEAL}}"""))
 
 		assertEquals(TEAL, DhenPalette.accent)
-		assertEquals(DhenTheme.DEFAULT.withAccent(TEAL).accentForeground, DhenPalette.accentForeground)
+		assertEquals(DhenTheme.DEFAULT.resolved(TEAL, FontStore.INTER).accentForeground, DhenPalette.accentForeground)
 	}
 
 	@Test
@@ -304,6 +309,99 @@ class ClientPrefsTest {
 	}
 
 	private fun face(name: String): FontFace = FontFixture.face(config, name)
+
+	@Test
+	fun `switching to a theme takes up the face it names`() {
+		val serif = face("Serif")
+		theme("ocean", """{"font":"Serif"}""")
+
+		pick("ocean")
+
+		assertTrue(ClientPrefs.dhenFont.on)
+		assertEquals("Serif", ClientPrefs.font.value)
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a theme drawn in Vanilla hands the game back its own face and leaves the picker where it was`() {
+		val serif = face("Serif")
+		theme("ocean", """{"font":"Vanilla"}""")
+		ClientPrefs.font.value = "Serif"
+
+		pick("ocean")
+
+		assertFalse(ClientPrefs.dhenFont.on)
+		assertEquals("Serif", ClientPrefs.font.value)
+		assertSame(FontDescription.DEFAULT, DhenFont.resolve(FontDescription.DEFAULT))
+
+		ClientPrefs.dhenFont.value = true
+		assertTrue(ClientPrefs.sync())
+
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a theme naming a face that is not installed draws the bundled one and remembers the name`() {
+		theme("ocean", """{"font":"Serif"}""")
+
+		pick("ocean")
+
+		assertEquals(FontStore.INTER, ClientPrefs.font.value)
+		assertEquals("Serif", ClientPrefs.font.preferred)
+
+		val serif = face("Serif")
+		assertTrue(ClientPrefs.adopt())
+
+		assertEquals(FontDescription.Resource(DhenFontPack.font(serif)), DhenFont.resolve(FontDescription.DEFAULT))
+	}
+
+	@Test
+	fun `a theme picked before the picker has caught up still hands over its own accent and face`() {
+		face("Serif")
+		theme("ocean", """{"colors":{"accent":"$OCEAN_ACCENT"},"font":"Serif"}""")
+		ThemeStore.refresh(config)
+
+		ClientPrefs.theme.value = "ocean"
+		ClientPrefs.sync()
+
+		assertEquals(TEAL, ClientPrefs.accent.value.argb)
+		assertEquals("Serif", ClientPrefs.font.preferred)
+
+		ClientPrefs.adopt()
+
+		assertEquals("ocean", ClientPrefs.theme.value)
+		assertEquals(TEAL, ClientPrefs.accent.value.argb)
+		assertEquals("Serif", ClientPrefs.font.value)
+	}
+
+	@Test
+	fun `re-selecting the theme already drawn leaves the face the user chose alone`() {
+		face("Serif")
+		theme("ocean", """{"font":"Vanilla"}""")
+		pick("ocean")
+		ClientPrefs.dhenFont.value = true
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.sync()
+
+		ClientPrefs.theme.value = "ocean"
+		ClientPrefs.sync()
+
+		assertTrue(ClientPrefs.dhenFont.on)
+		assertEquals("Serif", ClientPrefs.font.value)
+	}
+
+	@Test
+	fun `a theme that names no face at all takes the client back to the bundled one`() {
+		face("Serif")
+		theme("ocean", """{"colors":{"canvas":"$OCEAN_CANVAS"}}""")
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.dhenFont.value = false
+
+		pick("ocean")
+
+		assertTrue(ClientPrefs.dhenFont.on)
+		assertEquals(FontStore.INTER, ClientPrefs.font.value)
+	}
 
 	@Test
 	fun `a malformed accent leaves the one already loaded`() {

@@ -42,6 +42,7 @@ class ThemeExportTest {
 		assertTrue(colors.entrySet().all { it.value.asString.matches(Regex("#[0-9A-F]{8}")) })
 		assertEquals(ThemeFormat.SCHEMA, document.get("schema").asInt)
 		assertEquals("probe", document.get("id").asString)
+		assertEquals("Serif", document.get("font").asString)
 	}
 
 	@Test
@@ -166,6 +167,7 @@ class ThemeExportTest {
 			canvas = 0x80112233u.toInt(),
 			accent = 0xFF55D6C2u.toInt(),
 			glassSheen = 0x24445566u.toInt(),
+			font = "Serif",
 			entryMillis = 321L,
 			tabSlide = 7.5f
 		)

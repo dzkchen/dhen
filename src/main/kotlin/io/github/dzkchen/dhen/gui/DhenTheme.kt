@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.font.FontStore
+
 internal data class DhenTheme(
 	val canvas: Int = 0xFF08080Au.toInt(),
 	val surface: Int = 0xFF0D0D10u.toInt(),
@@ -23,6 +25,7 @@ internal data class DhenTheme(
 	val glassSheen: Int = 0x24FFFFFFu.toInt(),
 	val glassVeil: Int = 0xE608080Au.toInt(),
 	val accent: Int = 0xFFF5A9C6u.toInt(),
+	val font: String = FontStore.INTER,
 	val entryMillis: Long = 200L,
 	val entryRise: Float = 10f,
 	val tabMillis: Long = 150L,
@@ -35,7 +38,8 @@ internal data class DhenTheme(
 	val accentForeground: Int =
 		if (DhenPalette.contrast(accent, textOnAccent) >= DhenPalette.contrast(accent, textPrimary)) textOnAccent else textPrimary
 
-	fun withAccent(color: Int): DhenTheme = if (color == accent) this else copy(accent = color)
+	fun resolved(accent: Int, font: String): DhenTheme =
+		if (accent == this.accent && font == this.font) this else copy(accent = accent, font = font)
 
 	companion object {
 		private const val MUTED_BLEND = 0.55f

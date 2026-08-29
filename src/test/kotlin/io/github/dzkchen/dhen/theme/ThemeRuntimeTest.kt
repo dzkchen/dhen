@@ -48,6 +48,7 @@ class ThemeRuntimeTest {
 		ThemeFixture.forgetDiscovered(config)
 		FontStore.resetForTest()
 		ClientPrefs.font.value = FontStore.INTER
+		ClientPrefs.dhenFont.value = true
 		retyped = 0
 		ClientPrefs.theme.value = ThemeStore.DEFAULT_ID
 		ClientPrefs.adopt()
@@ -70,6 +71,43 @@ class ThemeRuntimeTest {
 
 		assertEquals("Serif", ClientPrefs.font.value)
 		assertEquals(1, retyped)
+	}
+
+	@Test
+	fun `switching to a theme that names another face re-types the surfaces`() {
+		FontFixture.face(config, "Serif")
+		ThemeFixture.write(config, "ocean", """{"font":"Serif"}""")
+		themes.reload()
+		retyped = 0
+
+		themes.select("ocean")
+
+		assertEquals("Serif", ClientPrefs.font.value)
+		assertEquals(1, retyped)
+	}
+
+	@Test
+	fun `an export stamps the face on screen into the theme it writes`() {
+		FontFixture.face(config, "Serif")
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.adopt()
+
+		themes.export("mine") { said += it }
+
+		assertEquals("Serif", ThemeStore.find("mine")!!.theme.font)
+	}
+
+	@Test
+	fun `an export made while Dhen is not typing the game names Vanilla`() {
+		FontFixture.face(config, "Serif")
+		ClientPrefs.font.value = "Serif"
+		ClientPrefs.adopt()
+		ClientPrefs.dhenFont.value = false
+		ClientPrefs.sync()
+
+		themes.export("mine") { said += it }
+
+		assertEquals(FontStore.VANILLA, ThemeStore.find("mine")!!.theme.font)
 	}
 
 	@Test

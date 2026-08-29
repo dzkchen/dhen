@@ -40,7 +40,7 @@ internal object ClientPrefs {
 	val dhenFont = BooleanSetting(
 		"Dhen font",
 		true,
-		description = "Use Inter for Minecraft's default font and Dhen text."
+		description = "Draw Dhen text and Minecraft's default font in the selected face."
 	)
 
 	val font = SelectorSetting(
@@ -86,14 +86,28 @@ internal object ClientPrefs {
 
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }
 
-	private var accentSource = theme.preferred
+	private var inheritedFrom = theme.preferred
 
 	fun sync(): Boolean {
-		val fontChanged = DhenFont.synchronize(dhenFont.on, font.value)
-		val selected = selected()
-		if (theme.preferred != accentSource) accent.value = Color(selected.accent)
-		applySelection(selected)
-		return fontChanged
+		if (theme.preferred != inheritedFrom) inherit()
+		applySelection(selected())
+		return DhenFont.synchronize(dhenFont.on, font.value)
+	}
+
+	private fun inherit() {
+		val chosen = ThemeStore.find(theme.preferred)?.theme ?: return
+		inheritedFrom = theme.preferred
+		accent.value = Color(chosen.accent)
+		dhenFont.on = !chosen.font.equals(FontStore.VANILLA, ignoreCase = true)
+		if (!dhenFont.on) return
+		font.value = chosen.font
+		reportMissingFace()
+	}
+
+	private fun reportMissingFace() {
+		if (font.options.none { it.equals(font.preferred, ignoreCase = true) }) {
+			log.warn("Font '{}' is not in the fonts folder; drawing '{}' until it is back", font.preferred, font.value)
+		}
 	}
 
 	fun adopt(): Boolean {
@@ -102,9 +116,7 @@ internal object ClientPrefs {
 			log.warn("Theme '{}' is not in the themes folder; drawing '{}' until it is back", theme.preferred, theme.value)
 		}
 		font.options = FontStore.names
-		if (font.options.none { it.equals(font.preferred, ignoreCase = true) }) {
-			log.warn("Font '{}' is not in the fonts folder; drawing '{}' until it is back", font.preferred, font.value)
-		}
+		reportMissingFace()
 		return sync()
 	}
 
@@ -112,15 +124,17 @@ internal object ClientPrefs {
 		val client = doc.obj(CLIENT)
 		if (client?.has(dhenFont.name) != true) dhenFont.reset()
 		SettingCodec.readInto(client, stored, CLIENT)
+		inheritedFrom = theme.preferred
 		DhenFont.synchronize(dhenFont.on, font.value)
 		applySelection(selected())
 	}
 
 	private fun selected(): DhenTheme = ThemeStore.find(theme.value)?.theme ?: DhenTheme.DEFAULT
 
+	private fun face(): String = if (dhenFont.on) font.value else FontStore.VANILLA
+
 	private fun applySelection(selected: DhenTheme) {
-		accentSource = theme.preferred
-		DhenTheme.activate(selected.withAccent(accent.value.argb))
+		DhenTheme.activate(selected.resolved(accent.value.argb, face()))
 	}
 
 	fun writeInto(doc: JsonObject): JsonObject {

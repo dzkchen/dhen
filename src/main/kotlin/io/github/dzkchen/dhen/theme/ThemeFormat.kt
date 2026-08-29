@@ -34,6 +34,7 @@ internal object ThemeFormat {
 	private const val NAME_KEY = "name"
 	private const val VERSION_KEY = "version"
 	private const val AUTHORS_KEY = "authors"
+	private const val FONT_KEY = "font"
 	private const val COLORS_KEY = "colors"
 	private const val MOTION_KEY = "motion"
 
@@ -92,7 +93,8 @@ internal object ThemeFormat {
 			log.warn("Theme '{}' calls itself '{}'; a theme is named by the folder it lives in", id, declaredId)
 		}
 		val colored = readColors(id, block(id, document, COLORS_KEY), DhenTheme.DEFAULT)
-		val theme = readMotion(id, block(id, document, MOTION_KEY), colored)
+		val moved = readMotion(id, block(id, document, MOTION_KEY), colored)
+		val theme = readFont(id, document, moved)
 		return ThemeEntry(id, document.text(NAME_KEY) ?: id, document.text(VERSION_KEY) ?: "", authors(document), declared, theme, document)
 	}
 
@@ -103,6 +105,7 @@ internal object ThemeFormat {
 		document.addProperty(NAME_KEY, id)
 		document.addProperty(VERSION_KEY, metadata?.version ?: "")
 		document.add(AUTHORS_KEY, JsonArray().apply { metadata?.authors?.forEach { add(it) } })
+		document.addProperty(FONT_KEY, resolved.font)
 		val colors = section(document, COLORS_KEY)
 		for ((token, slot) in COLORS) colors.addProperty(token, hex(slot.read(resolved)))
 		val motion = section(document, MOTION_KEY)
@@ -133,6 +136,16 @@ internal object ThemeFormat {
 			theme = slot.write(theme, color)
 		}
 		return theme
+	}
+
+	private fun readFont(id: String, document: JsonObject, base: DhenTheme): DhenTheme {
+		val element = document.get(FONT_KEY) ?: return base
+		val name = element.textOrNull()?.takeIf(ThemeStore::legal)
+		if (name == null) {
+			log.warn("Theme '{}' names a face it cannot be drawn in: {}", id, element)
+			return base
+		}
+		return base.copy(font = name)
 	}
 
 	private fun readMotion(id: String, block: JsonObject?, base: DhenTheme): DhenTheme {

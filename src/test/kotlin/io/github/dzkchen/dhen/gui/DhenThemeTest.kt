@@ -1,11 +1,13 @@
 package io.github.dzkchen.dhen.gui
 
 import com.google.gson.JsonObject
+import io.github.dzkchen.dhen.font.FontStore
 import io.github.dzkchen.dhen.theme.ThemeFormat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -24,7 +26,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `every token the palette exposes reads the active theme`() {
-		DhenTheme.activate(DhenTheme.DEFAULT.withAccent(TEAL))
+		DhenTheme.activate(DhenTheme.DEFAULT.resolved(TEAL, FACE))
 
 		assertEquals(DhenTheme.active.canvas, DhenPalette.CANVAS)
 		assertEquals(DhenTheme.active.surface, DhenPalette.SURFACE)
@@ -73,7 +75,7 @@ class DhenThemeTest {
 		assertEquals(DhenTheme.LIGHT.canvas, DhenPalette.CANVAS)
 		assertEquals(DhenTheme.LIGHT.accent, DhenPalette.accent)
 
-		DhenTheme.activate(DhenTheme.LIGHT.withAccent(TEAL).copy(entryMillis = 40L))
+		DhenTheme.activate(DhenTheme.LIGHT.resolved(TEAL, FACE).copy(entryMillis = 40L))
 
 		assertEquals(TEAL, DhenPalette.accent)
 		assertEquals(DhenTheme.LIGHT.canvas, DhenPalette.CANVAS)
@@ -97,7 +99,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `an accent override leaves the theme it was resolved from untouched`() {
-		val themed = DhenTheme.DEFAULT.withAccent(TEAL)
+		val themed = DhenTheme.DEFAULT.resolved(TEAL, FACE)
 
 		assertEquals(TEAL, themed.accent)
 		assertEquals(0xFFF5A9C6u.toInt(), DhenTheme.DEFAULT.accent)
@@ -105,17 +107,18 @@ class DhenThemeTest {
 	}
 
 	@Test
-	fun `re-resolving the accent already in place allocates nothing`() {
-		val themed = DhenTheme.DEFAULT.withAccent(TEAL)
+	fun `re-resolving the pair already in place allocates nothing`() {
+		val themed = DhenTheme.DEFAULT.resolved(TEAL, FACE)
 
-		assertSame(DhenTheme.DEFAULT, DhenTheme.DEFAULT.withAccent(DhenTheme.DEFAULT.accent))
-		assertSame(themed, themed.withAccent(TEAL))
+		assertSame(DhenTheme.DEFAULT, DhenTheme.DEFAULT.resolved(DhenTheme.DEFAULT.accent, FACE))
+		assertSame(themed, themed.resolved(TEAL, FACE))
+		assertNotSame(themed, themed.resolved(TEAL, FontStore.VANILLA))
 	}
 
 	@Test
 	fun `text on the accent stays readable whichever accent the user picks`() {
 		for (candidate in listOf(DhenTheme.DEFAULT.accent, TEAL, 0xFF3A0B5Fu.toInt(), 0xFF000000u.toInt())) {
-			val themed = DhenTheme.DEFAULT.withAccent(candidate)
+			val themed = DhenTheme.DEFAULT.resolved(candidate, FACE)
 			val gap = DhenPalette.contrast(candidate, themed.accentForeground)
 
 			assertTrue(gap >= 100, "accent ${Integer.toHexString(candidate)} left only $gap luminance of contrast")
@@ -124,7 +127,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `the muted accent follows the slot it is derived from`() {
-		val themed = DhenTheme.DEFAULT.withAccent(TEAL)
+		val themed = DhenTheme.DEFAULT.resolved(TEAL, FACE)
 
 		assertNotEquals(DhenTheme.DEFAULT.accentMuted, themed.accentMuted)
 		assertEquals(0xFF, themed.accentMuted ushr 24)
@@ -134,7 +137,7 @@ class DhenThemeTest {
 
 	@Test
 	fun `a transparent accent keeps its alpha through the muted derivation`() {
-		assertEquals(0x80, DhenTheme.DEFAULT.withAccent(0x80F5A9C6u.toInt()).accentMuted ushr 24)
+		assertEquals(0x80, DhenTheme.DEFAULT.resolved(0x80F5A9C6u.toInt(), FACE).accentMuted ushr 24)
 	}
 
 	@Test
@@ -176,6 +179,7 @@ class DhenThemeTest {
 		const val PROBE_ID = "probe"
 		val DERIVED = setOf("accentMuted", "accentForeground")
 		val TEAL = 0xFF55D6C2u.toInt()
+		val FACE = DhenTheme.DEFAULT.font
 		val ARGB = Regex("""0[xX][0-9A-Fa-f]{8}""")
 	}
 }

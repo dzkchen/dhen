@@ -12,7 +12,8 @@ class BuiltInThemeTest {
 	@Test
 	fun `every slot the record holds is a token the format reads and writes`() {
 		val written = ThemeFormat.document(ThemeStore.DEFAULT_ID, null, DhenTheme.DEFAULT)
-		val tokens = written.getAsJsonObject("colors").keySet() + written.getAsJsonObject("motion").keySet()
+		val blocks = written.getAsJsonObject("colors").keySet() + written.getAsJsonObject("motion").keySet()
+		val tokens = blocks + written.keySet().filter { it in slots() }
 
 		assertEquals(tokens, slots() - DERIVED)
 	}
