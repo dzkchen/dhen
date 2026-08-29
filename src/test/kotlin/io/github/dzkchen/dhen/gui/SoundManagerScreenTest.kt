@@ -15,6 +15,7 @@ class SoundManagerScreenTest {
 		assertEquals("wolf howl", soundCleanName(id("entity.wolf.howl")))
 		assertEquals("note block harp", soundCleanName(id("block.note_block.harp")))
 		assertEquals("custom sound", soundCleanName(Identifier.fromNamespaceAndPath("test", "custom_sound")))
+		assertEquals("horn blast", soundCleanName(Identifier.fromNamespaceAndPath("dhen", "custom/horn_blast")))
 	}
 
 	@Test
@@ -104,6 +105,40 @@ class SoundManagerScreenTest {
 	}
 
 	@Test
+	fun `replacement filtering puts searchable custom sounds above the Minecraft catalogue`() {
+		val customHorn = sound(Identifier.fromNamespaceAndPath("dhen", "custom/horn"))
+		val customBell = sound(Identifier.fromNamespaceAndPath("dhen", "custom/bell"))
+		val harp = sound("block.note_block.harp")
+
+		val rows = filterReplacementSounds(listOf(customBell, customHorn), listOf(SoundHeader(SoundCategory.BLOCKS), harp), "", "empty")
+
+		assertEquals("Custom", rows.filterIsInstance<SoundHeader>().first().title)
+		assertEquals(listOf(customBell, customHorn, harp), rows.filterIsInstance<ManagedSound>())
+		assertEquals(
+			listOf(customHorn),
+			filterReplacementSounds(listOf(customBell, customHorn), emptyList(), "horn", "empty")
+				.filterIsInstance<ManagedSound>()
+		)
+	}
+
+	@Test
+	fun `replacement filtering names accepted formats when no custom sound exists`() {
+		val rows = filterReplacementSounds(emptyList(), emptyList(), "", "No custom OGG files")
+
+		assertEquals(listOf("No custom OGG files"), rows.filterIsInstance<SoundMessage>().map { it.text })
+	}
+
+	@Test
+	fun `replacement filtering preserves a Recent or Rules catalogue`() {
+		val recent = SoundHeader(SoundCategory.RECENT)
+		val harp = sound("block.note_block.harp")
+
+		val rows = filterReplacementSounds(emptyList(), listOf(recent, harp), "", "empty")
+
+		assertEquals(listOf(recent, harp), rows.drop(1))
+	}
+
+	@Test
 	fun `every slider clamps and snaps inside its own range`() {
 		assertEquals(0, steppedSliderValue(80, 100, 140, VOLUME_RANGE))
 		assertEquals(0, steppedSliderValue(100, 100, 140, VOLUME_RANGE))
@@ -140,6 +175,10 @@ class SoundManagerScreenTest {
 
 	private fun sound(path: String): ManagedSound {
 		val identifier = id(path)
+		return sound(identifier)
+	}
+
+	private fun sound(identifier: Identifier): ManagedSound {
 		return ManagedSound(identifier, soundCleanName(identifier), soundCategory(identifier), SoundEvent.createVariableRangeEvent(identifier))
 	}
 

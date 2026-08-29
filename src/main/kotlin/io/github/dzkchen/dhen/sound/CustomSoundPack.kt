@@ -49,6 +49,7 @@ internal object CustomSoundPack {
 	private val metadata = Pack.Metadata(Component.literal(DESCRIPTION), PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), emptyList())
 	private val selection = PackSelectionConfig(true, Pack.Position.TOP, true)
 	private val source = RepositorySource(::contribute)
+	private val acceptedFormatsLabel = acceptedExtensions.joinToString(" / ") { it.uppercase(Locale.ROOT) }
 
 	@Volatile
 	private var folder: Path? = null
@@ -56,13 +57,13 @@ internal object CustomSoundPack {
 	private var snapshot = Snapshot.EMPTY
 	private var generation = 0L
 
-	fun install(configRoot: Path, scope: CoroutineScope) {
+	fun install(configRoot: Path, scope: CoroutineScope, afterRefresh: suspend (ScanResult) -> Unit = {}) {
 		synchronized(stateLock) {
 			folder = configRoot.resolve(DIRECTORY)
 			snapshot = Snapshot.EMPTY
 			generation++
 		}
-		scope.launch { refresh() }
+		scope.launch { afterRefresh(refresh()) }
 	}
 
 	fun uninstall() = synchronized(stateLock) {
@@ -73,7 +74,7 @@ internal object CustomSoundPack {
 
 	internal fun refresh(validate: (Path) -> Unit = ::validateOgg): ScanResult {
 		val attempt = synchronized(stateLock) {
-			val target = folder ?: return ScanResult(false, 0, null)
+			val target = folder ?: return ScanResult(false, 0, null, generation)
 			ScanAttempt(++generation, target)
 		}
 		val scanned = try {
@@ -84,12 +85,26 @@ internal object CustomSoundPack {
 		}
 		return synchronized(stateLock) {
 			if (folder != attempt.folder || generation != attempt.generation) {
-				ScanResult(false, scanned.snapshot.files.size, scanned.failure)
+				ScanResult(false, scanned.snapshot.files.size, scanned.failure, attempt.generation)
 			} else {
 				snapshot = scanned.snapshot
-				ScanResult(true, scanned.snapshot.files.size, scanned.failure)
+				ScanResult(true, scanned.snapshot.files.size, scanned.failure, attempt.generation)
 			}
 		}
+	}
+
+	internal fun prepareFolder(): Path? {
+		val target = folder ?: return null
+		Files.createDirectories(target)
+		return synchronized(stateLock) { target.takeIf { folder == target } }
+	}
+
+	internal fun ownsFolder(target: Path): Boolean = synchronized(stateLock) { folder == target }
+
+	internal fun runIfCurrent(result: ScanResult, action: () -> Unit): Boolean = synchronized(stateLock) {
+		if (!result.published || generation != result.generation || folder == null) return@synchronized false
+		action()
+		true
 	}
 
 	internal fun identifiers(): List<Identifier> = snapshot.files.map(CustomSoundFile::event)
@@ -101,6 +116,18 @@ internal object CustomSoundPack {
 		}
 		return null
 	}
+
+	internal fun isMissingCustom(identifier: Identifier): Boolean {
+		if (!isCustom(identifier)) return false
+		val current = snapshot
+		for (file in current.files) {
+			if (file.event == identifier) return false
+		}
+		return true
+	}
+
+	internal fun isCustom(identifier: Identifier): Boolean =
+		identifier.namespace == Dhen.MOD_ID && identifier.path.startsWith(CUSTOM_PREFIX)
 
 	@JvmStatic
 	fun repositorySource(): RepositorySource = source
@@ -187,9 +214,9 @@ internal object CustomSoundPack {
 		return JsonObject().apply { add("pack", pack) }.toString().toByteArray(StandardCharsets.UTF_8)
 	}
 
-	internal fun acceptedFormats(): String = acceptedExtensions.joinToString(" / ") { it.uppercase(Locale.ROOT) }
+	internal fun acceptedFormats(): String = acceptedFormatsLabel
 
-	internal data class ScanResult(val published: Boolean, val count: Int, val failure: Exception?)
+	internal data class ScanResult(val published: Boolean, val count: Int, val failure: Exception?, internal val generation: Long)
 
 	private data class ScanAttempt(val generation: Long, val folder: Path)
 

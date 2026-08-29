@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.sound
 
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.bootstrapMinecraft
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -30,7 +31,10 @@ class SoundManagerTest {
 	lateinit var directory: Path
 
 	@AfterEach
-	fun release() = SoundManager.uninstall()
+	fun release() {
+		SoundManager.uninstall()
+		CustomSoundPack.uninstall()
+	}
 
 	@Test
 	fun `multiplier writes normalize persist and publish to the sound thread`() {
@@ -222,6 +226,29 @@ class SoundManagerTest {
 	}
 
 	@Test
+	fun `a removed custom replacement passes the original while a present one dispatches`() {
+		val path = directory.resolve("sounds.json")
+		val sounds = directory.resolve(CustomSoundPack.DIRECTORY)
+		Files.createDirectories(sounds)
+		Files.write(sounds.resolve("horn.ogg"), byteArrayOf(1))
+		CustomSoundPack.install(directory, CoroutineScope(Dispatchers.Unconfined))
+		CustomSoundPack.refresh {}
+		SoundManager.install(store(path))
+		val original = SoundEvents.EXPERIENCE_ORB_PICKUP.location()
+		val custom = Dhen.id("custom/horn")
+		SoundManager.setReplacement(original, custom, 0.75f, 1.5f)
+
+		assertEquals(Replacement(custom, 0.75f, 1.5f), dispatchedFor(original))
+
+		Files.delete(sounds.resolve("horn.ogg"))
+		CustomSoundPack.refresh {}
+
+		var dispatched = 0
+		assertFalse(SoundManager.applyRule(original) { _, _, _ -> dispatched++ })
+		assertEquals(0, dispatched)
+	}
+
+	@Test
 	fun `a removed rule is gone from the file and stays gone after a reload`() {
 		val path = directory.resolve("sounds.json")
 		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
@@ -332,9 +359,11 @@ class SoundManagerTest {
 	@Test
 	fun `the manager is opened from the Settings tab and owns no module row`() {
 		assertEquals(
-			listOf("Open Sound Manager"),
+			listOf("Open Sound Manager", "Open sounds folder", "Reload custom sounds"),
 			ClientPrefs.sections.single { it.title == "Sounds" }.settings.map { it.name }
 		)
+		assertTrue(ClientPrefs.openSoundsFolder.description.contains(CustomSoundPack.acceptedFormats()))
+		assertTrue(ClientPrefs.reloadCustomSounds.description.contains(CustomSoundPack.acceptedFormats()))
 	}
 
 	private fun requested(instance: SoundInstance, member: String): Float =

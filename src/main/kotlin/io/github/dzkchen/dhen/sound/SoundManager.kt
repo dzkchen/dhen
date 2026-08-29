@@ -73,6 +73,7 @@ object SoundManager {
 		if (index < 0) return false
 		if (snapshot.volumes[index] == MUTED) return true
 		val replacement = snapshot.replacements[index] ?: return false
+		if (CustomSoundPack.isMissingCustom(replacement)) return false
 		dispatch.play(replacement, snapshot.replacementVolumes[index], snapshot.replacementPitches[index])
 		return true
 	}

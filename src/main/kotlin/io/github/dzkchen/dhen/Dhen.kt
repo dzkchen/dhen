@@ -44,6 +44,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.WorldRenderTypes
+import io.github.dzkchen.dhen.sound.CustomSoundActions
 import io.github.dzkchen.dhen.sound.CustomSoundPack
 import io.github.dzkchen.dhen.sound.SoundManager
 import io.github.dzkchen.dhen.theme.ThemeRuntime
@@ -143,7 +144,10 @@ object Dhen : ClientModInitializer {
 
 	private fun initialize() {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
-		CustomSoundPack.install(configRoot, ioScope)
+		val customSounds = CustomSoundActions(ioScope, clientThread, ::announce, { Util.getPlatform().openPath(it) }) {
+			Minecraft.getInstance().reloadResourcePacks()
+		}
+		CustomSoundPack.install(configRoot, ioScope, customSounds::afterInitialScan)
 		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
 		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
 		SoundManager.install(

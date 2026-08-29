@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.input.TextInputTarget
+import io.github.dzkchen.dhen.sound.CustomSoundPack
 import io.github.dzkchen.dhen.sound.SoundManager
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -148,6 +149,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			val rowTop = viewTop + index * ROW_HEIGHT - offset
 			when (val item = visible[index]) {
 				is SoundHeader -> drawHeader(graphics, item, viewLeft, rowTop)
+				is SoundMessage -> drawMessage(graphics, item, viewLeft, rowTop)
 				is ManagedSound -> drawSound(graphics, item, viewLeft, rowTop, mouseX, mouseY)
 			}
 			index++
@@ -158,7 +160,12 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun drawHeader(graphics: GuiGraphicsExtractor, header: SoundHeader, left: Int, top: Int) {
 		RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.raised())
-		drawCentered(graphics, header.memo, header.category.title, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.accent)
+		drawCentered(graphics, header.memo, header.title, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.accent)
+	}
+
+	private fun drawMessage(graphics: GuiGraphicsExtractor, message: SoundMessage, left: Int, top: Int) {
+		val shown = message.memo.fit(font, message.text, VIEW_WIDTH - 2 * NAME_PAD)
+		drawCentered(graphics, message.memo, shown, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.TEXT_SECONDARY)
 	}
 
 	private fun drawSound(
@@ -421,10 +428,14 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun updateFilter(resetScroll: Boolean = true) {
 		val lowered = query.lowercase(Locale.ROOT)
-		visible = when (category) {
-			SoundCategory.RECENT -> recentSounds(lowered)
-			SoundCategory.RULES -> filterRuleSounds(SoundManager.ruledIdentifiers(), lowered, ::managedSound)
-			else -> filterSounds(sounds, category, lowered)
+		visible = when {
+			picking != null -> filterReplacementSounds(
+				CustomSoundPack.identifiers().map(::managedSound),
+				catalogueRows(lowered),
+				lowered,
+				"No custom ${CustomSoundPack.acceptedFormats()} files. Use Open sounds folder in Settings."
+			)
+			else -> catalogueRows(lowered)
 		}
 		if (resetScroll) {
 			rows.scrollTo(0)
@@ -434,6 +445,12 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			rows.reclamp()
 			if (rows.offset != previousTarget) snapScroll(minOf(scrollShown, rows.offset.toFloat()))
 		}
+	}
+
+	private fun catalogueRows(lowered: String): List<SoundListItem> = when (category) {
+		SoundCategory.RECENT -> recentSounds(lowered)
+		SoundCategory.RULES -> filterRuleSounds(SoundManager.ruledIdentifiers(), lowered, ::managedSound)
+		else -> filterSounds(sounds, category, lowered)
 	}
 
 	private fun recentSounds(lowered: String): List<SoundListItem> {
@@ -628,7 +645,13 @@ internal enum class SoundCategory(val title: String) {
 
 internal sealed interface SoundListItem
 
-internal class SoundHeader(val category: SoundCategory) : SoundListItem {
+internal class SoundHeader(val title: String, val category: SoundCategory? = null) : SoundListItem {
+	constructor(category: SoundCategory) : this(category.title, category)
+
+	val memo = DhenType.memo()
+}
+
+internal class SoundMessage(val text: String) : SoundListItem {
 	val memo = DhenType.memo()
 }
 
@@ -656,6 +679,7 @@ internal class ManagedSound(
 internal fun soundCleanName(identifier: Identifier): String {
 	val path = identifier.path
 	val trimmed = when {
+		CustomSoundPack.isCustom(identifier) -> path.substringAfter('/')
 		path.startsWith("entity.hostile.") -> path.removePrefix("entity.hostile.")
 		path.startsWith("entity.") -> path.removePrefix("entity.")
 		'.' in path -> path.substringAfter('.')
@@ -748,6 +772,28 @@ internal fun filterRuleSounds(
 		}
 		add(sound)
 	}
+}
+
+internal fun filterReplacementSounds(
+	custom: List<ManagedSound>,
+	catalogue: List<SoundListItem>,
+	query: String,
+	emptyText: String
+): List<SoundListItem> = buildList {
+	if (custom.isEmpty()) {
+		add(SoundMessage(emptyText))
+	} else {
+		var headerAdded = false
+		for (sound in custom) {
+			if (!sound.searchText.contains(query)) continue
+			if (!headerAdded) {
+				add(SoundHeader("Custom"))
+				headerAdded = true
+			}
+			add(sound)
+		}
+	}
+	addAll(catalogue)
 }
 
 internal fun animatedSoundScroll(from: Float, target: Float, elapsed: Long): Float =
