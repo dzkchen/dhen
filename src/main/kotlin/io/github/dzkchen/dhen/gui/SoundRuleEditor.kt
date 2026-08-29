@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import io.github.dzkchen.dhen.sound.ANY_PITCH
 import io.github.dzkchen.dhen.sound.SoundManager
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -7,11 +8,12 @@ import net.minecraft.resources.Identifier
 import kotlin.math.roundToInt
 
 internal const val RULE_PANEL_WIDTH = 300
-internal const val RULE_PANEL_HEIGHT = 142
+internal const val RULE_PANEL_HEIGHT = 164
 
 internal enum class RuleAction { CONSUMED, PICK, CLOSE }
 
 internal enum class RuleField(val label: String, val slider: IntRange?) {
+	MATCH_PITCH("Match pitch", null),
 	VOLUME("Volume", VOLUME_RANGE),
 	REPLACEMENT("Replace with", null),
 	REPLACEMENT_VOLUME("Replacement volume", REPLACEMENT_VOLUME_RANGE),
@@ -36,11 +38,15 @@ internal class SoundRuleEditor {
 	private val shownValues = IntArray(RuleField.entries.size) { Int.MIN_VALUE }
 	private val shownLabels = arrayOfNulls<String>(RuleField.entries.size)
 	private var dragged: RuleField? = null
+	private var matchPitch = ANY_PITCH
+	private var preferredMatchPitch = DEFAULT_MATCH_PITCH
 	private var shownReplacement: Identifier? = null
 	private var shownReplacementName = NO_REPLACEMENT
 
 	fun open(sound: ManagedSound) {
 		this.sound = sound
+		matchPitch = sound.matchPitch
+		preferredMatchPitch = if (matchPitch.isNaN()) DEFAULT_MATCH_PITCH else matchPitch
 		dragged = null
 	}
 
@@ -101,6 +107,10 @@ internal class SoundRuleEditor {
 		for (field in RuleField.entries) {
 			val rowTop = top + FIELDS_TOP + field.ordinal * FIELD_HEIGHT
 			if (mouseY !in rowTop until rowTop + FIELD_HEIGHT) continue
+			if (field == RuleField.MATCH_PITCH) {
+				toggleMatchPitch(edited.identifier)
+				return RuleAction.CONSUMED
+			}
 			if (!enabled(field, edited.identifier)) return RuleAction.CONSUMED
 			val range = field.slider ?: return pressReplacement(edited.identifier, mouseX, left)
 			val sliderLeft = sliderLeft(left)
@@ -137,29 +147,29 @@ internal class SoundRuleEditor {
 
 	fun select(replacement: Identifier) {
 		val edited = sound ?: return
-		if (SoundManager.getVolumePercent(edited.identifier) == MUTED_PERCENT) {
-			SoundManager.setVolumePercent(edited.identifier, DEFAULT_PERCENT)
+		if (SoundManager.getVolumePercent(edited.identifier, matchPitch) == MUTED_PERCENT) {
+			SoundManager.setVolumePercent(edited.identifier, DEFAULT_PERCENT, matchPitch)
 		}
 		setReplacement(edited.identifier, replacement)
 	}
 
 	private fun press(button: RuleButton, edited: ManagedSound): RuleAction = when (button) {
 		RuleButton.PLAY -> {
-			SoundManager.playPreview(edited.event)
+			SoundManager.playPreview(edited.event, previewPitch())
 			RuleAction.CONSUMED
 		}
 		RuleButton.PLAY_ORIGINAL -> {
-			SoundManager.playOriginal(edited.identifier)
+			SoundManager.playOriginal(edited.identifier, previewPitch())
 			RuleAction.CONSUMED
 		}
 		RuleButton.REMOVE -> {
-			SoundManager.removeRule(edited.identifier)
+			SoundManager.removeRule(edited.identifier, matchPitch)
 			RuleAction.CLOSE
 		}
 	}
 
 	private fun pressReplacement(identifier: Identifier, mouseX: Int, left: Int): RuleAction {
-		if (SoundManager.replacementOf(identifier) != null && mouseX >= clearLeft(left)) {
+		if (SoundManager.replacementOf(identifier, matchPitch) != null && mouseX >= clearLeft(left)) {
 			setReplacement(identifier, null)
 			return RuleAction.CONSUMED
 		}
@@ -169,8 +179,9 @@ internal class SoundRuleEditor {
 	private fun setReplacement(identifier: Identifier, replacement: Identifier?) = SoundManager.setReplacement(
 		identifier,
 		replacement,
-		SoundManager.replacementVolumeOf(identifier),
-		SoundManager.replacementPitchOf(identifier)
+		SoundManager.replacementVolumeOf(identifier, matchPitch),
+		SoundManager.replacementPitchOf(identifier, matchPitch),
+		matchPitch
 	)
 
 	private fun drawField(
@@ -193,6 +204,21 @@ internal class SoundRuleEditor {
 			rowTextTop(rowTop, font),
 			if (enabled) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
 		)
+		if (field == RuleField.MATCH_PITCH) drawMatchToggle(graphics, left, rowTop, enabled)
+		if (field == RuleField.MATCH_PITCH) {
+			val value = value(field, identifier)
+			val shown = label(field, value)
+			val memo = valueMemos[field.ordinal]
+			memo.text(
+				graphics,
+				font,
+				shown,
+				left + RULE_PANEL_WIDTH - PANEL_PAD - memo.width(font, shown),
+				rowTextTop(rowTop, font),
+				if (enabled) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_DISABLED
+			)
+			return
+		}
 		val range = field.slider
 		if (range == null) {
 			drawReplacement(graphics, font, identifier, left, rowTop, mouseX, mouseY)
@@ -234,7 +260,7 @@ internal class SoundRuleEditor {
 		val right = left + RULE_PANEL_WIDTH - PANEL_PAD
 		val top = rowTop + (FIELD_HEIGHT - BUTTON_HEIGHT) / 2
 		val bottom = top + BUTTON_HEIGHT
-		val replacement = SoundManager.replacementOf(identifier)
+		val replacement = SoundManager.replacementOf(identifier, matchPitch)
 		val nameRight = if (replacement == null) right else right - CLEAR_WIDTH
 		drawSoundButton(
 			graphics,
@@ -274,43 +300,77 @@ internal class SoundRuleEditor {
 	private fun label(field: RuleField, value: Int): String {
 		if (shownValues[field.ordinal] != value) {
 			shownValues[field.ordinal] = value
-			shownLabels[field.ordinal] = if (field == RuleField.REPLACEMENT_PITCH) pitchLabel(value) else "$value%"
+			shownLabels[field.ordinal] = if (field == RuleField.MATCH_PITCH || field == RuleField.REPLACEMENT_PITCH) {
+				pitchLabel(value)
+			} else {
+				"$value%"
+			}
 		}
 		return shownLabels[field.ordinal]!!
 	}
 
 	private fun enabled(field: RuleField, identifier: Identifier): Boolean = when (field) {
+		RuleField.MATCH_PITCH -> !matchPitch.isNaN()
 		RuleField.VOLUME ->
-			SoundManager.replacementOf(identifier) == null || SoundManager.getVolumePercent(identifier) == MUTED_PERCENT
+			SoundManager.replacementOf(identifier, matchPitch) == null ||
+				SoundManager.getVolumePercent(identifier, matchPitch) == MUTED_PERCENT
 		RuleField.REPLACEMENT -> true
-		else -> SoundManager.replacementOf(identifier) != null
+		else -> SoundManager.replacementOf(identifier, matchPitch) != null
 	}
 
 	private fun value(field: RuleField, identifier: Identifier): Int = when (field) {
-		RuleField.VOLUME -> SoundManager.getVolumePercent(identifier)
+		RuleField.MATCH_PITCH -> (preferredMatchPitch * PERCENT_SCALE).roundToInt()
+		RuleField.VOLUME -> SoundManager.getVolumePercent(identifier, matchPitch)
 		RuleField.REPLACEMENT -> 0
-		RuleField.REPLACEMENT_VOLUME -> (SoundManager.replacementVolumeOf(identifier) * PERCENT_SCALE).roundToInt()
-		RuleField.REPLACEMENT_PITCH -> (SoundManager.replacementPitchOf(identifier) * PERCENT_SCALE).roundToInt()
+		RuleField.REPLACEMENT_VOLUME -> (SoundManager.replacementVolumeOf(identifier, matchPitch) * PERCENT_SCALE).roundToInt()
+		RuleField.REPLACEMENT_PITCH -> (SoundManager.replacementPitchOf(identifier, matchPitch) * PERCENT_SCALE).roundToInt()
 	}
 
 	private fun apply(field: RuleField, identifier: Identifier, value: Int) {
 		when (field) {
-			RuleField.VOLUME -> SoundManager.setVolumePercent(identifier, value)
+			RuleField.MATCH_PITCH -> Unit
+			RuleField.VOLUME -> SoundManager.setVolumePercent(identifier, value, matchPitch)
 			RuleField.REPLACEMENT -> Unit
 			RuleField.REPLACEMENT_VOLUME -> SoundManager.setReplacement(
 				identifier,
-				SoundManager.replacementOf(identifier),
+				SoundManager.replacementOf(identifier, matchPitch),
 				value / PERCENT_SCALE,
-				SoundManager.replacementPitchOf(identifier)
+				SoundManager.replacementPitchOf(identifier, matchPitch),
+				matchPitch
 			)
 			RuleField.REPLACEMENT_PITCH -> SoundManager.setReplacement(
 				identifier,
-				SoundManager.replacementOf(identifier),
-				SoundManager.replacementVolumeOf(identifier),
-				value / PERCENT_SCALE
+				SoundManager.replacementOf(identifier, matchPitch),
+				SoundManager.replacementVolumeOf(identifier, matchPitch),
+				value / PERCENT_SCALE,
+				matchPitch
 			)
 		}
 	}
+
+	private fun drawMatchToggle(graphics: GuiGraphicsExtractor, left: Int, rowTop: Int, enabled: Boolean) {
+		val toggleLeft = left + MATCH_TOGGLE_LEFT
+		val top = rowTop + (FIELD_HEIGHT - MATCH_TOGGLE_HEIGHT) / 2
+		val right = toggleLeft + MATCH_TOGGLE_WIDTH
+		val bottom = top + MATCH_TOGGLE_HEIGHT
+		RoundedGui.pill(graphics, toggleLeft, top, right, bottom, if (enabled) DhenPalette.accentMuted else GlassGui.raised())
+		RoundedGui.pillBorder(graphics, toggleLeft, top, right, bottom, RoundedGui.HAIRLINE, DhenPalette.BORDER)
+		RoundedGui.circle(
+			graphics,
+			if (enabled) right - MATCH_TOGGLE_RADIUS - MATCH_TOGGLE_INSET else toggleLeft + MATCH_TOGGLE_RADIUS + MATCH_TOGGLE_INSET,
+			(top + bottom) / 2,
+			MATCH_TOGGLE_RADIUS,
+			if (enabled) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_DISABLED
+		)
+	}
+
+	private fun toggleMatchPitch(identifier: Identifier) {
+		val changed = if (matchPitch.isNaN()) preferredMatchPitch else ANY_PITCH
+		SoundManager.moveRule(identifier, matchPitch, changed)
+		matchPitch = changed
+	}
+
+	private fun previewPitch(): Float = if (matchPitch.isNaN()) DEFAULT_MATCH_PITCH else matchPitch
 
 	private fun buttonLeft(left: Int, index: Int): Int = left + PANEL_PAD + index * (BUTTON_WIDTH + BUTTON_GAP)
 
@@ -408,7 +468,7 @@ private const val RULE_SLIDER_WIDTH = 110
 private const val SLIDER_HIT_PAD = 5
 private const val VALUE_WIDTH = 30
 private const val VALUE_GAP = 6
-private const val BUTTONS_TOP = 116
+private const val BUTTONS_TOP = 138
 private const val BUTTON_WIDTH = 88
 private const val BUTTON_HEIGHT = 16
 private const val BUTTON_GAP = 8
@@ -416,3 +476,9 @@ private const val BUTTON_RADIUS = 3f
 private const val LABEL_PAD = 4
 private const val CLEAR_WIDTH = 18
 private const val CLEAR_GAP = 4
+private const val MATCH_TOGGLE_LEFT = 80
+private const val MATCH_TOGGLE_WIDTH = 24
+private const val MATCH_TOGGLE_HEIGHT = 10
+private const val MATCH_TOGGLE_RADIUS = 4
+private const val MATCH_TOGGLE_INSET = 1
+private const val DEFAULT_MATCH_PITCH = 1f

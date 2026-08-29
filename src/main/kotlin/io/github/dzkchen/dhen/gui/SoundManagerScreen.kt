@@ -1,8 +1,11 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.input.TextInputTarget
+import io.github.dzkchen.dhen.sound.ANY_PITCH
 import io.github.dzkchen.dhen.sound.CustomSoundPack
+import io.github.dzkchen.dhen.sound.RecentSound
 import io.github.dzkchen.dhen.sound.SoundManager
+import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
@@ -40,7 +43,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private var query = ""
 	private var searchFocused = false
 	private var recentSoundsVersion = -1L
-	private var recentIdentifiers: List<Identifier> = emptyList()
+	private var recentSounds: List<RecentSound> = emptyList()
 	private var scrollShown = 0f
 	private var scrollFrom = 0f
 	private var scrollStartedAt = 0L
@@ -184,7 +187,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		if (mouseX in left until left + VIEW_WIDTH && mouseY in top until top + ROW_HEIGHT) {
 			RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.interactive())
 		}
-		if (SoundManager.hasRule(sound.identifier)) {
+		if (SoundManager.hasRule(sound.identifier, sound.matchPitch)) {
 			RoundedGui.pill(
 				graphics,
 				left,
@@ -195,10 +198,10 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			)
 		}
 		val nameRoom = if (picking == null) sliderLeft - left - NAME_PAD - NAME_CONTROL_GAP else VIEW_WIDTH - 2 * NAME_PAD
-		val shown = sound.memo.fit(font, sound.cleanName, nameRoom)
+		val shown = sound.memo.fit(font, sound.rowName, nameRoom)
 		sound.memo.text(graphics, font, shown, left + NAME_PAD, textTop(top, ROW_HEIGHT), DhenPalette.TEXT_PRIMARY)
 		if (picking != null) return
-		val volume = SoundManager.getVolumePercent(sound.identifier)
+		val volume = SoundManager.getVolumePercent(sound.identifier, sound.matchPitch)
 		val value = sound.volumeLabel(volume)
 		sound.valueMemo.text(
 			graphics,
@@ -338,7 +341,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 				val buttonTop = rowTop + PLAY_TOP
 				if (mouseY in buttonTop until buttonTop + PLAY_HEIGHT) {
 					if (mouseX in playLeft until playLeft + PLAY_WIDTH) {
-						SoundManager.playPreview(sound.event)
+						SoundManager.playPreview(sound.event, sound.previewPitch)
 						return true
 					}
 					val ruleLeft = ruleLeft(viewLeft)
@@ -449,24 +452,24 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun catalogueRows(lowered: String): List<SoundListItem> = when (category) {
 		SoundCategory.RECENT -> recentSounds(lowered)
-		SoundCategory.RULES -> filterRuleSounds(SoundManager.ruledIdentifiers(), lowered, ::managedSound)
+		SoundCategory.RULES -> filterRuleSounds(SoundManager.ruledSounds(), lowered, ::managedSound)
 		else -> filterSounds(sounds, category, lowered)
 	}
 
 	private fun recentSounds(lowered: String): List<SoundListItem> {
 		refreshRecentIdentifiers()
-		return filterRecentSounds(soundsById, recentIdentifiers, lowered)
+		return filterRecentSounds(soundsById, recentSounds, lowered)
 	}
 
 	private fun refreshRecentIdentifiers() {
 		if (recentSoundsVersion == SoundManager.recentSoundsVersion) return
 		var version: Long
-		var identifiers: List<Identifier>
+		var sounds: List<RecentSound>
 		do {
 			version = SoundManager.recentSoundsVersion
-			identifiers = SoundManager.recentSoundIds()
+			sounds = SoundManager.recentSounds()
 		} while (version != SoundManager.recentSoundsVersion)
-		recentIdentifiers = identifiers
+		recentSounds = sounds
 		recentSoundsVersion = version
 	}
 
@@ -513,6 +516,8 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		if (category == SoundCategory.RULES) updateFilter(resetScroll = false)
 	}
 
+	private fun managedSound(rule: SoundRuleKey): ManagedSound = managedSound(rule.identifier).withPitch(rule.matchPitch)
+
 	private fun managedSound(identifier: Identifier): ManagedSound = soundsById[identifier]
 		?: orphans.getOrPut(identifier) {
 			ManagedSound(identifier, soundCleanName(identifier), SoundCategory.MISC, SoundEvent.createVariableRangeEvent(identifier))
@@ -528,7 +533,9 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun setVolume(sound: ManagedSound, mouseX: Int, sliderLeft: Int) {
 		val percent = steppedSliderValue(mouseX, sliderLeft, SLIDER_WIDTH, VOLUME_RANGE)
-		if (percent != SoundManager.getVolumePercent(sound.identifier)) SoundManager.setVolumePercent(sound.identifier, percent)
+		if (percent != SoundManager.getVolumePercent(sound.identifier, sound.matchPitch)) {
+			SoundManager.setVolumePercent(sound.identifier, percent, sound.matchPitch)
+		}
 	}
 
 	private fun dragScrollbar(mouseY: Int, viewTop: Int, thumbHeight: Int, maxScroll: Int) {
@@ -659,11 +666,14 @@ internal class ManagedSound(
 	val identifier: Identifier,
 	val cleanName: String,
 	val category: SoundCategory,
-	val event: SoundEvent
+	val event: SoundEvent,
+	val matchPitch: Float = ANY_PITCH
 ) : SoundListItem {
 	val memo = DhenType.memo()
 	val valueMemo = DhenType.memo()
-	val searchText = "$identifier $cleanName"
+	val rowName = if (matchPitch.isNaN()) cleanName else "$cleanName · ${pitchLabel((matchPitch * 100f).roundToInt())}"
+	val searchText = "$identifier $rowName"
+	val previewPitch = if (matchPitch.isNaN()) 1f else matchPitch
 	private var shownVolume = Int.MIN_VALUE
 	private var shownVolumeLabel = ""
 
@@ -674,6 +684,8 @@ internal class ManagedSound(
 		}
 		return shownVolumeLabel
 	}
+
+	fun withPitch(pitch: Float): ManagedSound = ManagedSound(identifier, cleanName, category, event, pitch)
 }
 
 internal fun soundCleanName(identifier: Identifier): String {
@@ -742,12 +754,12 @@ internal fun filterSounds(sounds: List<ManagedSound>, category: SoundCategory, q
 
 internal fun filterRecentSounds(
 	soundsById: Map<Identifier, ManagedSound>,
-	recentIdentifiers: List<Identifier>,
+	recentSounds: List<RecentSound>,
 	query: String
 ): List<SoundListItem> = buildList {
 	var headerAdded = false
-	for (identifier in recentIdentifiers) {
-		val sound = soundsById[identifier] ?: continue
+	for (recent in recentSounds) {
+		val sound = soundsById[recent.identifier]?.withPitch(recent.pitch) ?: continue
 		if (!sound.searchText.contains(query)) continue
 		if (!headerAdded) {
 			add(SoundHeader(SoundCategory.RECENT))
@@ -758,13 +770,13 @@ internal fun filterRecentSounds(
 }
 
 internal fun filterRuleSounds(
-	ruled: List<Identifier>,
+	ruled: List<SoundRuleKey>,
 	query: String,
-	resolve: (Identifier) -> ManagedSound
+	resolve: (SoundRuleKey) -> ManagedSound
 ): List<SoundListItem> = buildList {
 	var headerAdded = false
-	for (identifier in ruled.sortedBy { it.toString() }) {
-		val sound = resolve(identifier)
+	for (rule in ruled.sortedWith(compareBy({ it.identifier.toString() }, { if (it.matchPitch.isNaN()) 0f else it.matchPitch }))) {
+		val sound = resolve(rule)
 		if (!sound.searchText.contains(query)) continue
 		if (!headerAdded) {
 			add(SoundHeader(SoundCategory.RULES))

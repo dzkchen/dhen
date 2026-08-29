@@ -186,6 +186,28 @@ class SoundManagerTest {
 	}
 
 	@Test
+	fun `a pitch bound rule wins inside its epsilon and the unbound rule handles every other pitch`() {
+		val path = directory.resolve("sounds.json")
+		val sound = SoundEvents.FLINTANDSTEEL_USE.location()
+		val pitch = 0.74603176f
+		SoundManager.install(store(path))
+		SoundManager.setVolumePercent(sound, 35)
+		SoundManager.setVolumePercent(sound, 0, pitch)
+
+		assertEquals(0f, SoundManager.volumeOf(sound, pitch + 0.00005f))
+		assertTrue(SoundManager.applyRule(sound, pitch + 0.00005f))
+		assertEquals(0.35f, SoundManager.volumeOf(sound, pitch + 0.0002f))
+		assertFalse(SoundManager.applyRule(sound, pitch + 0.0002f))
+
+		SoundManager.uninstall()
+		SoundManager.install(store(path))
+
+		assertEquals(2, SoundManager.ruledSounds().count { it.identifier == sound })
+		assertEquals(0f, SoundManager.volumeOf(sound, pitch))
+		assertEquals(0.35f, SoundManager.volumeOf(sound, 1f))
+	}
+
+	@Test
 	fun `a substitute is played once and no rule fires while it is dispatched`() {
 		val path = directory.resolve("sounds.json")
 		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
@@ -314,7 +336,7 @@ class SoundManagerTest {
 		SoundManager.uninstall()
 		SoundManager.install(store(path))
 
-		assertEquals(listOf(arrow), SoundManager.ruledIdentifiers())
+		assertEquals(listOf(arrow), SoundManager.ruledSounds().map { it.identifier })
 		assertEquals(Replacement(harp, 1f, 0.5f), dispatchedFor(arrow))
 	}
 
@@ -324,36 +346,38 @@ class SoundManagerTest {
 			assertFalse(SoundManager.onSoundPlay(instance))
 		}
 
-		assertTrue(SoundManager.recentSoundIds().isEmpty())
+		assertTrue(SoundManager.recentSounds().isEmpty())
 	}
 
 	@Test
-	fun `recents are unique capped newest first and reset only on mutation`() {
+	fun `recents de duplicate identifier and pitch pairs cap newest first and reset only on mutation`() {
 		val before = SoundManager.recentSoundsVersion
 		val identifiers = List(101) { Identifier.fromNamespaceAndPath("test", "sound_$it") }
-		for (identifier in identifiers) SoundManager.recordPlayedIdentifier(identifier)
-		SoundManager.recordPlayedIdentifier(identifiers.last())
+		for (identifier in identifiers) SoundManager.recordPlayedSound(identifier, 1f)
+		SoundManager.recordPlayedSound(identifiers.last(), 1f)
+		SoundManager.recordPlayedSound(identifiers.last(), 0.75f)
 
-		val recent = SoundManager.recentSoundIds()
+		val recent = SoundManager.recentSounds()
 		assertEquals(100, recent.size)
-		assertEquals(identifiers.last(), recent.first())
-		assertEquals(identifiers[1], recent.last())
-		assertEquals(before + 101, SoundManager.recentSoundsVersion)
+		assertEquals(RecentSound(identifiers.last(), 0.75f), recent.first())
+		assertEquals(RecentSound(identifiers.last(), 1f), recent[1])
+		assertEquals(RecentSound(identifiers[2], 1f), recent.last())
+		assertEquals(before + 102, SoundManager.recentSoundsVersion)
 
 		SoundManager.clearRecentSounds()
-		assertTrue(SoundManager.recentSoundIds().isEmpty())
-		assertEquals(before + 102, SoundManager.recentSoundsVersion)
+		assertTrue(SoundManager.recentSounds().isEmpty())
+		assertEquals(before + 103, SoundManager.recentSoundsVersion)
 		SoundManager.clearRecentSounds()
-		assertEquals(before + 102, SoundManager.recentSoundsVersion)
+		assertEquals(before + 103, SoundManager.recentSoundsVersion)
 	}
 
 	@Test
 	fun `manager preview does not enter recents`() {
 		SoundManager.playPreview(SoundEvents.NOTE_BLOCK_HARP.value()) { sound ->
-			SoundManager.recordPlayedIdentifier(sound.identifier)
+			SoundManager.recordPlayedSound(sound.identifier, requested(sound, "pitch"))
 		}
 
-		assertTrue(SoundManager.recentSoundIds().isEmpty())
+		assertTrue(SoundManager.recentSounds().isEmpty())
 	}
 
 	@Test

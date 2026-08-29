@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.sound
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.ConfigStore
@@ -13,13 +14,21 @@ import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.slf4j.LoggerFactory
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+internal val ANY_PITCH = Float.NaN
+
+internal data class RecentSound(val identifier: Identifier, val pitch: Float)
+
+internal data class SoundRuleKey(val identifier: Identifier, val matchPitch: Float)
 
 object SoundManager {
 	private val ruleLock = Any()
 	private val recentLock = Any()
 	private val replacementLock = Any()
 	private val recentIds = arrayOfNulls<Identifier>(RECENT_LIMIT)
+	private val recentPitches = FloatArray(RECENT_LIMIT)
 
 	@Volatile
 	private var rules = RuleSnapshot.EMPTY
@@ -32,7 +41,7 @@ object SoundManager {
 	private var store: ConfigStore? = null
 	private val replacementDispatch = ReplacementDispatch(::dispatchReplacement)
 
-	internal val migrations: List<(JsonObject) -> Unit> = listOf(::liftMultipliersIntoRules)
+	internal val migrations: List<(JsonObject) -> Unit> = listOf(::liftMultipliersIntoRules, ::wrapRulesInArrays)
 	internal val authoritative: Set<String> = setOf(RULES)
 
 	internal val recentSoundsVersion: Long
@@ -52,9 +61,12 @@ object SoundManager {
 	}
 
 	@JvmStatic
-	fun volumeOf(identifier: Identifier): Float {
+	fun volumeOf(identifier: Identifier): Float = volumeOf(identifier, ANY_PITCH)
+
+	@JvmStatic
+	fun volumeOf(identifier: Identifier, pitch: Float): Float {
 		val snapshot = rules
-		val index = snapshot.indexOf(identifier)
+		val index = snapshot.matchingIndex(identifier, pitch)
 		return if (index < 0) DEFAULT_VOLUME else snapshot.volumes[index]
 	}
 
@@ -62,14 +74,19 @@ object SoundManager {
 	fun onSoundPlay(sound: SoundInstance): Boolean {
 		if (sound is SubstituteSound) return false
 		val identifier = sound.identifier
-		recordPlayedIdentifier(identifier)
-		return applyRule(identifier)
+		val pitch = (sound as? SoundPitchAccess)?.dhenSourcePitch() ?: sound.pitch
+		recordPlayedSound(identifier, pitch)
+		return applyRule(identifier, pitch)
 	}
 
-	internal fun applyRule(identifier: Identifier, dispatch: ReplacementDispatch = replacementDispatch): Boolean {
+	internal fun applyRule(
+		identifier: Identifier,
+		pitch: Float = DEFAULT_PITCH,
+		dispatch: ReplacementDispatch = replacementDispatch
+	): Boolean {
 		if (replacing) return false
 		val snapshot = rules
-		val index = snapshot.indexOf(identifier)
+		val index = snapshot.matchingIndex(identifier, pitch)
 		if (index < 0) return false
 		if (snapshot.volumes[index] == MUTED) return true
 		val replacement = snapshot.replacements[index] ?: return false
@@ -78,117 +95,147 @@ object SoundManager {
 		return true
 	}
 
-	internal fun hasRule(identifier: Identifier): Boolean = !rules.isDefault(identifier)
+	internal fun hasRule(identifier: Identifier, matchPitch: Float = ANY_PITCH): Boolean =
+		!rules.isDefault(identifier, matchPitch)
 
-	internal fun replacementOf(identifier: Identifier): Identifier? {
+	internal fun replacementOf(identifier: Identifier, matchPitch: Float = ANY_PITCH): Identifier? {
 		val snapshot = rules
-		val index = snapshot.indexOf(identifier)
+		val index = snapshot.exactIndex(identifier, matchPitch)
 		return if (index < 0) null else snapshot.replacements[index]
 	}
 
-	internal fun replacementVolumeOf(identifier: Identifier): Float {
+	internal fun replacementVolumeOf(identifier: Identifier, matchPitch: Float = ANY_PITCH): Float {
 		val snapshot = rules
-		val index = snapshot.indexOf(identifier)
+		val index = snapshot.exactIndex(identifier, matchPitch)
 		return if (index < 0) MAX_REPLACEMENT_VOLUME else snapshot.replacementVolumes[index]
 	}
 
-	internal fun replacementPitchOf(identifier: Identifier): Float {
+	internal fun replacementPitchOf(identifier: Identifier, matchPitch: Float = ANY_PITCH): Float {
 		val snapshot = rules
-		val index = snapshot.indexOf(identifier)
+		val index = snapshot.exactIndex(identifier, matchPitch)
 		return if (index < 0) DEFAULT_PITCH else snapshot.replacementPitches[index]
 	}
 
-	internal fun ruledIdentifiers(): List<Identifier> {
+	internal fun ruledSounds(): List<SoundRuleKey> {
 		val snapshot = rules
 		return buildList {
 			for (index in 0 until snapshot.size) {
 				val identifier = snapshot.identifiers[index] ?: continue
-				if (!snapshot.isDefaultAt(index)) add(identifier)
+				if (!snapshot.isDefaultAt(index)) add(SoundRuleKey(identifier, snapshot.matchPitches[index]))
 			}
 		}
 	}
 
-	internal fun getVolumePercent(identifier: Identifier): Int =
-		(volumeOf(identifier) * PERCENT_SCALE).roundToInt()
+	internal fun getVolumePercent(identifier: Identifier, matchPitch: Float = ANY_PITCH): Int {
+		val snapshot = rules
+		val index = snapshot.exactIndex(identifier, matchPitch)
+		return ((if (index < 0) DEFAULT_VOLUME else snapshot.volumes[index]) * PERCENT_SCALE).roundToInt()
+	}
 
-	internal fun setVolumePercent(identifier: Identifier, percent: Int): Int = synchronized(ruleLock) {
+	internal fun setVolumePercent(identifier: Identifier, percent: Int, matchPitch: Float = ANY_PITCH): Int = synchronized(ruleLock) {
 		val normalized = normalizePercent(percent)
-		if (store == null) return@synchronized getVolumePercent(identifier)
-		publish(rules.withVolume(identifier, normalized / PERCENT_SCALE), identifier)
+		if (store == null) return@synchronized getVolumePercent(identifier, matchPitch)
+		publish(rules.withVolume(identifier, matchPitch, normalized / PERCENT_SCALE), identifier, matchPitch)
 		normalized
 	}
 
-	internal fun setReplacement(identifier: Identifier, replacement: Identifier?, volume: Float, pitch: Float) =
+	internal fun setReplacement(
+		identifier: Identifier,
+		replacement: Identifier?,
+		volume: Float,
+		pitch: Float,
+		matchPitch: Float = ANY_PITCH
+	) =
 		synchronized(ruleLock) {
 			if (store == null) return@synchronized
 			publish(
 				rules.withReplacement(
 					identifier,
+					matchPitch,
 					replacement,
 					volume.coerceIn(MUTED, MAX_REPLACEMENT_VOLUME),
 					pitch.coerceIn(MIN_PITCH, MAX_PITCH)
 				),
-				identifier
+				identifier,
+				matchPitch
 			)
 		}
 
-	internal fun removeRule(identifier: Identifier) = synchronized(ruleLock) {
+	internal fun moveRule(identifier: Identifier, fromPitch: Float, toPitch: Float) = synchronized(ruleLock) {
 		val installed = store ?: return@synchronized
-		rules = rules.without(identifier) ?: return@synchronized
+		val moved = rules.moving(identifier, fromPitch, toPitch) ?: return@synchronized
+		rules = moved
+		installed.save(encode(moved))
+	}
+
+	internal fun removeRule(identifier: Identifier, matchPitch: Float = ANY_PITCH) = synchronized(ruleLock) {
+		val installed = store ?: return@synchronized
+		rules = rules.without(identifier, matchPitch) ?: return@synchronized
 		installed.save(encode(rules))
 	}
 
-	private fun publish(updated: RuleSnapshot, identifier: Identifier) {
-		rules = if (updated.isDefault(identifier)) updated.without(identifier) ?: updated else updated
+	private fun publish(updated: RuleSnapshot, identifier: Identifier, matchPitch: Float) {
+		rules = if (updated.isDefault(identifier, matchPitch)) updated.without(identifier, matchPitch) ?: updated else updated
 		store?.save(encode(rules))
 	}
 
-	internal fun recordPlayedIdentifier(identifier: Identifier) = synchronized(recentLock) {
+	internal fun recordPlayedSound(identifier: Identifier, pitch: Float) = synchronized(recentLock) {
 		if (suppressRecentDepth != 0) return@synchronized
 		for (index in 0 until recentCount) {
-			if (recentIds[index] == identifier) return@synchronized
+			if (recentIds[index] == identifier && recentPitches[index] == pitch) return@synchronized
 		}
 		if (recentCount == RECENT_LIMIT) {
 			System.arraycopy(recentIds, 1, recentIds, 0, RECENT_LIMIT - 1)
+			System.arraycopy(recentPitches, 1, recentPitches, 0, RECENT_LIMIT - 1)
 			recentIds[RECENT_LIMIT - 1] = identifier
+			recentPitches[RECENT_LIMIT - 1] = pitch
 		} else {
 			recentIds[recentCount] = identifier
+			recentPitches[recentCount] = pitch
 			recentCount++
 		}
 		recentVersion++
 	}
 
-	internal fun recentSoundIds(): List<Identifier> = synchronized(recentLock) {
-		List(recentCount) { offset -> recentIds[recentCount - offset - 1]!! }
+	internal fun recentSounds(): List<RecentSound> = synchronized(recentLock) {
+		List(recentCount) { offset ->
+			val index = recentCount - offset - 1
+			RecentSound(recentIds[index]!!, recentPitches[index])
+		}
 	}
 
 	internal fun clearRecentSounds() = synchronized(recentLock) {
 		if (recentCount == 0) return@synchronized
 		java.util.Arrays.fill(recentIds, 0, recentCount, null)
+		java.util.Arrays.fill(recentPitches, 0, recentCount, 0f)
 		recentCount = 0
 		recentVersion++
 	}
 
-	internal fun playPreview(sound: SoundEvent) {
+	internal fun playPreview(sound: SoundEvent, pitch: Float = PREVIEW_PITCH) {
 		val client = Minecraft.getInstance()
 		client.execute {
-			playPreview(sound, client.soundManager::play)
+			playPreview(sound, pitch, client.soundManager::play)
 		}
 	}
 
-	internal fun playPreview(sound: SoundEvent, play: (SimpleSoundInstance) -> Unit) = synchronized(recentLock) {
+	internal fun playPreview(
+		sound: SoundEvent,
+		pitch: Float = PREVIEW_PITCH,
+		play: (SimpleSoundInstance) -> Unit
+	) = synchronized(recentLock) {
 		suppressRecentDepth++
 		try {
-			play(SimpleSoundInstance.forUI(sound, PREVIEW_PITCH, PREVIEW_VOLUME))
+			play(SimpleSoundInstance.forUI(sound, pitch, PREVIEW_VOLUME))
 		} finally {
 			suppressRecentDepth--
 		}
 	}
 
-	internal fun playOriginal(identifier: Identifier) {
+	internal fun playOriginal(identifier: Identifier, pitch: Float = PREVIEW_PITCH) {
 		val client = Minecraft.getInstance()
 		client.execute {
-			playSubstitute(identifier, PREVIEW_VOLUME, PREVIEW_PITCH, client.soundManager::play)
+			playSubstitute(identifier, PREVIEW_VOLUME, pitch, client.soundManager::play)
 		}
 	}
 
@@ -225,44 +272,76 @@ object SoundManager {
 		}
 	}
 
+	private fun wrapRulesInArrays(doc: JsonObject) {
+		val encoded = doc.obj(RULES) ?: return
+		for ((identifier, element) in encoded.entrySet().toList()) {
+			if (element is JsonObject) encoded.add(identifier, JsonArray().apply { add(element) })
+		}
+	}
+
 	private fun decode(doc: JsonObject): RuleSnapshot {
 		val encoded = doc.obj(RULES) ?: return RuleSnapshot.EMPTY
-		val identifiers = arrayOfNulls<Identifier>(encoded.size())
-		val volumes = FloatArray(encoded.size())
-		val replacements = arrayOfNulls<Identifier>(encoded.size())
-		val replacementVolumes = FloatArray(encoded.size())
-		val replacementPitches = FloatArray(encoded.size())
-		var size = 0
+		val decoded = ArrayList<DecodedRule>()
 		for ((rawIdentifier, element) in encoded.entrySet()) {
 			val identifier = Identifier.tryParse(rawIdentifier)
-			val rule = element as? JsonObject
-			if (identifier == null || rule == null) {
+			if (identifier == null) {
 				log.warn("Skipping bad sound rule for {}", rawIdentifier)
 				continue
 			}
-			identifiers[size] = identifier
-			volumes[size] = decodedVolume(ruleNumber(rawIdentifier, rule, VOLUME))
-			replacements[size] = ruleReplacement(rawIdentifier, rule)
-			replacementVolumes[size] = boundedReplacementVolume(ruleNumber(rawIdentifier, rule, REPLACEMENT_VOLUME))
-			replacementPitches[size] = boundedReplacementPitch(ruleNumber(rawIdentifier, rule, REPLACEMENT_PITCH))
-			size++
+			when (element) {
+				is JsonObject -> decodeRule(rawIdentifier, identifier, element)?.let(decoded::add)
+				is JsonArray -> for (rule in element) {
+					val ruleObject = rule as? JsonObject
+					if (ruleObject == null) log.warn("Skipping bad sound rule for {}", rawIdentifier)
+					else decodeRule(rawIdentifier, identifier, ruleObject)?.let(decoded::add)
+				}
+				else -> log.warn("Skipping bad sound rule for {}", rawIdentifier)
+			}
 		}
-		return RuleSnapshot(identifiers, volumes, replacements, replacementVolumes, replacementPitches, size)
+		return RuleSnapshot(
+			Array(decoded.size) { decoded[it].identifier },
+			FloatArray(decoded.size) { decoded[it].matchPitch },
+			FloatArray(decoded.size) { decoded[it].volume },
+			Array(decoded.size) { decoded[it].replacement },
+			FloatArray(decoded.size) { decoded[it].replacementVolume },
+			FloatArray(decoded.size) { decoded[it].replacementPitch },
+			decoded.size
+		)
 	}
 
 	private fun encode(snapshot: RuleSnapshot): JsonObject {
 		val encoded = JsonObject()
 		for (index in 0 until snapshot.size) {
 			val rule = JsonObject()
+			val matchPitch = snapshot.matchPitches[index]
+			if (!matchPitch.isNaN()) rule.addProperty(MATCH_PITCH, matchPitch)
 			rule.addProperty(VOLUME, snapshot.volumes[index])
 			snapshot.replacements[index]?.let { replacement ->
 				rule.addProperty(REPLACEMENT, replacement.toString())
 				rule.addProperty(REPLACEMENT_VOLUME, snapshot.replacementVolumes[index])
 				rule.addProperty(REPLACEMENT_PITCH, snapshot.replacementPitches[index])
 			}
-			encoded.add(snapshot.identifiers[index].toString(), rule)
+			val identifier = snapshot.identifiers[index].toString()
+			val grouped = encoded.get(identifier) as? JsonArray ?: JsonArray().also { encoded.add(identifier, it) }
+			grouped.add(rule)
 		}
 		return JsonObject().apply { add(RULES, encoded) }
+	}
+
+	private fun decodeRule(rawIdentifier: String, identifier: Identifier, rule: JsonObject): DecodedRule? {
+		val matchPitch = if (rule.has(MATCH_PITCH)) {
+			ruleNumber(rawIdentifier, rule, MATCH_PITCH)?.toFloat()?.takeIf(Float::isFinite) ?: return null
+		} else {
+			ANY_PITCH
+		}
+		return DecodedRule(
+			identifier,
+			matchPitch,
+			decodedVolume(ruleNumber(rawIdentifier, rule, VOLUME)),
+			ruleReplacement(rawIdentifier, rule),
+			boundedReplacementVolume(ruleNumber(rawIdentifier, rule, REPLACEMENT_VOLUME)),
+			boundedReplacementPitch(ruleNumber(rawIdentifier, rule, REPLACEMENT_PITCH))
+		)
 	}
 
 	private fun ruleNumber(rawIdentifier: String, rule: JsonObject, member: String): Double? =
@@ -297,38 +376,51 @@ object SoundManager {
 
 	private class RuleSnapshot(
 		val identifiers: Array<Identifier?>,
+		val matchPitches: FloatArray,
 		val volumes: FloatArray,
 		val replacements: Array<Identifier?>,
 		val replacementVolumes: FloatArray,
 		val replacementPitches: FloatArray,
 		val size: Int
 	) {
-		fun indexOf(identifier: Identifier): Int {
+		fun matchingIndex(identifier: Identifier, pitch: Float): Int {
+			var unbound = -1
 			for (index in 0 until size) {
-				if (identifiers[index] == identifier) return index
+				if (identifiers[index] != identifier) continue
+				val matchPitch = matchPitches[index]
+				if (matchPitch.isNaN()) unbound = index
+				else if (pitchMatches(matchPitch, pitch)) return index
+			}
+			return unbound
+		}
+
+		fun exactIndex(identifier: Identifier, matchPitch: Float): Int {
+			for (index in 0 until size) {
+				if (identifiers[index] == identifier && sameBinding(matchPitches[index], matchPitch)) return index
 			}
 			return -1
 		}
 
-		fun isDefault(identifier: Identifier): Boolean {
-			val index = indexOf(identifier)
+		fun isDefault(identifier: Identifier, matchPitch: Float): Boolean {
+			val index = exactIndex(identifier, matchPitch)
 			return index < 0 || isDefaultAt(index)
 		}
 
 		fun isDefaultAt(index: Int): Boolean = volumes[index] == DEFAULT_VOLUME && replacements[index] == null
 
-		fun withVolume(identifier: Identifier, volume: Float): RuleSnapshot {
-			val index = indexOf(identifier)
-			if (index < 0) return appended(identifier, volume)
+		fun withVolume(identifier: Identifier, matchPitch: Float, volume: Float): RuleSnapshot {
+			val index = exactIndex(identifier, matchPitch)
+			if (index < 0) return appended(identifier, matchPitch, volume)
 			val changed = volumes.copyOf()
 			changed[index] = volume
-			return RuleSnapshot(identifiers, changed, replacements, replacementVolumes, replacementPitches, size)
+			return RuleSnapshot(identifiers, matchPitches, changed, replacements, replacementVolumes, replacementPitches, size)
 		}
 
-		fun withReplacement(identifier: Identifier, replacement: Identifier?, volume: Float, pitch: Float): RuleSnapshot {
-			val index = indexOf(identifier)
+		fun withReplacement(identifier: Identifier, matchPitch: Float, replacement: Identifier?, volume: Float, pitch: Float): RuleSnapshot {
+			val index = exactIndex(identifier, matchPitch)
 			if (index < 0) {
-				return appended(identifier, DEFAULT_VOLUME).withReplacement(identifier, replacement, volume, pitch)
+				return appended(identifier, matchPitch, DEFAULT_VOLUME)
+					.withReplacement(identifier, matchPitch, replacement, volume, pitch)
 			}
 			val changedReplacements = replacements.copyOf()
 			val changedVolumes = replacementVolumes.copyOf()
@@ -336,42 +428,87 @@ object SoundManager {
 			changedReplacements[index] = replacement
 			changedVolumes[index] = volume
 			changedPitches[index] = pitch
-			return RuleSnapshot(identifiers, volumes, changedReplacements, changedVolumes, changedPitches, size)
+			return RuleSnapshot(identifiers, matchPitches, volumes, changedReplacements, changedVolumes, changedPitches, size)
 		}
 
-		fun without(identifier: Identifier): RuleSnapshot? {
-			val index = indexOf(identifier)
+		fun moving(identifier: Identifier, fromPitch: Float, toPitch: Float): RuleSnapshot? {
+			val from = exactIndex(identifier, fromPitch)
+			if (from < 0 || sameBinding(fromPitch, toPitch)) return null
+			val to = exactIndex(identifier, toPitch)
+			if (to < 0) {
+				val changed = matchPitches.copyOf()
+				changed[from] = toPitch
+				return RuleSnapshot(identifiers, changed, volumes, replacements, replacementVolumes, replacementPitches, size)
+			}
+			val changedVolumes = volumes.copyOf()
+			val changedReplacements = replacements.copyOf()
+			val changedReplacementVolumes = replacementVolumes.copyOf()
+			val changedReplacementPitches = replacementPitches.copyOf()
+			changedVolumes[to] = volumes[from]
+			changedReplacements[to] = replacements[from]
+			changedReplacementVolumes[to] = replacementVolumes[from]
+			changedReplacementPitches[to] = replacementPitches[from]
+			return RuleSnapshot(
+				identifiers,
+				matchPitches,
+				changedVolumes,
+				changedReplacements,
+				changedReplacementVolumes,
+				changedReplacementPitches,
+				size
+			).withoutAt(from)
+		}
+
+		fun without(identifier: Identifier, matchPitch: Float): RuleSnapshot? {
+			val index = exactIndex(identifier, matchPitch)
 			if (index < 0) return null
+			return withoutAt(index)
+		}
+
+		private fun withoutAt(index: Int): RuleSnapshot {
 			val last = size - 1
 			val keptIdentifiers = identifiers.copyOf()
+			val keptMatchPitches = matchPitches.copyOf()
 			val keptVolumes = volumes.copyOf()
 			val keptReplacements = replacements.copyOf()
 			val keptReplacementVolumes = replacementVolumes.copyOf()
 			val keptReplacementPitches = replacementPitches.copyOf()
 			keptIdentifiers[index] = keptIdentifiers[last]
+			keptMatchPitches[index] = keptMatchPitches[last]
 			keptVolumes[index] = keptVolumes[last]
 			keptReplacements[index] = keptReplacements[last]
 			keptReplacementVolumes[index] = keptReplacementVolumes[last]
 			keptReplacementPitches[index] = keptReplacementPitches[last]
 			keptIdentifiers[last] = null
 			keptReplacements[last] = null
-			return RuleSnapshot(keptIdentifiers, keptVolumes, keptReplacements, keptReplacementVolumes, keptReplacementPitches, last)
+			return RuleSnapshot(
+				keptIdentifiers,
+				keptMatchPitches,
+				keptVolumes,
+				keptReplacements,
+				keptReplacementVolumes,
+				keptReplacementPitches,
+				last
+			)
 		}
 
-		private fun appended(identifier: Identifier, volume: Float): RuleSnapshot {
+		private fun appended(identifier: Identifier, matchPitch: Float, volume: Float): RuleSnapshot {
 			val grown = size + 1
 			val extendedIdentifiers = identifiers.copyOf(grown)
+			val extendedMatchPitches = matchPitches.copyOf(grown)
 			val extendedVolumes = volumes.copyOf(grown)
 			val extendedReplacements = replacements.copyOf(grown)
 			val extendedReplacementVolumes = replacementVolumes.copyOf(grown)
 			val extendedReplacementPitches = replacementPitches.copyOf(grown)
 			extendedIdentifiers[size] = identifier
+			extendedMatchPitches[size] = matchPitch
 			extendedVolumes[size] = volume
 			extendedReplacements[size] = null
 			extendedReplacementVolumes[size] = MAX_REPLACEMENT_VOLUME
 			extendedReplacementPitches[size] = DEFAULT_PITCH
 			return RuleSnapshot(
 				extendedIdentifiers,
+				extendedMatchPitches,
 				extendedVolumes,
 				extendedReplacements,
 				extendedReplacementVolumes,
@@ -381,9 +518,18 @@ object SoundManager {
 		}
 
 		companion object {
-			val EMPTY = RuleSnapshot(emptyArray(), FloatArray(0), emptyArray(), FloatArray(0), FloatArray(0), 0)
+			val EMPTY = RuleSnapshot(emptyArray(), FloatArray(0), FloatArray(0), emptyArray(), FloatArray(0), FloatArray(0), 0)
 		}
 	}
+
+	private data class DecodedRule(
+		val identifier: Identifier,
+		val matchPitch: Float,
+		val volume: Float,
+		val replacement: Identifier?,
+		val replacementVolume: Float,
+		val replacementPitch: Float
+	)
 
 	private const val MULTIPLIERS = "multipliers"
 	private const val RULES = "rules"
@@ -391,6 +537,7 @@ object SoundManager {
 	private const val REPLACEMENT = "replacement"
 	private const val REPLACEMENT_VOLUME = "replacementVolume"
 	private const val REPLACEMENT_PITCH = "replacementPitch"
+	private const val MATCH_PITCH = "matchPitch"
 	private const val RECENT_LIMIT = 100
 	private const val MIN_PERCENT = 0
 	private const val MAX_PERCENT = 200
@@ -404,5 +551,11 @@ object SoundManager {
 	private const val MAX_PITCH = 2f
 	private const val PREVIEW_VOLUME = 0.25f
 	private const val PREVIEW_PITCH = 1f
+	private const val PITCH_EPSILON = 0.0001f
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
+
+	private fun pitchMatches(expected: Float, actual: Float): Boolean = abs(expected - actual) <= PITCH_EPSILON
+
+	private fun sameBinding(first: Float, second: Float): Boolean =
+		first.isNaN() && second.isNaN() || !first.isNaN() && !second.isNaN() && pitchMatches(first, second)
 }

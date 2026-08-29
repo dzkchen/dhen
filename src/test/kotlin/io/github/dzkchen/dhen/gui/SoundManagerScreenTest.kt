@@ -1,6 +1,9 @@
 package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.sound.ANY_PITCH
+import io.github.dzkchen.dhen.sound.RecentSound
+import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -73,14 +76,17 @@ class SoundManagerScreenTest {
 		val wolf = sound("entity.wolf.howl")
 		val harp = sound("block.note_block.harp")
 		val sounds = mapOf(wolf.identifier to wolf, harp.identifier to harp)
-		val recent = listOf(wolf.identifier, id("missing"), harp.identifier)
+		val recent = listOf(RecentSound(wolf.identifier, 0.75f), RecentSound(id("missing"), 1f), RecentSound(harp.identifier, 1f))
 
 		assertEquals(
 			listOf(SoundCategory.RECENT),
 			filterRecentSounds(sounds, recent, "").filterIsInstance<SoundHeader>().map { it.category }
 		)
-		assertEquals(listOf(wolf, harp), filterRecentSounds(sounds, recent, "").filterIsInstance<ManagedSound>())
-		assertEquals(listOf(harp), filterRecentSounds(sounds, recent, "harp").filterIsInstance<ManagedSound>())
+		val shown = filterRecentSounds(sounds, recent, "").filterIsInstance<ManagedSound>()
+		assertEquals(listOf(wolf.identifier, harp.identifier), shown.map { it.identifier })
+		assertEquals(listOf(0.75f, 1f), shown.map { it.matchPitch })
+		assertEquals("wolf howl · 0.75", shown.first().rowName)
+		assertEquals(listOf(harp.identifier), filterRecentSounds(sounds, recent, "harp").filterIsInstance<ManagedSound>().map { it.identifier })
 		assertTrue(filterRecentSounds(sounds, recent, "missing").isEmpty())
 	}
 
@@ -90,8 +96,10 @@ class SoundManagerScreenTest {
 		val harp = sound("block.note_block.harp")
 		val known = mapOf(wolf.identifier to wolf, harp.identifier to harp)
 		val gone = id("removed.mod.sound")
-		val resolve: (Identifier) -> ManagedSound = { identifier -> known[identifier] ?: sound(identifier.path) }
-		val ruled = listOf(wolf.identifier, gone, harp.identifier)
+		val resolve: (SoundRuleKey) -> ManagedSound = { rule ->
+			(known[rule.identifier] ?: sound(rule.identifier.path)).withPitch(rule.matchPitch)
+		}
+		val ruled = listOf(SoundRuleKey(wolf.identifier, 0.75f), SoundRuleKey(gone, ANY_PITCH), SoundRuleKey(harp.identifier, 1f))
 
 		val rows = filterRuleSounds(ruled, "", resolve)
 
@@ -100,7 +108,10 @@ class SoundManagerScreenTest {
 			listOf(harp.identifier, wolf.identifier, gone),
 			rows.filterIsInstance<ManagedSound>().map { it.identifier }
 		)
-		assertEquals(listOf(harp), filterRuleSounds(ruled, "harp", resolve).filterIsInstance<ManagedSound>())
+		assertEquals(
+			listOf(harp.identifier),
+			filterRuleSounds(ruled, "harp", resolve).filterIsInstance<ManagedSound>().map { it.identifier }
+		)
 		assertTrue(filterRuleSounds(emptyList(), "", resolve).isEmpty())
 	}
 
