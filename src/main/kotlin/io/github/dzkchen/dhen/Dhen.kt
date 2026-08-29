@@ -34,6 +34,7 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.RevertAxes
+import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
@@ -174,7 +175,7 @@ object Dhen : ClientModInitializer {
 		themes.reload()
 		fonts.prime()
 		ClientPrefs.openSoundManager.value = ::openSoundManager
-		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, Tweaks, RevertAxes)
+		modules.registerAll(AutoSprint, ArrowFix, NoItemPlace, Tweaks, RevertAxes, TimeChanger)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->

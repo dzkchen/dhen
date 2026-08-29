@@ -78,6 +78,10 @@ abstract class Module(
 		register(T::class.java, priority, handler)
 	}
 
+	protected open fun onEnabled() {}
+
+	protected open fun onDisabled() {}
+
 	protected fun <T : HudElement> hud(element: T): T {
 		require(!bound) { "Module '$name' HUD elements must be registered before manager registration." }
 		require(hudList.none { it.name == element.name }) {
@@ -147,6 +151,7 @@ abstract class Module(
 				moduleScope = null
 			}
 		}
+		isolated(host.profiler) { if (enabled) onEnabled() else onDisabled() }
 		notifyStateChangeQuietly()
 		return true
 	}
