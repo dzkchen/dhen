@@ -7,6 +7,7 @@ import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -62,8 +63,8 @@ class SoundManagerScreenTest {
 		val sorted = listOf(harp, wolf, click)
 
 		assertEquals(
-			listOf(SoundCategory.BLOCKS, SoundCategory.PASSIVE_MOBS, SoundCategory.UI),
-			filterSounds(sorted, SoundCategory.ALL, "").filterIsInstance<SoundHeader>().map { it.category }
+			listOf(SoundCategory.BLOCKS.title, SoundCategory.PASSIVE_MOBS.title, SoundCategory.UI.title),
+			filterSounds(sorted, SoundCategory.ALL, "").filterIsInstance<SoundHeader>().map { it.title }
 		)
 		assertEquals(listOf(wolf), filterSounds(sorted, SoundCategory.ALL, "wolf howl").filterIsInstance<ManagedSound>())
 		assertEquals(listOf(harp), filterSounds(sorted, SoundCategory.ALL, "note_block").filterIsInstance<ManagedSound>())
@@ -78,8 +79,8 @@ class SoundManagerScreenTest {
 		val recent = listOf(RecentSound(wolf.identifier, 0.75f), RecentSound(id("missing"), 1f), RecentSound(harp.identifier, 1f))
 
 		assertEquals(
-			listOf(SoundCategory.RECENT),
-			filterRecentSounds(sounds, recent, "").filterIsInstance<SoundHeader>().map { it.category }
+			listOf(SoundCategory.RECENT.title),
+			filterRecentSounds(sounds, recent, "").filterIsInstance<SoundHeader>().map { it.title }
 		)
 		val shown = filterRecentSounds(sounds, recent, "").filterIsInstance<ManagedSound>()
 		assertEquals(listOf(wolf.identifier, harp.identifier), shown.map { it.identifier })
@@ -102,7 +103,7 @@ class SoundManagerScreenTest {
 
 		val rows = filterRuleSounds(ruled, "", resolve)
 
-		assertEquals(listOf(SoundCategory.RULES), rows.filterIsInstance<SoundHeader>().map { it.category })
+		assertEquals(listOf(SoundCategory.RULES.title), rows.filterIsInstance<SoundHeader>().map { it.title })
 		assertEquals(
 			listOf(harp.identifier, wolf.identifier, gone),
 			rows.filterIsInstance<ManagedSound>().map { it.identifier }
@@ -112,6 +113,84 @@ class SoundManagerScreenTest {
 			filterRuleSounds(ruled, "harp", resolve).filterIsInstance<ManagedSound>().map { it.identifier }
 		)
 		assertTrue(filterRuleSounds(emptyList(), "", resolve).isEmpty())
+	}
+
+	@Test
+	fun `suggestions resolve against the catalogue and skip identifiers it does not have`() {
+		val harp = sound("block.note_block.harp")
+		val click = sound("ui.button.click")
+		val known = mapOf(harp.identifier to harp, click.identifier to click)
+
+		val suggested = suggestedReplacements(known)
+
+		assertEquals(listOf(harp.identifier, click.identifier), suggested.map { it.identifier })
+		assertEquals(listOf("Arrow hit harp", "UI click"), suggested.map { it.rowName })
+		assertEquals(listOf(SoundCategory.BLOCKS, SoundCategory.UI), suggested.map { it.category })
+		assertTrue(suggestedReplacements(emptyMap()).isEmpty())
+	}
+
+	@Test
+	fun `pick mode leads with suggestions only while the query is empty`() {
+		val harp = sound("block.note_block.harp")
+		val wolf = sound("entity.wolf.howl")
+		val suggested = suggestedReplacements(mapOf(harp.identifier to harp))
+		val catalogue = filterSounds(listOf(harp, wolf), SoundCategory.ALL, "")
+
+		val led = replacementRows(suggested, catalogue, "")
+
+		assertEquals("Suggested sounds", (led.first() as SoundHeader).title)
+		assertEquals(harp.identifier, (led[1] as ManagedSound).identifier)
+		assertEquals(catalogue, led.drop(2))
+		assertEquals(catalogue, replacementRows(suggested, catalogue, "wolf"))
+		assertEquals(catalogue, replacementRows(emptyList(), catalogue, ""))
+	}
+
+	@Test
+	fun `the window opens centred and a drag stays inside a viewport that fits it`() {
+		assertEquals(230, centredWindowStart(1_000, 540))
+		assertEquals(157, centredWindowStart(600, 285))
+		assertEquals(0, clampAlongTitleBand(-40, 540, 1_000, 108))
+		assertEquals(460, clampAlongTitleBand(900, 540, 1_000, 108))
+		assertEquals(230, clampAlongTitleBand(230, 540, 1_000, 108))
+		assertEquals(0, clampAcrossTitleBand(-40, 285, 600, 26))
+		assertEquals(315, clampAcrossTitleBand(600, 285, 600, 26))
+		assertEquals(120, clampAcrossTitleBand(120, 285, 600, 26))
+	}
+
+	@Test
+	fun `a viewport narrower than the window still pans to the far edge`() {
+		assertEquals(-200, clampAlongTitleBand(-200, 540, 426, 108))
+		assertEquals(-432, clampAlongTitleBand(-900, 540, 426, 108))
+		assertEquals(318, clampAlongTitleBand(900, 540, 426, 108))
+		assertEquals(0, clampAlongTitleBand(50, 540, 80, 108))
+	}
+
+	@Test
+	fun `a viewport shorter than the window never lets the title band leave the top`() {
+		assertEquals(0, clampAcrossTitleBand(-100, 285, 240, 26))
+		assertEquals(214, clampAcrossTitleBand(900, 285, 240, 26))
+		assertEquals(100, clampAcrossTitleBand(100, 285, 240, 26))
+		assertEquals(0, clampAcrossTitleBand(10, 285, 20, 26))
+	}
+
+	@Test
+	fun `the title band claims a press across the whole window width and nothing below it`() {
+		assertTrue(pressesTitleBand(100, 40, 100, 40, 540, 26))
+		assertTrue(pressesTitleBand(639, 65, 100, 40, 540, 26))
+		assertFalse(pressesTitleBand(640, 50, 100, 40, 540, 26))
+		assertFalse(pressesTitleBand(300, 66, 100, 40, 540, 26))
+		assertFalse(pressesTitleBand(300, 39, 100, 40, 540, 26))
+	}
+
+	@Test
+	fun `a title drag moves the window by the pointer delta and keeps its grab point`() {
+		val grabX = 300 - 100
+		val grabY = 50 - 40
+
+		assertEquals(400, clampAlongTitleBand(600 - grabX, 540, 1_000, 108))
+		assertEquals(90, clampAcrossTitleBand(100 - grabY, 285, 600, 26))
+		assertEquals(460, clampAlongTitleBand(1_400 - grabX, 540, 1_000, 108))
+		assertEquals(0, clampAcrossTitleBand(-500 - grabY, 285, 600, 26))
 	}
 
 	@Test

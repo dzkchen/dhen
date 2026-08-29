@@ -34,6 +34,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private val playMemo = DhenType.memo()
 	private val ruleMemo = DhenType.memo()
 	private val editor = SoundRuleEditor()
+	private val suggestions = suggestedReplacements(soundsById)
 	private val orphans = mutableMapOf<Identifier, ManagedSound>()
 	private var picking: ManagedSound? = null
 	private var banner = TITLE
@@ -50,12 +51,25 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private var draggedSound: ManagedSound? = null
 	private var draggingScrollbar = false
 	private var scrollbarDragOffset = 0
+	private var windowLeft = 0
+	private var windowTop = 0
+	private var windowGrabX = 0
+	private var windowGrabY = 0
+	private var draggingWindow = false
 
 	override val textInputFocused: Boolean
 		get() = searchFocused
 
 	override fun init() {
+		placeWindow(centredWindowStart(width, WINDOW_WIDTH), centredWindowStart(height, WINDOW_HEIGHT))
 		updateFilter()
+	}
+
+	override fun repositionElements() {
+		val keptLeft = windowLeft
+		val keptTop = windowTop
+		super.repositionElements()
+		placeWindow(keptLeft, keptTop)
 	}
 
 	override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
@@ -71,8 +85,8 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
 		refreshRecent()
-		val left = (width - WINDOW_WIDTH) / 2
-		val top = (height - WINDOW_HEIGHT) / 2
+		val left = windowLeft
+		val top = windowTop
 		val right = left + WINDOW_WIDTH
 		val bottom = top + WINDOW_HEIGHT
 		val sidebarRight = left + SIDEBAR_WIDTH
@@ -91,8 +105,16 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		SharpGui.fill(graphics, left + HAIRLINE_INSET, top + HAIRLINE_INSET, right - HAIRLINE_INSET, top + 2, DhenPalette.accent)
 		drawBanner(graphics, sidebarRight, right, top)
 		drawCategories(graphics, mouseX, mouseY, left, top)
-		drawList(graphics, mouseX, mouseY, left, top, currentScroll(Util.getMillis()).roundToInt())
+		val modal = editing
+		val listMouseX = if (modal) NO_HOVER else mouseX
+		val listMouseY = if (modal) NO_HOVER else mouseY
+		drawList(graphics, listMouseX, listMouseY, left, top, currentScroll(Util.getMillis()).roundToInt())
 		drawSearch(graphics, left, bottom)
+		if (modal) {
+			val viewLeft = left + VIEW_LEFT
+			val viewTop = top + VIEW_TOP
+			SharpGui.fill(graphics, viewLeft, viewTop, viewLeft + VIEW_WIDTH, viewTop + VIEW_HEIGHT, DhenPalette.GLASS_SCRIM)
+		}
 		if (picking == null) editor.draw(graphics, font, panelLeft(left), panelTop(top), mouseX, mouseY)
 	}
 
@@ -161,7 +183,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun drawHeader(graphics: GuiGraphicsExtractor, header: SoundHeader, left: Int, top: Int) {
 		RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.raised())
-		drawCentered(graphics, header.memo, header.category.title, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.accent)
+		drawCentered(graphics, header.memo, header.title, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.accent)
 	}
 
 	private fun drawSound(
@@ -273,8 +295,15 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		if (event.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return super.mouseClicked(event, doubleClick)
 		val mouseX = event.x().toInt()
 		val mouseY = event.y().toInt()
-		val left = (width - WINDOW_WIDTH) / 2
-		val top = (height - WINDOW_HEIGHT) / 2
+		val left = windowLeft
+		val top = windowTop
+		if (pressesTitleBand(mouseX, mouseY, left, top, WINDOW_WIDTH, TITLE_BAND_HEIGHT)) {
+			windowGrabX = mouseX - left
+			windowGrabY = mouseY - top
+			draggingWindow = true
+			searchFocused = false
+			return true
+		}
 		if (editing) return pressEditor(mouseX, mouseY, left, top)
 		var index = 0
 		while (index < SoundCategory.entries.size) {
@@ -354,16 +383,18 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	}
 
 	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
-		if (editing) return editor.drag(event.x().toInt(), panelLeft((width - WINDOW_WIDTH) / 2))
+		if (draggingWindow) {
+			placeWindow(event.x().toInt() - windowGrabX, event.y().toInt() - windowGrabY)
+			return true
+		}
+		if (editing) return editor.drag(event.x().toInt(), panelLeft(windowLeft))
 		val sound = draggedSound
 		if (sound != null) {
-			val left = (width - WINDOW_WIDTH) / 2
-			setVolume(sound, event.x().toInt(), playLeft(left + VIEW_LEFT) - CONTROL_GAP - SLIDER_WIDTH)
+			setVolume(sound, event.x().toInt(), playLeft(windowLeft + VIEW_LEFT) - CONTROL_GAP - SLIDER_WIDTH)
 			return true
 		}
 		if (draggingScrollbar) {
-			val top = (height - WINDOW_HEIGHT) / 2
-			val viewTop = top + VIEW_TOP
+			val viewTop = windowTop + VIEW_TOP
 			val maxScroll = rows.max()
 			if (maxScroll > 0) {
 				val thumbHeight = ClickGuiScroll.thumbHeight(VIEW_HEIGHT, VIEW_HEIGHT, maxScroll, MIN_THUMB_HEIGHT)
@@ -375,6 +406,10 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	}
 
 	override fun mouseReleased(event: MouseButtonEvent): Boolean {
+		if (draggingWindow) {
+			draggingWindow = false
+			return true
+		}
 		if (editor.release()) {
 			refreshRules()
 			return true
@@ -399,6 +434,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	override fun keyPressed(event: KeyEvent): Boolean {
 		if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+			draggingWindow = false
 			when {
 				picking != null -> endPick(null)
 				editing -> closeEditor()
@@ -420,11 +456,15 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		return true
 	}
 
-	override fun onClose() = minecraft.gui.setScreen(parent)
+	override fun onClose() {
+		draggingWindow = false
+		minecraft.gui.setScreen(parent)
+	}
 
 	private fun updateFilter(resetScroll: Boolean = true) {
 		val lowered = query.lowercase(Locale.ROOT)
-		visible = catalogueRows(lowered)
+		val catalogue = catalogueRows(lowered)
+		visible = if (picking == null) catalogue else replacementRows(suggestions, catalogue, lowered)
 		if (resetScroll) {
 			rows.scrollTo(0)
 			snapScroll(0f)
@@ -516,6 +556,11 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun panelTop(top: Int): Int = top + VIEW_TOP + (VIEW_HEIGHT - RULE_PANEL_HEIGHT) / 2
 
+	private fun placeWindow(left: Int, top: Int) {
+		windowLeft = clampAlongTitleBand(left, WINDOW_WIDTH, width, SIDEBAR_WIDTH)
+		windowTop = clampAcrossTitleBand(top, WINDOW_HEIGHT, height, TITLE_BAND_HEIGHT)
+	}
+
 	private fun setVolume(sound: ManagedSound, mouseX: Int, sliderLeft: Int) {
 		val percent = steppedSliderValue(mouseX, sliderLeft, SLIDER_WIDTH, VOLUME_RANGE)
 		if (percent != SoundManager.getVolumePercent(sound.identifier, sound.matchPitch)) {
@@ -574,6 +619,8 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		const val WINDOW_RADIUS = 6f
 		const val SIDEBAR_WIDTH = 108
 		const val TITLE_TOP = 8
+		const val TITLE_BAND_HEIGHT = 26
+		const val NO_HOVER = Int.MIN_VALUE
 		const val CATEGORY_TOP = 30
 		const val CATEGORY_HEIGHT = 20
 		const val CATEGORY_INSET = 4
@@ -637,7 +684,7 @@ internal enum class SoundCategory(val title: String) {
 
 internal sealed interface SoundListItem
 
-internal class SoundHeader(val category: SoundCategory) : SoundListItem {
+internal class SoundHeader(val title: String) : SoundListItem {
 	val memo = DhenType.memo()
 }
 
@@ -718,7 +765,7 @@ internal fun filterSounds(sounds: List<ManagedSound>, category: SoundCategory, q
 				val sound = sounds[index]
 				if (sound.category == current && sound.searchText.contains(query)) {
 					if (!headerAdded) {
-						add(SoundHeader(current))
+						add(SoundHeader(current.title))
 						headerAdded = true
 					}
 					add(sound)
@@ -740,7 +787,7 @@ internal fun filterRecentSounds(
 		val sound = soundsById[recent.identifier]?.withPitch(recent.pitch) ?: continue
 		if (!sound.searchText.contains(query)) continue
 		if (!headerAdded) {
-			add(SoundHeader(SoundCategory.RECENT))
+			add(SoundHeader(SoundCategory.RECENT.title))
 			headerAdded = true
 		}
 		add(sound)
@@ -757,12 +804,42 @@ internal fun filterRuleSounds(
 		val sound = resolve(rule)
 		if (!sound.searchText.contains(query)) continue
 		if (!headerAdded) {
-			add(SoundHeader(SoundCategory.RULES))
+			add(SoundHeader(SoundCategory.RULES.title))
 			headerAdded = true
 		}
 		add(sound)
 	}
 }
+
+internal fun suggestedReplacements(soundsById: Map<Identifier, ManagedSound>): List<ManagedSound> =
+	SUGGESTED_REPLACEMENTS.mapNotNull { (label, identifier) ->
+		soundsById[identifier]?.let { known -> ManagedSound(identifier, label, known.category, known.event) }
+	}
+
+internal fun replacementRows(
+	suggested: List<ManagedSound>,
+	catalogue: List<SoundListItem>,
+	query: String
+): List<SoundListItem> {
+	if (query.isNotEmpty() || suggested.isEmpty()) return catalogue
+	return buildList {
+		add(SoundHeader(SUGGESTED_TITLE))
+		addAll(suggested)
+		addAll(catalogue)
+	}
+}
+
+internal fun centredWindowStart(viewport: Int, window: Int): Int = (viewport - window) / 2
+
+internal fun pressesTitleBand(mouseX: Int, mouseY: Int, left: Int, top: Int, window: Int, band: Int): Boolean =
+	mouseX in left until left + window && mouseY in top until top + band
+
+internal fun clampAlongTitleBand(position: Int, window: Int, viewport: Int, reachable: Int): Int =
+	if (window <= viewport) position.coerceIn(0, viewport - window)
+	else position.coerceIn(reachable - window, maxOf(0, viewport - reachable))
+
+internal fun clampAcrossTitleBand(position: Int, window: Int, viewport: Int, band: Int): Int =
+	position.coerceIn(0, maxOf(0, viewport - if (window <= viewport) window else band))
 
 internal fun animatedSoundScroll(from: Float, target: Float, elapsed: Long): Float =
 	GlassGui.tween(from, target, elapsed, SCROLL_MILLIS)
@@ -781,6 +858,14 @@ internal fun soundScrollOffset(
 	return ((thumbTop.toLong() * maxScroll + travel / 2) / travel).toInt()
 }
 
+private const val SUGGESTED_TITLE = "Suggested sounds"
+private val SUGGESTED_REPLACEMENTS = listOf(
+	"Arrow hit harp" to Identifier.withDefaultNamespace("block.note_block.harp"),
+	"Pling alert" to Identifier.withDefaultNamespace("block.note_block.pling"),
+	"XP orb secret chime" to Identifier.withDefaultNamespace("entity.experience_orb.pickup"),
+	"Blaze hit secret chime" to Identifier.withDefaultNamespace("entity.blaze.hurt"),
+	"UI click" to Identifier.withDefaultNamespace("ui.button.click")
+)
 private const val ENTITY_PREFIX = "entity."
 private const val GENERIC_HOSTILE_PREFIX = "entity.hostile."
 private val PLAYER_TYPE = Identifier.withDefaultNamespace("player")

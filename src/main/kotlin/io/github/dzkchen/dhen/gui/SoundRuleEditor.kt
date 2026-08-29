@@ -64,7 +64,7 @@ internal class SoundRuleEditor {
 			left + RULE_PANEL_WIDTH,
 			top + RULE_PANEL_HEIGHT,
 			PANEL_RADIUS,
-			GlassGui.canvas(),
+			DhenPalette.CANVAS,
 			DhenPalette.BORDER
 		)
 		val name = titleMemo.fit(font, edited.cleanName, RULE_PANEL_WIDTH - 2 * PANEL_PAD)
