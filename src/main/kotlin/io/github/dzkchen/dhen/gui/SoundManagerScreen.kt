@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.input.TextInputTarget
 import io.github.dzkchen.dhen.sound.ANY_PITCH
+import io.github.dzkchen.dhen.sound.RECENT_RAW_LIMIT
 import io.github.dzkchen.dhen.sound.RecentSound
 import io.github.dzkchen.dhen.sound.SoundManager
 import io.github.dzkchen.dhen.sound.SoundRuleKey
@@ -33,17 +34,21 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private val searchMemo = DhenType.memo()
 	private val playMemo = DhenType.memo()
 	private val ruleMemo = DhenType.memo()
+	private val refreshMemo = DhenType.memo()
+	private val clearMemo = DhenType.memo()
 	private val editor = SoundRuleEditor()
 	private val suggestions = suggestedReplacements(soundsById)
 	private val orphans = mutableMapOf<Identifier, ManagedSound>()
 	private var picking: ManagedSound? = null
-	private var banner = TITLE
+	private var pickBanner = ""
 	private var queryBeforePick = ""
 	private var category = SoundCategory.ALL
 	private var query = ""
 	private var searchFocused = false
-	private var recentSoundsVersion = -1L
-	private var recentSounds: List<RecentSound> = emptyList()
+	private var recentSnapshot: List<RecentSound> = emptyList()
+	private var snapshotStarts = 0L
+	private var startsSinceSnapshot = 0
+	private var startsSinceLabel = TITLE
 	private var scrollShown = 0f
 	private var scrollFrom = 0f
 	private var scrollStartedAt = 0L
@@ -84,7 +89,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	}
 
 	override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
-		refreshRecent()
+		if (category == SoundCategory.RECENT) updateStartsSince()
 		val left = windowLeft
 		val top = windowTop
 		val right = left + WINDOW_WIDTH
@@ -109,7 +114,8 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		val listMouseX = if (modal) NO_HOVER else mouseX
 		val listMouseY = if (modal) NO_HOVER else mouseY
 		drawList(graphics, listMouseX, listMouseY, left, top, currentScroll(Util.getMillis()).roundToInt())
-		drawSearch(graphics, left, bottom)
+		drawSearch(graphics, left, top)
+		if (showsRecentButtons) drawRecentButtons(graphics, left, top, listMouseX, listMouseY)
 		if (modal) {
 			val viewLeft = left + VIEW_LEFT
 			val viewTop = top + VIEW_TOP
@@ -120,6 +126,12 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun drawBanner(graphics: GuiGraphicsExtractor, sidebarRight: Int, right: Int, top: Int) {
 		val room = right - sidebarRight
+		val picked = picking != null
+		val banner = when {
+			picked -> pickBanner
+			category == SoundCategory.RECENT -> startsSinceLabel
+			else -> TITLE
+		}
 		val shown = titleMemo.fit(font, banner, room - 2 * BANNER_PAD)
 		titleMemo.text(
 			graphics,
@@ -127,9 +139,35 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			shown,
 			sidebarRight + (room - titleMemo.width(font, shown)) / 2,
 			top + TITLE_TOP,
-			if (picking == null) DhenPalette.TEXT_PRIMARY else DhenPalette.accent
+			if (picked) DhenPalette.accent else DhenPalette.TEXT_PRIMARY
 		)
 	}
+
+	private fun drawRecentButtons(graphics: GuiGraphicsExtractor, left: Int, top: Int, mouseX: Int, mouseY: Int) {
+		val stripTop = bottomStripTop(top)
+		drawRecentButton(graphics, refreshMemo, REFRESH_LABEL, recentButtonLeft(left, 0), stripTop, mouseX, mouseY)
+		drawRecentButton(graphics, clearMemo, CLEAR_LABEL, recentButtonLeft(left, 1), stripTop, mouseX, mouseY)
+	}
+
+	private fun drawRecentButton(
+		graphics: GuiGraphicsExtractor,
+		memo: TextMemo,
+		label: String,
+		buttonLeft: Int,
+		top: Int,
+		mouseX: Int,
+		mouseY: Int
+	) = drawSoundButton(
+		graphics,
+		font,
+		memo,
+		label,
+		buttonLeft,
+		top,
+		buttonLeft + RECENT_BUTTON_WIDTH,
+		top + SEARCH_HEIGHT,
+		pressesRecentButton(mouseX, mouseY, buttonLeft, top)
+	)
 
 	private fun drawCategories(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, left: Int, top: Int) {
 		var index = 0
@@ -266,9 +304,9 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		RoundedGui.pill(graphics, trackLeft, thumbTop, trackLeft + SCROLLBAR_WIDTH, thumbTop + thumbHeight, DhenPalette.accentMuted)
 	}
 
-	private fun drawSearch(graphics: GuiGraphicsExtractor, left: Int, bottom: Int) {
+	private fun drawSearch(graphics: GuiGraphicsExtractor, left: Int, top: Int) {
 		val searchLeft = left + SEARCH_LEFT
-		val searchTop = bottom - SEARCH_BOTTOM - SEARCH_HEIGHT
+		val searchTop = bottomStripTop(top)
 		RoundedGui.pillFrame(
 			graphics,
 			searchLeft,
@@ -305,6 +343,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			return true
 		}
 		if (editing) return pressEditor(mouseX, mouseY, left, top)
+		if (showsRecentButtons && pressRecentButtons(mouseX, mouseY, left, top)) return true
 		var index = 0
 		while (index < SoundCategory.entries.size) {
 			val rowTop = top + CATEGORY_TOP + index * CATEGORY_HEIGHT
@@ -312,6 +351,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 				val selected = SoundCategory.entries[index]
 				if (category != selected) {
 					category = selected
+					if (selected == SoundCategory.RECENT) takeRecentSnapshot()
 					updateFilter()
 				}
 				searchFocused = false
@@ -320,7 +360,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			index++
 		}
 		val searchLeft = left + SEARCH_LEFT
-		val searchTop = top + WINDOW_HEIGHT - SEARCH_BOTTOM - SEARCH_HEIGHT
+		val searchTop = bottomStripTop(top)
 		if (mouseX in searchLeft until searchLeft + SEARCH_WIDTH && mouseY in searchTop until searchTop + SEARCH_HEIGHT) {
 			searchFocused = true
 			return true
@@ -476,30 +516,54 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	}
 
 	private fun catalogueRows(lowered: String): List<SoundListItem> = when (category) {
-		SoundCategory.RECENT -> recentSounds(lowered)
+		SoundCategory.RECENT -> filterRecentSounds(soundsById, recentSnapshot, lowered)
 		SoundCategory.RULES -> filterRuleSounds(SoundManager.ruledSounds(), lowered, ::managedSound)
 		else -> filterSounds(sounds, category, lowered)
 	}
 
-	private fun recentSounds(lowered: String): List<SoundListItem> {
-		refreshRecentIdentifiers()
-		return filterRecentSounds(soundsById, recentSounds, lowered)
+	private val showsRecentButtons: Boolean
+		get() = category == SoundCategory.RECENT && picking == null
+
+	private fun pressRecentButtons(mouseX: Int, mouseY: Int, left: Int, top: Int): Boolean {
+		val stripTop = bottomStripTop(top)
+		val clearing = pressesRecentButton(mouseX, mouseY, recentButtonLeft(left, 1), stripTop)
+		if (!clearing && !pressesRecentButton(mouseX, mouseY, recentButtonLeft(left, 0), stripTop)) return false
+		searchFocused = false
+		if (clearing) clearRecentSnapshot() else takeRecentSnapshot()
+		updateFilter()
+		return true
 	}
 
-	private fun refreshRecentIdentifiers() {
-		if (recentSoundsVersion == SoundManager.recentSoundsVersion) return
-		var version: Long
-		var sounds: List<RecentSound>
-		do {
-			version = SoundManager.recentSoundsVersion
-			sounds = SoundManager.recentSounds()
-		} while (version != SoundManager.recentSoundsVersion)
-		recentSounds = sounds
-		recentSoundsVersion = version
+	private fun pressesRecentButton(mouseX: Int, mouseY: Int, buttonLeft: Int, top: Int): Boolean =
+		mouseX in buttonLeft until buttonLeft + RECENT_BUTTON_WIDTH && mouseY in top until top + SEARCH_HEIGHT
+
+	private fun bottomStripTop(top: Int): Int = top + WINDOW_HEIGHT - SEARCH_BOTTOM - SEARCH_HEIGHT
+
+	private fun recentButtonLeft(left: Int, index: Int): Int =
+		left + SCROLLBAR_LEFT + SCROLLBAR_WIDTH - 2 * RECENT_BUTTON_WIDTH - RECENT_BUTTON_GAP +
+			index * (RECENT_BUTTON_WIDTH + RECENT_BUTTON_GAP)
+
+	private fun takeRecentSnapshot() {
+		snapshotStarts = SoundManager.recordedStarts
+		markSnapshot(SoundManager.recentSnapshot())
 	}
 
-	private fun refreshRecent() {
-		if (category == SoundCategory.RECENT && recentSoundsVersion != SoundManager.recentSoundsVersion) updateFilter(resetScroll = false)
+	private fun clearRecentSnapshot() {
+		snapshotStarts = SoundManager.clearRecentSounds()
+		markSnapshot(emptyList())
+	}
+
+	private fun markSnapshot(taken: List<RecentSound>) {
+		recentSnapshot = taken
+		startsSinceSnapshot = 0
+		startsSinceLabel = TITLE
+	}
+
+	private fun updateStartsSince() {
+		val since = SoundManager.retainedStartsSince(snapshotStarts)
+		if (since == startsSinceSnapshot) return
+		startsSinceSnapshot = since
+		startsSinceLabel = recentBannerLabel(TITLE, since)
 	}
 
 	private val editing: Boolean
@@ -517,7 +581,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private fun beginPick() {
 		val target = editor.sound ?: return
 		picking = target
-		banner = "$PICK_PREFIX${target.cleanName}$PICK_SUFFIX"
+		pickBanner = "$PICK_PREFIX${target.cleanName}$PICK_SUFFIX"
 		searchFocused = false
 		queryBeforePick = query
 		query = ""
@@ -527,7 +591,6 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 	private fun endPick(replacement: Identifier?) {
 		if (replacement != null) editor.select(replacement)
 		picking = null
-		banner = TITLE
 		query = queryBeforePick
 		updateFilter()
 	}
@@ -664,6 +727,10 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		const val SEARCH_TEXT_PAD = 8
 		const val CARET_INSET = 5
 		const val WHEEL_ROWS = 2
+		const val REFRESH_LABEL = "Refresh"
+		const val CLEAR_LABEL = "Clear"
+		const val RECENT_BUTTON_WIDTH = 52
+		const val RECENT_BUTTON_GAP = 6
 	}
 }
 
@@ -782,15 +849,14 @@ internal fun filterRecentSounds(
 	recentSounds: List<RecentSound>,
 	query: String
 ): List<SoundListItem> = buildList {
-	var headerAdded = false
+	var shown = 0
 	for (recent in recentSounds) {
+		if (shown == RECENT_DISPLAY_LIMIT) break
 		val sound = soundsById[recent.identifier]?.withPitch(recent.pitch) ?: continue
 		if (!sound.searchText.contains(query)) continue
-		if (!headerAdded) {
-			add(SoundHeader(SoundCategory.RECENT.title))
-			headerAdded = true
-		}
+		if (shown == 0) add(SoundHeader(SoundCategory.RECENT.title))
 		add(sound)
+		shown++
 	}
 }
 
@@ -829,6 +895,12 @@ internal fun replacementRows(
 	}
 }
 
+internal fun recentBannerLabel(title: String, startsSince: Int): String = when {
+	startsSince <= 0 -> title
+	startsSince >= RECENT_RAW_LIMIT -> "$title · $RECENT_RAW_LIMIT+ played"
+	else -> "$title · $startsSince played"
+}
+
 internal fun centredWindowStart(viewport: Int, window: Int): Int = (viewport - window) / 2
 
 internal fun pressesTitleBand(mouseX: Int, mouseY: Int, left: Int, top: Int, window: Int, band: Int): Boolean =
@@ -858,6 +930,7 @@ internal fun soundScrollOffset(
 	return ((thumbTop.toLong() * maxScroll + travel / 2) / travel).toInt()
 }
 
+private const val RECENT_DISPLAY_LIMIT = 20
 private const val SUGGESTED_TITLE = "Suggested sounds"
 private val SUGGESTED_REPLACEMENTS = listOf(
 	"Arrow hit harp" to Identifier.withDefaultNamespace("block.note_block.harp"),

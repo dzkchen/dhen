@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
 import io.github.dzkchen.dhen.sound.ANY_PITCH
+import io.github.dzkchen.dhen.sound.RECENT_RAW_LIMIT
 import io.github.dzkchen.dhen.sound.RecentSound
 import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.resources.Identifier
@@ -88,6 +89,53 @@ class SoundManagerScreenTest {
 		assertEquals("wolf howl · 0.75", shown.first().rowName)
 		assertEquals(listOf(harp.identifier), filterRecentSounds(sounds, recent, "harp").filterIsInstance<ManagedSound>().map { it.identifier })
 		assertTrue(filterRecentSounds(sounds, recent, "missing").isEmpty())
+	}
+
+	@Test
+	fun `recent shows twenty rows drawn from the whole frozen snapshot and searches past the cap`() {
+		val catalogue = List(30) { sound("block.test_$it.tone") }
+		val soundsById = catalogue.associateBy(ManagedSound::identifier)
+		val frozen = catalogue.map { RecentSound(it.identifier, 1f) } + RecentSound(id("missing"), 1f)
+
+		val shown = filterRecentSounds(soundsById, frozen, "").filterIsInstance<ManagedSound>()
+
+		assertEquals(20, shown.size)
+		assertEquals(catalogue.take(20).map { it.identifier }, shown.map { it.identifier })
+		assertEquals(
+			listOf(catalogue[27].identifier),
+			filterRecentSounds(soundsById, frozen, "test_27").filterIsInstance<ManagedSound>().map { it.identifier }
+		)
+	}
+
+	@Test
+	fun `an unknown identifier does not consume one of the twenty recent rows`() {
+		val catalogue = List(20) { sound("block.test_$it.tone") }
+		val soundsById = catalogue.associateBy(ManagedSound::identifier)
+		val frozen = listOf(RecentSound(id("missing"), 1f)) + catalogue.map { RecentSound(it.identifier, 1f) }
+
+		val shown = filterRecentSounds(soundsById, frozen, "").filterIsInstance<ManagedSound>()
+
+		assertEquals(20, shown.size)
+		assertEquals(catalogue.map { it.identifier }, shown.map { it.identifier })
+	}
+
+	@Test
+	fun `a frozen recent row carries the full recorded pitch into the rule editor`() {
+		val wolf = sound("entity.wolf.howl")
+		val frozen = listOf(RecentSound(wolf.identifier, 0.53968257f))
+
+		val row = filterRecentSounds(mapOf(wolf.identifier to wolf), frozen, "").filterIsInstance<ManagedSound>().single()
+
+		assertEquals(0.53968257f, row.matchPitch)
+		assertEquals("wolf howl · 0.54", row.rowName)
+		assertEquals(0.53968257f, row.withPitch(row.matchPitch).matchPitch)
+	}
+
+	@Test
+	fun `the banner counts starts played since the snapshot and stops at the ring size`() {
+		assertEquals("Sound Manager", recentBannerLabel("Sound Manager", 0))
+		assertEquals("Sound Manager · 3 played", recentBannerLabel("Sound Manager", 3))
+		assertEquals("Sound Manager · 64+ played", recentBannerLabel("Sound Manager", RECENT_RAW_LIMIT))
 	}
 
 	@Test

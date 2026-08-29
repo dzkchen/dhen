@@ -349,29 +349,113 @@ class SoundManagerTest {
 			assertFalse(SoundManager.onSoundPlay(instance))
 		}
 
-		assertTrue(SoundManager.recentSounds().isEmpty())
+		assertTrue(SoundManager.rawRecentSounds().isEmpty())
 	}
 
 	@Test
-	fun `recents de duplicate identifier and pitch pairs cap newest first and reset only on mutation`() {
-		val before = SoundManager.recentSoundsVersion
-		val identifiers = List(101) { Identifier.fromNamespaceAndPath("test", "sound_$it") }
+	fun `the recorder keeps repeats apart but suppresses a consecutive near-identical start`() {
+		val plays = SoundManager.recordedStarts
+		val harp = Identifier.fromNamespaceAndPath("test", "harp")
+		val pling = Identifier.fromNamespaceAndPath("test", "pling")
+		SoundManager.recordPlayedSound(harp, 1f)
+		SoundManager.recordPlayedSound(harp, 1.00001f)
+		SoundManager.recordPlayedSound(harp, 0.75f)
+		SoundManager.recordPlayedSound(pling, 0.75f)
+		SoundManager.recordPlayedSound(harp, 0.75f)
+
+		assertEquals(
+			listOf(RecentSound(harp, 0.75f), RecentSound(pling, 0.75f), RecentSound(harp, 0.75f), RecentSound(harp, 1f)),
+			SoundManager.rawRecentSounds()
+		)
+		assertEquals(plays + 4, SoundManager.recordedStarts)
+	}
+
+	@Test
+	fun `the ring wraps to the newest starts and clearing empties it without rewinding the play count`() {
+		val identifiers = List(RECENT_RAW_LIMIT * 3) { Identifier.fromNamespaceAndPath("test", "sound_$it") }
+		val plays = SoundManager.recordedStarts
 		for (identifier in identifiers) SoundManager.recordPlayedSound(identifier, 1f)
-		SoundManager.recordPlayedSound(identifiers.last(), 1f)
-		SoundManager.recordPlayedSound(identifiers.last(), 0.75f)
 
-		val recent = SoundManager.recentSounds()
-		assertEquals(100, recent.size)
-		assertEquals(RecentSound(identifiers.last(), 0.75f), recent.first())
-		assertEquals(RecentSound(identifiers.last(), 1f), recent[1])
-		assertEquals(RecentSound(identifiers[2], 1f), recent.last())
-		assertEquals(before + 102, SoundManager.recentSoundsVersion)
+		val raw = SoundManager.rawRecentSounds()
+		assertEquals(RECENT_RAW_LIMIT, raw.size)
+		assertEquals(RecentSound(identifiers.last(), 1f), raw.first())
+		assertEquals(RecentSound(identifiers[identifiers.size - RECENT_RAW_LIMIT], 1f), raw.last())
+		assertEquals(plays + identifiers.size, SoundManager.recordedStarts)
+
+		val mark = SoundManager.clearRecentSounds()
+
+		assertEquals(SoundManager.recordedStarts, mark)
+		assertTrue(SoundManager.rawRecentSounds().isEmpty())
+		assertTrue(SoundManager.recentSnapshot().isEmpty())
+		assertEquals(plays + identifiers.size, SoundManager.recordedStarts)
+	}
+
+	@Test
+	fun `starts since a mark count only what the ring still holds and survive a clear under an open mark`() {
+		val mark = SoundManager.recordedStarts
+
+		assertEquals(0, SoundManager.retainedStartsSince(mark))
+
+		for (index in 0 until 3) SoundManager.recordPlayedSound(Identifier.fromNamespaceAndPath("test", "since_$index"), 1f)
+
+		assertEquals(3, SoundManager.retainedStartsSince(mark))
 
 		SoundManager.clearRecentSounds()
-		assertTrue(SoundManager.recentSounds().isEmpty())
-		assertEquals(before + 103, SoundManager.recentSoundsVersion)
+
+		assertEquals(0, SoundManager.retainedStartsSince(mark))
+
+		SoundManager.recordPlayedSound(Identifier.fromNamespaceAndPath("test", "after_clear"), 1f)
+
+		assertEquals(1, SoundManager.retainedStartsSince(mark))
+
+		for (index in 0 until RECENT_RAW_LIMIT * 2) {
+			SoundManager.recordPlayedSound(Identifier.fromNamespaceAndPath("test", "flood_$index"), 1f)
+		}
+
+		assertEquals(RECENT_RAW_LIMIT, SoundManager.retainedStartsSince(mark))
+	}
+
+	@Test
+	fun `the snapshot keeps every distinct retained start and folds pitches inside the rule epsilon`() {
+		for (index in 0 until 30) SoundManager.recordPlayedSound(Identifier.fromNamespaceAndPath("test", "sound_$index"), 1f)
+
+		assertEquals(30, SoundManager.recentSnapshot().size)
+
 		SoundManager.clearRecentSounds()
-		assertEquals(before + 103, SoundManager.recentSoundsVersion)
+		val harp = Identifier.fromNamespaceAndPath("test", "harp")
+		val pling = Identifier.fromNamespaceAndPath("test", "pling")
+		SoundManager.recordPlayedSound(harp, 0.53968257f)
+		SoundManager.recordPlayedSound(pling, 1f)
+		SoundManager.recordPlayedSound(harp, 0.5396800f)
+		SoundManager.recordPlayedSound(pling, 1f)
+		SoundManager.recordPlayedSound(harp, 0.75f)
+
+		assertEquals(
+			listOf(RecentSound(harp, 0.75f), RecentSound(pling, 1f), RecentSound(harp, 0.5396800f)),
+			SoundManager.recentSnapshot()
+		)
+	}
+
+	@Test
+	fun `a snapshot taken while playback records stays coherent and bounded`() {
+		val identifiers = List(512) { Identifier.fromNamespaceAndPath("test", "overlap_$it") }
+		val recorder = Thread {
+			for (identifier in identifiers) SoundManager.recordPlayedSound(identifier, 1f)
+		}
+		recorder.start()
+		var reads = 0
+		while (recorder.isAlive || reads < 64) {
+			val raw = SoundManager.rawRecentSounds()
+			assertTrue(raw.size <= RECENT_RAW_LIMIT)
+			for (index in 1 until raw.size) {
+				assertEquals(suffix(raw[index - 1]) - 1, suffix(raw[index]))
+			}
+			assertTrue(SoundManager.recentSnapshot().size <= RECENT_RAW_LIMIT)
+			reads++
+		}
+		recorder.join()
+
+		assertEquals(RECENT_RAW_LIMIT, SoundManager.rawRecentSounds().size)
 	}
 
 	@Test
@@ -380,7 +464,7 @@ class SoundManagerTest {
 			SoundManager.recordPlayedSound(sound.identifier, requested(sound, "pitch"))
 		}
 
-		assertTrue(SoundManager.recentSounds().isEmpty())
+		assertTrue(SoundManager.rawRecentSounds().isEmpty())
 	}
 
 	@Test
@@ -390,6 +474,8 @@ class SoundManagerTest {
 			ClientPrefs.sections.single { it.title == "Sounds" }.settings.map { it.name }
 		)
 	}
+
+	private fun suffix(recent: RecentSound): Int = recent.identifier.path.substringAfterLast('_').toInt()
 
 	private fun requested(instance: SoundInstance, member: String): Float =
 		AbstractSoundInstance::class.java.getDeclaredField(member).apply { isAccessible = true }.getFloat(instance)

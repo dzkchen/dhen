@@ -20,6 +20,8 @@ import kotlin.math.roundToInt
 
 internal val ANY_PITCH = Float.NaN
 
+internal const val RECENT_RAW_LIMIT = 64
+
 internal data class RecentSound(val identifier: Identifier, val pitch: Float)
 
 internal data class SoundRuleKey(val identifier: Identifier, val matchPitch: Float)
@@ -28,25 +30,24 @@ object SoundManager {
 	private val ruleLock = Any()
 	private val recentLock = Any()
 	private val replacementLock = Any()
-	private val recentIds = arrayOfNulls<Identifier>(RECENT_LIMIT)
-	private val recentPitches = FloatArray(RECENT_LIMIT)
+	private val recentIds = arrayOfNulls<Identifier>(RECENT_RAW_LIMIT)
+	private val recentPitches = FloatArray(RECENT_RAW_LIMIT)
 
 	@Volatile
 	private var rules = RuleSnapshot.EMPTY
 	@Volatile
-	private var recentVersion = 0L
+	internal var recordedStarts = 0L
+		private set
 	@Volatile
 	private var replacing = false
-	private var recentCount = 0
+	@Volatile
+	private var recentBase = 0L
 	private var suppressRecentDepth = 0
 	private var store: ConfigStore? = null
 	private val replacementDispatch = ReplacementDispatch(::dispatchReplacement)
 
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(::liftMultipliersIntoRules, ::wrapRulesInArrays)
 	internal val authoritative: Set<String> = setOf(RULES)
-
-	internal val recentSoundsVersion: Long
-		get() = recentVersion
 
 	internal fun install(store: ConfigStore) = synchronized(ruleLock) {
 		this.store = store
@@ -180,37 +181,42 @@ object SoundManager {
 		store?.save(encode(rules))
 	}
 
-	internal fun recordPlayedSound(identifier: Identifier, pitch: Float) = synchronized(recentLock) {
-		if (suppressRecentDepth != 0) return@synchronized
-		for (index in 0 until recentCount) {
-			if (recentIds[index] == identifier && recentPitches[index] == pitch) return@synchronized
-		}
-		if (recentCount == RECENT_LIMIT) {
-			System.arraycopy(recentIds, 1, recentIds, 0, RECENT_LIMIT - 1)
-			System.arraycopy(recentPitches, 1, recentPitches, 0, RECENT_LIMIT - 1)
-			recentIds[RECENT_LIMIT - 1] = identifier
-			recentPitches[RECENT_LIMIT - 1] = pitch
-		} else {
-			recentIds[recentCount] = identifier
-			recentPitches[recentCount] = pitch
-			recentCount++
-		}
-		recentVersion++
+	internal fun recordPlayedSound(identifier: Identifier, pitch: Float): Unit = synchronized(recentLock) {
+		if (suppressRecentDepth != 0 || repeatsLatestRecent(identifier, pitch)) return@synchronized
+		val slot = (recordedStarts % RECENT_RAW_LIMIT).toInt()
+		recentIds[slot] = identifier
+		recentPitches[slot] = pitch
+		recordedStarts++
 	}
 
-	internal fun recentSounds(): List<RecentSound> = synchronized(recentLock) {
-		List(recentCount) { offset ->
-			val index = recentCount - offset - 1
-			RecentSound(recentIds[index]!!, recentPitches[index])
+	private fun repeatsLatestRecent(identifier: Identifier, pitch: Float): Boolean {
+		if (recordedStarts == recentBase) return false
+		val slot = ((recordedStarts - 1) % RECENT_RAW_LIMIT).toInt()
+		return recentIds[slot] == identifier && pitchMatches(recentPitches[slot], pitch)
+	}
+
+	internal fun rawRecentSounds(): List<RecentSound> = synchronized(recentLock) {
+		val retained = (recordedStarts - recentBase).coerceAtMost(RECENT_RAW_LIMIT.toLong()).toInt()
+		List(retained) { offset ->
+			val slot = ((recordedStarts - offset - 1) % RECENT_RAW_LIMIT).toInt()
+			RecentSound(recentIds[slot]!!, recentPitches[slot])
 		}
 	}
 
-	internal fun clearRecentSounds() = synchronized(recentLock) {
-		if (recentCount == 0) return@synchronized
-		java.util.Arrays.fill(recentIds, 0, recentCount, null)
-		java.util.Arrays.fill(recentPitches, 0, recentCount, 0f)
-		recentCount = 0
-		recentVersion++
+	internal fun recentSnapshot(): List<RecentSound> = buildList {
+		for (recent in rawRecentSounds()) {
+			if (none { shown -> shown.identifier == recent.identifier && pitchMatches(shown.pitch, recent.pitch) }) add(recent)
+		}
+	}
+
+	internal fun retainedStartsSince(mark: Long): Int {
+		val starts = recordedStarts
+		return (starts - maxOf(recentBase, mark)).coerceIn(0L, RECENT_RAW_LIMIT.toLong()).toInt()
+	}
+
+	internal fun clearRecentSounds(): Long = synchronized(recentLock) {
+		recentBase = recordedStarts
+		recordedStarts
 	}
 
 	internal fun playPreview(sound: SoundEvent, pitch: Float = PREVIEW_PITCH) {
@@ -542,7 +548,6 @@ object SoundManager {
 	private const val REPLACEMENT_VOLUME = "replacementVolume"
 	private const val REPLACEMENT_PITCH = "replacementPitch"
 	private const val MATCH_PITCH = "matchPitch"
-	private const val RECENT_LIMIT = 100
 	private const val MIN_PERCENT = 0
 	private const val MAX_PERCENT = 200
 	private const val STEP_PERCENT = 5
