@@ -32,7 +32,7 @@ internal object SettingCodec {
 		}
 	}
 
-	fun serialize(setting: Setting<*>): JsonElement? = when (setting) {
+	fun serialize(setting: Setting<*>): JsonElement? = if (!setting.isStored) null else when (setting) {
 		is BooleanSetting -> JsonPrimitive(setting.value)
 		is NumberSetting -> JsonPrimitive(setting.value)
 		is ColorSetting -> JsonPrimitive(setting.value.argb)

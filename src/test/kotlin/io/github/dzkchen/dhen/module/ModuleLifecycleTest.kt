@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.module
 
+import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.event.EventBus
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -125,6 +126,29 @@ class ModuleLifecycleTest {
 		}
 	}
 
+	@Test
+	fun `resetting settings restores the defaults and then tells the module`() {
+		val manager = ModuleManager(EventBus())
+		val module = LifecycleModule()
+		manager.register(module)
+		module.pace = 7.0
+
+		module.resetSettings()
+
+		assertEquals(1.0, module.pace)
+		assertEquals(listOf("reset"), module.calls)
+		assertEquals(listOf(1.0), module.seenOnReset)
+	}
+
+	@Test
+	fun `a throwing reset hook does not escape`() {
+		val manager = ModuleManager(EventBus())
+		val module = ThrowingResetModule()
+		manager.register(module)
+
+		assertDoesNotThrow { module.resetSettings() }
+	}
+
 	private class LifecycleModule : Module(
 		name = "Lifecycle Module",
 		category = Category.DEV,
@@ -132,6 +156,13 @@ class ModuleLifecycleTest {
 	) {
 		val calls = mutableListOf<String>()
 		val observed = mutableListOf<Boolean>()
+		val seenOnReset = mutableListOf<Double>()
+		var pace by NumberSetting("Pace", 1.0, 0.0, 10.0)
+
+		override fun onReset() {
+			calls += "reset"
+			seenOnReset += pace
+		}
 
 		override fun onEnabled() {
 			calls += "enabled"
@@ -141,6 +172,16 @@ class ModuleLifecycleTest {
 		override fun onDisabled() {
 			calls += "disabled"
 			observed += enabled
+		}
+	}
+
+	private class ThrowingResetModule : Module(
+		name = "Throwing Reset Module",
+		category = Category.DEV,
+		description = "Throws from its reset hook."
+	) {
+		override fun onReset() {
+			throw RuntimeException("boom")
 		}
 	}
 

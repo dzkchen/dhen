@@ -17,19 +17,20 @@ internal class ModGraph(
 		else -> attributedTo(path)
 	}
 
-	fun closureOf(seeds: Set<String>): Set<String> {
+	fun closureOf(seeds: Set<String>, requiredBy: MutableMap<String, String>? = null): Set<String> {
 		val reached = HashSet<String>()
 		for (seed in seeds) {
 			if (seed in PLATFORM_IDS) continue
-			walk(seed, reached)
+			walk(seed, seed, reached, requiredBy)
 			reached += seed
 			var below = canonicalIds[seed]
 			while (below != null) {
 				val above = jarHost[below] ?: break
-				walk(above, reached)
+				walk(above, seed, reached, requiredBy)
 				below = above
 			}
 		}
+		for (seed in seeds) requiredBy?.remove(seed)
 		return reached
 	}
 
@@ -43,13 +44,21 @@ internal class ModGraph(
 		return best
 	}
 
-	private fun walk(id: String, reached: MutableSet<String>) {
+	private fun walk(id: String, seed: String, reached: MutableSet<String>, requiredBy: MutableMap<String, String>?) {
 		if (id in PLATFORM_IDS) return
 		val canonical = canonicalIds[id] ?: return
 		if (canonical in PLATFORM_IDS || !reached.add(canonical)) return
-		provided[canonical]?.let(reached::addAll)
-		contained[canonical]?.forEach { walk(it, reached) }
-		required[canonical]?.forEach { walk(it, reached) }
+		attribute(canonical, seed, requiredBy)
+		provided[canonical]?.forEach {
+			reached += it
+			attribute(it, seed, requiredBy)
+		}
+		contained[canonical]?.forEach { walk(it, seed, reached, requiredBy) }
+		required[canonical]?.forEach { walk(it, seed, reached, requiredBy) }
+	}
+
+	private fun attribute(id: String, seed: String, requiredBy: MutableMap<String, String>?) {
+		if (id != seed) requiredBy?.putIfAbsent(id, seed)
 	}
 
 	companion object {
@@ -64,6 +73,8 @@ internal class ModGraph(
 			namespace == VANILLA_NAMESPACE && path in VANILLA_CHANNEL_PATHS
 
 		fun loaderCommonChannel(namespace: String): Boolean = namespace == LOADER_COMMON_NAMESPACE
+
+		fun platform(id: String): Boolean = id in PLATFORM_IDS
 
 		fun installed(): ModGraph {
 			val ids = ArrayList<String>()

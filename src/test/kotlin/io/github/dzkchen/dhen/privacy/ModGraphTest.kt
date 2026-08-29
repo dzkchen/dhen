@@ -112,6 +112,50 @@ class ModGraphTest {
 	}
 
 	@Test
+	fun `every implicit closure member names the seed that pulled it in`() {
+		val graph = graph(
+			ids = listOf("seed", "library", "deep", "other"),
+			required = mapOf("seed" to setOf("library"), "library" to setOf("deep"))
+		)
+		val requiredBy = HashMap<String, String>()
+
+		graph.closureOf(setOf("seed"), requiredBy)
+
+		assertEquals(mapOf("library" to "seed", "deep" to "seed"), requiredBy)
+	}
+
+	@Test
+	fun `a seed carries no depender even when another seed reaches it`() {
+		val graph = graph(
+			ids = listOf("first", "second", "shared"),
+			required = mapOf("first" to setOf("second", "shared"), "second" to setOf("shared"))
+		)
+		val requiredBy = HashMap<String, String>()
+
+		graph.closureOf(setOf("first", "second"), requiredBy)
+
+		assertEquals(mapOf("shared" to "first"), requiredBy)
+	}
+
+	@Test
+	fun `a jar-in-jar host and a provided alias are attributed to the original seed`() {
+		val graph = graph(
+			ids = listOf("umbrella", "umbrella-net", "sibling"),
+			provided = mapOf("umbrella" to setOf("old-umbrella")),
+			contained = mapOf("umbrella" to setOf("umbrella-net")),
+			jarHost = mapOf("umbrella-net" to "umbrella")
+		)
+		val requiredBy = HashMap<String, String>()
+
+		graph.closureOf(setOf("umbrella-net"), requiredBy)
+
+		assertEquals(
+			mapOf("umbrella" to "umbrella-net", "old-umbrella" to "umbrella-net"),
+			requiredBy
+		)
+	}
+
+	@Test
 	fun `a namespace is inferred for an umbrella whose children share its dash prefix`() {
 		val inferred = ModGraph.jarInJarNamespaces(
 			listOf("fabric-api", "onechild", "mismatched"),

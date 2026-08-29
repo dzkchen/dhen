@@ -3,7 +3,6 @@ package io.github.dzkchen.dhen.features.privacy
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
-import io.github.dzkchen.dhen.privacy.ModRegistry
 import net.minecraft.client.ClientBrandRetriever
 import org.slf4j.LoggerFactory
 
@@ -29,10 +28,10 @@ object SpoofAsVanilla : Module(
 
 	override fun onEnabled() {
 		announced = false
-		ModRegistry.mode = ModRegistry.Mode.BLOCK_ALL
+		ModWhitelist.spoofingChanged(true)
 	}
 
 	override fun onDisabled() {
-		ModRegistry.mode = ModRegistry.Mode.AUTO
+		ModWhitelist.spoofingChanged(false)
 	}
 }

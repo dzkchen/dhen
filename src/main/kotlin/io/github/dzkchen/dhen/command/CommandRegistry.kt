@@ -89,7 +89,7 @@ class CommandRegistry<S>(
 								val raw = StringArgumentType.getString(context, "name")
 								val module = manager.modules.firstOrNull { wireName(it.name).equals(raw, ignoreCase = true) }
 								if (module == null) return@executes report(context.source, "No module named '$raw'.")
-								for (setting in module.settings) setting.reset()
+								module.resetSettings()
 								persistModules()
 								report(context.source, "Reset ${module.name} settings to their defaults.")
 							}

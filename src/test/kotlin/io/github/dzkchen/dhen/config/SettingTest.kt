@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.config
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.config.Setting.Companion.derived
 import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.module.Category
@@ -12,6 +13,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -221,6 +223,37 @@ class SettingTest {
 
 		assertEquals("Default", selector.value)
 		assertEquals("Default", selector.preferred)
+	}
+
+	@Test
+	fun `a selector with one option ignores a press instead of forgetting the choice under it`() {
+		val selector = SelectorSetting("Theme", default = "Default", options = listOf("Default", "Ocean"))
+		selector.value = "Ocean"
+		selector.options = listOf("Default")
+		var presses = 0
+		selector.changed = { presses++ }
+
+		selector.index += 1
+
+		assertEquals(0, presses)
+		assertEquals("Default", selector.value)
+		assertEquals("Ocean", selector.preferred)
+
+		selector.options = listOf("Default", "Ocean")
+		selector.index += 1
+
+		assertEquals(1, presses)
+		assertEquals("Default", selector.value)
+	}
+
+	@Test
+	fun `a derived setting keeps its control and never reaches disk`() {
+		val view = SelectorSetting("Sodium", default = "Off", options = listOf("Off", "On")).derived()
+		view.value = "On"
+
+		assertTrue(view.isVisible)
+		assertNull(SettingCodec.serialize(view))
+		assertTrue(SettingCodec.writeInto(JsonObject(), listOf(view)).entrySet().isEmpty())
 	}
 
 	@Test

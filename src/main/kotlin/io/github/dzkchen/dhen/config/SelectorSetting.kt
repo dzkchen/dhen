@@ -10,6 +10,8 @@ class SelectorSetting(
 
 	private var cursor = 0
 
+	internal var changed: (() -> Unit)? = null
+
 	var preferred: String = default
 		private set
 
@@ -27,7 +29,7 @@ class SelectorSetting(
 	var index: Int
 		get() = cursor
 		set(value) {
-			if (options.isEmpty()) {
+			if (options.size <= 1) {
 				cursor = 0
 				return
 			}
@@ -37,6 +39,7 @@ class SelectorSetting(
 				else -> value
 			}
 			preferred = options[cursor]
+			changed?.invoke()
 		}
 
 	override var value: String

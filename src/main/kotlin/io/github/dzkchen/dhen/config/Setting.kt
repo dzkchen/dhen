@@ -7,7 +7,7 @@ import kotlin.reflect.KProperty
 
 abstract class Setting<T>(
 	val name: String,
-	val description: String = ""
+	var description: String = ""
 ) : ReadWriteProperty<Module, T>, PropertyDelegateProvider<Module, ReadWriteProperty<Module, T>> {
 
 	abstract val default: T
@@ -16,10 +16,14 @@ abstract class Setting<T>(
 	internal var owner: Module? = null
 
 	private var hidden = false
+	private var derived = false
 	private var visibilityDependency: (() -> Boolean)? = null
 
 	val isVisible: Boolean
 		get() = (visibilityDependency?.invoke() ?: true) && !hidden
+
+	internal val isStored: Boolean
+		get() = !derived
 
 	open fun reset() {
 		value = default
@@ -42,6 +46,11 @@ abstract class Setting<T>(
 
 		fun <S : Setting<T>, T> S.hide(): S {
 			hidden = true
+			return this
+		}
+
+		fun <S : Setting<T>, T> S.derived(): S {
+			derived = true
 			return this
 		}
 	}

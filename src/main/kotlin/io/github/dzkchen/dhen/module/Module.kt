@@ -82,6 +82,8 @@ abstract class Module(
 
 	protected open fun onDisabled() {}
 
+	protected open fun onReset() {}
+
 	protected fun <T : HudElement> hud(element: T): T {
 		require(!bound) { "Module '$name' HUD elements must be registered before manager registration." }
 		require(hudList.none { it.name == element.name }) {
@@ -89,6 +91,10 @@ abstract class Module(
 		}
 		hudList += element
 		return element
+	}
+
+	protected fun persist() {
+		notifyStateChangeQuietly()
 	}
 
 	protected fun launch(block: suspend CoroutineScope.() -> Unit): Job? =
@@ -158,6 +164,11 @@ abstract class Module(
 
 	internal fun toggle() {
 		setEnabled(!enabled)
+	}
+
+	internal fun resetSettings() {
+		for (setting in settingList) setting.reset()
+		isolated(host.profiler) { onReset() }
 	}
 
 	internal fun reportError(throwable: Throwable) {

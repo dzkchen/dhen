@@ -30,6 +30,7 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
+import io.github.dzkchen.dhen.features.privacy.ModWhitelist
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
@@ -186,7 +187,8 @@ object Dhen : ClientModInitializer {
 			RevertAxes,
 			TimeChanger,
 			SpoofAsVanilla,
-			ChannelSpoofing
+			ChannelSpoofing,
+			ModWhitelist
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
