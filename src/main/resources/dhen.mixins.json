@@ -13,9 +13,11 @@
 		"BuiltInPackSourceMixin",
 		"ClientBrandRetrieverMixin",
 		"ClientClockManagerAccessor",
+		"ClientCommonPacketListenerImplMixin",
 		"ClientPacketListenerMixin",
 		"ClockInstanceMixin",
 		"ConnectionMixin",
+		"DownloadedPackSourceMixin",
 		"EntityRenderDispatcherMixin",
 		"FontManagerMixin",
 		"GuiMixin",
@@ -25,6 +27,7 @@
 		"KeyboardHandlerMixin",
 		"LevelChunkMixin",
 		"LoadingOverlayMixin",
+		"MinecraftMixin",
 		"MouseHandlerMixin",
 		"MultiPlayerGameModeMixin",
 		"PacketProcessorMixin",
@@ -34,7 +37,8 @@
 		"SoundManagerMixin",
 		"ServerboundChatCommandPacketAccessor",
 		"ServerboundChatPacketAccessor",
-		"SystemChatPacketAccessor"
+		"SystemChatPacketAccessor",
+		"YggdrasilUserApiServiceMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

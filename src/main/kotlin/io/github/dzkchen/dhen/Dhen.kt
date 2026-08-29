@@ -31,6 +31,7 @@ import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
 import io.github.dzkchen.dhen.features.privacy.ModWhitelist
+import io.github.dzkchen.dhen.features.privacy.ServerPackBypass
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
@@ -69,6 +70,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements
@@ -188,7 +190,8 @@ object Dhen : ClientModInitializer {
 			TimeChanger,
 			SpoofAsVanilla,
 			ChannelSpoofing,
-			ModWhitelist
+			ModWhitelist,
+			ServerPackBypass
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
@@ -249,6 +252,7 @@ object Dhen : ClientModInitializer {
 		ClientPlayConnectionEvents.INIT.register { _, _ -> worldChanged(WorldChange.INIT) }
 		ClientPlayConnectionEvents.JOIN.register { _, _, _ -> worldChanged(WorldChange.JOIN) }
 		ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
+		ClientConfigurationConnectionEvents.DISCONNECT.register { _, _ -> worldChanged(WorldChange.DISCONNECT) }
 		ClientEntityEvents.ENTITY_UNLOAD.register { entity, _ ->
 			failsafe.guard("entity unload") { WorldHooks.entityUnloaded(entity) }
 		}
