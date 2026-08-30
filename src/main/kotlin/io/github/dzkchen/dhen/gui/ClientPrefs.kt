@@ -105,6 +105,12 @@ internal object ClientPrefs {
 		description = "Record every privacy detection in the game log."
 	)
 
+	val blockLocalUrls = BooleanSetting(
+		"Block Local URLs",
+		true,
+		description = "Refuse a server's download when its address points back at this machine or your home network."
+	)
+
 	val debugAlerts = BooleanSetting(
 		"Debug alerts",
 		false,
@@ -122,7 +128,7 @@ internal object ClientPrefs {
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
 		PrefSection("Sounds", listOf(openSoundManager)),
-		PrefSection("Privacy", listOf(chatAlerts, toastPopups, logEvents, debugAlerts)),
+		PrefSection("Privacy", listOf(blockLocalUrls, chatAlerts, toastPopups, logEvents, debugAlerts)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

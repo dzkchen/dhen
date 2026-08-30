@@ -38,6 +38,7 @@ class ClientPrefsTest {
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
 		ClientPrefs.dhenFont.value = true
+		ClientPrefs.blockLocalUrls.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.toastPopups.reset()
 		ClientPrefs.logEvents.reset()
@@ -139,26 +140,30 @@ class ClientPrefsTest {
 	}
 
 	@Test
-	fun `the four privacy switches sit on their own card and survive a write and read round trip`() {
+	fun `the privacy switches sit on their own card and survive a write and read round trip`() {
 		val privacy = ClientPrefs.sections.single { it.title == "Privacy" }
 		assertEquals(
-			listOf("Chat alerts", "Toast popups", "Log events", "Debug alerts"),
+			listOf("Block Local URLs", "Chat alerts", "Toast popups", "Log events", "Debug alerts"),
 			privacy.settings.map { it.name }
 		)
+		assertTrue(ClientPrefs.blockLocalUrls.on)
 		assertTrue(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertTrue(ClientPrefs.logEvents.on)
 		assertFalse(ClientPrefs.debugAlerts.on)
+		ClientPrefs.blockLocalUrls.on = false
 		ClientPrefs.chatAlerts.on = false
 		ClientPrefs.logEvents.on = false
 		ClientPrefs.debugAlerts.on = true
 		val written = ClientPrefs.writeInto(JsonObject())
+		ClientPrefs.blockLocalUrls.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.logEvents.reset()
 		ClientPrefs.debugAlerts.reset()
 
 		ClientPrefs.read(written)
 
+		assertFalse(ClientPrefs.blockLocalUrls.on)
 		assertFalse(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertFalse(ClientPrefs.logEvents.on)

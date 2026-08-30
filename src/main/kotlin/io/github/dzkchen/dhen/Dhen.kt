@@ -48,6 +48,7 @@ import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.Notifications
 import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
+import io.github.dzkchen.dhen.privacy.LocalUrls
 import io.github.dzkchen.dhen.privacy.ModRegistry
 import io.github.dzkchen.dhen.privacy.PrivacyLog
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -298,6 +299,7 @@ object Dhen : ClientModInitializer {
 		WorldRenderProbe.install(modules.eventBus)
 		Notifications.install(modules.eventBus)
 		PrivacyLog.install(modules.eventBus, clientExecutor, ::announceComponent)
+		LocalUrls.install(modules.eventBus, clientThread)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -309,6 +311,7 @@ object Dhen : ClientModInitializer {
 		DhenAlert.clear()
 		contained("notifications", Notifications::uninstall)
 		contained("privacy log", PrivacyLog::uninstall)
+		contained("local url guard", LocalUrls::uninstall)
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::shutdown)
