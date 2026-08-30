@@ -23,6 +23,18 @@ import java.nio.file.Path
 
 class CorePersistenceTest {
 	@Test
+	fun `tamper warning dismissal round trips through core state`(@TempDir dir: Path) {
+		val path = dir.resolve("core.json")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.Unconfined), CorePersistence.migrations, debounce = {})
+		val view = ClickGuiState()
+
+		store.save(CorePersistence.snapshot(view, welcomeShown = false, tamperWarningDismissed = true))
+		store.flush()
+
+		assertTrue(CorePersistence.apply(store.load()).tamperWarningDismissed)
+	}
+
+	@Test
 	fun `a document written by the draggable shell loads without its panel block`(@TempDir dir: Path) {
 		val path = dir.resolve("core.json")
 		Files.writeString(

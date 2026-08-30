@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.util.obj
 internal object CorePersistence {
 	private const val WELCOME_SHOWN = "welcomeShown"
 	private const val HYPIXEL_NOTICE_SHOWN = "hypixelNoticeShown"
+	private const val TAMPER_WARNING_DISMISSED = "tamperWarningDismissed"
 	private const val DRAGGABLE_PANELS = "panels"
 	private const val EFFECTS_BLOCK = "effects"
 	private const val REDUCED_KEY = "reduced"
@@ -33,7 +34,8 @@ internal object CorePersistence {
 		return CoreState(
 			clickGui = ClickGuiView.read(doc),
 			welcomeShown = doc.get(WELCOME_SHOWN).flagOrNull() ?: false,
-			hypixelNoticeShown = doc.get(HYPIXEL_NOTICE_SHOWN).flagOrNull() ?: false
+			hypixelNoticeShown = doc.get(HYPIXEL_NOTICE_SHOWN).flagOrNull() ?: false,
+			tamperWarningDismissed = doc.get(TAMPER_WARNING_DISMISSED).flagOrNull() ?: false
 		)
 	}
 
@@ -41,11 +43,13 @@ internal object CorePersistence {
 		view: ClickGuiState,
 		welcomeShown: Boolean,
 		hypixelNoticeShown: Boolean = false,
+		tamperWarningDismissed: Boolean = false,
 		hudElements: List<HudElement> = emptyList()
 	): JsonObject =
 		ClientPrefs.writeInto(ClickGuiView.writeInto(JsonObject(), view)).apply {
 			addProperty(WELCOME_SHOWN, welcomeShown)
 			addProperty(HYPIXEL_NOTICE_SHOWN, hypixelNoticeShown)
+			addProperty(TAMPER_WARNING_DISMISSED, tamperWarningDismissed)
 			if (hudElements.isNotEmpty()) add(HUD, HudPersistence.snapshot(hudElements))
 		}
 
@@ -66,5 +70,6 @@ internal object CorePersistence {
 internal class CoreState(
 	val clickGui: ClickGuiState,
 	val welcomeShown: Boolean,
-	val hypixelNoticeShown: Boolean
+	val hypixelNoticeShown: Boolean,
+	val tamperWarningDismissed: Boolean
 )

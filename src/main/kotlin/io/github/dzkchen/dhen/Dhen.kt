@@ -50,6 +50,7 @@ import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.privacy.LocalUrls
 import io.github.dzkchen.dhen.privacy.LanguageKeys
+import io.github.dzkchen.dhen.privacy.JarIntegrity
 import io.github.dzkchen.dhen.privacy.TranslationProtection
 import io.github.dzkchen.dhen.privacy.ModRegistry
 import io.github.dzkchen.dhen.privacy.PrivacyLog
@@ -166,6 +167,16 @@ object Dhen : ClientModInitializer {
 		)
 		val coreState = CorePersistence.apply(coreStore.load(), hudRuntime.coreElements)
 		clickGuiView = coreState.clickGui
+		val loader = FabricLoader.getInstance()
+		val dhenContainer = loader.getModContainer(MOD_ID).orElse(null)
+		JarIntegrity.install(
+			ioScope,
+			dhenContainer?.origin?.paths?.firstOrNull(),
+			loader.getModContainer("minecraft").orElse(null)?.metadata?.version?.friendlyString,
+			dhenContainer?.metadata?.version?.friendlyString ?: "unknown",
+			coreState.tamperWarningDismissed,
+			::persistCore
+		) { url -> Util.getPlatform().openUri(url) }
 		val themes = ThemeRuntime(configRoot, ioScope, clientThread, ::persistCore, ::fontChanged, ::announce) {
 			Util.getPlatform().openPath(it)
 		}
@@ -357,6 +368,7 @@ object Dhen : ClientModInitializer {
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
 		TickHooks.clientTicked(client.level != null)
 		clientThread.drainQueue()
+		JarIntegrity.tick(client)
 		Notifications.tick()
 		ContainerHooks.tick()
 		val options = client.options
@@ -439,6 +451,7 @@ object Dhen : ClientModInitializer {
 				clickGuiView,
 				firstRunExperience.shown,
 				automationNotice.hypixelNoticeShown,
+				JarIntegrity.warningDismissed,
 				hudRuntime.coreElements
 			)
 		)
