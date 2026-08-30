@@ -22,7 +22,7 @@ class ClickGuiHostsTest {
 		assertEquals(HEADER_HEIGHT + 2 * SECTION_PAD + 3 * CONTROL_ROW_HEIGHT, closed)
 
 		val listed = card.body.at(1)
-		listed.press(0, 0, PANEL_CONTROLS_WIDTH)
+		listed.press(0, 0, panelControlsWidth(PANEL_WIDTH))
 
 		assertEquals(closed + listed.height - CONTROL_ROW_HEIGHT, card.height)
 	}
@@ -33,7 +33,7 @@ class ClickGuiHostsTest {
 		val card = PrefCard(PrefSection("Appearance", listOf(BooleanSetting("Above"), BooleanSetting(WRAPPING_NAME))))
 		val closed = card.height
 
-		assertTrue(card.measure(font))
+		assertTrue(card.measure(font, PANEL_WIDTH))
 
 		assertEquals(closed + DhenType.lineHeight(font), card.height)
 	}

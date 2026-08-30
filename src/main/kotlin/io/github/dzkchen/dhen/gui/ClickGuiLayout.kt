@@ -18,6 +18,10 @@ internal const val SCROLLBAR_MIN_THUMB = 12
 internal const val TOOLTIP_PAD = 5
 internal const val TOOLTIP_GAP = 6
 internal const val TOOLTIP_RADIUS = 4f
+internal const val TOOLTIP_MAX_WIDTH = 160
+internal const val TOOLTIP_NAME_LINES = 2
+internal const val TOOLTIP_BODY_LINES = 12
+internal const val STRIP_BAR_HEIGHT = 3
 internal const val NO_POINTER = Int.MIN_VALUE
 internal const val NO_GAP = 0
 internal const val SETTINGS_PAD = 3
@@ -37,7 +41,6 @@ internal const val SEARCH_MAX_LENGTH = 20
 internal const val FIELD_TOP = SEARCH_TOP + SEARCH_HEIGHT + 12
 internal const val SCROLL_STEP = 24
 internal const val PANEL_WIDTH = SEARCH_WIDTH
-internal const val PANEL_CONTROLS_WIDTH = PANEL_WIDTH - 2 * CONTENT_PAD
 internal const val SECTION_GAP = 6
 internal const val SECTION_PAD = 4
 internal const val EMPTY_SECTION_HEIGHT = ROW_HEIGHT
@@ -51,3 +54,7 @@ internal const val CHEVRON_EXPANDED = "⌄"
 internal val TAB_LABELS = arrayOf("Features", "Settings")
 
 internal fun fieldBottomOf(viewportHeight: Int): Int = viewportHeight - MARGIN
+
+internal fun chromeRoom(viewportWidth: Int): Int = maxOf(viewportWidth - 2 * MARGIN, 0)
+
+internal fun chromeWidth(preferred: Int, viewportWidth: Int): Int = minOf(preferred, chromeRoom(viewportWidth))

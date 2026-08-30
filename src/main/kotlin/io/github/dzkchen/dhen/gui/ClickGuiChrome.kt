@@ -21,16 +21,26 @@ internal class ClickGuiChrome(
 	private val queryText = DhenType.memo()
 	private val placeholderText = DhenType.memo()
 	private val noMatchText = DhenType.memo()
-	private var barWidth = 0
 	private var previousTab = FEATURES_TAB
 	private var tabSwitchedAt = 0L
 	private var tabSettled = true
 	private var settled = false
 
+	var barWidth = 0
+		private set
 	var activeTab = FEATURES_TAB
 		private set
 	var query = ""
 		private set
+
+	val barLeft: Int
+		get() = ClickGuiShell.centeredLeft(viewportWidth.asInt, barWidth)
+
+	val searchWidth: Int
+		get() = chromeWidth(SEARCH_WIDTH, viewportWidth.asInt)
+
+	val searchLeft: Int
+		get() = ClickGuiShell.centeredLeft(viewportWidth.asInt, searchWidth)
 
 	val onFeatures: Boolean
 		get() = activeTab == FEATURES_TAB
@@ -40,6 +50,7 @@ internal class ClickGuiChrome(
 
 	fun measure(font: Font) {
 		for (i in TAB_LABELS.indices) tabWidths[i] = DhenType.width(font, TAB_LABELS[i]) + 2 * TAB_PAD
+		ClickGuiShell.shrinkSegments(tabWidths, TAB_GAP, chromeRoom(viewportWidth.asInt) - 2 * BAR_PAD)
 		barWidth = 2 * BAR_PAD + ClickGuiShell.segmentsWidth(tabWidths, TAB_GAP)
 		for (i in TAB_LABELS.indices) tabLefts[i] = BAR_PAD + ClickGuiShell.segmentStart(i, tabWidths, TAB_GAP)
 	}
@@ -62,11 +73,11 @@ internal class ClickGuiChrome(
 
 	fun tabAt(x: Int, y: Int): Int {
 		if (y < TAB_TOP || y >= TAB_TOP + BAR_HEIGHT) return ClickGuiShell.NONE
-		return ClickGuiShell.segmentAt(x - (barLeft() + BAR_PAD), tabWidths, TAB_GAP)
+		return ClickGuiShell.segmentAt(x - (barLeft + BAR_PAD), tabWidths, TAB_GAP)
 	}
 
 	fun searchContains(x: Int, y: Int): Boolean =
-		x >= searchLeft() && x < searchLeft() + SEARCH_WIDTH && y >= SEARCH_TOP && y < SEARCH_TOP + SEARCH_HEIGHT
+		x >= searchLeft && x < searchLeft + searchWidth && y >= SEARCH_TOP && y < SEARCH_TOP + SEARCH_HEIGHT
 
 	fun typed(codepoint: Int): Boolean {
 		if (query.length >= SEARCH_MAX_LENGTH) return false
@@ -92,15 +103,16 @@ internal class ClickGuiChrome(
 	}
 
 	fun drawSearch(graphics: GuiGraphicsExtractor, font: Font, showCaret: Boolean, noMatches: Boolean) {
-		val left = searchLeft()
-		val right = left + SEARCH_WIDTH
+		val left = searchLeft
+		val width = searchWidth
+		val right = left + width
 		val bottom = SEARCH_TOP + SEARCH_HEIGHT
 		val outline = if (query.isEmpty()) DhenPalette.BORDER else DhenPalette.accent
 		GlassGui.roundedFrame(graphics, left, SEARCH_TOP, right, bottom, RoundedQuad.FULL, GlassGui.surface(), outline)
 		val textLeft = left + SEARCH_PAD
 		val top = textTop(font, SEARCH_TOP, SEARCH_HEIGHT)
 		val caretRoom = if (showCaret) CARET_WIDTH else 0
-		val room = SEARCH_WIDTH - 2 * SEARCH_PAD - caretRoom
+		val room = maxOf(width - 2 * SEARCH_PAD - caretRoom, 0)
 		if (query.isEmpty()) {
 			val shown = placeholderText.fit(font, SEARCH_PLACEHOLDER, room)
 			placeholderText.text(graphics, font, shown, textLeft, top, DhenPalette.TEXT_DISABLED)
@@ -110,7 +122,7 @@ internal class ClickGuiChrome(
 		queryText.text(graphics, font, shownQuery, textLeft, top, DhenPalette.TEXT_PRIMARY)
 		if (showCaret) caret(graphics, font, textLeft + queryText.width(font, shownQuery), top)
 		if (noMatches) {
-			val shown = noMatchText.fit(font, NO_MATCH_LABEL, viewportWidth.asInt - 2 * MARGIN)
+			val shown = noMatchText.fit(font, NO_MATCH_LABEL, chromeRoom(viewportWidth.asInt))
 			val labelLeft = ClickGuiShell.centeredLeft(viewportWidth.asInt, noMatchText.width(font, shown))
 			noMatchText.text(graphics, font, shown, labelLeft, bottom + SEARCH_PAD, DhenPalette.TEXT_SECONDARY)
 		}
@@ -129,29 +141,28 @@ internal class ClickGuiChrome(
 	}
 
 	private fun drawTabs(graphics: GuiGraphicsExtractor, font: Font, switch: Float) {
-		val barLeft = barLeft()
+		val left = barLeft
 		val bottom = TAB_TOP + BAR_HEIGHT
-		GlassGui.roundedFrame(graphics, barLeft, TAB_TOP, barLeft + barWidth, bottom, RoundedQuad.FULL, GlassGui.raised(), DhenPalette.BORDER)
-		val pillLeft = barLeft + RoundedQuad.between(tabLefts[previousTab], tabLefts[activeTab], switch)
+		GlassGui.roundedFrame(graphics, left, TAB_TOP, left + barWidth, bottom, RoundedQuad.FULL, GlassGui.raised(), DhenPalette.BORDER)
+		val pillLeft = left + RoundedQuad.between(tabLefts[previousTab], tabLefts[activeTab], switch)
 		val pillWidth = RoundedQuad.between(tabWidths[previousTab], tabWidths[activeTab], switch)
 		RoundedGui.pill(graphics, pillLeft, TAB_TOP + BAR_PAD, pillLeft + pillWidth, bottom - BAR_PAD, DhenPalette.accent)
 		val top = textTop(font, TAB_TOP, BAR_HEIGHT)
 		for (i in TAB_LABELS.indices) {
 			val color = DhenPalette.mix(tabLabelColor(i, previousTab), tabLabelColor(i, activeTab), switch)
-			val shown = tabText[i].fit(font, TAB_LABELS[i], tabWidths[i] - 2 * TAB_PAD)
-			tabText[i].text(graphics, font, shown, barLeft + tabLefts[i] + TAB_PAD, top, color)
+			val shown = tabText[i].fit(font, TAB_LABELS[i], tabLabelRoom(tabWidths[i]))
+			val labelLeft = left + tabLefts[i] + ClickGuiShell.centeredLeft(tabWidths[i], tabText[i].width(font, shown))
+			tabText[i].text(graphics, font, shown, labelLeft, top, color)
 		}
 	}
+
+	private fun tabLabelRoom(width: Int): Int = maxOf(width - 2 * minOf(TAB_PAD, width / 4), 0)
 
 	private fun tabLabelColor(tab: Int, active: Int): Int =
 		if (tab == active) DhenPalette.accentForeground else DhenPalette.TEXT_SECONDARY
 
 	private fun tabTravel(): Float =
 		if (activeTab > previousTab) GlassGui.TAB_SLIDE else -GlassGui.TAB_SLIDE
-
-	private fun barLeft(): Int = ClickGuiShell.centeredLeft(viewportWidth.asInt, barWidth)
-
-	private fun searchLeft(): Int = ClickGuiShell.centeredLeft(viewportWidth.asInt, SEARCH_WIDTH)
 
 	private inline fun shifted(graphics: GuiGraphicsExtractor, dx: Float, dy: Float, content: () -> Unit) {
 		if (dx == 0f && dy == 0f) {

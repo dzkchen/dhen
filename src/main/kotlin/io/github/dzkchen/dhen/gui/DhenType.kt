@@ -21,6 +21,7 @@ private const val WORLD_SHADOW_OFFSET = 0.5f
 private const val WORLD_SHADOW_ORDER = 0
 private const val WORLD_FOREGROUND_ORDER = 1
 private const val SHADOW_DIM = 0.25f
+private const val DEFAULT_WRAP_LINES = 2
 
 internal class RoomBand {
 	private var shrinksBelow = 0
@@ -231,47 +232,61 @@ internal class TextMemo {
 }
 
 internal class WrappedText {
-	private val headMemo = TextMemo()
-	private val tailMemo = TextMemo()
+	private val memos = ArrayList<TextMemo>(DEFAULT_WRAP_LINES)
+	private val shown = ArrayList<String>(DEFAULT_WRAP_LINES)
 	private var revision = DhenFont.revision
 	private var source = ""
 	private var measuredRoom = UNMEASURED
-	private var head = ""
-	private var tail = ""
+	private var measuredLimit = 0
 
 	var elided = false
 		private set
 
 	val lines: Int
-		get() = if (tail.isEmpty()) 1 else 2
+		get() = maxOf(shown.size, 1)
 
-	fun measure(font: Font, text: String, maxWidth: Int) {
+	fun measure(font: Font, text: String, maxWidth: Int, limit: Int = DEFAULT_WRAP_LINES) {
 		val current = DhenFont.revision
 		val room = maxOf(maxWidth, 0)
-		if (current == revision && text == source && room == measuredRoom) return
+		val cap = maxOf(limit, 1)
+		if (current == revision && text == source && room == measuredRoom && cap == measuredLimit) return
 		revision = current
 		source = text
 		measuredRoom = room
-		val point = wrapPoint(text, room) { measure(font, it) }
-		when {
-			point >= text.length -> single(text, text)
-			point <= 0 -> single(headMemo.fit(font, text, room), text)
-			else -> {
-				val rest = text.substring(point).trimStart()
-				val fitted = tailMemo.fit(font, rest, room)
-				if (fitted.isEmpty()) single(headMemo.fit(font, text, room), text)
-				else {
-					head = text.substring(0, point).trimEnd()
-					tail = fitted
-					elided = fitted != rest
-				}
+		measuredLimit = cap
+		shown.clear()
+		elided = false
+		var rest = text
+		while (true) {
+			if (shown.size == cap - 1) {
+				elided = fitted(font, rest, room) != rest
+				return
 			}
+			val point = wrapPoint(rest, room) { measure(font, it) }
+			if (point >= rest.length) {
+				shown += rest
+				return
+			}
+			if (point <= 0) {
+				fitted(font, rest, room)
+				elided = true
+				return
+			}
+			shown += rest.substring(0, point).trimEnd()
+			rest = rest.substring(point).trimStart()
+			if (rest.isEmpty()) return
 		}
 	}
 
 	fun height(font: Font, base: Int): Int = base + (lines - 1) * DhenType.lineHeight(font)
 
 	fun blockTop(font: Font, y: Int, height: Int): Int = y + (height - lines * DhenType.lineHeight(font)) / 2
+
+	fun widest(font: Font): Int {
+		var widest = 0
+		for (i in shown.indices) widest = maxOf(widest, memoAt(i).width(font, shown[i]))
+		return widest
+	}
 
 	fun draw(
 		graphics: GuiGraphicsExtractor,
@@ -281,35 +296,29 @@ internal class WrappedText {
 		color: Int,
 		centered: Boolean = false
 	) {
-		line(graphics, font, headMemo, head, left, top, color, centered)
-		if (tail.isEmpty()) return
-		line(graphics, font, tailMemo, tail, left, top + DhenType.lineHeight(font), color, centered)
+		val lineHeight = DhenType.lineHeight(font)
+		for (i in shown.indices) {
+			val memo = memoAt(i)
+			val text = shown[i]
+			val x = if (centered) left + ClickGuiShell.centeredLeft(measuredRoom, memo.width(font, text)) else left
+			memo.text(graphics, font, text, x, top + i * lineHeight, color)
+		}
 	}
 
 	fun invalidate() {
-		headMemo.invalidate()
-		tailMemo.invalidate()
+		for (i in memos.indices) memos[i].invalidate()
 		measuredRoom = UNMEASURED
 	}
 
-	private fun single(shown: String, full: String, elided: Boolean = shown != full) {
-		head = shown
-		tail = ""
-		this.elided = elided
+	private fun fitted(font: Font, text: String, room: Int): String {
+		val line = memoAt(shown.size).fit(font, text, room)
+		if (line.isNotEmpty() || shown.isEmpty()) shown += line
+		return line
 	}
 
-	private fun line(
-		graphics: GuiGraphicsExtractor,
-		font: Font,
-		memo: TextMemo,
-		text: String,
-		left: Int,
-		top: Int,
-		color: Int,
-		centered: Boolean
-	) {
-		val x = if (centered) left + ClickGuiShell.centeredLeft(measuredRoom, memo.width(font, text)) else left
-		memo.text(graphics, font, text, x, top, color)
+	private fun memoAt(index: Int): TextMemo {
+		while (memos.size <= index) memos += TextMemo()
+		return memos[index]
 	}
 }
 

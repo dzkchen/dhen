@@ -191,6 +191,90 @@ class ClickGuiLegibilityTest {
 	}
 
 	@Test
+	fun `a tooltip wraps onto as many lines as it needs and still stops at the margins`() {
+		val font = StubFont()
+		val tooltip = ClickGuiTooltip()
+		tooltip.hover(PATHOLOGICAL_NAME, LONG_DESCRIPTION, MARGIN, COLUMN_WIDTH, ROW_UNDER_THE_POINTER)
+
+		assertTrue(tooltip.measure(font, NARROW_VIEWPORT, NARROW_HEIGHT))
+
+		val lineHeight = DhenType.lineHeight(font)
+		assertTrue(tooltip.boxHeight > 3 * lineHeight + 2 * TOOLTIP_PAD) { "the description never wrapped" }
+		assertBoxInsideMargins(tooltip, NARROW_VIEWPORT, NARROW_HEIGHT)
+	}
+
+	@Test
+	fun `a tooltip gives up lines rather than growing past a short viewport`() {
+		val font = StubFont()
+		val tooltip = ClickGuiTooltip()
+		tooltip.hover(PATHOLOGICAL_NAME, LONG_DESCRIPTION, MARGIN, COLUMN_WIDTH, ROW_UNDER_THE_POINTER)
+
+		assertTrue(tooltip.measure(font, NARROW_VIEWPORT, SHORT_HEIGHT))
+
+		assertBoxInsideMargins(tooltip, NARROW_VIEWPORT, SHORT_HEIGHT)
+	}
+
+	@Test
+	fun `the tab bar and the search field stay inside a narrow viewport, and the tabs still hit where they are drawn`() {
+		val font = StubFont()
+		for (viewport in intArrayOf(NARROW_VIEWPORT, SQUEEZED_VIEWPORT)) {
+			val chrome = ClickGuiChrome({ viewport }, { NARROW_HEIGHT }, { _, _, _ -> })
+			chrome.measure(font)
+
+			assertTrue(chrome.barLeft >= MARGIN) { "the tab bar starts at ${chrome.barLeft} in $viewport" }
+			assertTrue(chrome.barLeft + chrome.barWidth <= viewport - MARGIN)
+			assertTrue(chrome.searchLeft >= MARGIN)
+			assertTrue(chrome.searchLeft + chrome.searchWidth <= viewport - MARGIN)
+
+			var hits = 0
+			for (x in 0 until viewport) {
+				val tab = chrome.tabAt(x, TAB_TOP)
+				if (tab == ClickGuiShell.NONE) continue
+				hits++
+				assertTrue(x >= chrome.barLeft && x < chrome.barLeft + chrome.barWidth) { "tab $tab answers x=$x outside the bar" }
+				assertTrue(chrome.searchContains(chrome.searchLeft, SEARCH_TOP))
+			}
+			assertTrue(hits > 0) { "no tab is clickable at $viewport" }
+		}
+	}
+
+	@Test
+	fun `the settings panel and its controls never reach past the viewport margins`() {
+		val panel = ClickGuiPrefsPanel({ NARROW_VIEWPORT }, { TALL_VIEWPORT })
+		val hit = ControlHit()
+		val row = FIELD_TOP + HEADER_HEIGHT + SECTION_PAD + 1
+		var reachable = 0
+
+		for (x in 0 until NARROW_VIEWPORT) {
+			if (panel.controlAt(hit, x, row) == null) continue
+			reachable++
+			assertTrue(x in MARGIN until NARROW_VIEWPORT - MARGIN) { "a preference answers x=$x outside the margins" }
+		}
+
+		assertTrue(reachable > 0) { "no preference is clickable at $NARROW_VIEWPORT" }
+	}
+
+	@Test
+	fun `the column strip bar spans its track from the first column to the last`() {
+		val max = STRIP_SCROLL
+		val track = chromeRoom(VIEWPORT_WIDTH)
+		val thumb = stripThumbWidth(VIEWPORT_WIDTH, max)
+
+		assertTrue(thumb in SCROLLBAR_MIN_THUMB until track) { "the thumb must be shorter than its track to say anything" }
+		assertEquals(MARGIN, stripThumbLeft(VIEWPORT_WIDTH, 0, max))
+		assertEquals(MARGIN + track, stripThumbLeft(VIEWPORT_WIDTH, max, max) + thumb)
+		assertTrue(stripThumbLeft(VIEWPORT_WIDTH, max / 2, max) > MARGIN)
+		assertTrue(stripBarTop(TALL_VIEWPORT) + STRIP_BAR_HEIGHT <= TALL_VIEWPORT)
+	}
+
+	private fun assertBoxInsideMargins(tooltip: ClickGuiTooltip, viewportWidth: Int, viewportHeight: Int) {
+		assertTrue(tooltip.left >= MARGIN) { "the tooltip starts at ${tooltip.left}" }
+		assertTrue(tooltip.left + tooltip.boxWidth <= viewportWidth - MARGIN) { "the tooltip is ${tooltip.boxWidth} wide" }
+		assertTrue(tooltip.top >= MARGIN) { "the tooltip starts at ${tooltip.top}" }
+		assertTrue(tooltip.top + tooltip.boxHeight <= viewportHeight - MARGIN) { "the tooltip is ${tooltip.boxHeight} tall" }
+	}
+
+	@Test
 	fun `every click gui wrap that is drawn is a wrap that is measured`() {
 		val files = SourceScan.files().filter { CLICK_GUI_FILE.matches(it.name) }
 		val wrapped = files.filter { WRAP_FIELD.containsMatchIn(it.readText()) }
@@ -281,7 +365,15 @@ class ClickGuiLegibilityTest {
 			{ control -> control.charTyped('1'.code); Unit },
 			{ control -> control.charTyped('2'.code); Unit }
 		)
+		const val LONG_DESCRIPTION =
+			"Shows the mod that owns each module and lets you allow or deny it for this server session."
 		const val TALL_VIEWPORT = 600
+		const val NARROW_VIEWPORT = 240
+		const val SQUEEZED_VIEWPORT = 160
+		const val NARROW_HEIGHT = 180
+		const val SHORT_HEIGHT = 60
+		const val ROW_UNDER_THE_POINTER = 100
+		const val STRIP_SCROLL = 200
 		const val CLIPPED_VIEWPORT = 140
 		const val VIEWPORT_WIDTH = 480
 		const val SCROLL_PROBES = 40

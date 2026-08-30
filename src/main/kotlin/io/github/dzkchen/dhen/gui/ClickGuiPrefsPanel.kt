@@ -13,7 +13,7 @@ internal class PrefCard(section: PrefSection) {
 	val height: Int
 		get() = heightOf(body.height)
 
-	fun measure(font: Font): Boolean = body.measure(font, PANEL_CONTROLS_WIDTH)
+	fun measure(font: Font, width: Int): Boolean = body.measure(font, panelControlsWidth(width))
 
 	fun invalidateMeasurements() {
 		body.invalidateMeasurements()
@@ -30,13 +30,15 @@ internal class PrefCard(section: PrefSection) {
 		left: Int,
 		top: Int,
 		content: Int,
+		width: Int,
 		visibleTop: Int,
 		visibleBottom: Int,
 		mouseX: Int,
 		mouseY: Int,
 		tooltip: ClickGuiTooltip
 	) {
-		val right = left + PANEL_WIDTH
+		val right = left + width
+		val controlsWidth = panelControlsWidth(width)
 		val headerBottom = top + HEADER_HEIGHT
 		val fill = GlassGui.raised()
 		GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER, HEADER_HEIGHT)
@@ -45,7 +47,7 @@ internal class PrefCard(section: PrefSection) {
 		val contentLeft = left + CONTENT_PAD
 		val contentTop = headerBottom + SECTION_PAD
 		if (content == 0) {
-			val shown = emptyText.fit(font, EMPTY_SECTION_LABEL, PANEL_CONTROLS_WIDTH)
+			val shown = emptyText.fit(font, EMPTY_SECTION_LABEL, controlsWidth)
 			emptyText.text(graphics, font, shown, contentLeft, textTop(font, contentTop, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 			return
 		}
@@ -54,7 +56,7 @@ internal class PrefCard(section: PrefSection) {
 			font,
 			contentLeft,
 			contentTop,
-			PANEL_CONTROLS_WIDTH,
+			controlsWidth,
 			mouseX,
 			mouseY,
 			visibleTop,
@@ -75,6 +77,9 @@ internal class ClickGuiPrefsPanel(
 	private val fieldBottom: Int
 		get() = fieldBottomOf(viewportHeight.asInt)
 
+	private val panelWidth: Int
+		get() = chromeWidth(PANEL_WIDTH, viewportWidth.asInt)
+
 	fun reclamp() = stack.reclamp()
 
 	fun scrollBy(delta: Int): Boolean = stack.scrollBy(delta)
@@ -82,7 +87,7 @@ internal class ClickGuiPrefsPanel(
 	fun measure(font: Font) {
 		var changed = false
 		for (i in cards.indices) {
-			if (cards[i].measure(font)) changed = true
+			if (cards[i].measure(font, panelWidth)) changed = true
 		}
 		if (changed) stack.reclamp()
 	}
@@ -99,6 +104,7 @@ internal class ClickGuiPrefsPanel(
 		measure(font)
 		tooltip.clear()
 		val left = panelLeft()
+		val width = panelWidth
 		val max = stack.max()
 		val clipped = max > ClickGuiScroll.TOP
 		val bottom = fieldBottom
@@ -110,26 +116,29 @@ internal class ClickGuiPrefsPanel(
 			val content = card.body.height
 			val cardHeight = card.heightOf(content)
 			if (top + cardHeight > FIELD_TOP) {
-				card.draw(graphics, font, left, top, content, FIELD_TOP, bottom, mouseX, mouseY, tooltip)
+				card.draw(graphics, font, left, top, content, width, FIELD_TOP, bottom, mouseX, mouseY, tooltip)
 			}
 			top += cardHeight + SECTION_GAP
 		}
 		if (clipped) {
 			graphics.disableScissor()
-			ClickGuiPaint.scrollbar(graphics, left + PANEL_WIDTH, FIELD_TOP, bottom - FIELD_TOP, stack.offset, max)
+			ClickGuiPaint.scrollbar(graphics, left + width, FIELD_TOP, bottom - FIELD_TOP, stack.offset, max)
 		}
 		tooltip.draw(graphics, font, viewportWidth.asInt, viewportHeight.asInt)
 	}
 
 	fun controlAt(hit: ControlHit, x: Int, y: Int): SettingControl? {
 		val left = panelLeft() + CONTENT_PAD
-		if (x < left || x >= left + PANEL_CONTROLS_WIDTH) return null
+		val controlsWidth = panelControlsWidth(panelWidth)
+		if (x < left || x >= left + controlsWidth) return null
 		if (y !in FIELD_TOP..<fieldBottom) return null
 		val slot = stack.slotAt(y)
 		if (slot == ClickGuiShell.NONE) return null
 		val top = stack.originOf(slot) + HEADER_HEIGHT + SECTION_PAD
-		return cards[slot].body.hit(hit, this, left, top, PANEL_CONTROLS_WIDTH, y)
+		return cards[slot].body.hit(hit, this, left, top, controlsWidth, y)
 	}
 
-	private fun panelLeft(): Int = ClickGuiShell.centeredLeft(viewportWidth.asInt, PANEL_WIDTH)
+	private fun panelLeft(): Int = ClickGuiShell.centeredLeft(viewportWidth.asInt, panelWidth)
 }
+
+internal fun panelControlsWidth(width: Int): Int = width - 2 * CONTENT_PAD

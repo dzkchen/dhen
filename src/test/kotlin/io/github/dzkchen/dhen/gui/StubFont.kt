@@ -12,8 +12,9 @@ import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.RandomSource
 
 internal const val STUB_GLYPH_WIDTH = 10
+internal const val WIDE_ELLIPSIS_WIDTH = 30
 
-internal class StubFont : Font(TenPixelGlyphs) {
+internal class StubFont(ellipsisWidth: Int = STUB_GLYPH_WIDTH) : Font(StubGlyphs(ellipsisWidth)) {
 	var measurements = 0
 		private set
 
@@ -23,18 +24,24 @@ internal class StubFont : Font(TenPixelGlyphs) {
 	}
 }
 
-private object TenPixelGlyphs : Font.Provider, GlyphSource, BakedGlyph {
-	private val square = GlyphInfo.simple(STUB_GLYPH_WIDTH.toFloat())
+private class StubGlyphs(ellipsisWidth: Int) : Font.Provider, GlyphSource {
+	private val square = StubGlyph(STUB_GLYPH_WIDTH)
+	private val ellipsis = StubGlyph(ellipsisWidth)
 
 	override fun glyphs(font: FontDescription): GlyphSource = this
 
 	override fun effect(): EffectGlyph = throw UnsupportedOperationException()
 
-	override fun getGlyph(codepoint: Int): BakedGlyph = this
+	override fun getGlyph(codepoint: Int): BakedGlyph =
+		if (codepoint == ELLIPSIS.codePointAt(0)) ellipsis else square
 
-	override fun getRandomGlyph(random: RandomSource, width: Int): BakedGlyph = this
+	override fun getRandomGlyph(random: RandomSource, width: Int): BakedGlyph = square
+}
 
-	override fun info(): GlyphInfo = square
+private class StubGlyph(width: Int) : BakedGlyph {
+	private val glyph = GlyphInfo.simple(width.toFloat())
+
+	override fun info(): GlyphInfo = glyph
 
 	override fun createGlyph(
 		x: Float,

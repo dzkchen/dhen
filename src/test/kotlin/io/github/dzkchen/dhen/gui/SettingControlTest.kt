@@ -776,7 +776,7 @@ class SettingControlTest {
 
 	@Test
 	fun `the widest value each setting type allows still clears its own name`() {
-		for (width in intArrayOf(CONTROLS_WIDTH, PANEL_CONTROLS_WIDTH)) {
+		for (width in intArrayOf(CONTROLS_WIDTH, panelControlsWidth(PANEL_WIDTH))) {
 			assertRoomForName(width, "Label", "WWWWWWWWWWWWWWWW", trailing = 0, editing = true)
 			assertRoomForName(width, "Color", "FFFFFFFF", trailing = SWATCH_TRAILING, editing = true)
 			assertRoomForName(width, "Theme", "high-contrast-midnight", trailing = GLYPH_TRAILING, editing = false)

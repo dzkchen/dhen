@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.gui
 
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -71,6 +72,26 @@ class ClickGuiShellTest {
 		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(152, CATEGORIES, VARYING, GAP))
 		assertEquals(3, ClickGuiShell.spanAt(160, CATEGORIES, VARYING, GAP))
 		assertEquals(ClickGuiShell.NONE, ClickGuiShell.spanAt(516, CATEGORIES, VARYING, GAP))
+	}
+
+	@Test
+	fun `segments that do not fit shrink in proportion and land exactly in the room left`() {
+		val widths = intArrayOf(100, 60)
+
+		ClickGuiShell.shrinkSegments(widths, TAB_GAP, 82)
+
+		assertEquals(82, ClickGuiShell.segmentsWidth(widths, TAB_GAP))
+		assertTrue(widths[0] > widths[1])
+		assertTrue(widths.all { it > 0 })
+	}
+
+	@Test
+	fun `segments that already fit are left alone`() {
+		val widths = intArrayOf(100, 60)
+
+		ClickGuiShell.shrinkSegments(widths, TAB_GAP, 400)
+
+		assertArrayEquals(intArrayOf(100, 60), widths)
 	}
 
 	@Test

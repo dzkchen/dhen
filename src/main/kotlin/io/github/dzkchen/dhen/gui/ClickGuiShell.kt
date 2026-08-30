@@ -34,6 +34,22 @@ internal object ClickGuiShell {
 		return NONE
 	}
 
+	fun shrinkSegments(widths: IntArray, gap: Int, available: Int) {
+		var natural = 0
+		for (i in widths.indices) natural += widths[i]
+		val room = maxOf(available - maxOf(widths.size - 1, 0) * gap, 0)
+		if (natural <= room) return
+		var remaining = room
+		var unassigned = natural
+		for (i in widths.indices) {
+			val width = widths[i]
+			val share = if (unassigned <= 0) 0 else (width.toLong() * remaining / unassigned).toInt()
+			widths[i] = share
+			unassigned -= width
+			remaining -= share
+		}
+	}
+
 	fun tooltipLeft(
 		columnLeft: Int,
 		columnWidth: Int,

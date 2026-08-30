@@ -120,6 +120,7 @@ internal class ClickGuiColumnField(
 			val left = stack.originOf(i)
 			if (left + COLUMN_WIDTH > 0 && left < width) visible[i].draw(graphics, font, left, mouseX, mouseY, focus)
 		}
+		ClickGuiPaint.stripScrollbar(graphics, width, viewportHeight.asInt, stack.offset, stack.max())
 		tooltip.draw(graphics, font, width, viewportHeight.asInt)
 	}
 

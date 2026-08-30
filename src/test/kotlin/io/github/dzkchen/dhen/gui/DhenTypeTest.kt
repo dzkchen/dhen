@@ -507,6 +507,18 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `a line with no room for even an ellipsis is dropped rather than drawn empty`() {
+		val font = StubFont(WIDE_ELLIPSIS_WIDTH)
+		val wrap = DhenType.wrap()
+
+		wrap.measure(font, PATHOLOGICAL, 2 * STUB_GLYPH_WIDTH)
+
+		assertEquals(1, wrap.lines) { "an empty second line still costs a row a line of height" }
+		assertTrue(wrap.elided)
+		assertEquals(ROW_BASE, wrap.height(font, ROW_BASE))
+	}
+
+	@Test
 	fun `a wrap measures once and holds until the text, the room or the font moves`() {
 		val font = StubFont()
 		val wrap = DhenType.wrap()
