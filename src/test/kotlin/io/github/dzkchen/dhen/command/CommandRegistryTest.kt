@@ -3,7 +3,6 @@ package io.github.dzkchen.dhen.command
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
@@ -721,7 +720,7 @@ class CommandRegistryTest {
 
 		assertEquals(
 			listOf(
-				"Player stats: health=1530/1530, defense=1204, ehp=19890",
+				"Player stats: health=1530/1530, defense=1204, ehp=19951",
 				"  mana=1050/1050, overflow=0, speed=400",
 				"  vitality=0/0, shown=false",
 				"  stacks=0, salvation=0, secrets=0/0",

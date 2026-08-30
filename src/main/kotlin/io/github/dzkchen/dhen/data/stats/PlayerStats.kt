@@ -6,7 +6,9 @@ enum class ActionBarSegment {
 	MANA,
 	OVERFLOW_MANA,
 	VITALITY,
-	SECRETS
+	SECRETS,
+	ARMOR_STACKS,
+	TERMINATOR_STACKS
 }
 
 object PlayerStats {
@@ -57,7 +59,7 @@ object PlayerStats {
 	var maxSecrets: Int = 0
 		internal set
 
-	val effectiveHp: Int get() = health * (1 + defense / 100)
+	val effectiveHp: Int get() = (health.toLong() * (100L + defense) / 100L).toInt()
 
 	internal var anyHidden: Boolean = false
 		private set

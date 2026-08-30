@@ -89,11 +89,17 @@ class PlayerStatsHooksTest {
 
 	@Test
 	fun `nether armor stacks and salvation are read with their symbols`() {
-		read("§610⁑     §aT3!")
+		read("§6§l10҉§r     §a§lT3!§r")
 
 		assertEquals(10, PlayerStats.netherArmorStacks)
-		assertEquals("⁑", PlayerStats.stackSymbol)
+		assertEquals("҉", PlayerStats.stackSymbol)
 		assertEquals(3, PlayerStats.salvation)
+
+		read("§65⚶     T2")
+
+		assertEquals(5, PlayerStats.netherArmorStacks)
+		assertEquals("⚶", PlayerStats.stackSymbol)
+		assertEquals(2, PlayerStats.salvation)
 	}
 
 	@Test
@@ -133,10 +139,10 @@ class PlayerStatsHooksTest {
 	}
 
 	@Test
-	fun `effective health multiplies health by the defense the sources use`() {
+	fun `effective health keeps fractional hundreds of defense`() {
 		read("§c1,000/1,000❤     §a250❈ Defense")
 
-		assertEquals(3000, PlayerStats.effectiveHp)
+		assertEquals(3500, PlayerStats.effectiveHp)
 	}
 
 	@Test
@@ -166,6 +172,19 @@ class PlayerStatsHooksTest {
 		assertEquals("§b1,050/1,050✎ Mana", event.styled)
 		assertEquals(1530, PlayerStats.health)
 		assertEquals(1204, PlayerStats.defense)
+	}
+
+	@Test
+	fun `hidden armor and terminator stacks are cut out after their values are read`() {
+		PlayerStats.hide(ActionBarSegment.ARMOR_STACKS, true)
+		PlayerStats.hide(ActionBarSegment.TERMINATOR_STACKS, true)
+
+		val event = read("§6§l10҉§r     §b1,050/1,050✎ Mana     §a§lT3!§r")
+
+		assertEquals("§b1,050/1,050✎ Mana", event.styled)
+		assertEquals(10, PlayerStats.netherArmorStacks)
+		assertEquals("҉", PlayerStats.stackSymbol)
+		assertEquals(3, PlayerStats.salvation)
 	}
 
 	@Test

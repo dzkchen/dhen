@@ -5,9 +5,11 @@ import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import io.github.dzkchen.dhen.features.visual.Camera;
 import io.github.dzkchen.dhen.features.visual.DarkMode;
+import io.github.dzkchen.dhen.features.visual.PlayerStatsHud;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,6 +17,65 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Hud.class)
 public abstract class HudMixin {
+	@Inject(method = "extractArmor", at = @At("HEAD"), cancellable = true)
+	private static void dhen$hideArmor(
+		final GuiGraphicsExtractor graphics,
+		final Player player,
+		final int yLineBase,
+		final int numHealthRows,
+		final int healthRowHeight,
+		final int xLeft,
+		final CallbackInfo callback
+	) {
+		if (PlayerStatsHud.shouldHideArmor()) {
+			callback.cancel();
+		}
+	}
+
+	@Inject(method = "extractHearts", at = @At("HEAD"), cancellable = true)
+	private void dhen$hideHearts(
+		final GuiGraphicsExtractor graphics,
+		final Player player,
+		final int xLeft,
+		final int yLineBase,
+		final int healthRowHeight,
+		final int heartOffsetIndex,
+		final float maxHealth,
+		final int currentHealth,
+		final int oldHealth,
+		final int absorption,
+		final boolean blink,
+		final CallbackInfo callback
+	) {
+		if (PlayerStatsHud.shouldHideHearts()) {
+			callback.cancel();
+		}
+	}
+
+	@Inject(method = "extractFood", at = @At("HEAD"), cancellable = true)
+	private void dhen$hideFood(
+		final GuiGraphicsExtractor graphics,
+		final Player player,
+		final int yLineBase,
+		final int xRight,
+		final CallbackInfo callback
+	) {
+		if (PlayerStatsHud.shouldHideFood()) {
+			callback.cancel();
+		}
+	}
+
+	@ModifyExpressionValue(
+		method = "extractHotbarAndDecorations",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;hasExperience()Z"
+		)
+	)
+	private boolean dhen$showExperienceLevel(final boolean original) {
+		return original && !PlayerStatsHud.shouldHideExperience();
+	}
+
 	@Inject(method = "extractRenderState", at = @At("HEAD"))
 	private void dhen$darkModeBehind(
 		final GuiGraphicsExtractor graphics,

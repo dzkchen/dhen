@@ -26,6 +26,7 @@
 		"DownloadedPackSourceMixin",
 		"EntityMixin",
 		"EntityRenderDispatcherMixin",
+		"ExperienceBarMixin",
 		"FontManagerMixin",
 		"FluidStateModelSetMixin",
 		"GuiMixin",

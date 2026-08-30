@@ -86,8 +86,8 @@ internal object PlayerStatsHooks : GuardedHooks<PlayerStatsHooks.Channels> {
 		private val mana = matcher("(?:\u00a7.)?([\\d,]+)/([\\d,]+)(?:\u00a7.)?[\uE003✎](?: Mana)?")
 		private val overflow = matcher("(?:\u00a7.)?([\\d,]+)(?:\u00a7.)?[\uE017ʬ]")
 		private val vitality = matcher("(?:\u00a7.)?([\\d.,]+)/([\\d.,]+)(?:\u00a7.)?[\uE028♨](?: Vitality)?")
-		private val stacks = matcher("(?:\u00a7.)?([\\d,]+)(?:\u00a7.)?([ᝐ⁑Ѫ])")
-		private val salvation = matcher("T([1-3])!")
+		private val stacks = matcher("(?:\u00a7.)*([\\d,]+)(?:\u00a7.)*([ᝐ⁑҉Ѫ⚶])(?:\u00a7r)?")
+		private val salvation = matcher("(?:\u00a7.)*T([1-3])!?(?:\u00a7r)?")
 		private val manaUsage = matcher("\u00a7b-([\\d,]+) Mana \\(\u00a76.+?\u00a7b\\)|\u00a7c\u00a7lNOT ENOUGH MANA")
 		private val secrets = matcher("\\s*(?:\u00a7.)?(\\d+)/(\\d+) Secrets")
 
@@ -145,6 +145,8 @@ internal object PlayerStatsHooks : GuardedHooks<PlayerStatsHooks.Channels> {
 			if (PlayerStats.hidden(ActionBarSegment.OVERFLOW_MANA)) result = overflow.reset(result).replaceAll("")
 			if (PlayerStats.hidden(ActionBarSegment.VITALITY)) result = vitality.reset(result).replaceAll("")
 			if (PlayerStats.hidden(ActionBarSegment.SECRETS)) result = secrets.reset(result).replaceAll("")
+			if (PlayerStats.hidden(ActionBarSegment.ARMOR_STACKS)) result = stacks.reset(result).replaceAll("")
+			if (PlayerStats.hidden(ActionBarSegment.TERMINATOR_STACKS)) result = salvation.reset(result).replaceAll("")
 			return result.trim()
 		}
 
