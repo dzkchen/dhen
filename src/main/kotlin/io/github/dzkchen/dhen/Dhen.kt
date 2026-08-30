@@ -39,11 +39,10 @@ import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
-import io.github.dzkchen.dhen.features.visual.DarkMode
-import io.github.dzkchen.dhen.features.visual.LavaToWater
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
+import io.github.dzkchen.dhen.features.visual.VisualTweaks
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
@@ -214,11 +213,10 @@ object Dhen : ClientModInitializer {
 			Tweaks,
 			Animations,
 			Camera,
-			DarkMode,
-			LavaToWater,
 			PlayerStatsHud,
 			RevertAxes,
 			TimeChanger,
+			VisualTweaks,
 			SpoofAsVanilla,
 			ChannelSpoofing,
 			ModWhitelist,

@@ -4,8 +4,8 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import io.github.dzkchen.dhen.features.visual.Camera;
-import io.github.dzkchen.dhen.features.visual.DarkMode;
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud;
+import io.github.dzkchen.dhen.features.visual.VisualTweaks;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
@@ -82,7 +82,7 @@ public abstract class HudMixin {
 		final DeltaTracker deltaTracker,
 		final CallbackInfo callback
 	) {
-		DarkMode.drawBehindHud(graphics);
+		VisualTweaks.drawBehindHud(graphics);
 	}
 
 	@Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -91,7 +91,7 @@ public abstract class HudMixin {
 		final DeltaTracker deltaTracker,
 		final CallbackInfo callback
 	) {
-		DarkMode.drawOverHud(graphics);
+		VisualTweaks.drawOverHud(graphics);
 	}
 
 	@Inject(method = "extractSelectedItemName", at = @At("HEAD"), cancellable = true)

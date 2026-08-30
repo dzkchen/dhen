@@ -1,6 +1,6 @@
 package io.github.dzkchen.dhen.mixin;
 
-import io.github.dzkchen.dhen.features.visual.LavaToWater;
+import io.github.dzkchen.dhen.features.visual.VisualTweaks;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.world.level.material.FluidState;
@@ -14,7 +14,7 @@ public abstract class FluidStateModelSetMixin {
 	@Inject(method = "get", at = @At("RETURN"), cancellable = true)
 	private void dhen$fluidModel(final FluidState state, final CallbackInfoReturnable<FluidModel> callback) {
 		final FluidModel original = callback.getReturnValue();
-		final FluidModel replacement = LavaToWater.replaceModel((FluidStateModelSet)(Object)this, state, original);
+		final FluidModel replacement = VisualTweaks.replaceModel((FluidStateModelSet)(Object)this, state, original);
 		if (replacement != original) {
 			callback.setReturnValue(replacement);
 		}

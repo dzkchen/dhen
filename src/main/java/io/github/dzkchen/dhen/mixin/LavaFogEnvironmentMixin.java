@@ -1,6 +1,6 @@
 package io.github.dzkchen.dhen.mixin;
 
-import io.github.dzkchen.dhen.features.visual.LavaToWater;
+import io.github.dzkchen.dhen.features.visual.VisualTweaks;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -28,8 +28,8 @@ public abstract class LavaFogEnvironmentMixin {
 		final DeltaTracker deltaTracker,
 		final CallbackInfo callback
 	) {
-		if (LavaToWater.shouldHideFog()) {
-			LavaToWater.hideFog(fog, renderDistance);
+		if (VisualTweaks.shouldHideFog()) {
+			VisualTweaks.hideFog(fog, renderDistance);
 			callback.cancel();
 		}
 	}
@@ -42,9 +42,14 @@ public abstract class LavaFogEnvironmentMixin {
 		final float partialTicks,
 		final CallbackInfoReturnable<Integer> callback
 	) {
-		if (LavaToWater.isActive()) {
-			final int water = DHEN_WATER_FOG.getBaseColor(level, camera, renderDistance, partialTicks);
-			callback.setReturnValue(LavaToWater.fogColor(water));
+		if (!VisualTweaks.rendersLavaAsWater()) {
+			return;
+		}
+
+		if (VisualTweaks.tintsFog()) {
+			callback.setReturnValue(VisualTweaks.fogTint());
+		} else {
+			callback.setReturnValue(DHEN_WATER_FOG.getBaseColor(level, camera, renderDistance, partialTicks));
 		}
 	}
 }
