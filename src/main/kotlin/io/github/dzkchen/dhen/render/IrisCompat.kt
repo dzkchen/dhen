@@ -24,8 +24,11 @@ internal object IrisCompat {
 		}
 	}
 
+	fun shadersActive(): Boolean = assignment.shadersActive()
+
 	private interface PipelineAssignment {
 		fun assign(pipeline: RenderPipeline, program: IrisShaderProgram) = Unit
+		fun shadersActive(): Boolean = false
 	}
 
 	private object IrisAbsent : PipelineAssignment
@@ -38,6 +41,8 @@ internal object IrisCompat {
 			IrisShaderProgram.LINES -> IrisProgram.LINES
 			IrisShaderProgram.BASIC -> IrisProgram.BASIC
 		}
+
+		override fun shadersActive(): Boolean = IrisApi.getInstance().isShaderPackInUse
 	}
 
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)

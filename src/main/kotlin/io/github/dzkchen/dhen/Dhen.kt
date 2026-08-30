@@ -37,6 +37,7 @@ import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.Tweaks
+import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.font.FontRuntime
@@ -207,6 +208,7 @@ object Dhen : ClientModInitializer {
 			ArrowFix,
 			NoItemPlace,
 			Tweaks,
+			Camera,
 			RevertAxes,
 			TimeChanger,
 			SpoofAsVanilla,
