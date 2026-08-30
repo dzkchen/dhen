@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.mixin;
 
 import io.github.dzkchen.dhen.event.NetworkHooks;
+import io.github.dzkchen.dhen.privacy.PacketContext;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -22,14 +23,16 @@ public abstract class ClientPacketListenerMixin {
 		cancellable = true
 	)
 	private void dhen$handleBundle(final ClientboundBundlePacket packet, final CallbackInfo callback) {
-		if (!NetworkHooks.INSTANCE.active()) {
-			return;
-		}
 		final ClientPacketListener listener = (ClientPacketListener)(Object)this;
 		for (final Packet<? super ClientGamePacketListener> subPacket : packet.subPackets()) {
 			if (!NetworkHooks.beforeHandle(subPacket)) {
-				subPacket.handle(listener);
-				NetworkHooks.afterHandle(subPacket);
+				PacketContext.beginHandle(subPacket);
+				try {
+					subPacket.handle(listener);
+				} finally {
+					PacketContext.endHandle();
+					NetworkHooks.afterHandle(subPacket);
+				}
 			}
 		}
 		callback.cancel();
