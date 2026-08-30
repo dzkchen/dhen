@@ -41,7 +41,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	override val maxLength: Int get() = if (color.allowAlpha) 8 else 6
 
 	override val height: Int
-		get() = if (open) panelBottom() else CONTROL_ROW_HEIGHT
+		get() = if (open) panelBottom() else rowHeight
 
 	override val expanded: Boolean
 		get() = open
@@ -72,13 +72,15 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		return color.value.argb != before
 	}
 
+	override fun onMeasure(font: Font, width: Int): Int =
+		measurePill(font, width, committedText(), trailing = SWATCH_GAP + SWATCH_SIZE)
+
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		sync()
 		val value = color.value
 		val swatchRight = pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			color.name, editText(), DhenPalette.TEXT_PRIMARY, SWATCH_GAP + SWATCH_SIZE,
-			editing = editing, active = editing || open
+			editText(), DhenPalette.TEXT_PRIMARY, editing = editing, active = editing || open
 		)
 		val swatchLeft = swatchRight - SWATCH_SIZE
 		val swatchTop = widgetTop(y) + (WIDGET_HEIGHT - SWATCH_SIZE) / 2
@@ -97,7 +99,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	}
 
 	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
-		if (localY < CONTROL_ROW_HEIGHT) {
+		if (localY < rowHeight) {
 			if (localX < swatchHit(width)) return super.onPress(localX, localY, width)
 			open = !open
 			return ControlPress.RESIZED
@@ -112,11 +114,11 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	override fun onDrag(localX: Int, localY: Int, width: Int) {
 		var level = color.value.alpha
 		when (tracking) {
-			HUE_REGION -> hue = fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
+			HUE_REGION -> hue = fractionOf(localY - squareTop(), PICKER_SQUARE_HEIGHT)
 			ALPHA_REGION -> level = channelOf(fractionOf(localX - PICKER_PAD, width - 2 * PICKER_PAD))
 			SQUARE_REGION -> {
 				saturation = fractionOf(localX - PICKER_PAD, pickerSquareRight(width) - PICKER_PAD)
-				brightness = 1f - fractionOf(localY - PICKER_SQUARE_TOP, PICKER_SQUARE_HEIGHT)
+				brightness = 1f - fractionOf(localY - squareTop(), PICKER_SQUARE_HEIGHT)
 			}
 			else -> return
 		}
@@ -124,14 +126,18 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		pickerArgb = color.value.argb
 	}
 
+	private fun squareTop(): Int = PICKER_SQUARE_TOP + rowGrowth
+
+	private fun alphaTop(): Int = PICKER_ALPHA_TOP + rowGrowth
+
 	private fun panelBottom(): Int =
-		PICKER_PAD + if (color.allowAlpha) PICKER_ALPHA_TOP + PICKER_ALPHA_HEIGHT else PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT
+		PICKER_PAD + if (color.allowAlpha) alphaTop() + PICKER_ALPHA_HEIGHT else squareTop() + PICKER_SQUARE_HEIGHT
 
 	private fun regionAt(localX: Int, localY: Int, width: Int): Int = when {
-		localY < PICKER_SQUARE_TOP -> ClickGuiShell.NONE
-		color.allowAlpha && localY >= PICKER_ALPHA_TOP ->
-			if (localY < PICKER_ALPHA_TOP + PICKER_ALPHA_HEIGHT) ALPHA_REGION else ClickGuiShell.NONE
-		localY >= PICKER_SQUARE_TOP + PICKER_SQUARE_HEIGHT -> ClickGuiShell.NONE
+		localY < squareTop() -> ClickGuiShell.NONE
+		color.allowAlpha && localY >= alphaTop() ->
+			if (localY < alphaTop() + PICKER_ALPHA_HEIGHT) ALPHA_REGION else ClickGuiShell.NONE
+		localY >= squareTop() + PICKER_SQUARE_HEIGHT -> ClickGuiShell.NONE
 		localX >= pickerStripLeft(width) -> HUE_REGION
 		else -> SQUARE_REGION
 	}
@@ -147,10 +153,10 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 	}
 
 	private fun drawPanel(graphics: GuiGraphicsExtractor, x: Int, y: Int, width: Int, value: Color) {
-		RoundedGui.frame(graphics, x, y + CONTROL_ROW_HEIGHT, x + width, y + panelBottom(), PICKER_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+		RoundedGui.frame(graphics, x, y + rowHeight, x + width, y + panelBottom(), PICKER_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
 		val left = x + PICKER_PAD
 		val right = x + pickerSquareRight(width)
-		val top = y + PICKER_SQUARE_TOP
+		val top = y + squareTop()
 		val tint = Color.hsv(hue, 1f, 1f)
 		GradientGui.quad(graphics, left, top, right, top + PICKER_SQUARE_HEIGHT, Color.hsv(hue, 0f, 1f).argb, tint.argb, OPAQUE_BLACK, OPAQUE_BLACK)
 		val opaque = value.opaque().argb
@@ -159,7 +165,7 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		RoundedGui.circle(graphics, markerX, markerY, MARKER_RADIUS, inkOn(opaque))
 		RoundedGui.circle(graphics, markerX, markerY, MARKER_RADIUS - 1, opaque)
 		drawHueStrip(graphics, x + pickerStripLeft(width), top, tint.argb)
-		if (color.allowAlpha) drawAlphaStrip(graphics, left, y + PICKER_ALPHA_TOP, x + width - PICKER_PAD, value.alpha)
+		if (color.allowAlpha) drawAlphaStrip(graphics, left, y + alphaTop(), x + width - PICKER_PAD, value.alpha)
 	}
 
 	private fun drawHueStrip(graphics: GuiGraphicsExtractor, left: Int, top: Int, tint: Int) {

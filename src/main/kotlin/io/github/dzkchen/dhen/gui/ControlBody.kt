@@ -20,6 +20,14 @@ internal class ControlBody(built: List<SettingControl>) {
 
 	fun at(index: Int): SettingControl = controls[index]
 
+	fun measure(font: Font, width: Int): Boolean {
+		var changed = false
+		for (i in controls.indices) {
+			if (controls[i].measure(font, width)) changed = true
+		}
+		return changed
+	}
+
 	fun draw(
 		graphics: GuiGraphicsExtractor,
 		font: Font,

@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory
 internal const val CONTROL_TEXT_INSET = 2
 internal const val LABEL_GAP = 4
 internal const val WIDGET_HEIGHT = 14
-private const val WIDGET_PAD = 3
+internal const val WIDGET_PAD = 3
 internal const val CONTROL_ROW_HEIGHT = WIDGET_HEIGHT + 2 * WIDGET_PAD
 internal const val PILL_CAP = WIDGET_HEIGHT / 2
 internal const val PILL_PAD = PILL_CAP + 1
@@ -32,9 +32,13 @@ private val LOG = LoggerFactory.getLogger(Dhen.MOD_ID)
 internal sealed class SettingControl(private val setting: Setting<*>) {
 	private val memos = mutableListOf<TextMemo>()
 
-	protected val labelText = memo()
 	protected val valueText = memo()
 	private val labelFloorText = memo()
+	private val labelWrap = DhenType.wrap()
+	private var pillSpan = 0
+	private var valueSpan = 0
+	private var trailingSpan = 0
+	private var reserveSpan = 0
 
 	var failed = false
 		private set
@@ -42,8 +46,20 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 	val clientOwned: Boolean
 		get() = setting.owner == null
 
+	protected var rowHeight = CONTROL_ROW_HEIGHT
+		private set
+
+	protected val rowGrowth: Int
+		get() = rowHeight - CONTROL_ROW_HEIGHT
+
+	protected open val caretReserve: Int
+		get() = 0
+
+	val labelElided: Boolean
+		get() = labelWrap.elided
+
 	open val height: Int
-		get() = CONTROL_ROW_HEIGHT
+		get() = rowHeight
 
 	open val expanded: Boolean
 		get() = false
@@ -55,6 +71,32 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		get() = if (renderable()) height else 0
 
 	open fun collapse(): Boolean = false
+
+	fun measure(font: Font, width: Int): Boolean = guarded(false, true) {
+		labelWrap.measure(font, setting.name, onMeasure(font, width))
+		val grown = labelWrap.height(font, CONTROL_ROW_HEIGHT)
+		val changed = grown != rowHeight
+		rowHeight = grown
+		changed
+	}
+
+	protected open fun onMeasure(font: Font, width: Int): Int = labelRoom(width, 0)
+
+	protected fun measurePill(
+		font: Font,
+		width: Int,
+		sizingValue: String,
+		claimedValueWidth: Int = 0,
+		trailing: Int = 0
+	): Int {
+		reserveSpan = caretReserve
+		trailingSpan = trailing
+		val fullValueWidth = maxOf(valueText.width(font, sizingValue), claimedValueWidth)
+		val labelFloor = labelFloorText.width(font, ELLIPSIS)
+		valueSpan = pillValueRoom(width, fullValueWidth, labelFloor, trailing, reserveSpan)
+		pillSpan = pillWidth(valueSpan, trailing, reserveSpan, width)
+		return labelRoom(width, pillSpan)
+	}
 
 	protected abstract fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int)
 
@@ -86,7 +128,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		tooltip: ClickGuiTooltip
 	) = guarded(Unit, Unit) {
 		onDraw(graphics, font, x, y, width, pointerY)
-		if (hovering(y, pointerY) && setting.description.isNotEmpty()) tooltip.hover(setting.description, x, width, y)
+		if (!hovering(y, pointerY)) return@guarded
+		tooltip.hover(if (labelElided) setting.name else "", setting.description, x, width, y)
 	}
 
 	fun press(localX: Int, localY: Int, width: Int): ControlPress? =
@@ -121,14 +164,26 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	fun invalidateMeasurement() {
 		for (i in memos.indices) memos[i].invalidate()
+		labelWrap.invalidate()
 		onInvalidateMeasurement()
 	}
 
-	protected fun hovering(y: Int, pointerY: Int): Boolean = pointerY >= y && pointerY < y + CONTROL_ROW_HEIGHT
+	protected fun hovering(y: Int, pointerY: Int): Boolean = pointerY >= y && pointerY < y + rowHeight
 
-	protected fun widgetTop(y: Int): Int = y + WIDGET_PAD
+	protected fun widgetTop(y: Int): Int = y + (rowHeight - WIDGET_HEIGHT) / 2
 
-	protected fun rowTextTop(font: Font, y: Int): Int = textTop(font, y, CONTROL_ROW_HEIGHT)
+	protected fun widgetTextTop(font: Font, y: Int): Int = textTop(font, widgetTop(y), WIDGET_HEIGHT)
+
+	protected fun labelBlockTop(font: Font, y: Int): Int = labelWrap.blockTop(font, y, rowHeight)
+
+	protected fun drawLabel(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		x: Int,
+		top: Int,
+		color: Int,
+		centered: Boolean = false
+	) = labelWrap.draw(graphics, font, x, top, color, centered)
 
 	protected fun pillRow(
 		graphics: GuiGraphicsExtractor,
@@ -137,37 +192,28 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		y: Int,
 		width: Int,
 		hovered: Boolean,
-		name: String,
 		value: String,
 		valueColor: Int,
-		trailing: Int = 0,
-		claimedValueWidth: Int = 0,
 		editing: Boolean = false,
 		active: Boolean = editing
 	): Int {
-		val reserve = if (editing) CARET_WIDTH else 0
-		val fullValueWidth = maxOf(valueText.width(font, value), claimedValueWidth)
-		val labelFloor = labelFloorText.width(font, ELLIPSIS)
-		val valueRoom = pillValueRoom(width, fullValueWidth, labelFloor, trailing, reserve)
-		val pillWidth = pillWidth(valueRoom, trailing, reserve, width)
-		val label = labelText.fit(font, name, labelRoom(width, pillWidth))
-		val shown = valueText.fit(font, value, valueRoom, editing)
+		val shown = valueText.fit(font, value, valueSpan, editing)
 		val shownWidth = valueText.width(font, shown)
 		val right = x + width
 		val top = widgetTop(y)
 		RoundedGui.pillFrame(
 			graphics,
-			right - pillWidth,
+			right - pillSpan,
 			top,
 			right,
 			top + WIDGET_HEIGHT,
 			GlassGui.raised(hovered),
 			if (active) DhenPalette.accent else DhenPalette.BORDER
 		)
-		val baseline = rowTextTop(font, y)
-		labelText.text(graphics, font, label, x + CONTROL_TEXT_INSET, baseline, DhenPalette.label(hovered))
+		drawLabel(graphics, font, x + CONTROL_TEXT_INSET, labelBlockTop(font, y), DhenPalette.label(hovered))
+		val baseline = widgetTextTop(font, y)
 		val contentRight = right - PILL_PAD
-		val valueRight = contentRight - trailing - reserve
+		val valueRight = contentRight - trailingSpan - reserveSpan
 		valueText.text(graphics, font, shown, valueRight - shownWidth, baseline, valueColor)
 		if (editing) caret(graphics, font, valueRight, baseline)
 		return contentRight

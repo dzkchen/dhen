@@ -33,7 +33,7 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 	private var cachedName = ""
 
 	override val height: Int
-		get() = if (open) CONTROL_ROW_HEIGHT + soundListHeight() else CONTROL_ROW_HEIGHT
+		get() = if (open) rowHeight + soundListHeight() else rowHeight
 
 	override val expanded: Boolean
 		get() = open
@@ -48,6 +48,9 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 		return true
 	}
 
+	override fun onMeasure(font: Font, width: Int): Int =
+		measurePill(font, width, selectedName(), trailing = SOUND_GLYPH_GAP + glyphText.width(font, SOUND_GLYPH))
+
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		val glyphWidth = glyphText.width(font, SOUND_GLYPH)
 		val contentRight = pillRow(
@@ -57,26 +60,24 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 			y,
 			width,
 			hovering(y, pointerY),
-			sound.name,
 			selectedName(),
 			DhenPalette.TEXT_PRIMARY,
-			SOUND_GLYPH_GAP + glyphWidth,
 			active = open
 		)
 		val shownGlyph = glyphText.fit(font, SOUND_GLYPH, glyphWidth)
-		glyphText.text(graphics, font, shownGlyph, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
-		if (open) drawList(graphics, font, x, y + CONTROL_ROW_HEIGHT, width, pointerY)
+		glyphText.text(graphics, font, shownGlyph, contentRight - glyphWidth, widgetTextTop(font, y), DhenPalette.TEXT_SECONDARY)
+		if (open) drawList(graphics, font, x, y + rowHeight, width, pointerY)
 	}
 
 	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
-		if (localY < CONTROL_ROW_HEIGHT) {
+		if (localY < rowHeight) {
 			open = !open
 			editing = open
 			return if (open) ControlPress.FOCUS else ControlPress.RESIZED
 		}
 		if (!open) return ControlPress.IGNORED
-		val slot = (localY - SOUND_ROWS_TOP) / LIST_ROW_HEIGHT
-		if (localY >= SOUND_ROWS_TOP && slot in 0 until SOUND_VISIBLE_ROWS) {
+		val slot = (localY - rowsTop()) / LIST_ROW_HEIGHT
+		if (localY >= rowsTop() && slot in 0 until SOUND_VISIBLE_ROWS) {
 			val index = firstVisible + slot
 			if (index in filtered.indices) {
 				val identifier = filtered[index].identifier
@@ -114,7 +115,7 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 	}
 
 	override fun onScroll(localX: Int, localY: Int, width: Int, delta: Int): Boolean {
-		if (!open || localX !in 0 until width || localY !in SOUND_ROWS_TOP until height || delta == 0) return false
+		if (!open || localX !in 0 until width || localY !in rowsTop() until height || delta == 0) return false
 		val maxFirst = maxOf(filtered.size - SOUND_VISIBLE_ROWS, 0)
 		val next = (firstVisible + if (delta < 0) 1 else -1).coerceIn(0, maxFirst)
 		if (next == firstVisible) return false
@@ -126,6 +127,8 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 		editing = false
 		return false
 	}
+
+	private fun rowsTop(): Int = SOUND_ROWS_TOP + rowGrowth
 
 	private fun drawList(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int, width: Int, pointerY: Int) {
 		val right = x + width

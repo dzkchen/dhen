@@ -29,7 +29,8 @@ internal class ClickGuiColumn(
 	private val fieldBottom: IntSupplier
 ) : ControlHost {
 	private val controls: List<ControlBody> = modules.map { module -> ControlBody(module.settings.mapNotNull(::controlFor)) }
-	private val moduleText = List(modules.size) { DhenType.memo() }
+	private val moduleName = List(modules.size) { DhenType.wrap() }
+	private val rowHeights = IntArray(modules.size) { ROW_HEIGHT }
 	private val titleText = DhenType.memo()
 	private val expandText = DhenType.memo()
 	private val collapseText = DhenType.memo()
@@ -39,7 +40,8 @@ internal class ClickGuiColumn(
 	private var visibleCount = modules.size
 	private var filtering = false
 	private val settingsHeightAt = IntUnaryOperator { row -> settingsHeight(visibleRows[row]) }
-	private val rowExtentAt = IntUnaryOperator { row -> ROW_HEIGHT + settingsHeightAt.applyAsInt(row) }
+	private val rowHeightAt = IntUnaryOperator { row -> rowHeights[visibleRows[row]] }
+	private val rowExtentAt = IntUnaryOperator { row -> rowHeightAt.applyAsInt(row) + settingsHeightAt.applyAsInt(row) }
 	private val rows = ScrollingStack(FIELD_TOP + HEADER_HEIGHT, NO_GAP, BODY_PAD, { rowCount }, fieldBottom, rowExtentAt)
 
 	val hidden: Boolean
@@ -56,6 +58,20 @@ internal class ClickGuiColumn(
 
 	private fun shownHeight(natural: Int): Int =
 		ClickGuiShell.clampedColumnHeight(natural, HEADER_HEIGHT, fieldBottom.asInt - FIELD_TOP)
+
+	fun measure(font: Font) {
+		var changed = false
+		for (i in modules.indices) {
+			moduleName[i].measure(font, modules[i].name, moduleNameRoom(COLUMN_WIDTH, isExpandable(i), glyphs.chevron))
+			val grown = moduleName[i].height(font, ROW_HEIGHT)
+			if (rowHeights[i] != grown) {
+				rowHeights[i] = grown
+				changed = true
+			}
+			if (controls[i].measure(font, CONTROLS_WIDTH)) changed = true
+		}
+		if (changed) rows.reclamp()
+	}
 
 	fun applyFilter(query: String) {
 		filtering = query.isNotEmpty()
@@ -90,7 +106,7 @@ internal class ClickGuiColumn(
 
 	fun rowAt(y: Int): Module? {
 		val localY = bodyLocal(y) ?: return null
-		val row = ClickGuiRows.rowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt)
+		val row = ClickGuiRows.rowAt(localY, visibleCount, rowHeightAt, settingsHeightAt)
 		return if (row == ClickGuiShell.NONE) null else modules[visibleRows[row]]
 	}
 
@@ -99,12 +115,12 @@ internal class ClickGuiColumn(
 
 	fun settingsRowAt(y: Int): Int {
 		val localY = bodyLocal(y) ?: return ClickGuiShell.NONE
-		return ClickGuiRows.settingsRowAt(localY, visibleCount, ROW_HEIGHT, settingsHeightAt)
+		return ClickGuiRows.settingsRowAt(localY, visibleCount, rowHeightAt, settingsHeightAt)
 	}
 
 	fun bodyOf(row: Int): ControlBody = controls[visibleRows[row]]
 
-	fun bodyTop(row: Int): Int = rows.originOf(row) + ROW_HEIGHT + SETTINGS_PAD
+	fun bodyTop(row: Int): Int = rows.originOf(row) + rowHeightAt.applyAsInt(row) + SETTINGS_PAD
 
 	fun toggleCollapsed() {
 		view.toggle(category.name)
@@ -169,11 +185,12 @@ internal class ClickGuiColumn(
 			if (rowTop >= visibleBottom) break
 			val index = visibleRows[row]
 			val areaHeight = settingsHeight(index)
-			val nextTop = rowTop + ROW_HEIGHT + areaHeight
+			val rowHeight = rowHeights[index]
+			val nextTop = rowTop + rowHeight + areaHeight
 			if (nextTop > visibleTop) {
-				drawRow(graphics, font, index, left, rowTop, pointerY, focus)
+				drawRow(graphics, font, index, left, rowTop, rowHeight, pointerY, focus)
 				if (areaHeight > 0) {
-					drawSettings(graphics, font, index, left, rowTop + ROW_HEIGHT, areaHeight, visibleTop, visibleBottom, mouseX, mouseY)
+					drawSettings(graphics, font, index, left, rowTop + rowHeight, areaHeight, visibleTop, visibleBottom, mouseX, mouseY)
 				}
 			}
 			rowTop = nextTop
@@ -190,12 +207,13 @@ internal class ClickGuiColumn(
 		index: Int,
 		left: Int,
 		rowTop: Int,
+		rowHeight: Int,
 		pointerY: Int,
 		focus: Module?
 	) {
 		val module = modules[index]
 		val right = left + COLUMN_WIDTH
-		val rowBottom = rowTop + ROW_HEIGHT
+		val rowBottom = rowTop + rowHeight
 		val hovered = pointerY in rowTop until rowBottom
 		val navigated = module === focus
 		val active = hovered || navigated
@@ -211,23 +229,20 @@ internal class ClickGuiColumn(
 			active -> DhenPalette.TEXT_PRIMARY
 			else -> DhenPalette.TEXT_SECONDARY
 		}
-		val labelTop = textTop(font, rowTop, ROW_HEIGHT)
+		val glyphTop = textTop(font, rowTop, rowHeight)
 		val expandable = isExpandable(index)
-		val room = moduleNameRoom(COLUMN_WIDTH, expandable, glyphs.chevron)
-		val memo = moduleText[index]
-		val shownName = memo.fit(font, module.name, room)
-		val nameLeft = left + CONTENT_PAD + ClickGuiShell.centeredLeft(room, memo.width(font, shownName))
-		memo.text(graphics, font, shownName, nameLeft, labelTop, nameColor)
+		val name = moduleName[index]
+		name.draw(graphics, font, left + CONTENT_PAD, name.blockTop(font, rowTop, rowHeight), nameColor, centered = true)
 
 		if (expandable) {
 			val chevron = if (module.name in expanded) CHEVRON_EXPANDED else CHEVRON_COLLAPSED
 			val chevronColor = if (hovered) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
 			val chevronText = if (module.name in expanded) expandedChevronText else collapsedChevronText
 			val shownChevron = chevronText.fit(font, chevron, glyphs.chevron)
-			chevronText.text(graphics, font, shownChevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
+			chevronText.text(graphics, font, shownChevron, right - CONTENT_PAD - glyphs.chevron, glyphTop, chevronColor)
 		}
 
-		if (hovered && module.description.isNotEmpty()) tooltip.hover(module.description, left, COLUMN_WIDTH, rowTop)
+		if (hovered) tooltip.hover(if (name.elided) module.name else "", module.description, left, COLUMN_WIDTH, rowTop)
 	}
 
 	private fun drawSettings(
@@ -265,7 +280,7 @@ internal class ClickGuiColumn(
 
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurements()
-		for (i in moduleText.indices) moduleText[i].invalidate()
+		for (i in moduleName.indices) moduleName[i].invalidate()
 		titleText.invalidate()
 		expandText.invalidate()
 		collapseText.invalidate()

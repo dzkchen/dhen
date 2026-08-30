@@ -56,7 +56,9 @@ internal object ClickGuiPaint {
 }
 
 internal class ClickGuiTooltip {
+	private val nameMemo = DhenType.memo()
 	private val textMemo = DhenType.memo()
+	private var name = ""
 	private var text: String? = null
 	private var hostLeft = 0
 	private var hostWidth = 0
@@ -66,28 +68,44 @@ internal class ClickGuiTooltip {
 		text = null
 	}
 
-	fun hover(description: String, hostLeft: Int, hostWidth: Int, rowTop: Int) {
+	fun hover(name: String, description: String, hostLeft: Int, hostWidth: Int, rowTop: Int) {
+		this.name = name
 		text = description
 		this.hostLeft = hostLeft
 		this.hostWidth = hostWidth
 		this.rowTop = rowTop
 	}
 
-	fun invalidateMeasurement() = textMemo.invalidate()
+	fun invalidateMeasurement() {
+		nameMemo.invalidate()
+		textMemo.invalidate()
+	}
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, viewportWidth: Int, viewportHeight: Int) {
-		val shown = text ?: return
-		val measured = textMemo.width(font, shown) + 2 * TOOLTIP_PAD
-		val boxWidth = minOf(measured, viewportWidth - 2 * MARGIN)
-		val boxHeight = DhenType.lineHeight(font) + 2 * TOOLTIP_PAD
+		val description = text ?: return
+		val lead = name
+		val rows = (if (lead.isEmpty()) 0 else 1) + (if (description.isEmpty()) 0 else 1)
+		if (rows == 0) return
+		val widest = maxOf(
+			if (lead.isEmpty()) 0 else nameMemo.width(font, lead),
+			if (description.isEmpty()) 0 else textMemo.width(font, description)
+		)
+		val boxWidth = minOf(widest + 2 * TOOLTIP_PAD, viewportWidth - 2 * MARGIN)
+		val lineHeight = DhenType.lineHeight(font)
+		val boxHeight = rows * lineHeight + 2 * TOOLTIP_PAD
 		val left = ClickGuiShell.tooltipLeft(hostLeft, hostWidth, boxWidth, viewportWidth, TOOLTIP_GAP, MARGIN)
 		val top = ClickGuiShell.tooltipTop(rowTop, boxHeight, viewportHeight, MARGIN)
-		val right = left + boxWidth
-		val bottom = top + boxHeight
 		val room = boxWidth - 2 * TOOLTIP_PAD
-		val fitted = textMemo.fit(font, shown, room)
-		GlassGui.roundedFrame(graphics, left, top, right, bottom, TOOLTIP_RADIUS, GlassGui.raised(), DhenPalette.BORDER)
-		textMemo.text(graphics, font, fitted, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_SECONDARY)
+		GlassGui.roundedFrame(graphics, left, top, left + boxWidth, top + boxHeight, TOOLTIP_RADIUS, GlassGui.raised(), DhenPalette.BORDER)
+		var lineTop = top + TOOLTIP_PAD
+		if (lead.isNotEmpty()) {
+			val fittedName = nameMemo.fit(font, lead, room)
+			nameMemo.text(graphics, font, fittedName, left + TOOLTIP_PAD, lineTop, DhenPalette.TEXT_PRIMARY)
+			lineTop += lineHeight
+		}
+		if (description.isEmpty()) return
+		val fitted = textMemo.fit(font, description, room)
+		textMemo.text(graphics, font, fitted, left + TOOLTIP_PAD, lineTop, DhenPalette.TEXT_SECONDARY)
 	}
 }
 

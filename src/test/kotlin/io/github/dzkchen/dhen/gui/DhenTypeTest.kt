@@ -443,6 +443,103 @@ class DhenTypeTest {
 	}
 
 	@Test
+	fun `a wrap breaks at the last space that fits, and mid-word only when there is none`() {
+		assertEquals(SPACED.length, wrapPoint(SPACED, 110, ::tenPerCharacter))
+		assertEquals(5, wrapPoint(SPACED, 90, ::tenPerCharacter))
+		assertEquals(4, wrapPoint(FITTING + FITTING, 40, ::tenPerCharacter))
+		assertEquals(0, wrapPoint(FITTING, 5, ::tenPerCharacter))
+	}
+
+	@Test
+	fun `a wrap never puts the break between the halves of one character`() {
+		val name = "a${ROCKET}bcd"
+
+		assertEquals(1, wrapPoint(name, 25, ::tenPerCharacter))
+		assertEquals(3, wrapPoint(name, 35, ::tenPerCharacter))
+		assertFalse(name[1].isLowSurrogate())
+		assertFalse(name[3].isLowSurrogate())
+	}
+
+	@Test
+	fun `a name that fits its room stays on one line`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+
+		wrap.measure(font, SPACED, 20 * STUB_GLYPH_WIDTH)
+
+		assertEquals(1, wrap.lines)
+		assertFalse(wrap.elided)
+		assertEquals(ROW_BASE, wrap.height(font, ROW_BASE))
+	}
+
+	@Test
+	fun `a name too wide for its room takes a second line whole`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+
+		wrap.measure(font, SPACED, 9 * STUB_GLYPH_WIDTH)
+
+		assertEquals(2, wrap.lines)
+		assertFalse(wrap.elided)
+		assertEquals(ROW_BASE + DhenType.lineHeight(font), wrap.height(font, ROW_BASE))
+	}
+
+	@Test
+	fun `a name too long for two lines elides the second and says so`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+
+		wrap.measure(font, PATHOLOGICAL, 4 * STUB_GLYPH_WIDTH)
+
+		assertEquals(2, wrap.lines)
+		assertTrue(wrap.elided)
+	}
+
+	@Test
+	fun `a room too narrow for one character keeps the name on a single elided line`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+
+		wrap.measure(font, PATHOLOGICAL, STUB_GLYPH_WIDTH / 2)
+
+		assertEquals(1, wrap.lines)
+		assertTrue(wrap.elided)
+	}
+
+	@Test
+	fun `a wrap measures once and holds until the text, the room or the font moves`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+		wrap.measure(font, SPACED, 9 * STUB_GLYPH_WIDTH)
+		val settled = font.measurements
+
+		wrap.measure(font, SPACED, 9 * STUB_GLYPH_WIDTH)
+		assertEquals(settled, font.measurements)
+
+		wrap.measure(font, SPACED, 20 * STUB_GLYPH_WIDTH)
+		assertEquals(1, wrap.lines)
+
+		DhenFont.synchronize(false, FontStore.INTER)
+		wrap.measure(font, SPACED, 20 * STUB_GLYPH_WIDTH)
+
+		assertTrue(font.measurements > settled)
+	}
+
+	@Test
+	fun `invalidating a wrap makes the next measurement re-split`() {
+		val font = StubFont()
+		val wrap = DhenType.wrap()
+		wrap.measure(font, SPACED, 9 * STUB_GLYPH_WIDTH)
+		val settled = font.measurements
+
+		wrap.invalidate()
+		wrap.measure(font, SPACED, 9 * STUB_GLYPH_WIDTH)
+
+		assertTrue(font.measurements > settled)
+		assertEquals(2, wrap.lines)
+	}
+
+	@Test
 	fun `a character built from two code units is dropped whole rather than halved`() {
 		val kept = elide("a${ROCKET}bc", 35, fromEnd = false, measure = ::tenPerCharacter)
 		val tail = elide("ab${ROCKET}c", 35, fromEnd = true, measure = ::tenPerCharacter)
@@ -524,6 +621,9 @@ class DhenTypeTest {
 		data class WorldTextSubmission(val order: Int, val arguments: Array<Any?>, val pose: Matrix4f)
 
 		const val FITTING = "abcdef"
+		const val SPACED = "Auto Sprint"
+		const val PATHOLOGICAL = "abcdefghijklmnopqrst"
+		const val ROW_BASE = 13
 		const val MEMO_NEIGHBOUR = "Cooldown"
 		const val ROCKET = "🚀"
 		const val SEAM = "DhenType.kt"
@@ -531,6 +631,7 @@ class DhenTypeTest {
 		const val FACE = "inter.ttf"
 		const val MINIMUM_FACE_BYTES = 1024
 		val TRUETYPE_TAG = byteArrayOf(0x00, 0x01, 0x00, 0x00)
-		val RAW_TEXT = Regex("""graphics\.text\(|font\.width\(|font\.lineHeight|submitText\(""")
+		val RAW_TEXT =
+			Regex("""graphics\.text\(|font\.width\(|font\.lineHeight|submitText\(|font\.split\(|font\.splitter|getSplitter\(""")
 	}
 }

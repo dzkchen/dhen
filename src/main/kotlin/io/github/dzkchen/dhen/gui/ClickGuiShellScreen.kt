@@ -45,6 +45,7 @@ internal class ClickGuiShellScreen(
 		field.build(categories, manager.categories)
 		chrome.measure(font)
 		field.measure(font)
+		panel.measure(font)
 		panel.reclamp()
 		applySearch()
 	}
@@ -229,7 +230,7 @@ internal class ClickGuiShellScreen(
 	fun invalidateMeasurements() {
 		chrome.invalidateMeasurements(font)
 		field.invalidateMeasurements(font)
-		panel.invalidateMeasurements()
+		panel.invalidateMeasurements(font)
 	}
 
 	private fun pressHostControl(control: SettingControl, x: Int, y: Int) {

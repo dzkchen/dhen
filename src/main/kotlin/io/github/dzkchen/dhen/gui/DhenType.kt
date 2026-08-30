@@ -78,6 +78,20 @@ internal inline fun elide(
 	}
 }
 
+internal inline fun wrapPoint(text: String, maxWidth: Int, measure: (String) -> Int): Int {
+	if (maxWidth <= 0 || text.isEmpty()) return 0
+	if (measure(text) <= maxWidth) return text.length
+	var cut = 0
+	var breakAfter = 0
+	while (cut < text.length) {
+		val next = text.offsetByCodePoints(cut, 1)
+		if (measure(text.substring(0, next)) > maxWidth) break
+		if (text[next - 1] == ' ') breakAfter = next
+		cut = next
+	}
+	return if (breakAfter > 0) breakAfter else cut
+}
+
 private fun measure(font: Font, component: Component): Int = font.width(component.visualOrderText)
 
 private fun measure(font: Font, text: String): Int = measure(font, DhenType.component(text))
@@ -216,6 +230,89 @@ internal class TextMemo {
 	}
 }
 
+internal class WrappedText {
+	private val headMemo = TextMemo()
+	private val tailMemo = TextMemo()
+	private var revision = DhenFont.revision
+	private var source = ""
+	private var measuredRoom = UNMEASURED
+	private var head = ""
+	private var tail = ""
+
+	var elided = false
+		private set
+
+	val lines: Int
+		get() = if (tail.isEmpty()) 1 else 2
+
+	fun measure(font: Font, text: String, maxWidth: Int) {
+		val current = DhenFont.revision
+		val room = maxOf(maxWidth, 0)
+		if (current == revision && text == source && room == measuredRoom) return
+		revision = current
+		source = text
+		measuredRoom = room
+		val point = wrapPoint(text, room) { measure(font, it) }
+		when {
+			point >= text.length -> single(text, text)
+			point <= 0 -> single(headMemo.fit(font, text, room), text)
+			else -> {
+				val rest = text.substring(point).trimStart()
+				val fitted = tailMemo.fit(font, rest, room)
+				if (fitted.isEmpty()) single(headMemo.fit(font, text, room), text)
+				else {
+					head = text.substring(0, point).trimEnd()
+					tail = fitted
+					elided = fitted != rest
+				}
+			}
+		}
+	}
+
+	fun height(font: Font, base: Int): Int = base + (lines - 1) * DhenType.lineHeight(font)
+
+	fun blockTop(font: Font, y: Int, height: Int): Int = y + (height - lines * DhenType.lineHeight(font)) / 2
+
+	fun draw(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		left: Int,
+		top: Int,
+		color: Int,
+		centered: Boolean = false
+	) {
+		line(graphics, font, headMemo, head, left, top, color, centered)
+		if (tail.isEmpty()) return
+		line(graphics, font, tailMemo, tail, left, top + DhenType.lineHeight(font), color, centered)
+	}
+
+	fun invalidate() {
+		headMemo.invalidate()
+		tailMemo.invalidate()
+		measuredRoom = UNMEASURED
+	}
+
+	private fun single(shown: String, full: String, elided: Boolean = shown != full) {
+		head = shown
+		tail = ""
+		this.elided = elided
+	}
+
+	private fun line(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		memo: TextMemo,
+		text: String,
+		left: Int,
+		top: Int,
+		color: Int,
+		centered: Boolean
+	) {
+		val x = if (centered) left + ClickGuiShell.centeredLeft(measuredRoom, memo.width(font, text)) else left
+		memo.text(graphics, font, text, x, top, color)
+	}
+}
+
 internal object DhenType {
 	const val CACHE_LIMIT = 512
 
@@ -231,6 +328,8 @@ internal object DhenType {
 	private var japaneseVariants = false
 
 	fun memo(): TextMemo = TextMemo()
+
+	fun wrap(): WrappedText = WrappedText()
 
 	fun component(text: String): Component = Component.literal(text).setStyle(DhenFont.style())
 

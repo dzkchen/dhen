@@ -13,6 +13,8 @@ internal class PrefCard(section: PrefSection) {
 	val height: Int
 		get() = heightOf(body.height)
 
+	fun measure(font: Font): Boolean = body.measure(font, PANEL_CONTROLS_WIDTH)
+
 	fun invalidateMeasurements() {
 		body.invalidateMeasurements()
 		titleText.invalidate()
@@ -77,14 +79,24 @@ internal class ClickGuiPrefsPanel(
 
 	fun scrollBy(delta: Int): Boolean = stack.scrollBy(delta)
 
-	fun invalidateMeasurements() {
+	fun measure(font: Font) {
+		var changed = false
+		for (i in cards.indices) {
+			if (cards[i].measure(font)) changed = true
+		}
+		if (changed) stack.reclamp()
+	}
+
+	fun invalidateMeasurements(font: Font) {
 		tooltip.invalidateMeasurement()
 		for (i in cards.indices) cards[i].invalidateMeasurements()
+		measure(font)
 	}
 
 	override fun revealSpan(screenTop: Int, extent: Int) = stack.revealSpan(stack.localOf(screenTop), extent)
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {
+		measure(font)
 		tooltip.clear()
 		val left = panelLeft()
 		val max = stack.max()

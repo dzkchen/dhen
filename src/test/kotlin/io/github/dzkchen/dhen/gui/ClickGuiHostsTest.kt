@@ -28,6 +28,17 @@ class ClickGuiHostsTest {
 	}
 
 	@Test
+	fun `a settings tab card grows by one line for the one control whose name wraps`() {
+		val font = StubFont()
+		val card = PrefCard(PrefSection("Appearance", listOf(BooleanSetting("Above"), BooleanSetting(WRAPPING_NAME))))
+		val closed = card.height
+
+		assertTrue(card.measure(font))
+
+		assertEquals(closed + DhenType.lineHeight(font), card.height)
+	}
+
+	@Test
 	fun `a click under an open list in a column lands on the control below it`() {
 		val selector = SelectorSetting("Mode", "A", OPTIONS)
 		val module = moduleOf(selector, BooleanSetting("Below"))
@@ -113,6 +124,7 @@ class ClickGuiHostsTest {
 
 	private companion object {
 		const val VIEWPORT_HEIGHT = 600
+		const val WRAPPING_NAME = "Reduce Motion And Transparency"
 		val OPTIONS = listOf("A", "B", "C")
 	}
 }

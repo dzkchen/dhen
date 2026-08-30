@@ -36,12 +36,15 @@ internal class ClickGuiColumnField(
 		}
 	}
 
-	fun measure(font: Font) = glyphs.measure(font)
+	fun measure(font: Font) {
+		glyphs.measure(font)
+		for (i in columns.indices) columns[i].measure(font)
+	}
 
 	fun invalidateMeasurements(font: Font) {
-		glyphs.measure(font)
 		tooltip.invalidateMeasurement()
 		for (i in columns.indices) columns[i].invalidateMeasurements()
+		measure(font)
 	}
 
 	fun filter(query: String) {
@@ -110,6 +113,7 @@ internal class ClickGuiColumnField(
 	}
 
 	fun draw(graphics: GuiGraphicsExtractor, font: Font, mouseX: Int, mouseY: Int) {
+		measure(font)
 		tooltip.clear()
 		val width = viewportWidth.asInt
 		for (i in visible.indices) {
