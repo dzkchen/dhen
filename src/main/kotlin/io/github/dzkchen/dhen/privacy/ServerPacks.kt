@@ -38,11 +38,13 @@ object ServerPacks {
 		}
 		wrapped -= id
 		full -= id
+		ShaderStripTracker.clear()
 	}
 
 	fun forgetAll() {
 		wrapped.clear()
 		full.clear()
+		ShaderStripTracker.clear()
 	}
 
 	@JvmStatic

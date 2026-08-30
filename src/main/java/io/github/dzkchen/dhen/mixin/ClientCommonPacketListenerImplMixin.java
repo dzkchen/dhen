@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.mixin;
 
 import io.github.dzkchen.dhen.privacy.LocalUrls;
 import io.github.dzkchen.dhen.privacy.ServerPacks;
+import io.github.dzkchen.dhen.privacy.TrackPackDetector;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
@@ -34,6 +35,7 @@ public abstract class ClientCommonPacketListenerImplMixin {
 		final CallbackInfo callback
 	) {
 		LocalUrls.serverConnected(this.connection.getRemoteAddress());
+		TrackPackDetector.recordRequest(packet.url(), packet.hash());
 		ServerPacks.pushed(packet.id());
 	}
 

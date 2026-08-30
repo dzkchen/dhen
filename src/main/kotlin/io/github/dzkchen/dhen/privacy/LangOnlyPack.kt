@@ -2,7 +2,6 @@ package io.github.dzkchen.dhen.privacy
 
 import java.io.InputStream
 import java.util.UUID
-import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.PackLocationInfo
 import net.minecraft.server.packs.PackResources
@@ -14,13 +13,17 @@ internal class LangOnlyPack(
 	private val delegate: PackResources,
 	private val id: UUID
 ) : PackResources {
+	private val trackerToken = ShaderStripTracker.token()
 
 	override fun getRootResource(vararg elements: String): IoSupplier<InputStream>? =
 		delegate.getRootResource(*elements)
 
 	override fun getResource(type: PackType, location: Identifier): IoSupplier<InputStream>? {
+		if (stripsShader(type, location.namespace, location.path)) {
+			ShaderStripTracker.onStripped(trackerToken, location.namespace, location.path)
+			return null
+		}
 		if (ServerPacks.stripsContent(id) && !isLanguage(type, location.path)) return null
-		if (stripsShader(type, location.namespace, location.path)) return null
 		return delegate.getResource(type, location)
 	}
 
@@ -30,13 +33,22 @@ internal class LangOnlyPack(
 		prefix: String,
 		output: PackResources.ResourceOutput
 	) {
-		if (ServerPacks.stripsContent(id) && !isLanguageDirectory(type, prefix)) return
-		if (!stripsShaderNamespace(type, namespace)) {
+		val stripsShaders = stripsShaderNamespace(type, namespace)
+		if (ServerPacks.stripsContent(id) && !isLanguageDirectory(type, prefix)) {
+			if (stripsShaders) delegate.listResources(type, namespace, prefix) { location, _ ->
+				if (location.path.startsWith(SHADERS)) {
+					ShaderStripTracker.onStripped(trackerToken, location.namespace, location.path)
+				}
+			}
+			return
+		}
+		if (!stripsShaders) {
 			delegate.listResources(type, namespace, prefix, output)
 			return
 		}
 		delegate.listResources(type, namespace, prefix) { location, supplier ->
 			if (!location.path.startsWith(SHADERS)) output.accept(location, supplier)
+			else ShaderStripTracker.onStripped(trackerToken, location.namespace, location.path)
 		}
 	}
 
@@ -56,8 +68,7 @@ internal class LangOnlyPack(
 		type == PackType.CLIENT_RESOURCES &&
 			ServerPacks.mode != ServerPacks.Mode.OFF &&
 			namespace != VANILLA_NAMESPACE &&
-			FabricLoader.getInstance().isModLoaded(namespace) &&
-			!ModRegistry.allowsMod(namespace)
+			!ModRegistry.allowsShaderOverride(namespace)
 
 	companion object {
 		private const val LANGUAGE = "lang"

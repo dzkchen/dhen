@@ -13,10 +13,12 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.UUID
 import java.util.concurrent.Executor
 
 private const val WINDOW_MS = 5000L
 private const val MILLI_NANOS = 1_000_000L
+private const val PACK_URL = "https://packs.example/pack.zip"
 
 class PrivacyLogTest {
 	private val bus = EventBus()
@@ -35,6 +37,9 @@ class PrivacyLogTest {
 		ClientPrefs.debugAlerts.reset()
 		PrivacyLog.install(bus, Executor(Runnable::run), chat::add, NanoClock { nanos })
 		PrivacyLog.clearCooldowns()
+		ServerPacks.mode = ServerPacks.Mode.OFF
+		TrackPackDetector.reset()
+		ShaderStripTracker.clear()
 	}
 
 	private fun advance(millis: Long) {
@@ -139,5 +144,92 @@ class PrivacyLogTest {
 
 		assertEquals("${PrivacyLog.Alert.DANGER.icon} Port scan blocked", chat[0].string)
 		assertEquals("127.0.0.1:8080", chat[1].string)
+	}
+
+	@Test
+	fun `a 24 hash one URL burst alerts exactly once`() {
+		ServerPacks.mode = ServerPacks.Mode.MANUAL
+		for (index in 0 until 24) TrackPackDetector.recordRequest(PACK_URL, "hash$index")
+
+		assertEquals(listOf("⛔ Resource pack fingerprinting pattern detected!"), chat.map(Component::getString))
+		assertEquals(1, Notifications.visible.size)
+	}
+
+	@Test
+	fun `fingerprint detection is inert while the pack module is off`() {
+		for (index in 0 until 24) TrackPackDetector.recordRequest(PACK_URL, "hash$index")
+
+		assertEquals(0, chat.size)
+		assertEquals(0, Notifications.visible.size)
+	}
+
+	@Test
+	fun `a normal push and an expired partial burst do not alert`() {
+		TrackPackDetector.recordRequestAt(PACK_URL, "normal", 1L)
+		assertEquals(0, chat.size)
+		TrackPackDetector.reset()
+		for (index in 0 until 4) TrackPackDetector.recordRequestAt(PACK_URL, "old$index", 10L + index)
+		TrackPackDetector.recordRequestAt(PACK_URL, "new", 5_020L)
+
+		assertEquals(0, chat.size)
+		assertEquals(0, Notifications.visible.size)
+	}
+
+	@Test
+	fun `a connection reset rearms the fingerprint alert`() {
+		repeat(2) { burst ->
+			for (index in 0 until 5) TrackPackDetector.recordRequestAt(PACK_URL, "$burst-$index", index.toLong())
+			TrackPackDetector.reset()
+		}
+
+		assertEquals(2, chat.size)
+		assertEquals(2, Notifications.visible.size)
+	}
+
+	@Test
+	fun `shader strips wait for a player then announce once`() {
+		ShaderStripTracker.onStripped("iris", "shaders/core/one.json")
+		ShaderStripTracker.onStripped("iris", "shaders/core/two.json")
+		ShaderStripTracker.flushPending(false)
+		assertEquals(0, chat.size)
+
+		ShaderStripTracker.flushPending(true)
+		ShaderStripTracker.onStripped("iris", "shaders/core/three.json")
+		ShaderStripTracker.flushPending(true)
+
+		assertEquals(listOf("⛔ Stripped 2 server-pack shader override(s) targeting 'iris'"), chat.map(Component::getString))
+		assertEquals(1, Notifications.visible.size)
+	}
+
+	@Test
+	fun `a pack pop rearms shader detection and respects the toast cooldown`() {
+		ShaderStripTracker.onStripped("iris", "shaders/core/one.json")
+		ShaderStripTracker.flushPending(true)
+		ServerPacks.popped(UUID.randomUUID())
+		ShaderStripTracker.onStripped("iris", "shaders/core/two.json")
+		ShaderStripTracker.flushPending(true)
+
+		assertEquals(2, chat.size)
+		assertEquals(1, Notifications.visible.size)
+	}
+
+	@Test
+	fun `a late shader callback from a popped pack stays forgotten`() {
+		val stale = ShaderStripTracker.token()
+		ShaderStripTracker.clear()
+		ShaderStripTracker.onStripped(stale, "iris", "shaders/core/late.json")
+
+		ShaderStripTracker.flushPending(true)
+
+		assertEquals(0, chat.size)
+	}
+
+	@Test
+	fun `one namespace retains at most 64 shader paths`() {
+		for (index in 0 until 100) ShaderStripTracker.onStripped("iris", "shaders/core/$index.json")
+
+		ShaderStripTracker.flushPending(true)
+
+		assertEquals("⛔ Stripped 64 server-pack shader override(s) targeting 'iris'", chat.single().string)
 	}
 }

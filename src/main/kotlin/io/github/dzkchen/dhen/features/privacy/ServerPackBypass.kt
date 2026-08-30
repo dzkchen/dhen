@@ -1,11 +1,17 @@
 package io.github.dzkchen.dhen.features.privacy
 
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.GuiOpenEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.privacy.ServerPacks
+import io.github.dzkchen.dhen.privacy.ShaderStripTracker
+import io.github.dzkchen.dhen.privacy.TrackPackDetector
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.ConnectScreen
 
 object ServerPackBypass : Module(
 	name = "Server Pack Bypass",
@@ -24,6 +30,8 @@ object ServerPackBypass : Module(
 	private var chosenMode by modeSetting
 
 	init {
+		on<GuiOpenEvent> { if (it.screen is ConnectScreen) TrackPackDetector.reset() }
+		on<ClientTickEvent.End> { ShaderStripTracker.flushPending(Minecraft.getInstance().player != null) }
 		on<WorldChangeEvent> { if (it.phase == WorldChange.DISCONNECT) ServerPacks.forgetAll() }
 	}
 
@@ -34,6 +42,7 @@ object ServerPackBypass : Module(
 	override fun onDisabled() {
 		publish()
 		ServerPacks.forgetAll()
+		TrackPackDetector.reset()
 	}
 
 	override fun onReset() {
