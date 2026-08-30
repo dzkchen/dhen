@@ -23,5 +23,6 @@ class LiveWorldScreenTest {
 	fun `both Dhen world overlays share the live screen contract`() {
 		assertSame(LiveWorldScreen::class.java, ClickGuiShellScreen::class.java.superclass)
 		assertSame(LiveWorldScreen::class.java, HudEditorScreen::class.java.superclass)
+		assertSame(LiveWorldScreen::class.java, ServerPackConsentScreen::class.java.superclass)
 	}
 }

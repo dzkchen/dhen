@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.GuiOpenEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.gui.ServerPackConsentScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.privacy.ServerPacks
@@ -23,15 +24,18 @@ object ServerPackBypass : Module(
 		ServerPacks.MANUAL,
 		ServerPacks.CHOOSABLE_MODES,
 		listed = true,
-		description = "Manual keeps a server pack's own look; Always On keeps only its language files. " +
-			"Minecraft still asks whether to download it — say yes, and the pack is reported as loaded " +
-			"while none of it reaches you, so a server that demands one cannot kick you over it."
+		description = "Manual keeps Minecraft's prompt and the full pack. Ask starts stripped and lets you load it fully once per session. " +
+			"Always On silently accepts the pack but keeps only its language files."
 	).also { it.changed = ::publish }
 	private var chosenMode by modeSetting
 
 	init {
 		on<GuiOpenEvent> { if (it.screen is ConnectScreen) TrackPackDetector.reset() }
-		on<ClientTickEvent.End> { ShaderStripTracker.flushPending(Minecraft.getInstance().player != null) }
+		on<ClientTickEvent.End> {
+			val client = Minecraft.getInstance()
+			ShaderStripTracker.flushPending(client.player != null)
+			ServerPackConsentScreen.tryShow(client)
+		}
 		on<WorldChangeEvent> { if (it.phase == WorldChange.DISCONNECT) ServerPacks.forgetAll() }
 	}
 
