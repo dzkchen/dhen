@@ -86,6 +86,31 @@ internal object ClientPrefs {
 		true,
 		description = "Show Dhen's loading screen while the game starts and reloads resources."
 	)
+
+	val chatAlerts = BooleanSetting(
+		"Chat alerts",
+		true,
+		description = "Write a line in chat when a privacy feature blocks or spots something."
+	)
+
+	val toastPopups = BooleanSetting(
+		"Toast popups",
+		true,
+		description = "Raise a card in the bottom-right corner when a privacy feature blocks or spots something."
+	)
+
+	val logEvents = BooleanSetting(
+		"Log events",
+		true,
+		description = "Record every privacy detection in the game log."
+	)
+
+	val debugAlerts = BooleanSetting(
+		"Debug alerts",
+		false,
+		description = "Add the packet and key behind each detection to its chat line."
+	)
+
 	val profileProxy = StringSetting(
 		"Profile proxy",
 		"",
@@ -97,6 +122,7 @@ internal object ClientPrefs {
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
 		PrefSection("Sounds", listOf(openSoundManager)),
+		PrefSection("Privacy", listOf(chatAlerts, toastPopups, logEvents, debugAlerts)),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

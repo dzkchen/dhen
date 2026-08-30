@@ -38,6 +38,10 @@ class ClientPrefsTest {
 		Effects.reduced = false
 		ClientPrefs.splash.value = true
 		ClientPrefs.dhenFont.value = true
+		ClientPrefs.chatAlerts.reset()
+		ClientPrefs.toastPopups.reset()
+		ClientPrefs.logEvents.reset()
+		ClientPrefs.debugAlerts.reset()
 		ThemeFixture.forgetDiscovered(config)
 		ClientPrefs.theme.value = ThemeStore.DEFAULT_ID
 		ClientPrefs.adopt()
@@ -132,6 +136,33 @@ class ClientPrefsTest {
 		assertEquals(DhenTheme.DEFAULT.canvas, DhenPalette.CANVAS)
 		assertEquals("ocean", ClientPrefs.theme.preferred)
 		assertEquals("ocean", ClientPrefs.writeInto(JsonObject()).getAsJsonObject("client").get("Theme").asString)
+	}
+
+	@Test
+	fun `the four privacy switches sit on their own card and survive a write and read round trip`() {
+		val privacy = ClientPrefs.sections.single { it.title == "Privacy" }
+		assertEquals(
+			listOf("Chat alerts", "Toast popups", "Log events", "Debug alerts"),
+			privacy.settings.map { it.name }
+		)
+		assertTrue(ClientPrefs.chatAlerts.on)
+		assertTrue(ClientPrefs.toastPopups.on)
+		assertTrue(ClientPrefs.logEvents.on)
+		assertFalse(ClientPrefs.debugAlerts.on)
+		ClientPrefs.chatAlerts.on = false
+		ClientPrefs.logEvents.on = false
+		ClientPrefs.debugAlerts.on = true
+		val written = ClientPrefs.writeInto(JsonObject())
+		ClientPrefs.chatAlerts.reset()
+		ClientPrefs.logEvents.reset()
+		ClientPrefs.debugAlerts.reset()
+
+		ClientPrefs.read(written)
+
+		assertFalse(ClientPrefs.chatAlerts.on)
+		assertTrue(ClientPrefs.toastPopups.on)
+		assertFalse(ClientPrefs.logEvents.on)
+		assertTrue(ClientPrefs.debugAlerts.on)
 	}
 
 	@Test

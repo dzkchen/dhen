@@ -45,9 +45,11 @@ import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.Notifications
 import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.privacy.ModRegistry
+import io.github.dzkchen.dhen.privacy.PrivacyLog
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.WorldRenderTypes
@@ -95,6 +97,7 @@ import net.minecraft.world.InteractionResult
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.Executor
 import kotlin.coroutines.EmptyCoroutineContext
 
 object Dhen : ClientModInitializer {
@@ -103,12 +106,13 @@ object Dhen : ClientModInitializer {
 	private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
 	private val clientThread = ClientThreadDispatcher()
+	private val clientExecutor = Executor { Minecraft.getInstance().execute(it) }
 	private val announcements = AnnouncementBuffer(ANNOUNCEMENT_CAPACITY)
 	internal val firstRunExperience = FirstRunExperience(::persistCore, ::announceComponent)
 	internal val automationNotice = AutomationNotice(::persistCore, ::announce)
 
 	val modules: ModuleManager = ModuleManager(
-		notifier = ModuleNotifier.chatBacked({ Minecraft.getInstance().execute(it) }, ::announceComponent),
+		notifier = ModuleNotifier.chatBacked(clientExecutor, ::announceComponent),
 		clientDispatcher = clientThread,
 		currentScreen = { Minecraft.getInstance().gui.screen() }
 	)
@@ -171,6 +175,7 @@ object Dhen : ClientModInitializer {
 			themes = themes,
 			toggleWorldRender = WorldRenderProbe::toggle,
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
+			showNotice = ::previewPrivacyNotice,
 			available = { !failsafe.failed },
 			persistModules = ::persistModules,
 			openSoundManager = ::openSoundManager,
@@ -199,7 +204,11 @@ object Dhen : ClientModInitializer {
 			failsafe.guard("command registration") { commands.install(dispatcher) }
 		}
 		HudElementRegistry.attachElementAfter(VanillaHudElements.SUBTITLES, id("hud")) { graphics, _ ->
-			failsafe.guard("HUD render") { hudRuntime.render(graphics, Minecraft.getInstance().font) }
+			failsafe.guard("HUD render") {
+				val font = Minecraft.getInstance().font
+				hudRuntime.render(graphics, font)
+				Notifications.renderBehindNoScreen(graphics, font)
+			}
 		}
 		ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(
 			id("text_measurements"),
@@ -287,6 +296,8 @@ object Dhen : ClientModInitializer {
 		PlayerProfiles.install(ioScope, clientThread, baseUrl = { ClientPrefs.profileProxy.value })
 		HypixelModApi.install(onHello = automationNotice::hypixelConnected)
 		WorldRenderProbe.install(modules.eventBus)
+		Notifications.install(modules.eventBus)
+		PrivacyLog.install(modules.eventBus, clientExecutor, ::announceComponent)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -296,6 +307,8 @@ object Dhen : ClientModInitializer {
 		if (latched) return
 		latched = true
 		DhenAlert.clear()
+		contained("notifications", Notifications::uninstall)
+		contained("privacy log", PrivacyLog::uninstall)
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::shutdown)
@@ -333,6 +346,7 @@ object Dhen : ClientModInitializer {
 	private fun tick(client: Minecraft, openGuiKey: KeyMapping) {
 		TickHooks.clientTicked(client.level != null)
 		clientThread.drainQueue()
+		Notifications.tick()
 		ContainerHooks.tick()
 		val options = client.options
 		if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
@@ -353,6 +367,13 @@ object Dhen : ClientModInitializer {
 		)
 	}
 
+	private fun previewPrivacyNotice() {
+		PrivacyLog.alert(PrivacyLog.Alert.DANGER, PRIVACY_NOTICE_TITLE)
+		PrivacyLog.toast(PrivacyLog.Alert.DANGER, PRIVACY_NOTICE_TITLE, PRIVACY_NOTICE_DETAIL)
+		PrivacyLog.logDetection(PRIVACY_NOTICE_CATEGORY, PRIVACY_NOTICE_DETAIL)
+		if (PrivacyLog.debugging) PrivacyLog.detail(PRIVACY_NOTICE_DETAIL)
+	}
+
 	private fun announce(message: String) {
 		announceComponent(DhenType.overWorld(message))
 	}
@@ -370,6 +391,7 @@ object Dhen : ClientModInitializer {
 
 	private fun invalidateTextMeasurements() {
 		DhenType.invalidateMeasurements()
+		Notifications.invalidateMeasurements()
 		hudRuntime.invalidateMeasurements()
 		(Minecraft.getInstance().gui.screen() as? ClickGuiShellScreen)?.invalidateMeasurements()
 	}
@@ -433,4 +455,7 @@ object Dhen : ClientModInitializer {
 		= Identifier.fromNamespaceAndPath(MOD_ID, path)
 
 	private const val ANNOUNCEMENT_CAPACITY = 32
+	private const val PRIVACY_NOTICE_TITLE = "Privacy alert preview"
+	private const val PRIVACY_NOTICE_CATEGORY = "Preview"
+	private const val PRIVACY_NOTICE_DETAIL = "This is what a blocked probe looks like."
 }

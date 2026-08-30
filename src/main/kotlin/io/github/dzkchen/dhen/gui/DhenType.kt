@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.gui
 
 import com.mojang.blaze3d.vertex.PoseStack
 import io.github.dzkchen.dhen.util.Color
+import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.renderer.SubmitNodeCollector
@@ -235,6 +236,9 @@ internal object DhenType {
 
 	fun overWorld(text: String): Component =
 		overWorldComponent(text)
+
+	fun overWorld(text: String, color: ChatFormatting): Component =
+		Component.literal(text).setStyle(DhenFont.messageStyle().withColor(color))
 
 	fun clickableCommandOverWorld(prefix: String, command: String, suffix: String): Component =
 		overWorldComponent(prefix)

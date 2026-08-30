@@ -28,6 +28,7 @@ class CommandRegistry<S>(
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
 	private val showAlert: () -> Unit = {},
+	private val showNotice: () -> Unit = {},
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
 	private val openSoundManager: () -> Unit = {},
@@ -193,6 +194,12 @@ class CommandRegistry<S>(
 				literal<S>("alert").executes { context ->
 					showAlert()
 					report(context.source, "Showing the Dhen alert preview.")
+				}
+			)
+			.then(
+				literal<S>("notify").executes { context ->
+					showNotice()
+					report(context.source, "Raising a privacy alert preview.")
 				}
 			)
 			.then(
