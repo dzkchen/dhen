@@ -23,10 +23,12 @@ public class PacketDecoderMixin {
 		final Operation<Object> original
 	) {
 		PacketContext.beginDecode();
+		Object packet = null;
 		try {
-			return original.call(codec, buffer);
+			packet = original.call(codec, buffer);
+			return packet;
 		} finally {
-			PacketContext.endDecode();
+			PacketContext.endDecode(packet);
 		}
 	}
 }

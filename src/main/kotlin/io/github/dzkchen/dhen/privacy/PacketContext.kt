@@ -15,8 +15,31 @@ object PacketContext {
 	}
 
 	@JvmStatic
-	fun endDecode() {
-		current.get().decodeDepth--
+	fun endDecode(packet: Any? = null) {
+		val state = current.get()
+		state.decodeDepth--
+		if (state.decodeDepth > 0) return
+		val packetId = (packet as? Packet<*>)?.type()?.id()
+		var origin = state.decoded
+		while (origin != null) {
+			val next = origin.decodedNext()
+			origin.linkDecoded(null)
+			if (packetId != null) origin.identifyPacket(packetId)
+			origin = next
+		}
+		state.decoded = null
+	}
+
+	@JvmStatic
+	fun trackDecoded(origin: PacketOrigin) {
+		val state = current.get()
+		val packetId = state.packetId
+		if (state.decodeDepth == 0 && packetId != null) {
+			origin.identifyPacket(packetId)
+			return
+		}
+		origin.linkDecoded(state.decoded)
+		state.decoded = origin
 	}
 
 	@JvmStatic
@@ -51,6 +74,7 @@ object PacketContext {
 		var decodeDepth = 0
 		var handleDepth = 0
 		var packetId: Identifier? = null
+		var decoded: PacketOrigin? = null
 		val packetIds = arrayOfNulls<Identifier>(MAX_HANDLE_DEPTH)
 	}
 }

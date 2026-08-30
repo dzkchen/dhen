@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.github.dzkchen.dhen.event.NetworkHooks;
 import io.github.dzkchen.dhen.privacy.PacketContext;
+import io.github.dzkchen.dhen.privacy.TranslationProtection;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
@@ -31,6 +32,7 @@ public class PacketProcessorMixin {
 		if (NetworkHooks.beforeHandle(packet)) {
 			return;
 		}
+		TranslationProtection.clearDedup();
 		PacketContext.beginHandle(packet);
 		try {
 			original.call(packet, listener);

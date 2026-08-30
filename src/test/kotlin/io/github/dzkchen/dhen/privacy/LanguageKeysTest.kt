@@ -121,6 +121,21 @@ class LanguageKeysTest {
 		assertFalse(LanguageKeys.isVanillaKey("stale"))
 	}
 
+	@Test
+	fun `a new connection forgets the previous server pack but keeps loaded language ownership`() {
+		LanguageKeys.beginReload()
+		LanguageKeys.recordVanilla("vanilla")
+		LanguageKeys.recordMod("example", "mod")
+		LanguageKeys.recordServer("server", "value")
+		LanguageKeys.commitReload()
+
+		LanguageKeys.clearServerPack()
+
+		assertTrue(LanguageKeys.isVanillaKey("vanilla"))
+		assertEquals("example", LanguageKeys.ownerOf("mod"))
+		assertNull(LanguageKeys.serverPackValue("server"))
+	}
+
 	private fun pack(id: String): PackResources =
 		Proxy.newProxyInstance(javaClass.classLoader, arrayOf(PackResources::class.java)) { _, method, _ ->
 			if (method.name == "packId") id else throw UnsupportedOperationException(method.name)

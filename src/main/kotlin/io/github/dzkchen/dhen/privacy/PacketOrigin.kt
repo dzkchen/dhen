@@ -7,11 +7,20 @@ import com.mojang.serialization.DynamicOps
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.contents.TranslatableContents
+import net.minecraft.resources.Identifier
 
 interface PacketOrigin {
 	fun fromPacket(): Boolean
 
 	fun markFromPacket()
+
+	fun packetName(): String
+
+	fun decodedNext(): PacketOrigin?
+
+	fun linkDecoded(next: PacketOrigin?)
+
+	fun identifyPacket(id: Identifier)
 }
 
 class PacketComponentCodec(private val wrapped: Codec<Component>) : Codec<Component> {
@@ -32,7 +41,10 @@ class PacketComponentCodec(private val wrapped: Codec<Component>) : Codec<Compon
 	companion object {
 		internal fun markTree(component: Component) {
 			val contents = component.contents
-			if (contents is PacketOrigin) contents.markFromPacket()
+			if (contents is PacketOrigin && !contents.fromPacket()) {
+				contents.markFromPacket()
+				PacketContext.trackDecoded(contents)
+			}
 			if (contents is TranslatableContents) {
 				val arguments = contents.args
 				for (index in arguments.indices) {

@@ -49,7 +49,7 @@ object LanguageKeys {
 	fun install(bus: EventBus) {
 		uninstall()
 		subscription = bus.subscribe<GuiOpenEvent> {
-			if (it.screen is ConnectScreen) clearCache()
+			if (it.screen is ConnectScreen) clearServerPack()
 		}
 	}
 
@@ -136,6 +136,14 @@ object LanguageKeys {
 		synchronized(stateLock) {
 			generation++
 			snapshot = Snapshot.EMPTY
+		}
+	}
+
+	internal fun clearServerPack() {
+		staging.remove()
+		synchronized(stateLock) {
+			generation++
+			snapshot = snapshot.copy(server = emptyMap())
 		}
 	}
 

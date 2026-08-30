@@ -111,11 +111,19 @@ internal object ClientPrefs {
 		description = "Refuse a server's download when its address points back at this machine or your home network."
 	)
 
+	val keyResolutionSpoofing = BooleanSetting(
+		"Key Resolution Spoofing",
+		true,
+		description = "Hide mod translation values that a server asks this client to resolve."
+	)
+
 	val debugAlerts = BooleanSetting(
 		"Debug alerts",
 		false,
 		description = "Add the packet and key behind each detection to its chat line."
 	)
+
+	val alertHintShown = BooleanSetting("Alert Hint Shown").hide()
 
 	val profileProxy = StringSetting(
 		"Profile proxy",
@@ -128,7 +136,10 @@ internal object ClientPrefs {
 		PrefSection("Effects", listOf(Effects.reducedSetting)),
 		PrefSection("Appearance", listOf(theme, accent, dhenFont, font, addFont, browseFonts, reloadFonts, reload, browse)),
 		PrefSection("Sounds", listOf(openSoundManager)),
-		PrefSection("Privacy", listOf(blockLocalUrls, chatAlerts, toastPopups, logEvents, debugAlerts)),
+		PrefSection(
+			"Privacy",
+			listOf(blockLocalUrls, keyResolutionSpoofing, chatAlerts, toastPopups, logEvents, debugAlerts, alertHintShown)
+		),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)
 

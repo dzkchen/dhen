@@ -39,10 +39,12 @@ class ClientPrefsTest {
 		ClientPrefs.splash.value = true
 		ClientPrefs.dhenFont.value = true
 		ClientPrefs.blockLocalUrls.reset()
+		ClientPrefs.keyResolutionSpoofing.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.toastPopups.reset()
 		ClientPrefs.logEvents.reset()
 		ClientPrefs.debugAlerts.reset()
+		ClientPrefs.alertHintShown.reset()
 		ThemeFixture.forgetDiscovered(config)
 		ClientPrefs.theme.value = ThemeStore.DEFAULT_ID
 		ClientPrefs.adopt()
@@ -143,31 +145,38 @@ class ClientPrefsTest {
 	fun `the privacy switches sit on their own card and survive a write and read round trip`() {
 		val privacy = ClientPrefs.sections.single { it.title == "Privacy" }
 		assertEquals(
-			listOf("Block Local URLs", "Chat alerts", "Toast popups", "Log events", "Debug alerts"),
-			privacy.settings.map { it.name }
+			listOf("Block Local URLs", "Key Resolution Spoofing", "Chat alerts", "Toast popups", "Log events", "Debug alerts"),
+			privacy.settings.filter { it.isVisible }.map { it.name }
 		)
 		assertTrue(ClientPrefs.blockLocalUrls.on)
+		assertTrue(ClientPrefs.keyResolutionSpoofing.on)
 		assertTrue(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertTrue(ClientPrefs.logEvents.on)
 		assertFalse(ClientPrefs.debugAlerts.on)
 		ClientPrefs.blockLocalUrls.on = false
+		ClientPrefs.keyResolutionSpoofing.on = false
 		ClientPrefs.chatAlerts.on = false
 		ClientPrefs.logEvents.on = false
 		ClientPrefs.debugAlerts.on = true
+		ClientPrefs.alertHintShown.on = true
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.blockLocalUrls.reset()
+		ClientPrefs.keyResolutionSpoofing.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.logEvents.reset()
 		ClientPrefs.debugAlerts.reset()
+		ClientPrefs.alertHintShown.reset()
 
 		ClientPrefs.read(written)
 
 		assertFalse(ClientPrefs.blockLocalUrls.on)
+		assertFalse(ClientPrefs.keyResolutionSpoofing.on)
 		assertFalse(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertFalse(ClientPrefs.logEvents.on)
 		assertTrue(ClientPrefs.debugAlerts.on)
+		assertTrue(ClientPrefs.alertHintShown.on)
 	}
 
 	@Test

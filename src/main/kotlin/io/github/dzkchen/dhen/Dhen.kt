@@ -50,6 +50,7 @@ import io.github.dzkchen.dhen.gui.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.privacy.LocalUrls
 import io.github.dzkchen.dhen.privacy.LanguageKeys
+import io.github.dzkchen.dhen.privacy.TranslationProtection
 import io.github.dzkchen.dhen.privacy.ModRegistry
 import io.github.dzkchen.dhen.privacy.PrivacyLog
 import io.github.dzkchen.dhen.module.ModuleManager
@@ -302,6 +303,7 @@ object Dhen : ClientModInitializer {
 		PrivacyLog.install(modules.eventBus, clientExecutor, ::announceComponent)
 		LocalUrls.install(modules.eventBus, clientThread)
 		LanguageKeys.install(modules.eventBus)
+		TranslationProtection.install(modules.eventBus, ::persistCore)
 		LOGGER.info("Dhen initialized")
 	}
 
@@ -311,10 +313,11 @@ object Dhen : ClientModInitializer {
 		if (latched) return
 		latched = true
 		DhenAlert.clear()
-		contained("notifications", Notifications::uninstall)
-		contained("privacy log", PrivacyLog::uninstall)
-		contained("local url guard", LocalUrls::uninstall)
+		contained("translation protection", TranslationProtection::uninstall)
 		contained("language keys", LanguageKeys::uninstall)
+		contained("local url guard", LocalUrls::uninstall)
+		contained("privacy log", PrivacyLog::uninstall)
+		contained("notifications", Notifications::uninstall)
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::shutdown)
