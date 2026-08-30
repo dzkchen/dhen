@@ -40,6 +40,7 @@ class ClientPrefsTest {
 		ClientPrefs.dhenFont.value = true
 		ClientPrefs.blockLocalUrls.reset()
 		ClientPrefs.keyResolutionSpoofing.reset()
+		ClientPrefs.fakeDefaultKeybinds.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.toastPopups.reset()
 		ClientPrefs.logEvents.reset()
@@ -145,17 +146,27 @@ class ClientPrefsTest {
 	fun `the privacy switches sit on their own card and survive a write and read round trip`() {
 		val privacy = ClientPrefs.sections.single { it.title == "Privacy" }
 		assertEquals(
-			listOf("Block Local URLs", "Key Resolution Spoofing", "Chat alerts", "Toast popups", "Log events", "Debug alerts"),
+			listOf(
+				"Block Local URLs",
+				"Key Resolution Spoofing",
+				"Fake Default Keybinds",
+				"Chat alerts",
+				"Toast popups",
+				"Log events",
+				"Debug alerts"
+			),
 			privacy.settings.filter { it.isVisible }.map { it.name }
 		)
 		assertTrue(ClientPrefs.blockLocalUrls.on)
 		assertTrue(ClientPrefs.keyResolutionSpoofing.on)
+		assertTrue(ClientPrefs.fakeDefaultKeybinds.on)
 		assertTrue(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertTrue(ClientPrefs.logEvents.on)
 		assertFalse(ClientPrefs.debugAlerts.on)
 		ClientPrefs.blockLocalUrls.on = false
 		ClientPrefs.keyResolutionSpoofing.on = false
+		ClientPrefs.fakeDefaultKeybinds.on = false
 		ClientPrefs.chatAlerts.on = false
 		ClientPrefs.logEvents.on = false
 		ClientPrefs.debugAlerts.on = true
@@ -163,6 +174,7 @@ class ClientPrefsTest {
 		val written = ClientPrefs.writeInto(JsonObject())
 		ClientPrefs.blockLocalUrls.reset()
 		ClientPrefs.keyResolutionSpoofing.reset()
+		ClientPrefs.fakeDefaultKeybinds.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.logEvents.reset()
 		ClientPrefs.debugAlerts.reset()
@@ -172,6 +184,7 @@ class ClientPrefsTest {
 
 		assertFalse(ClientPrefs.blockLocalUrls.on)
 		assertFalse(ClientPrefs.keyResolutionSpoofing.on)
+		assertFalse(ClientPrefs.fakeDefaultKeybinds.on)
 		assertFalse(ClientPrefs.chatAlerts.on)
 		assertTrue(ClientPrefs.toastPopups.on)
 		assertFalse(ClientPrefs.logEvents.on)

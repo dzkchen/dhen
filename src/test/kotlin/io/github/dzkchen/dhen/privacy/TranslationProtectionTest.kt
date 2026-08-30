@@ -36,6 +36,7 @@ class TranslationProtectionTest {
 		TranslationProtection.uninstall()
 		PrivacyLog.uninstall()
 		ClientPrefs.keyResolutionSpoofing.reset()
+		ClientPrefs.fakeDefaultKeybinds.reset()
 		ClientPrefs.alertHintShown.reset()
 		ClientPrefs.chatAlerts.reset()
 		ClientPrefs.toastPopups.reset()
@@ -56,6 +57,38 @@ class TranslationProtectionTest {
 		assertEquals("key.example.menu", resolve())
 		assertEquals("key.example.menu", resolve(vanillaMode = false))
 		assertEquals("Server menu", resolve(serverPackValue = "Server menu"))
+	}
+
+	@Test
+	fun `keybind resolution passes trusted values and chooses defaults or silent translations for blocked values`() {
+		assertEquals(
+			TranslationProtection.KeybindResolution.ORIGINAL,
+			resolveKeybind(fromPacket = false)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.ORIGINAL,
+			resolveKeybind(singleplayer = true)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.ORIGINAL,
+			resolveKeybind(protecting = false)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.ORIGINAL,
+			resolveKeybind(whitelisted = true)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.DEFAULT,
+			resolveKeybind(vanilla = true)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.ORIGINAL,
+			resolveKeybind(vanilla = true, fakeDefaults = false)
+		)
+		assertEquals(
+			TranslationProtection.KeybindResolution.TRANSLATABLE,
+			resolveKeybind()
+		)
 	}
 
 	@Test
@@ -150,5 +183,21 @@ class TranslationProtectionTest {
 		vanillaKey,
 		whitelisted,
 		serverPackValue
+	)
+
+	private fun resolveKeybind(
+		fromPacket: Boolean = true,
+		singleplayer: Boolean = false,
+		protecting: Boolean = true,
+		whitelisted: Boolean = false,
+		vanilla: Boolean = false,
+		fakeDefaults: Boolean = true
+	): TranslationProtection.KeybindResolution = TranslationProtection.resolveKeybind(
+		fromPacket,
+		singleplayer,
+		protecting,
+		whitelisted,
+		vanilla,
+		fakeDefaults
 	)
 }

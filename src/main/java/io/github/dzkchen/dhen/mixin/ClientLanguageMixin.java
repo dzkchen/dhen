@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.sugar.Local;
+import io.github.dzkchen.dhen.privacy.KeybindDefaults;
 import io.github.dzkchen.dhen.privacy.LanguageKeys;
 import java.io.InputStream;
 import java.util.List;
@@ -28,6 +29,7 @@ public abstract class ClientLanguageMixin {
 		try {
 			final ClientLanguage language = original.call(resourceManager, languageStack, defaultRightToLeft);
 			LanguageKeys.commitReload();
+			KeybindDefaults.reset();
 			return language;
 		} catch (RuntimeException | Error exception) {
 			LanguageKeys.abortReload();

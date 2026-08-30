@@ -117,6 +117,12 @@ internal object ClientPrefs {
 		description = "Hide mod translation values that a server asks this client to resolve."
 	)
 
+	val fakeDefaultKeybinds = BooleanSetting(
+		"Fake Default Keybinds",
+		true,
+		description = "Show a vanilla keybind's default key when a server asks this client to resolve it."
+	)
+
 	val debugAlerts = BooleanSetting(
 		"Debug alerts",
 		false,
@@ -138,7 +144,16 @@ internal object ClientPrefs {
 		PrefSection("Sounds", listOf(openSoundManager)),
 		PrefSection(
 			"Privacy",
-			listOf(blockLocalUrls, keyResolutionSpoofing, chatAlerts, toastPopups, logEvents, debugAlerts, alertHintShown)
+			listOf(
+				blockLocalUrls,
+				keyResolutionSpoofing,
+				fakeDefaultKeybinds,
+				chatAlerts,
+				toastPopups,
+				logEvents,
+				debugAlerts,
+				alertHintShown
+			)
 		),
 		PrefSection("Client", listOf(splash, profileProxy))
 	)

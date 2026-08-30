@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.util.NanoClock
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.screens.ConnectScreen
 import net.minecraft.locale.Language
 import java.util.concurrent.CompletableFuture
@@ -23,6 +24,12 @@ object TranslationProtection {
 	enum class Type(val label: String) {
 		TRANSLATION("Translation"),
 		KEYBIND("Keybind")
+	}
+
+	enum class KeybindResolution {
+		ORIGINAL,
+		DEFAULT,
+		TRANSLATABLE
 	}
 
 	private data class AlertKey(val type: Type, val key: String)
@@ -96,6 +103,31 @@ object TranslationProtection {
 
 	@JvmStatic
 	fun vanillaMode(): Boolean = SpoofAsVanilla.isSpoofing()
+
+	@JvmStatic
+	fun fakeDefaultKeybinds(): Boolean = ClientPrefs.fakeDefaultKeybinds.on
+
+	@JvmStatic
+	fun resolveKeybind(
+		fromPacket: Boolean,
+		singleplayer: Boolean,
+		protecting: Boolean,
+		whitelisted: Boolean,
+		vanilla: Boolean,
+		fakeDefaults: Boolean
+	): KeybindResolution = when {
+		!fromPacket || singleplayer || !protecting || whitelisted -> KeybindResolution.ORIGINAL
+		vanilla && fakeDefaults -> KeybindResolution.DEFAULT
+		vanilla -> KeybindResolution.ORIGINAL
+		else -> KeybindResolution.TRANSLATABLE
+	}
+
+	@JvmStatic
+	fun realKeybindValue(name: String): String = try {
+		KeyMapping.createNameSupplier(name).get().string
+	} catch (_: RuntimeException) {
+		name
+	}
 
 	@JvmStatic
 	fun resolve(
