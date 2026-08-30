@@ -36,7 +36,7 @@ object ModRegistry {
 	fun primeShaderOwners() {
 		val found = HashMap<String, String>()
 		var complete = true
-		for (mod in whitelistable()) {
+		for (mod in installedMods()) {
 			for (root in mod.rootPaths) {
 				if (!scanShaderRoot(mod.metadata.id, root, found)) complete = false
 			}
@@ -45,8 +45,15 @@ object ModRegistry {
 		log.info("Shader owners indexed: {} namespaces", found.size)
 	}
 
-	fun whitelistable(): List<ModContainer> = FabricLoader.getInstance().allMods
-		.filter { !ModGraph.platform(it.metadata.id) && it.containingMod.isEmpty }
+	fun whitelistable(): List<ModContainer> {
+		val roots = graph.roots()
+		return FabricLoader.getInstance().allMods
+			.filter { it.metadata.id in roots }
+			.sortedBy { it.metadata.name.lowercase() }
+	}
+
+	fun installedMods(): List<ModContainer> = FabricLoader.getInstance().allMods
+		.filter { !ModGraph.platform(it.metadata.id) }
 		.sortedBy { it.metadata.name.lowercase() }
 
 	fun select(explicit: Set<String>) {

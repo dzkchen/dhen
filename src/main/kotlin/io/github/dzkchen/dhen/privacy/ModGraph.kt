@@ -24,7 +24,8 @@ internal class ModGraph(
 			walk(seed, seed, reached, requiredBy)
 			reached += seed
 			var below = canonicalIds[seed]
-			while (below != null) {
+			var hops = ids.size
+			while (below != null && hops-- > 0) {
 				val above = jarHost[below] ?: break
 				walk(above, seed, reached, requiredBy)
 				below = above
@@ -32,6 +33,28 @@ internal class ModGraph(
 		}
 		for (seed in seeds) requiredBy?.remove(seed)
 		return reached
+	}
+
+	fun roots(): Set<String> {
+		val installed = ids.toHashSet()
+		val modules = HashSet<String>()
+		for (id in ids) {
+			if (id in PLATFORM_IDS) continue
+			contained[id]?.forEach { if (it != id && it in installed) modules += it }
+			provided[id]?.forEach { if (it != id && it in installed) modules += it }
+		}
+		for ((child, host) in jarHost) {
+			if (child != host && host !in PLATFORM_IDS && child in installed && host in installed) modules += child
+		}
+		val roots = LinkedHashSet<String>()
+		for (id in ids) if (id !in PLATFORM_IDS && id !in modules) roots += id
+		val reached = HashSet(closureOf(roots))
+		for (id in ids) {
+			if (id in PLATFORM_IDS || id in reached) continue
+			roots += id
+			reached += closureOf(setOf(id))
+		}
+		return roots
 	}
 
 	private fun attributedTo(path: String): String? {
@@ -68,6 +91,7 @@ internal class ModGraph(
 		private const val LOADER_COMMON_NAMESPACE = "c"
 		private val VANILLA_CHANNEL_PATHS = setOf("register", "unregister", "brand", "mco")
 		private val PLATFORM_IDS = setOf("minecraft", "java", "fabricloader")
+		private const val UMBRELLA_MODULE_FLOOR = 2
 
 		fun vanillaChannel(namespace: String, path: String): Boolean =
 			namespace == VANILLA_NAMESPACE && path in VANILLA_CHANNEL_PATHS
@@ -83,10 +107,12 @@ internal class ModGraph(
 			val required = HashMap<String, Set<String>>()
 			val contained = HashMap<String, Set<String>>()
 			val jarHost = HashMap<String, String>()
+			val customKeys = HashMap<String, Set<String>>()
 			for (container in FabricLoader.getInstance().allMods) {
 				val metadata = container.metadata
 				val id = metadata.id
 				ids += id
+				metadata.customValues.keys.takeIf { it.isNotEmpty() }?.let { customKeys[id] = it }
 				metadata.provides.takeIf { it.isNotEmpty() }?.let { provided[id] = it.toSet() }
 				metadata.dependencies
 					.filter { it.kind == ModDependency.Kind.DEPENDS }
@@ -99,10 +125,57 @@ internal class ModGraph(
 					?.let { contained[id] = it }
 				container.containingMod.ifPresent { jarHost[id] = it.metadata.id }
 			}
+			val adopted = HashMap<String, MutableSet<String>>()
+			for ((child, host) in flattenedModules(ids, customKeys, jarHost)) {
+				jarHost[child] = host
+				adopted.getOrPut(host) { HashSet() } += child
+			}
+			for ((host, children) in adopted) contained[host] = contained[host].orEmpty() + children
 			canonicalIds += jarInJarNamespaces(ids, contained)
 			for ((id, aliases) in provided) for (alias in aliases) canonicalIds[alias] = id
 			for (id in ids) canonicalIds[id] = id
 			return ModGraph(ids, canonicalIds, provided, required, contained, jarHost)
+		}
+
+		fun flattenedModules(
+			ids: List<String>,
+			customKeys: Map<String, Set<String>>,
+			jarHost: Map<String, String>
+		): Map<String, String> {
+			val installed = ids.toHashSet()
+			val claims = LinkedHashMap<String, String>()
+			val siblings = HashMap<String, Int>()
+			for (id in ids) {
+				if (id in jarHost) continue
+				val family = id.substringBefore('-')
+				if (family == id) continue
+				for (key in customKeys[id].orEmpty()) {
+					val host = key.substringBefore(':')
+					if (host == key || host == id || host !in installed) continue
+					if (host.substringBefore('-') != family) continue
+					claims[id] = host
+					siblings[host] = (siblings[host] ?: 0) + 1
+					break
+				}
+			}
+			val hosts = HashMap(jarHost)
+			val modules = LinkedHashMap<String, String>()
+			for ((child, host) in claims) {
+				if ((siblings[host] ?: 0) < UMBRELLA_MODULE_FLOOR || hostedUnder(hosts, host, child)) continue
+				modules[child] = host
+				hosts[child] = host
+			}
+			return modules
+		}
+
+		private fun hostedUnder(hosts: Map<String, String>, from: String, target: String): Boolean {
+			var above: String? = from
+			var steps = hosts.size + 1
+			while (above != null && steps-- > 0) {
+				if (above == target) return true
+				above = hosts[above]
+			}
+			return above != null
 		}
 
 		fun jarInJarNamespaces(ids: List<String>, contained: Map<String, Set<String>>): Map<String, String> {
