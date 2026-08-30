@@ -77,7 +77,8 @@ internal class ColorControl(private val color: ColorSetting) : EditableControl(c
 		val value = color.value
 		val swatchRight = pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			color.name, editText(), DhenPalette.TEXT_PRIMARY, SWATCH_GAP + SWATCH_SIZE, editing, editing || open
+			color.name, editText(), DhenPalette.TEXT_PRIMARY, SWATCH_GAP + SWATCH_SIZE,
+			editing = editing, active = editing || open
 		)
 		val swatchLeft = swatchRight - SWATCH_SIZE
 		val swatchTop = widgetTop(y) + (WIDGET_HEIGHT - SWATCH_SIZE) / 2

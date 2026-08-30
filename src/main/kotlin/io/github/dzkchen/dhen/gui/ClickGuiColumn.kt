@@ -29,6 +29,12 @@ internal class ClickGuiColumn(
 	private val fieldBottom: IntSupplier
 ) : ControlHost {
 	private val controls: List<ControlBody> = modules.map { module -> ControlBody(module.settings.mapNotNull(::controlFor)) }
+	private val moduleText = List(modules.size) { DhenType.memo() }
+	private val titleText = DhenType.memo()
+	private val expandText = DhenType.memo()
+	private val collapseText = DhenType.memo()
+	private val collapsedChevronText = DhenType.memo()
+	private val expandedChevronText = DhenType.memo()
 	private val visibleRows = IntArray(modules.size) { it }
 	private var visibleCount = modules.size
 	private var filtering = false
@@ -145,9 +151,11 @@ internal class ClickGuiColumn(
 		GlassGui.roundedFrame(graphics, left, top, right, bottom, COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER, HEADER_HEIGHT)
 		val headerColor = if (overColumn && mouseY in top until bodyTop) GlassGui.interactive() else GlassGui.raised()
 		val bodied = !collapsedNow && bottom > bodyTop
-		ClickGuiPaint.headerBand(graphics, font, left, right, top, category.displayName, headerColor, bodied)
+		ClickGuiPaint.headerBand(graphics, font, left, right, top, category.displayName, titleText, glyphs.glyph, headerColor, bodied)
 		val glyph = if (collapsedNow) EXPAND_GLYPH else COLLAPSE_GLYPH
-		DhenType.text(graphics, font, glyph, right - CONTENT_PAD - glyphs.glyph, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
+		val glyphText = if (collapsedNow) expandText else collapseText
+		val shownGlyph = glyphText.fit(font, glyph, glyphs.glyph)
+		glyphText.text(graphics, font, shownGlyph, right - CONTENT_PAD - glyphs.glyph, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_SECONDARY)
 		if (!bodied) return
 		ClickGuiPaint.headerRule(graphics, left, right, bodyTop)
 		val max = rows.max()
@@ -204,13 +212,19 @@ internal class ClickGuiColumn(
 			else -> DhenPalette.TEXT_SECONDARY
 		}
 		val labelTop = textTop(font, rowTop, ROW_HEIGHT)
-		val nameLeft = left + ClickGuiShell.centeredLeft(COLUMN_WIDTH, DhenType.width(font, module.name))
-		DhenType.text(graphics, font, module.name, nameLeft, labelTop, nameColor)
+		val expandable = isExpandable(index)
+		val room = moduleNameRoom(COLUMN_WIDTH, expandable, glyphs.chevron)
+		val memo = moduleText[index]
+		val shownName = memo.fit(font, module.name, room)
+		val nameLeft = left + CONTENT_PAD + ClickGuiShell.centeredLeft(room, memo.width(font, shownName))
+		memo.text(graphics, font, shownName, nameLeft, labelTop, nameColor)
 
-		if (isExpandable(index)) {
+		if (expandable) {
 			val chevron = if (module.name in expanded) CHEVRON_EXPANDED else CHEVRON_COLLAPSED
 			val chevronColor = if (hovered) DhenPalette.TEXT_SECONDARY else DhenPalette.TEXT_DISABLED
-			DhenType.text(graphics, font, chevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
+			val chevronText = if (module.name in expanded) expandedChevronText else collapsedChevronText
+			val shownChevron = chevronText.fit(font, chevron, glyphs.chevron)
+			chevronText.text(graphics, font, shownChevron, right - CONTENT_PAD - glyphs.chevron, labelTop, chevronColor)
 		}
 
 		if (hovered && module.description.isNotEmpty()) tooltip.hover(module.description, left, COLUMN_WIDTH, rowTop)
@@ -251,5 +265,16 @@ internal class ClickGuiColumn(
 
 	fun invalidateMeasurements() {
 		for (i in controls.indices) controls[i].invalidateMeasurements()
+		for (i in moduleText.indices) moduleText[i].invalidate()
+		titleText.invalidate()
+		expandText.invalidate()
+		collapseText.invalidate()
+		collapsedChevronText.invalidate()
+		expandedChevronText.invalidate()
 	}
+}
+
+internal fun moduleNameRoom(width: Int, expandable: Boolean, chevronWidth: Int): Int {
+	val reserve = if (expandable) LABEL_GAP + chevronWidth else 0
+	return maxOf(width - 2 * CONTENT_PAD - reserve, 0)
 }

@@ -63,7 +63,8 @@ internal class SoundControl(private val sound: SoundSetting) : SettingControl(so
 			SOUND_GLYPH_GAP + glyphWidth,
 			active = open
 		)
-		glyphText.text(graphics, font, SOUND_GLYPH, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
+		val shownGlyph = glyphText.fit(font, SOUND_GLYPH, glyphWidth)
+		glyphText.text(graphics, font, shownGlyph, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
 		if (open) drawList(graphics, font, x, y + CONTROL_ROW_HEIGHT, width, pointerY)
 	}
 

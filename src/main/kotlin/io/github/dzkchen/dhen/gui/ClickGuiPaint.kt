@@ -11,6 +11,8 @@ internal object ClickGuiPaint {
 		right: Int,
 		top: Int,
 		title: String,
+		titleText: TextMemo,
+		reservedWidth: Int,
 		fill: Int,
 		squared: Boolean
 	) {
@@ -27,7 +29,8 @@ internal object ClickGuiPaint {
 			fill
 		)
 		if (squared) graphics.disableScissor()
-		DhenType.text(graphics, font, title, left + CONTENT_PAD, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_PRIMARY)
+		val shown = titleText.fit(font, title, headerTitleRoom(right - left, reservedWidth))
+		titleText.text(graphics, font, shown, left + CONTENT_PAD, textTop(font, top, HEADER_HEIGHT), DhenPalette.TEXT_PRIMARY)
 	}
 
 	fun headerRule(graphics: GuiGraphicsExtractor, left: Int, right: Int, bottom: Int) {
@@ -81,10 +84,14 @@ internal class ClickGuiTooltip {
 		val top = ClickGuiShell.tooltipTop(rowTop, boxHeight, viewportHeight, MARGIN)
 		val right = left + boxWidth
 		val bottom = top + boxHeight
-		val truncated = measured > boxWidth
+		val room = boxWidth - 2 * TOOLTIP_PAD
+		val fitted = textMemo.fit(font, shown, room)
 		GlassGui.roundedFrame(graphics, left, top, right, bottom, TOOLTIP_RADIUS, GlassGui.raised(), DhenPalette.BORDER)
-		if (truncated) graphics.enableScissor(left, top, right, bottom)
-		textMemo.text(graphics, font, shown, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_SECONDARY)
-		if (truncated) graphics.disableScissor()
+		textMemo.text(graphics, font, fitted, left + TOOLTIP_PAD, top + TOOLTIP_PAD, DhenPalette.TEXT_SECONDARY)
 	}
+}
+
+internal fun headerTitleRoom(width: Int, reservedWidth: Int): Int {
+	val reserve = if (reservedWidth > 0) LABEL_GAP + reservedWidth else 0
+	return maxOf(width - 2 * CONTENT_PAD - reserve, 0)
 }

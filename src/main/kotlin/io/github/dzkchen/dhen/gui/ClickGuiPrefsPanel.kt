@@ -6,12 +6,18 @@ import java.util.function.IntSupplier
 
 internal class PrefCard(section: PrefSection) {
 	private val title = section.title
+	private val titleText = DhenType.memo()
+	private val emptyText = DhenType.memo()
 
 	val body = ControlBody(section.settings.mapNotNull(::controlFor))
 	val height: Int
 		get() = heightOf(body.height)
 
-	fun invalidateMeasurements() = body.invalidateMeasurements()
+	fun invalidateMeasurements() {
+		body.invalidateMeasurements()
+		titleText.invalidate()
+		emptyText.invalidate()
+	}
 
 	fun heightOf(content: Int): Int =
 		HEADER_HEIGHT + 2 * SECTION_PAD + if (content == 0) EMPTY_SECTION_HEIGHT else content
@@ -32,12 +38,13 @@ internal class PrefCard(section: PrefSection) {
 		val headerBottom = top + HEADER_HEIGHT
 		val fill = GlassGui.raised()
 		GlassGui.roundedFrame(graphics, left, top, right, top + heightOf(content), COLUMN_RADIUS, GlassGui.surface(), DhenPalette.BORDER, HEADER_HEIGHT)
-		ClickGuiPaint.headerBand(graphics, font, left, right, top, title, fill, squared = true)
+		ClickGuiPaint.headerBand(graphics, font, left, right, top, title, titleText, 0, fill, squared = true)
 		ClickGuiPaint.headerRule(graphics, left, right, headerBottom)
 		val contentLeft = left + CONTENT_PAD
 		val contentTop = headerBottom + SECTION_PAD
 		if (content == 0) {
-			DhenType.text(graphics, font, EMPTY_SECTION_LABEL, contentLeft, textTop(font, contentTop, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
+			val shown = emptyText.fit(font, EMPTY_SECTION_LABEL, PANEL_CONTROLS_WIDTH)
+			emptyText.text(graphics, font, shown, contentLeft, textTop(font, contentTop, EMPTY_SECTION_HEIGHT), DhenPalette.TEXT_DISABLED)
 			return
 		}
 		body.draw(

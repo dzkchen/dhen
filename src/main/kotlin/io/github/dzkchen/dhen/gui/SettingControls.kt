@@ -153,10 +153,13 @@ internal class SliderControl(private val number: NumberSetting) : EditableContro
 }
 
 internal class CycleControl(private val selector: SelectorSetting) : SettingControl(selector) {
+	private val widestValue = WidestText()
+
 	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
 		pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			selector.name, selector.value, DhenPalette.TEXT_PRIMARY
+			selector.name, selector.value, DhenPalette.TEXT_PRIMARY,
+			claimedValueWidth = widestValue.width(font, selector.options)
 		)
 	}
 
@@ -164,10 +167,13 @@ internal class CycleControl(private val selector: SelectorSetting) : SettingCont
 		selector.index += 1
 		return ControlPress.CHANGED
 	}
+
+	override fun onInvalidateMeasurement() = widestValue.invalidate()
 }
 
 internal class DropdownControl(private val selector: SelectorSetting) : SettingControl(selector) {
 	private val glyphText = memo()
+	private val widestValue = WidestText()
 	private val optionText = mutableListOf<TextMemo>()
 	private var open = false
 
@@ -187,9 +193,11 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 		val glyphWidth = glyphText.width(font, DROPDOWN_GLYPH)
 		val contentRight = pillRow(
 			graphics, font, x, y, width, hovering(y, pointerY),
-			selector.name, selector.value, DhenPalette.TEXT_PRIMARY, PILL_GAP + glyphWidth, active = open
+			selector.name, selector.value, DhenPalette.TEXT_PRIMARY, PILL_GAP + glyphWidth,
+			widestValue.width(font, selector.options), active = open
 		)
-		glyphText.text(graphics, font, DROPDOWN_GLYPH, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
+		val shownGlyph = glyphText.fit(font, DROPDOWN_GLYPH, glyphWidth)
+		glyphText.text(graphics, font, shownGlyph, contentRight - glyphWidth, rowTextTop(font, y), DhenPalette.TEXT_SECONDARY)
 		if (open) drawOptions(graphics, font, x, y + CONTROL_ROW_HEIGHT, width, pointerY)
 	}
 
@@ -242,6 +250,8 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 		while (optionText.size <= index) optionText += memo()
 		return optionText[index]
 	}
+
+	override fun onInvalidateMeasurement() = widestValue.invalidate()
 }
 
 internal abstract class EditableControl(setting: Setting<*>) : SettingControl(setting) {

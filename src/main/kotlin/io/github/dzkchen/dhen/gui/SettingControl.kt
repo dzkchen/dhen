@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory
 
 internal const val CONTROL_TEXT_INSET = 2
 internal const val LABEL_GAP = 4
-internal const val PILL_MIN_WIDTH = 26
 internal const val WIDGET_HEIGHT = 14
 private const val WIDGET_PAD = 3
 internal const val CONTROL_ROW_HEIGHT = WIDGET_HEIGHT + 2 * WIDGET_PAD
@@ -35,6 +34,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	protected val labelText = memo()
 	protected val valueText = memo()
+	private val labelFloorText = memo()
 
 	var failed = false
 		private set
@@ -71,6 +71,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 	protected open fun onScroll(localX: Int, localY: Int, width: Int, delta: Int): Boolean = false
 
 	protected open fun onBlur(): Boolean = false
+
+	protected open fun onInvalidateMeasurement() = Unit
 
 	fun renderable(): Boolean = guarded(false, false) { setting.isVisible }
 
@@ -119,6 +121,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	fun invalidateMeasurement() {
 		for (i in memos.indices) memos[i].invalidate()
+		onInvalidateMeasurement()
 	}
 
 	protected fun hovering(y: Int, pointerY: Int): Boolean = pointerY >= y && pointerY < y + CONTROL_ROW_HEIGHT
@@ -138,19 +141,23 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		value: String,
 		valueColor: Int,
 		trailing: Int = 0,
+		claimedValueWidth: Int = 0,
 		editing: Boolean = false,
 		active: Boolean = editing
 	): Int {
-		val label = labelText.fit(font, name, labelRoom(width, PILL_MIN_WIDTH + trailing))
-		val labelWidth = labelText.width(font, label)
 		val reserve = if (editing) CARET_WIDTH else 0
-		val shown = valueText.fit(font, value, pillContent(width, labelWidth, trailing) - trailing - reserve, editing)
+		val fullValueWidth = maxOf(valueText.width(font, value), claimedValueWidth)
+		val labelFloor = labelFloorText.width(font, ELLIPSIS)
+		val valueRoom = pillValueRoom(width, fullValueWidth, labelFloor, trailing, reserve)
+		val pillWidth = pillWidth(valueRoom, trailing, reserve, width)
+		val label = labelText.fit(font, name, labelRoom(width, pillWidth))
+		val shown = valueText.fit(font, value, valueRoom, editing)
 		val shownWidth = valueText.width(font, shown)
 		val right = x + width
 		val top = widgetTop(y)
 		RoundedGui.pillFrame(
 			graphics,
-			pillLeft(x, width, shownWidth + reserve + trailing, labelWidth),
+			right - pillWidth,
 			top,
 			right,
 			top + WIDGET_HEIGHT,
@@ -178,13 +185,35 @@ internal fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenT
 
 internal fun labelRoom(width: Int, occupied: Int): Int = width - CONTROL_TEXT_INSET - LABEL_GAP - occupied
 
-internal fun pillContent(width: Int, labelWidth: Int, trailing: Int): Int =
-	maxOf(width - CONTROL_TEXT_INSET - labelWidth - LABEL_GAP, PILL_MIN_WIDTH + trailing) - 2 * PILL_PAD
+internal fun pillValueRoom(width: Int, valueWidth: Int, labelFloor: Int, trailing: Int, reserve: Int): Int =
+	minOf(
+		maxOf(valueWidth, 0),
+		maxOf(width - CONTROL_TEXT_INSET - LABEL_GAP - labelFloor - 2 * PILL_PAD - trailing - reserve, 0)
+	)
 
-internal fun pillLeft(x: Int, width: Int, contentWidth: Int, labelWidth: Int): Int {
-	val rightmost = maxOf(x, x + width - PILL_MIN_WIDTH)
-	val clearOfLabel = (x + CONTROL_TEXT_INSET + labelWidth + LABEL_GAP).coerceIn(x, rightmost)
-	return (x + width - contentWidth - 2 * PILL_PAD).coerceIn(clearOfLabel, rightmost)
+internal fun pillWidth(valueRoom: Int, trailing: Int, reserve: Int, width: Int): Int =
+	minOf(maxOf(valueRoom, 0) + trailing + reserve + 2 * PILL_PAD, maxOf(width, 0))
+
+internal class WidestText {
+	private val memo = DhenType.memo()
+	private var values: List<String>? = null
+	private var revision = Int.MIN_VALUE
+	private var widest = 0
+
+	fun width(font: Font, candidates: List<String>): Int {
+		val current = DhenFont.revision
+		if (values === candidates && revision == current) return widest
+		values = candidates
+		revision = current
+		widest = 0
+		for (i in candidates.indices) widest = maxOf(widest, memo.width(font, candidates[i]))
+		return widest
+	}
+
+	fun invalidate() {
+		values = null
+		memo.invalidate()
+	}
 }
 
 internal fun caret(graphics: GuiGraphicsExtractor, font: Font, x: Int, top: Int) {

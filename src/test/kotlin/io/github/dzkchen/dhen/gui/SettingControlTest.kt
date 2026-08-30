@@ -764,12 +764,14 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `a value pill hugs its content, keeps a minimum width, and stops at the setting name`() {
-		assertEquals(100 - 50 - 2 * PILL_PAD, pillLeft(x = 0, width = 100, contentWidth = 50, labelWidth = 0))
-		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 4, labelWidth = 0))
-		assertEquals(CONTROL_TEXT_INSET + 30 + LABEL_GAP, pillLeft(x = 0, width = 100, contentWidth = 120, labelWidth = 30))
-		assertEquals(100 - PILL_MIN_WIDTH, pillLeft(x = 0, width = 100, contentWidth = 120, labelWidth = 90))
-		assertEquals(20, pillLeft(x = 20, width = 4, contentWidth = 0, labelWidth = 0))
+	fun `a value pill claims its measured width before the label`() {
+		val valueWidth = glyphs("Required")
+		val room = pillValueRoom(CONTROLS_WIDTH, valueWidth, glyphs(ELLIPSIS), trailing = 0, reserve = 0)
+		val width = pillWidth(room, trailing = 0, reserve = 0, width = CONTROLS_WIDTH)
+
+		assertEquals(valueWidth, room)
+		assertEquals(valueWidth + 2 * PILL_PAD, width)
+		assertTrue(labelRoom(CONTROLS_WIDTH, width) < glyphs("A setting with a very long name"))
 	}
 
 	@Test
@@ -784,11 +786,13 @@ class SettingControlTest {
 	}
 
 	private fun assertRoomForName(width: Int, name: String, value: String, trailing: Int, editing: Boolean) {
-		val label = elide(name, labelRoom(width, PILL_MIN_WIDTH + trailing), false, ::glyphs)
-		val labelWidth = glyphs(label)
 		val reserve = if (editing) CARET_WIDTH else 0
-		val shown = elide(value, pillContent(width, labelWidth, trailing) - trailing - reserve, editing, ::glyphs)
-		val left = pillLeft(0, width, glyphs(shown) + reserve + trailing, labelWidth)
+		val valueRoom = pillValueRoom(width, glyphs(value), glyphs(ELLIPSIS), trailing, reserve)
+		val pillWidth = pillWidth(valueRoom, trailing, reserve, width)
+		val label = elide(name, labelRoom(width, pillWidth), false, ::glyphs)
+		val labelWidth = glyphs(label)
+		val shown = elide(value, valueRoom, editing, ::glyphs)
+		val left = width - pillWidth
 
 		assertTrue(left - CONTROL_TEXT_INSET - labelWidth >= LABEL_GAP) {
 			"'$shown' starts at $left, over '$label' which ends at ${CONTROL_TEXT_INSET + labelWidth}"
@@ -804,6 +808,6 @@ class SettingControlTest {
 	@Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
 	fun `pill padding clears the rounded cap so text cannot touch the curve`() {
 		assertTrue(PILL_PAD > PILL_CAP)
-		assertTrue(PILL_MIN_WIDTH >= 2 * PILL_PAD)
+		assertEquals(2 * PILL_PAD, pillWidth(0, trailing = 0, reserve = 0, width = 100))
 	}
 }
