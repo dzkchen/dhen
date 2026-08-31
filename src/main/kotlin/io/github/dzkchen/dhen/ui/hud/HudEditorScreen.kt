@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.gui.RoundedQuad
 import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
@@ -205,3 +206,5 @@ internal class HudEditorScreen(
 		val EMPTY_HINTS = arrayOf("No HUD elements are registered")
 	}
 }
+
+internal fun editingHud(): Boolean = Minecraft.getInstance().gui.screen() is HudEditorScreen

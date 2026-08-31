@@ -39,6 +39,7 @@ import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
+import io.github.dzkchen.dhen.features.visual.MaskTimers
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
@@ -214,6 +215,7 @@ object Dhen : ClientModInitializer {
 			Tweaks,
 			Animations,
 			Camera,
+			MaskTimers,
 			PlayerStatsHud,
 			RevertAxes,
 			TimeChanger,

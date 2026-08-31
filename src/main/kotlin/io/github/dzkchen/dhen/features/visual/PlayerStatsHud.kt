@@ -11,7 +11,7 @@ import io.github.dzkchen.dhen.event.PlayerStatsEvent
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
-import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
+import io.github.dzkchen.dhen.ui.hud.editingHud
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.Minecraft
@@ -231,14 +231,14 @@ internal class PlayerStatElement(
 		private set
 
 	override val hasContent: Boolean
-		get() = contentAvailable(SkyBlockLocation.inSkyBlock, editing())
+		get() = contentAvailable(SkyBlockLocation.inSkyBlock, editingHud())
 
-	override fun width(font: Font): Int = memo.width(font, shownText(editing()))
+	override fun width(font: Font): Int = memo.width(font, shownText(editingHud()))
 
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		val editing = editing()
+		val editing = editingHud()
 		val color = if (!editing && stat == PlayerStat.HEALTH && first > second) OVERHEAL_COLOR else ink()
 		memo.shadowed(graphics, font, shownText(editing), 0, 0, color, scale)
 	}
@@ -355,8 +355,6 @@ internal class PlayerStatElement(
 		PlayerStat.EFFECTIVE_HEALTH -> "1,000,000"
 		PlayerStat.SPEED -> if (flag(ICONS)) "100✦" else "100"
 	}
-
-	private fun editing(): Boolean = Minecraft.getInstance().gui.screen() is HudEditorScreen
 
 	private companion object {
 		val OVERHEAL_COLOR = Color.rgba(255, 255, 85).argb

@@ -15,7 +15,7 @@ import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
-import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
+import io.github.dzkchen.dhen.ui.hud.editingHud
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.util.Color
 import io.github.dzkchen.dhen.util.NanoClock
@@ -402,14 +402,14 @@ internal class UtilityReadout(
 		private set
 
 	override val hasContent: Boolean
-		get() = contentAvailable(editing())
+		get() = contentAvailable(editingHud())
 
-	override fun width(font: Font): Int = memo.width(font, shownText(editing()))
+	override fun width(font: Font): Int = memo.width(font, shownText(editingHud()))
 
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		memo.shadowed(graphics, font, shownText(editing()), 0, 0, ink(), scale)
+		memo.shadowed(graphics, font, shownText(editingHud()), 0, 0, ink(), scale)
 	}
 
 	override fun invalidateMeasurement() = memo.invalidate()
@@ -527,8 +527,6 @@ internal class UtilityReadout(
 		Readout.FREEZE -> "567ms"
 		Readout.QUEUE -> "Queue: 3m 20s"
 	}
-
-	private fun editing(): Boolean = Minecraft.getInstance().gui.screen() is HudEditorScreen
 
 	private companion object {
 		const val TEXT_CAPACITY = 24
