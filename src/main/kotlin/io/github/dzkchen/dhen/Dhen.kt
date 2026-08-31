@@ -42,6 +42,7 @@ import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
+import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
@@ -216,6 +217,7 @@ object Dhen : ClientModInitializer {
 			PlayerStatsHud,
 			RevertAxes,
 			TimeChanger,
+			UtilityHuds,
 			VisualTweaks,
 			SpoofAsVanilla,
 			ChannelSpoofing,

@@ -114,16 +114,16 @@ object PlayerStatsHud : Module(
 	private var hideArmor by hideArmorSetting
 	private var hideExperience by hideExperienceSetting
 
-	internal val healthElement = stat(PlayerStat.HEALTH, healthSetting) { healthColor }
-	internal val defenseElement = stat(PlayerStat.DEFENSE, defenseSetting) { defenseColor }
-	internal val manaElement = stat(PlayerStat.MANA, manaSetting) { manaColor }
-	internal val overflowElement = stat(PlayerStat.OVERFLOW, overflowSetting) { overflowColor }
-	internal val vitalityElement = stat(PlayerStat.VITALITY, vitalitySetting) { vitalityColor }
+	internal val healthElement = stat(PlayerStat.HEALTH, healthSetting) { healthColor.argb }
+	internal val defenseElement = stat(PlayerStat.DEFENSE, defenseSetting) { defenseColor.argb }
+	internal val manaElement = stat(PlayerStat.MANA, manaSetting) { manaColor.argb }
+	internal val overflowElement = stat(PlayerStat.OVERFLOW, overflowSetting) { overflowColor.argb }
+	internal val vitalityElement = stat(PlayerStat.VITALITY, vitalitySetting) { vitalityColor.argb }
 	internal val effectiveHealthElement = stat(
 		PlayerStat.EFFECTIVE_HEALTH,
 		effectiveHealthSetting
-	) { effectiveHealthColor }
-	internal val speedElement = stat(PlayerStat.SPEED, speedSetting) { speedColor }
+	) { effectiveHealthColor.argb }
+	internal val speedElement = stat(PlayerStat.SPEED, speedSetting) { speedColor.argb }
 
 	init {
 		on<PlayerStatsEvent> { refresh() }
@@ -201,8 +201,8 @@ object PlayerStatsHud : Module(
 	private fun stat(
 		stat: PlayerStat,
 		toggle: BooleanSetting,
-		color: () -> Color
-	): PlayerStatElement = hud(PlayerStatElement(stat, toggle, color))
+		ink: () -> Int
+	): PlayerStatElement = hud(PlayerStatElement(stat, toggle, ink))
 }
 
 internal enum class PlayerStat(val label: String) {
@@ -218,7 +218,7 @@ internal enum class PlayerStat(val label: String) {
 internal class PlayerStatElement(
 	private val stat: PlayerStat,
 	private val toggle: BooleanSetting,
-	private val color: () -> Color
+	private val ink: () -> Int
 ) : HudElement(stat.label) {
 	private val memo = DhenType.memo()
 	private val builder = StringBuilder(TEXT_CAPACITY)
@@ -239,8 +239,8 @@ internal class PlayerStatElement(
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
 		val editing = editing()
-		val ink = if (!editing && stat == PlayerStat.HEALTH && first > second) OVERHEAL_COLOR else color().argb
-		memo.shadowed(graphics, font, shownText(editing), 0, 0, ink, scale)
+		val color = if (!editing && stat == PlayerStat.HEALTH && first > second) OVERHEAL_COLOR else ink()
+		memo.shadowed(graphics, font, shownText(editing), 0, 0, color, scale)
 	}
 
 	override fun invalidateMeasurement() = memo.invalidate()

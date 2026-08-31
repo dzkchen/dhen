@@ -194,7 +194,7 @@ class PlayerStatsHudTest {
 	fun `number formatting handles negatives without temporary formatters`() {
 		val toggle = BooleanSetting("Speed", true)
 		val color = ColorSetting("Speed Color", Color.rgba(255, 255, 255))
-		val element = PlayerStatElement(PlayerStat.SPEED, toggle) { color.value }
+		val element = PlayerStatElement(PlayerStat.SPEED, toggle) { color.value.argb }
 		PlayerStats.speed = -1234567
 
 		element.update(
