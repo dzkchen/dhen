@@ -16,6 +16,7 @@ import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
+import io.github.dzkchen.dhen.data.quiver.QuiverHooks
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
@@ -151,6 +152,7 @@ object Dhen : ClientModInitializer {
 			PartyHooks,
 			PlayerStatsHooks,
 			PetHooks,
+			QuiverHooks,
 			firstRunExperience,
 			HypixelModApi
 		)
@@ -324,6 +326,7 @@ object Dhen : ClientModInitializer {
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
 		PetHooks.install(modules.eventBus)
+		QuiverHooks.install(modules.eventBus)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)

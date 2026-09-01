@@ -82,6 +82,8 @@ class SkyBlockItem internal constructor(
 
 	val hasStatsBook: Boolean get() = tag.contains("stats_book")
 
+	val hasQuiverArrow: Boolean get() = tag.contains("quiver_arrow")
+
 	val enrichment: String get() = tag.getStringOr("talisman_enrichment", "")
 
 	val divanPowderCoating: Boolean get() = tag.getBooleanOr("divan_powder_coating", false)

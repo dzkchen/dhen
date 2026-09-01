@@ -461,7 +461,7 @@ class CommandRegistryTest {
 			listOf(
 				"Packets", "Screens", "Containers", "Input", "World", "Entity render", "Interactions",
 				"World render", "Ticks", "Location", "Scoreboard", "Tab list", "Tab list widgets",
-				"Party", "Player stats", "Pets", "First-run welcome", "Hypixel Mod API"
+				"Party", "Player stats", "Pets", "Quiver state", "First-run welcome", "Hypixel Mod API"
 			).map { "$it: no feed, off until restart" },
 			captured.filter { it.endsWith("no feed, off until restart") }
 		)
