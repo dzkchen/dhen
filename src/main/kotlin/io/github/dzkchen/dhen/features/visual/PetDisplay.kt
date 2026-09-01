@@ -2,6 +2,8 @@ package io.github.dzkchen.dhen.features.visual
 
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
+import io.github.dzkchen.dhen.config.KeybindScreenPolicy
+import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.Island
@@ -25,7 +27,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
+import org.lwjgl.glfw.GLFW
 
+@Suppress("unused")
 object PetDisplay : Module(
 	name = "Pet Display",
 	category = Category.VISUAL,
@@ -111,6 +115,90 @@ object PetDisplay : Module(
 		description = "How large the held pet item marker is drawn."
 	).withDependency { expShareSetting.on || tierBoostSetting.on }
 	private var petItemScale by petItemScaleSetting
+
+	internal val wheelScaleSetting = NumberSetting(
+		"Wheel Scale",
+		default = 100.0,
+		min = 70.0,
+		max = 135.0,
+		step = 5.0,
+		description = "How large the pet wheel appears."
+	)
+	private var wheelScale by wheelScaleSetting
+
+	internal val showKeyLabelsSetting = BooleanSetting(
+		"Show Key Labels",
+		default = true,
+		description = "Shows the key that selects each visible pet."
+	)
+	private var showKeyLabels by showKeyLabelsSetting
+
+	internal val favouritePetsOnlySetting = BooleanSetting(
+		"Favourite Pets Only",
+		description = "Only shows pets favourited in Hypixel's Pets Menu."
+	)
+	private var favouritePetsOnly by favouritePetsOnlySetting
+
+	internal val segmentColorSetting = ColorSetting(
+		"Segment Color",
+		Color.rgba(15, 15, 15, 200),
+		allowAlpha = true,
+		description = "The base colour of each pet wheel segment."
+	)
+	private var segmentColor by segmentColorSetting
+
+	internal val hoverColorSetting = ColorSetting(
+		"Hover Color",
+		Color.rgba(255, 255, 255, 30),
+		allowAlpha = true,
+		description = "The overlay colour on the selected segment."
+	)
+	private var hoverColor by hoverColorSetting
+
+	internal val separatorColorSetting = ColorSetting(
+		"Separator Color",
+		Color.rgba(255, 255, 255, 40),
+		allowAlpha = true,
+		description = "The colour between neighbouring wheel segments."
+	)
+	private var separatorColor by separatorColorSetting
+
+	internal val useHotbarBindsSetting = BooleanSetting(
+		"Use Hotbar Binds",
+		description = "Uses your current vanilla hotbar keys for wheel selection."
+	)
+	private var useHotbarBinds by useHotbarBindsSetting
+
+	internal val petSlot1Setting = petSlotSetting(1)
+	private var petSlot1 by petSlot1Setting
+	internal val petSlot2Setting = petSlotSetting(2)
+	private var petSlot2 by petSlot2Setting
+	internal val petSlot3Setting = petSlotSetting(3)
+	private var petSlot3 by petSlot3Setting
+	internal val petSlot4Setting = petSlotSetting(4)
+	private var petSlot4 by petSlot4Setting
+	internal val petSlot5Setting = petSlotSetting(5)
+	private var petSlot5 by petSlot5Setting
+	internal val petSlot6Setting = petSlotSetting(6)
+	private var petSlot6 by petSlot6Setting
+	internal val petSlot7Setting = petSlotSetting(7)
+	private var petSlot7 by petSlot7Setting
+	internal val petSlot8Setting = petSlotSetting(8)
+	private var petSlot8 by petSlot8Setting
+	internal val petSlot9Setting = petSlotSetting(9)
+	private var petSlot9 by petSlot9Setting
+
+	internal val petSlotSettings = arrayOf(
+		petSlot1Setting,
+		petSlot2Setting,
+		petSlot3Setting,
+		petSlot4Setting,
+		petSlot5Setting,
+		petSlot6Setting,
+		petSlot7Setting,
+		petSlot8Setting,
+		petSlot9Setting
+	)
 
 	private val nametags = PetNametags()
 	private val petItems = SkyBlockItems.memo(TRACKED_SLOTS)
@@ -198,6 +286,12 @@ object PetDisplay : Module(
 			pose.popMatrix()
 		}
 	}
+
+	private fun petSlotSetting(slot: Int): KeybindSetting = KeybindSetting(
+		"Pet Slot $slot",
+		GLFW.GLFW_KEY_1 + slot - 1,
+		screenPolicy = KeybindScreenPolicy.NON_TEXT_SCREEN
+	).withDependency { !useHotbarBindsSetting.on }
 
 	private const val TITLE_TICKS = 40
 	private const val SLOT_SIZE = 16
