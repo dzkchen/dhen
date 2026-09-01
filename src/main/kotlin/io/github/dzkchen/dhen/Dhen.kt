@@ -43,6 +43,7 @@ import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
 import io.github.dzkchen.dhen.features.visual.MaskTimers
+import io.github.dzkchen.dhen.features.visual.MoveableVanillaHud
 import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.QuiverDisplay
@@ -50,6 +51,7 @@ import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
+import io.github.dzkchen.dhen.features.visual.VanillaHudLayer
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ArcPreviewScreen
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
@@ -226,6 +228,7 @@ object Dhen : ClientModInitializer {
 			Camera,
 			CustomScoreboard,
 			MaskTimers,
+			MoveableVanillaHud,
 			PetDisplay,
 			PlayerStatsHud,
 			QuiverDisplay,
@@ -240,6 +243,26 @@ object Dhen : ClientModInitializer {
 		)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
+		HudElementRegistry.replaceElement(
+			VanillaHudElements.HOTBAR,
+			MoveableVanillaHud.replacement(VanillaHudLayer.HOTBAR, failsafe)
+		)
+		HudElementRegistry.replaceElement(
+			VanillaHudElements.INFO_BAR,
+			MoveableVanillaHud.replacement(VanillaHudLayer.EXPERIENCE_BAR, failsafe)
+		)
+		HudElementRegistry.replaceElement(
+			VanillaHudElements.EXPERIENCE_LEVEL,
+			MoveableVanillaHud.replacement(VanillaHudLayer.EXPERIENCE_LEVEL, failsafe)
+		)
+		HudElementRegistry.replaceElement(
+			VanillaHudElements.HELD_ITEM_TOOLTIP,
+			MoveableVanillaHud.replacement(VanillaHudLayer.HELD_ITEM, failsafe)
+		)
+		HudElementRegistry.replaceElement(
+			VanillaHudElements.OVERLAY_MESSAGE,
+			MoveableVanillaHud.replacement(VanillaHudLayer.ACTION_BAR, failsafe)
+		)
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
 			failsafe.guard("command registration") { commands.install(dispatcher) }
 		}

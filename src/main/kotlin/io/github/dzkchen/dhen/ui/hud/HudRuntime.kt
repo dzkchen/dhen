@@ -44,7 +44,7 @@ class HudRuntime(
 			val scale = element.scale
 			val width = HudLayout.scaled(element.width(font), scale)
 			val height = HudLayout.scaled(element.height(font, screenHeight), scale)
-			val x = HudLayout.placeOnScreen(element.anchor.horizontal, screenWidth, width, element.offsetX)
+			val x = element.placeX(screenWidth, width)
 			val y = element.placeY(screenHeight, height)
 			if (element.background) {
 				drawPlate(graphics, x, y, width, height, scale, screenWidth, screenHeight)

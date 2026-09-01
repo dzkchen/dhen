@@ -63,8 +63,14 @@ abstract class HudElement(
 
 	abstract fun render(graphics: GuiGraphicsExtractor, font: Font)
 
+	internal open fun placeX(screenWidth: Int, width: Int): Int =
+		HudLayout.placeOnScreen(anchor.horizontal, screenWidth, width, offsetX)
+
 	internal open fun placeY(screenHeight: Int, height: Int): Int =
 		HudLayout.placeOnScreen(anchor.vertical, screenHeight, height, offsetY)
+
+	internal open fun offsetXFor(anchor: HudAnchor, screenWidth: Int, width: Int, position: Int): Int =
+		HudLayout.offsetFor(anchor.horizontal, screenWidth, width, position)
 
 	internal open fun offsetYFor(anchor: HudAnchor, screenHeight: Int, height: Int, position: Int): Int =
 		HudLayout.offsetFor(anchor.vertical, screenHeight, height, position)

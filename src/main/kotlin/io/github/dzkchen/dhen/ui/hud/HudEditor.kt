@@ -45,7 +45,7 @@ internal class HudEditor(
 			val scale = target.element.scale
 			target.width = HudLayout.scaled(target.contentWidth, scale)
 			target.height = HudLayout.scaled(target.contentHeight, scale)
-			target.x = HudLayout.placeOnScreen(target.element.anchor.horizontal, screenWidth, target.width, target.element.offsetX)
+			target.x = target.element.placeX(screenWidth, target.width)
 			target.y = target.element.placeY(screenHeight, target.height)
 		}
 	}
@@ -129,7 +129,7 @@ internal class HudEditor(
 		} else {
 			clearGuides()
 		}
-		val offsetX = HudLayout.offsetFor(target.element.anchor.horizontal, screenWidth, target.width, x)
+		val offsetX = target.element.offsetXFor(target.element.anchor, screenWidth, target.width, x)
 		val offsetY = target.element.offsetYFor(target.element.anchor, screenHeight, target.height, y)
 		if (offsetX == target.element.offsetX && offsetY == target.element.offsetY) return false
 		target.element.offsetX = offsetX
@@ -175,12 +175,12 @@ internal class HudEditor(
 		}
 		if (best == target.element.anchor) return
 		target.element.anchor = best
-		target.element.offsetX = HudLayout.offsetFor(best.horizontal, screenWidth, target.width, target.x)
+		target.element.offsetX = target.element.offsetXFor(best, screenWidth, target.width, target.x)
 		target.element.offsetY = target.element.offsetYFor(best, screenHeight, target.height, target.y)
 	}
 
 	private fun anchorCost(anchor: HudAnchor, target: HudTarget): Int =
-		abs(HudLayout.offsetFor(anchor.horizontal, screenWidth, target.width, target.x)) +
+		abs(target.element.offsetXFor(anchor, screenWidth, target.width, target.x)) +
 			abs(target.element.offsetYFor(anchor, screenHeight, target.height, target.y))
 
 	private fun clearGuides() {
