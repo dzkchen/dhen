@@ -1,11 +1,13 @@
 package io.github.dzkchen.dhen.features.visual
 
 import io.github.dzkchen.dhen.config.ModulePersistence
+import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.quiver.QuiverArrow
 import io.github.dzkchen.dhen.data.repo.RepoItem
 import io.github.dzkchen.dhen.data.repo.RepoState
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.ChatFormatting
@@ -35,10 +37,19 @@ class QuiverDisplayTest {
 	fun `the module declares the requested controls and movable element`() {
 		assertEquals("Quiver Display", QuiverDisplay.name)
 		assertEquals(Category.VISUAL, QuiverDisplay.category)
-		assertEquals(listOf("Show Arrow Icon", "Show When"), QuiverDisplay.settings.map { it.name })
+		assertEquals(
+			listOf("Show Arrow Icon", "Show When", "Low Quiver Alert", "Reminder After Run", "Low Quiver Amount"),
+			QuiverDisplay.settings.map { it.name }
+		)
 		assertEquals(listOf("Quiver Display"), QuiverDisplay.hudElements.map { it.name })
 		assertTrue(QuiverDisplay.showIconSetting.default)
 		assertEquals(QuiverDisplay.BOW_IN_HAND, QuiverDisplay.showWhenSetting.default)
+		assertTrue(QuiverDisplay.lowQuiverSetting.default)
+		assertTrue(QuiverDisplay.reminderAfterRunSetting.default)
+		assertEquals(100.0, QuiverDisplay.lowQuiverAmountSetting.default)
+		assertEquals(50.0, QuiverDisplay.lowQuiverAmountSetting.min)
+		assertEquals(500.0, QuiverDisplay.lowQuiverAmountSetting.max)
+		assertEquals(50.0, QuiverDisplay.lowQuiverAmountSetting.step)
 		assertEquals(
 			listOf(QuiverDisplay.ALWAYS, QuiverDisplay.BOW_IN_INVENTORY, QuiverDisplay.BOW_IN_HAND),
 			QuiverDisplay.showWhenSetting.options
@@ -152,16 +163,42 @@ class QuiverDisplayTest {
 			manager.enable(QuiverDisplay)
 			QuiverDisplay.showIconSetting.value = false
 			QuiverDisplay.showWhenSetting.value = QuiverDisplay.ALWAYS
+			QuiverDisplay.lowQuiverSetting.value = false
+			QuiverDisplay.reminderAfterRunSetting.value = false
+			QuiverDisplay.lowQuiverAmountSetting.value = 350.0
 			val saved = ModulePersistence.snapshot(manager)
 
 			manager.disable(QuiverDisplay)
 			QuiverDisplay.showIconSetting.reset()
 			QuiverDisplay.showWhenSetting.reset()
+			QuiverDisplay.lowQuiverSetting.reset()
+			QuiverDisplay.reminderAfterRunSetting.reset()
+			QuiverDisplay.lowQuiverAmountSetting.reset()
 			ModulePersistence.apply(manager, saved)
 
 			assertTrue(QuiverDisplay.enabled)
 			assertFalse(QuiverDisplay.showIconSetting.on)
 			assertEquals(QuiverDisplay.ALWAYS, QuiverDisplay.showWhenSetting.value)
+			assertFalse(QuiverDisplay.lowQuiverSetting.on)
+			assertFalse(QuiverDisplay.reminderAfterRunSetting.on)
+			assertEquals(350.0, QuiverDisplay.lowQuiverAmountSetting.value)
+		} finally {
+			manager.unregister(QuiverDisplay)
+		}
+	}
+
+	@Test
+	fun `resetting island transitions clear retained warning state`() {
+		val manager = ModuleManager()
+		manager.register(QuiverDisplay)
+		try {
+			manager.enable(QuiverDisplay)
+			QuiverDisplay.warning.updated(QuiverArrow.FLINT, 50, true, false, 100)
+			assertTrue(QuiverDisplay.warning.used(QuiverArrow.FLINT))
+
+			manager.eventBus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.HUB, Island.CATACOMBS))
+
+			assertFalse(QuiverDisplay.warning.used(QuiverArrow.FLINT))
 		} finally {
 			manager.unregister(QuiverDisplay)
 		}

@@ -1,7 +1,10 @@
 package io.github.dzkchen.dhen.features.visual
 
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.BooleanSetting
+import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -12,19 +15,26 @@ import io.github.dzkchen.dhen.data.repo.RepoItem
 import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.QuiverUpdateEvent
+import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
+import io.github.dzkchen.dhen.util.NanoClock
+import kotlinx.coroutines.delay
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.BowItem
@@ -46,17 +56,54 @@ object QuiverDisplay : Module(
 		BOW_IN_HAND,
 		listOf(ALWAYS, BOW_IN_INVENTORY, BOW_IN_HAND)
 	)
+	internal val lowQuiverSetting = BooleanSetting(
+		"Low Quiver Alert",
+		true,
+		"Notifies you when the selected arrow reaches the configured amount."
+	)
+	internal val reminderAfterRunSetting = BooleanSetting(
+		"Reminder After Run",
+		true,
+		"Reminds you about low arrows after a Dungeon or Kuudra run."
+	)
+	internal val lowQuiverAmountSetting = NumberSetting(
+		"Low Quiver Amount",
+		100.0,
+		50.0,
+		500.0,
+		50.0,
+		"Amount at which to notify you."
+	)
 	private var showIcon by showIconSetting
 	private var showWhen by showWhenSetting
+	private var lowQuiver by lowQuiverSetting
+	private var reminderAfterRun by reminderAfterRunSetting
+	private var lowQuiverAmount by lowQuiverAmountSetting
 	internal val equipment = QuiverEquipment()
 	internal val element = hud(QuiverDisplayElement())
+	internal val warning = QuiverWarning(NanoClock.SYSTEM, QuiverState::amount)
 	private var repoRequirement: Handle = Handle {}
 	private var repoHeld = false
 	private var ticks = 0
 
 	init {
-		on<QuiverUpdateEvent> { element.refresh() }
+		on<QuiverUpdateEvent> {
+			if (
+				warning.updated(
+					it.arrow,
+					it.amount,
+					inInstance(),
+					lowQuiverSetting.on,
+					lowQuiverAmountSetting.amount.toInt()
+				)
+			) {
+				lowQuiverAlert(it.amount)
+			}
+			element.refresh()
+		}
 		on<ClientTickEvent.End> { ticked() }
+		on<WorldChangeEvent> { warning.reset() }
+		on<IslandChangeEvent> { if (it.resetsWorldState) warning.reset() }
 	}
 
 	override fun onEnabled() {
@@ -70,12 +117,15 @@ object QuiverDisplay : Module(
 		repoHeld = false
 		ticks = 0
 		equipment.clear()
+		warning.reset()
 		element.refresh()
 	}
 
 	override fun onReset() = element.refresh()
 
 	internal fun ticked() {
+		val reminder = warning.takeReminder()
+		if (reminder != null) instanceAlert(reminder)
 		ensureRepo()
 		element.refresh()
 		if (!SkyBlockLocation.inSkyBlock) {
@@ -129,7 +179,35 @@ object QuiverDisplay : Module(
 
 	internal fun currentShowWhen(): String = showWhen
 
+	internal fun instanceCompleted() {
+		warning.completed(reminderAfterRunSetting.on, lowQuiverAmountSetting.amount.toInt())
+	}
+
+	private fun lowQuiverAlert(amount: Int) {
+		DhenAlert.show(LOW_TITLE, sound = null)
+		Dhen.announce("Low on arrows ($amount left)")
+	}
+
+	private fun instanceAlert(arrows: String) {
+		DhenAlert.show(LOW_TITLE, sound = null)
+		Dhen.announce("Low on $arrows!")
+		launch {
+			repeat(SOUND_REPEATS) {
+				Minecraft.getInstance().soundManager.play(
+					SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.0f)
+				)
+				delay(SOUND_DELAY_MILLIS)
+			}
+		}
+	}
+
+	private fun inInstance(): Boolean =
+		SkyBlockLocation.island == Island.CATACOMBS || SkyBlockLocation.island == Island.KUUDRA
+
 	private const val SAMPLE_TICKS = 40
+	private const val LOW_TITLE = "Low on arrows!"
+	private const val SOUND_REPEATS = 30
+	private const val SOUND_DELAY_MILLIS = 100L
 }
 
 internal class QuiverEquipment {

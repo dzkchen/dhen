@@ -428,7 +428,7 @@ object Dhen : ClientModInitializer {
 		if (PrivacyLog.debugging) PrivacyLog.detail(PRIVACY_NOTICE_DETAIL)
 	}
 
-	private fun announce(message: String) {
+	internal fun announce(message: String) {
 		announceComponent(DhenType.overWorld(message))
 	}
 
