@@ -45,6 +45,7 @@ import io.github.dzkchen.dhen.features.visual.CustomScoreboard
 import io.github.dzkchen.dhen.features.visual.MaskTimers
 import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
+import io.github.dzkchen.dhen.features.visual.QuiverDisplay
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
@@ -227,6 +228,7 @@ object Dhen : ClientModInitializer {
 			MaskTimers,
 			PetDisplay,
 			PlayerStatsHud,
+			QuiverDisplay,
 			RevertAxes,
 			TimeChanger,
 			UtilityHuds,
