@@ -63,33 +63,32 @@ class QuiverDisplayTest {
 		items[4] = bow("BOSS_SPIRIT_BOW")
 		items[12] = bow("CRYPT_BOW")
 
-		assertFalse(equipment.sample(items, items[4], ItemStack.EMPTY))
+		assertFalse(equipment.sample(items, items[4]))
 		assertFalse(equipment.hasBow)
 		assertFalse(equipment.holdingBow)
 
 		items[20] = bow("TERMINATOR")
-		assertTrue(equipment.sample(items, items[4], ItemStack.EMPTY))
+		assertTrue(equipment.sample(items, items[4]))
 		assertTrue(equipment.hasBow)
 		assertFalse(equipment.holdingBow)
 
-		assertTrue(equipment.sample(items, items[20], ItemStack.EMPTY))
+		assertTrue(equipment.sample(items, items[20]))
 		assertTrue(equipment.holdingBow)
-		assertFalse(equipment.sample(items, items[20], ItemStack.EMPTY))
+		assertFalse(equipment.sample(items, items[20]))
 	}
 
 	@Test
-	fun `Skeleton Master chestplate toggles infinite arrows and clear removes every snapshot`() {
+	fun `a bow snapshot clears in one call and stays cleared`() {
 		val equipment = QuiverEquipment()
 		val items = MutableList(36) { ItemStack.EMPTY }
 		items[0] = bow("JUJU_SHORTBOW")
-		val chest = identified(ItemStack(Items.LEATHER_CHESTPLATE), "SKELETON_MASTER_CHESTPLATE")
 
-		assertTrue(equipment.sample(items, items[0], chest))
-		assertTrue(equipment.infiniteArrows)
+		assertTrue(equipment.sample(items, items[0]))
+		assertTrue(equipment.hasBow)
+		assertTrue(equipment.holdingBow)
 		assertTrue(equipment.clear())
 		assertFalse(equipment.hasBow)
 		assertFalse(equipment.holdingBow)
-		assertFalse(equipment.infiniteArrows)
 		assertFalse(equipment.clear())
 	}
 
@@ -109,7 +108,7 @@ class QuiverDisplayTest {
 	fun `all display modes use the equipment snapshot and editor remains discoverable`() {
 		val items = MutableList(36) { ItemStack.EMPTY }
 		items[8] = bow("TERMINATOR")
-		QuiverDisplay.equipment.sample(items, ItemStack.EMPTY, ItemStack.EMPTY)
+		QuiverDisplay.equipment.sample(items, ItemStack.EMPTY)
 
 		assertTrue(QuiverDisplay.shows(QuiverDisplay.ALWAYS, inSkyBlock = true, editing = false))
 		assertTrue(QuiverDisplay.shows(QuiverDisplay.BOW_IN_INVENTORY, inSkyBlock = true, editing = false))
@@ -117,7 +116,7 @@ class QuiverDisplayTest {
 		assertFalse(QuiverDisplay.shows(QuiverDisplay.ALWAYS, inSkyBlock = false, editing = false))
 		assertTrue(QuiverDisplay.shows(QuiverDisplay.BOW_IN_HAND, inSkyBlock = false, editing = true))
 
-		QuiverDisplay.equipment.sample(items, items[8], ItemStack.EMPTY)
+		QuiverDisplay.equipment.sample(items, items[8])
 		assertTrue(QuiverDisplay.shows(QuiverDisplay.BOW_IN_HAND, inSkyBlock = true, editing = false))
 	}
 

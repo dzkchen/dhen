@@ -7,3 +7,11 @@ fun interface NanoClock {
 		val SYSTEM: NanoClock = NanoClock(System::nanoTime)
 	}
 }
+
+fun interface EpochClock {
+	fun epochMillis(): Long
+
+	companion object {
+		val SYSTEM: EpochClock = EpochClock(System::currentTimeMillis)
+	}
+}

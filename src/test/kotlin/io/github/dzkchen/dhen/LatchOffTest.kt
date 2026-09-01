@@ -17,6 +17,8 @@ import io.github.dzkchen.dhen.event.InputHooks
 import io.github.dzkchen.dhen.event.InteractionHooks
 import io.github.dzkchen.dhen.event.NetworkHooks
 import io.github.dzkchen.dhen.event.RenderHooks
+import io.github.dzkchen.dhen.data.cookie.CookieHooks
+import io.github.dzkchen.dhen.data.maxwell.MaxwellHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldHooks
@@ -53,6 +55,8 @@ class LatchOffTest {
 		PlayerStatsHooks.install(bus)
 		PetHooks.install(bus)
 		QuiverHooks.install(bus)
+		MaxwellHooks.install(bus)
+		CookieHooks.install(bus)
 		Dhen.firstRunExperience.install(bus, alreadyShown = true)
 		HypixelModApi.install()
 		WorldRenderProbe.install(bus)
@@ -97,8 +101,8 @@ class LatchOffTest {
 		val installed = setOf(
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
 			InteractionHooks, WorldRenderHooks, TickHooks, HypixelLocationHooks, ScoreboardHooks,
-			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, PetHooks, QuiverHooks, Dhen.firstRunExperience,
-			HypixelModApi
+			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
+			CookieHooks, Dhen.firstRunExperience, HypixelModApi
 		)
 		assertEquals(installed, Dhen.hooks.toSet())
 		assertEquals(Dhen.hooks.size, Dhen.hooks.mapTo(mutableSetOf(), Hooks::feed).size)

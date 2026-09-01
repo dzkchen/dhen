@@ -84,6 +84,8 @@ object MayorService {
 
 	val perkpocalypsePerk: String? get() = extraMayorPerk?.takeIf { now() < extraMayorUntil }
 
+	val perkpocalypseUntil: Long get() = extraMayorUntil
+
 	fun isPerkActive(perk: String): Boolean {
 		val reply = seated
 		if (reply != null && (perk in reply.mayor.perks || perk == reply.ministerPerk)) return true

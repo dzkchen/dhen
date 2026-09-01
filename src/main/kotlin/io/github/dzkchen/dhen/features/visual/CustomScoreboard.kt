@@ -2,11 +2,17 @@ package io.github.dzkchen.dhen.features.visual
 
 import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.data.ScoreboardState
+import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.CookieUpdateEvent
+import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.IslandChangeEvent
+import io.github.dzkchen.dhen.event.MayorChangeEvent
+import io.github.dzkchen.dhen.event.MaxwellUpdateEvent
 import io.github.dzkchen.dhen.event.PartyEvent
 import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.ScoreboardUpdateEvent
+import io.github.dzkchen.dhen.event.TabWidgetUpdateEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
@@ -30,14 +36,32 @@ object CustomScoreboard : Module(
 		ScoreboardLine.DATE,
 		ScoreboardLine.TIME,
 		ScoreboardLine.ISLAND,
+		ScoreboardLine.PLAYER_COUNT,
 		ScoreboardLine.LOCATION,
+		ScoreboardLine.VISITING,
+		ScoreboardLine.PROFILE,
 		ScoreboardLine.SEPARATOR_2,
 		ScoreboardLine.PURSE,
+		ScoreboardLine.MOTES,
+		ScoreboardLine.BANK,
 		ScoreboardLine.BITS,
+		ScoreboardLine.COPPER,
+		ScoreboardLine.SOWDUST,
+		ScoreboardLine.GEMS,
+		ScoreboardLine.HEAT,
+		ScoreboardLine.COLD,
+		ScoreboardLine.NORTH_STARS,
+		ScoreboardLine.SOULFLOW,
 		ScoreboardLine.SEPARATOR_3,
+		ScoreboardLine.COOKIE,
 		ScoreboardLine.QUIVER,
+		ScoreboardLine.POWER,
+		ScoreboardLine.TUNING,
 		ScoreboardLine.SEPARATOR_4,
+		ScoreboardLine.OBJECTIVE,
 		ScoreboardLine.SLAYER,
+		ScoreboardLine.POWDER,
+		ScoreboardLine.MAYOR,
 		ScoreboardLine.PARTY,
 		ScoreboardLine.FOOTER,
 		ScoreboardLine.EXTRA
@@ -57,15 +81,49 @@ object CustomScoreboard : Module(
 
 	private var shownLines: List<String> = emptyList()
 
+	private var mayorRequirement: Handle = Handle {}
+
+	private var mayorHeld = false
+
 	init {
 		on<ScoreboardUpdateEvent> { rebuild() }
+		on<TabWidgetUpdateEvent> { rebuild() }
 		on<QuiverUpdateEvent> { rebuild() }
 		on<PartyEvent> { rebuild() }
 		on<IslandChangeEvent> { rebuild() }
-		on<ClientTickEvent.End> { if (composer.faded() || enabledLines !== shownLines) rebuild() }
+		on<MayorChangeEvent> { rebuild() }
+		on<MaxwellUpdateEvent> { rebuild() }
+		on<CookieUpdateEvent> { rebuild() }
+		on<ClientTickEvent.End> { ticked() }
 	}
 
-	override fun onEnabled() = rebuild()
+	override fun onEnabled() {
+		ensureMayorFeed()
+		rebuild()
+	}
+
+	override fun onDisabled() = releaseMayorFeed()
+
+	internal fun ticked() {
+		ensureMayorFeed()
+		if (composer.faded() || composer.ticked() || enabledLines !== shownLines) rebuild()
+	}
+
+	private fun ensureMayorFeed() {
+		val wanted = linesSetting.enabled(ScoreboardLine.MAYOR.label)
+		if (wanted && !mayorHeld && MayorService.active()) {
+			mayorRequirement = MayorService.require()
+			mayorHeld = true
+		} else if (!wanted && mayorHeld) {
+			releaseMayorFeed()
+		}
+	}
+
+	private fun releaseMayorFeed() {
+		mayorRequirement.unsubscribe()
+		mayorRequirement = Handle {}
+		mayorHeld = false
+	}
 
 	internal fun rebuild() {
 		composer.sampled()

@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
+import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerReadyEvent
 import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.GuardedHooks
@@ -14,7 +15,9 @@ import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.event.guarded
 import io.github.dzkchen.dhen.util.Failsafe
+import net.minecraft.client.Minecraft
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.ItemStack
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -33,6 +36,7 @@ internal object QuiverHooks : GuardedHooks<QuiverHooks.Channels> {
 			bus.subscribe<PacketReceiveEvent.Post>(BEFORE_FEATURES) { received(it) },
 			bus.subscribe<ChatReceiveEvent>(BEFORE_FEATURES) { chatted(it.styled) },
 			bus.subscribe<ContainerReadyEvent>(BEFORE_FEATURES) { opened(it) },
+			bus.subscribe<ClientTickEvent.Start>(BEFORE_FEATURES) { ticked() },
 			bus.subscribe<WorldChangeEvent> { reset() },
 			bus.subscribe<IslandChangeEvent> { if (it.resetsWorldState) reset() }
 		)
@@ -58,11 +62,14 @@ internal object QuiverHooks : GuardedHooks<QuiverHooks.Channels> {
 
 	private fun opened(event: ContainerReadyEvent) = guarded("quiver menu") { it.opened(event) }
 
+	private fun ticked() = guarded("quiver equipment") { it.ticked() }
+
 	private fun reset() = guarded("quiver reset") { it.reset() }
 
 	internal class Channels(
 		bus: EventBus,
-		private val inSkyBlock: () -> Boolean = { SkyBlockLocation.inSkyBlock }
+		private val inSkyBlock: () -> Boolean = { SkyBlockLocation.inSkyBlock },
+		private val chestSlot: () -> ItemStack? = { Minecraft.getInstance().player?.getItemBySlot(EquipmentSlot.CHEST) }
 	) {
 		private val updates = bus.type<QuiverUpdateEvent>()
 		private val active = matcher("Active Arrow: (?<type>.*) \\((?<amount>[\\d,]+)\\)")
@@ -75,6 +82,7 @@ internal object QuiverHooks : GuardedHooks<QuiverHooks.Channels> {
 		private val reset = matcher("§cYour favorite arrow has been reset!")
 		private val added = matcher("(?:§.)*You've added (?:§.)*(?<type>.*) x(?<amount>.*) (?:§.)*to your quiver!")
 		private val ownSlotMemo = SkyBlockItems.memo(1)
+		private val chestMemo = SkyBlockItems.memo(1)
 		private val menuMemo = SkyBlockItems.memo(54)
 		private val summed = IntArray(QuiverArrow.entries.size)
 		private val normalized = StringBuilder()
@@ -127,6 +135,12 @@ internal object QuiverHooks : GuardedHooks<QuiverHooks.Channels> {
 					if (changed) publish(QuiverArrow.NONE)
 				}
 			}
+		}
+
+		fun ticked() {
+			val chest = if (inSkyBlock()) chestSlot() ?: ItemStack.EMPTY else ItemStack.EMPTY
+			val infinite = chestMemo.of(0, chest).id == SKELETON_MASTER_CHESTPLATE
+			if (QuiverState.wearInfinite(infinite)) publish(QuiverState.currentArrow)
 		}
 
 		fun reset() {
@@ -199,4 +213,5 @@ internal object QuiverHooks : GuardedHooks<QuiverHooks.Channels> {
 	private const val OWN_INVENTORY = 0
 	private const val QUIVER_SLOT = 44
 	private const val QUIVER_TITLE = "Quiver"
+	private const val SKELETON_MASTER_CHESTPLATE = "SKELETON_MASTER_CHESTPLATE"
 }

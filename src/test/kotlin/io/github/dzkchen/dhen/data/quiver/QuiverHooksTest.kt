@@ -24,7 +24,7 @@ class QuiverHooksTest {
 	fun prepare() {
 		QuiverState.reset()
 		bus = EventBus()
-		channels = QuiverHooks.Channels(bus) { true }
+		channels = QuiverHooks.Channels(bus, inSkyBlock = { true })
 		bus.subscribe<QuiverUpdateEvent> { updates++ }
 		updates = 0
 	}

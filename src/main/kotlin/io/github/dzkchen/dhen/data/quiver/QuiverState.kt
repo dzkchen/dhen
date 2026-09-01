@@ -32,6 +32,9 @@ object QuiverState {
 	var currentArrow: QuiverArrow? = null
 		private set
 
+	var infiniteArrows: Boolean = false
+		private set
+
 	val currentAmount: Int
 		get() = currentArrow?.let { amounts[it.ordinal] } ?: 0
 
@@ -68,10 +71,17 @@ object QuiverState {
 		return changed
 	}
 
+	internal fun wearInfinite(infinite: Boolean): Boolean {
+		if (infiniteArrows == infinite) return false
+		infiniteArrows = infinite
+		return true
+	}
+
 	internal fun reset(): Boolean {
 		val amountsChanged = clearAmounts()
-		val changed = currentArrow != null || amountsChanged
+		val changed = currentArrow != null || amountsChanged || infiniteArrows
 		currentArrow = null
+		infiniteArrows = false
 		return changed
 	}
 }

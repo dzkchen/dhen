@@ -2,6 +2,8 @@ package io.github.dzkchen.dhen.util
 
 private const val GROUP_SIZE = 3
 
+internal const val NO_DIGITS = -1L
+
 internal fun grouped(value: Long): String {
 	val sign = if (value < 0) "-" else ""
 	val text = if (value < 0) (-value).toString() else value.toString()
@@ -19,4 +21,13 @@ internal fun grouped(value: Long): String {
 		index += GROUP_SIZE
 	}
 	return result.toString()
+}
+
+internal fun digits(text: String?): Long {
+	var value = NO_DIGITS
+	for (character in text ?: return NO_DIGITS) {
+		if (character !in '0'..'9') continue
+		value = (if (value == NO_DIGITS) 0L else value) * 10 + (character - '0')
+	}
+	return value
 }

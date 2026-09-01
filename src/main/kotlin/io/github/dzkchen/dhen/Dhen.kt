@@ -11,7 +11,9 @@ import io.github.dzkchen.dhen.data.HypixelModApi
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
+import io.github.dzkchen.dhen.data.cookie.CookieHooks
 import io.github.dzkchen.dhen.data.mayor.MayorService
+import io.github.dzkchen.dhen.data.maxwell.MaxwellHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.price.Prices
@@ -156,6 +158,8 @@ object Dhen : ClientModInitializer {
 			PlayerStatsHooks,
 			PetHooks,
 			QuiverHooks,
+			MaxwellHooks,
+			CookieHooks,
 			firstRunExperience,
 			HypixelModApi
 		)
@@ -352,6 +356,8 @@ object Dhen : ClientModInitializer {
 		PlayerStatsHooks.install(modules.eventBus)
 		PetHooks.install(modules.eventBus)
 		QuiverHooks.install(modules.eventBus)
+		MaxwellHooks.install(modules.eventBus)
+		CookieHooks.install(modules.eventBus)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)

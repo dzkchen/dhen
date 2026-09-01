@@ -36,7 +36,6 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
-import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.BowItem
 import net.minecraft.world.item.ItemStack
@@ -94,7 +93,7 @@ object QuiverDisplay : Module(
 					it.arrow,
 					it.amount,
 					inInstance(),
-					lowQuiverSetting.on,
+					lowQuiverSetting.on && !QuiverState.infiniteArrows,
 					lowQuiverAmountSetting.amount.toInt()
 				)
 			) {
@@ -142,11 +141,7 @@ object QuiverDisplay : Module(
 		}
 		val inventory = player.inventory
 		if (
-			equipment.sample(
-				inventory.nonEquipmentItems,
-				player.mainHandItem,
-				player.getItemBySlot(EquipmentSlot.CHEST)
-			)
+			equipment.sample(inventory.nonEquipmentItems, player.mainHandItem)
 		) {
 			element.refresh()
 		}
@@ -220,10 +215,7 @@ internal class QuiverEquipment {
 	var holdingBow: Boolean = false
 		private set
 
-	var infiniteArrows: Boolean = false
-		private set
-
-	fun sample(items: List<ItemStack>, selected: ItemStack, chest: ItemStack): Boolean {
+	fun sample(items: List<ItemStack>, selected: ItemStack): Boolean {
 		var foundBow = false
 		for (index in items.indices) {
 			if (realBow(items[index], slots.of(index, items[index]))) {
@@ -232,19 +224,16 @@ internal class QuiverEquipment {
 			}
 		}
 		val selectedBow = realBow(selected, slots.of(HAND_SLOT, selected))
-		val wearingInfinite = slots.of(CHEST_SLOT, chest).id == SKELETON_MASTER_CHESTPLATE
-		if (hasBow == foundBow && holdingBow == selectedBow && infiniteArrows == wearingInfinite) return false
+		if (hasBow == foundBow && holdingBow == selectedBow) return false
 		hasBow = foundBow
 		holdingBow = selectedBow
-		infiniteArrows = wearingInfinite
 		return true
 	}
 
 	fun clear(): Boolean {
-		if (!hasBow && !holdingBow && !infiniteArrows) return false
+		if (!hasBow && !holdingBow) return false
 		hasBow = false
 		holdingBow = false
-		infiniteArrows = false
 		return true
 	}
 
@@ -252,12 +241,10 @@ internal class QuiverEquipment {
 		stack.item is BowItem && item.id != BOSS_SPIRIT_BOW && item.id != CRYPT_BOW
 
 	private companion object {
-		const val EXTRA_SLOTS = 2
+		const val EXTRA_SLOTS = 1
 		const val HAND_SLOT = Inventory.INVENTORY_SIZE
-		const val CHEST_SLOT = HAND_SLOT + 1
 		const val BOSS_SPIRIT_BOW = "BOSS_SPIRIT_BOW"
 		const val CRYPT_BOW = "CRYPT_BOW"
-		const val SKELETON_MASTER_CHESTPLATE = "SKELETON_MASTER_CHESTPLATE"
 	}
 }
 
@@ -313,7 +300,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 	fun refresh() {
 		val nextArrow = QuiverState.currentArrow
 		val nextAmount = QuiverState.currentAmount
-		val nextInfinite = QuiverDisplay.equipment.infiniteArrows
+		val nextInfinite = QuiverState.infiniteArrows
 		val nextIconShown = QuiverDisplay.currentShowIcon()
 		val nextRepoState = ItemRepo.state
 		val nextRepoCommit = ItemRepo.commit

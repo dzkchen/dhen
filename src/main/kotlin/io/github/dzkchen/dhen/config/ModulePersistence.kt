@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.config
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.Dhen
@@ -20,11 +21,35 @@ object ModulePersistence {
 	private const val FOLDED_DARK_MODE_MODULE = "Dark Mode"
 	private const val ENABLED = "enabled"
 	private const val SETTINGS = "settings"
+	private const val SCOREBOARD_MODULE = "Custom Scoreboard"
+	private const val SCOREBOARD_LINES = "Lines"
+
+	private val scoreboardLinesAdded = listOf(
+		"Island" to "Player Count",
+		"Location" to "Visiting",
+		"Visiting" to "Profile",
+		"Purse" to "Motes",
+		"Motes" to "Bank",
+		"Bits" to "Copper",
+		"Copper" to "Sowdust",
+		"Sowdust" to "Gems",
+		"Gems" to "Heat",
+		"Heat" to "Cold",
+		"Cold" to "North Stars",
+		"North Stars" to "Soulflow",
+		"Separator 3" to "Cookie Buff",
+		"Quiver" to "Power",
+		"Power" to "Tuning",
+		"Separator 4" to "Objective",
+		"Slayer" to "Powder",
+		"Powder" to "Mayor"
+	)
 
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) },
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_ARROW_HIT_SOUND_MODULE) },
-		{ doc: JsonObject -> doc.obj(MODULES)?.let(::foldVisualTweaks) }
+		{ doc: JsonObject -> doc.obj(MODULES)?.let(::foldVisualTweaks) },
+		{ doc: JsonObject -> doc.obj(MODULES)?.let(::offerNewScoreboardLines) }
 	)
 	internal val version: Int
 		get() = migrations.size
@@ -46,6 +71,20 @@ object ModulePersistence {
 			anyEnabled = anyEnabled || wasEnabled
 		}
 		merged.addProperty(ENABLED, anyEnabled)
+	}
+
+	private fun offerNewScoreboardLines(modules: JsonObject) {
+		val lines = modules.obj(SCOREBOARD_MODULE)?.obj(SETTINGS)?.getAsJsonArray(SCOREBOARD_LINES) ?: return
+		val held = ArrayList<String>(lines.size())
+		for (line in lines) held += line.asString
+		for ((after, added) in scoreboardLinesAdded) {
+			if (added in held) continue
+			val at = held.indexOf(after)
+			if (at < 0) held += added else held.add(at + 1, added)
+		}
+		val replacement = JsonArray()
+		for (line in held) replacement.add(line)
+		modules.obj(SCOREBOARD_MODULE)?.obj(SETTINGS)?.add(SCOREBOARD_LINES, replacement)
 	}
 
 	fun snapshot(manager: ModuleManager): JsonObject {

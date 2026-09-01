@@ -108,6 +108,56 @@ class ModulePersistenceTest {
 	}
 
 	@Test
+	fun `a scoreboard line list saved before the long tail gains the new lines in their own places`(@TempDir dir: Path) {
+		val path = dir.resolve("modules.json")
+		Files.writeString(
+			path,
+			"""{"modules":{"Custom Scoreboard":{"enabled":true,"settings":{"Lines":""" +
+				"""["Lobby Code","Separator 1","Date","Time","Island","Location","Separator 2","Purse","Bits",""" +
+				""""Separator 3","Quiver","Separator 4","Slayer","Party","Footer","Extra"]}}}}"""
+		)
+
+		val loaded = ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations).load()
+
+		val lines = loaded.getAsJsonObject("modules")
+			.getAsJsonObject("Custom Scoreboard")
+			.getAsJsonObject("settings")
+			.getAsJsonArray("Lines")
+			.map { it.asString }
+
+		assertEquals(
+			listOf(
+				"Lobby Code", "Separator 1", "Date", "Time", "Island", "Player Count", "Location", "Visiting",
+				"Profile", "Separator 2", "Purse", "Motes", "Bank", "Bits", "Copper", "Sowdust", "Gems", "Heat",
+				"Cold", "North Stars", "Soulflow", "Separator 3", "Cookie Buff", "Quiver", "Power", "Tuning",
+				"Separator 4", "Objective", "Slayer", "Powder", "Mayor", "Party", "Footer", "Extra"
+			),
+			lines
+		)
+	}
+
+	@Test
+	fun `a scoreboard line the player removed is not put back, and its followers still land`(@TempDir dir: Path) {
+		val path = dir.resolve("modules.json")
+		Files.writeString(
+			path,
+			"""{"modules":{"Custom Scoreboard":{"enabled":true,"settings":{"Lines":["Island","Purse","Extra"]}}}}"""
+		)
+
+		val loaded = ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations).load()
+
+		val lines = loaded.getAsJsonObject("modules")
+			.getAsJsonObject("Custom Scoreboard")
+			.getAsJsonObject("settings")
+			.getAsJsonArray("Lines")
+			.map { it.asString }
+
+		assertEquals(listOf("Island", "Player Count"), lines.take(2))
+		assertFalse(lines.contains("Bits"))
+		assertTrue(lines.containsAll(listOf("Motes", "Bank", "Copper", "Cookie Buff", "Mayor", "Powder")))
+	}
+
+	@Test
 	fun `an unknown module in the file is ignored`() {
 		val manager = ModuleManager()
 		val module = SampleModule().also { manager.register(it) }
