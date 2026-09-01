@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import io.github.dzkchen.dhen.features.visual.Camera;
+import io.github.dzkchen.dhen.features.visual.CustomScoreboard;
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud;
 import io.github.dzkchen.dhen.features.visual.VisualTweaks;
 import net.minecraft.client.DeltaTracker;
@@ -17,6 +18,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Hud.class)
 public abstract class HudMixin {
+	@Inject(method = "extractScoreboardSidebar", at = @At("HEAD"), cancellable = true)
+	private void dhen$hideScoreboard(final CallbackInfo callback) {
+		if (CustomScoreboard.shouldHideVanilla()) {
+			callback.cancel();
+		}
+	}
+
 	@Inject(method = "extractArmor", at = @At("HEAD"), cancellable = true)
 	private static void dhen$hideArmor(
 		final GuiGraphicsExtractor graphics,

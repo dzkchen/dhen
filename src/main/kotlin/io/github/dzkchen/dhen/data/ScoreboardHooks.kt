@@ -44,6 +44,7 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 
 	private var subscriptions: Array<Handle> = emptyArray()
 
+	@Suppress("DuplicatedCode")
 	fun install(bus: EventBus, sidebar: () -> Scoreboard? = { Minecraft.getInstance().level?.scoreboard }) {
 		uninstall()
 		channels = Channels(bus, sidebar)
@@ -113,7 +114,7 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 			try {
 				val scoreboard = sidebar()
 				val objective = scoreboard?.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return cleared()
-				ScoreboardState.heading(objective.name, legacyCodes(objective.displayName))
+				val headingChanged = ScoreboardState.heading(objective.name, legacyCodes(objective.displayName))
 				HypixelLocationHooks.scoreboardTitled(objective.name, ScoreboardState.strippedTitle)
 				val lines = ArrayList<String>(SIDEBAR_LINES)
 				val stripped = ArrayList<String>(SIDEBAR_LINES)
@@ -124,23 +125,24 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 					lines += line
 					stripped += withoutCodes(line)
 				}
-				publish(lines, stripped)
+				publish(lines, stripped, headingChanged)
 			} finally {
 				refreshing = false
 			}
 		}
 
 		private fun cleared() {
-			ScoreboardState.heading("", "")
+			val headingChanged = ScoreboardState.heading("", "")
 			HypixelLocationHooks.scoreboardTitled("", "")
-			publish(emptyList(), emptyList())
+			publish(emptyList(), emptyList(), headingChanged)
 		}
 
-		private fun publish(lines: List<String>, stripped: List<String>) {
+		private fun publish(lines: List<String>, stripped: List<String>, headingChanged: Boolean) {
 			val previous = ScoreboardState.lines
-			if (!ScoreboardState.read(lines, stripped)) return
+			val linesChanged = ScoreboardState.read(lines, stripped)
+			if (!headingChanged && !linesChanged) return
 			updates.dispatch(ScoreboardUpdateEvent(lines, previous))
-			locate(lines)
+			if (linesChanged) locate(lines)
 		}
 
 		private fun locate(lines: List<String>) {

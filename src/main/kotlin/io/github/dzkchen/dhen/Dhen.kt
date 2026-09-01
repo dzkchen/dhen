@@ -40,6 +40,7 @@ import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
+import io.github.dzkchen.dhen.features.visual.CustomScoreboard
 import io.github.dzkchen.dhen.features.visual.MaskTimers
 import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
@@ -220,6 +221,7 @@ object Dhen : ClientModInitializer {
 			Tweaks,
 			Animations,
 			Camera,
+			CustomScoreboard,
 			MaskTimers,
 			PetDisplay,
 			PlayerStatsHud,

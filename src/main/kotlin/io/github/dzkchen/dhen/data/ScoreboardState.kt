@@ -21,10 +21,12 @@ object ScoreboardState {
 	var area: String? = null
 		private set
 
-	internal fun heading(objective: String, title: String) {
+	internal fun heading(objective: String, title: String): Boolean {
+		val changed = this.objective != objective || this.title != title
 		this.objective = objective
 		this.title = title
 		strippedTitle = withoutCodes(title)
+		return changed
 	}
 
 	internal fun read(lines: List<String>, stripped: List<String>): Boolean {

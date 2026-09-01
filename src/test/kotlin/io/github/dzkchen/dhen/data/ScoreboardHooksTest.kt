@@ -71,7 +71,9 @@ class ScoreboardHooksTest {
 		sidebar("Lobby", "same" to 1, objectiveName = "lobby")
 		ScoreboardHooks.refresh()
 
-		assertEquals(published, updates.size)
+		assertEquals(published + 1, updates.size)
+		assertEquals(listOf("same"), updates.last().lines)
+		assertEquals(listOf("same"), updates.last().previous)
 		assertFalse(SkyBlockLocation.inSkyBlock)
 		assertEquals(Island.NONE, SkyBlockLocation.island)
 	}
