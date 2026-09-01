@@ -48,6 +48,7 @@ import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
 import io.github.dzkchen.dhen.font.FontRuntime
+import io.github.dzkchen.dhen.gui.ArcPreviewScreen
 import io.github.dzkchen.dhen.gui.ClickGuiShellScreen
 import io.github.dzkchen.dhen.gui.ClickGuiState
 import io.github.dzkchen.dhen.gui.ClientPrefs
@@ -199,6 +200,7 @@ object Dhen : ClientModInitializer {
 			resetHudLayout = ::resetHudLayout,
 			themes = themes,
 			toggleWorldRender = WorldRenderProbe::toggle,
+			openArcPreview = ::openArcPreview,
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
 			showNotice = ::previewPrivacyNotice,
 			available = { !failsafe.failed },
@@ -405,6 +407,11 @@ object Dhen : ClientModInitializer {
 				DhenAlert::endPreview
 			)
 		)
+	}
+
+	private fun openArcPreview() = clientThread.dispatch(EmptyCoroutineContext) {
+		val client = Minecraft.getInstance()
+		client.gui.setScreen(ArcPreviewScreen(client.gui.screen()))
 	}
 
 	private fun previewPrivacyNotice() {

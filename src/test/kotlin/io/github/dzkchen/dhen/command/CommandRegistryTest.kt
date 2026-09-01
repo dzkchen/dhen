@@ -493,6 +493,20 @@ class CommandRegistryTest {
 	}
 
 	@Test
+	fun `debug arc opens the retained primitive preview through both command roots`() {
+		var shown = 0
+		val registry = CommandRegistry<Any>(ModuleManager(), openArcPreview = { shown++ }) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen debug arc", Any())
+		dispatcher.execute("dh debug arc", Any())
+
+		assertEquals(2, shown)
+		assertEquals(listOf("Opening the annular-segment preview.", "Opening the annular-segment preview."), captured)
+	}
+
+	@Test
 	fun `debug sound validates the identifier and reports the persisted normalized percent`() {
 		var identifier: String? = null
 		var requested = -1

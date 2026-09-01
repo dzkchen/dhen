@@ -27,6 +27,7 @@ class CommandRegistry<S>(
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
+	private val openArcPreview: () -> Unit = {},
 	private val showAlert: () -> Unit = {},
 	private val showNotice: () -> Unit = {},
 	private val available: () -> Boolean = { true },
@@ -189,6 +190,12 @@ class CommandRegistry<S>(
 				literal<S>("deep")
 					.then(deepMode("on", true))
 					.then(deepMode("off", false))
+			)
+			.then(
+				literal<S>("arc").executes { context ->
+					openArcPreview()
+					report(context.source, "Opening the annular-segment preview.")
+				}
 			)
 			.then(
 				literal<S>("alert").executes { context ->

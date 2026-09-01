@@ -36,7 +36,7 @@ class DhenShapeTest {
 	private companion object {
 		const val SEAM = "SharpGui.kt"
 		const val SPLASH_SEAM = "LoadingSplash.kt"
-		val PRIMITIVE_SEAMS = setOf("RoundedGui.kt", "GradientGui.kt")
+		val PRIMITIVE_SEAMS = setOf("RoundedGui.kt", "GradientGui.kt", "ArcGui.kt")
 		val VANILLA_RECTANGLE =
 			Regex("""graphics\.(fill|fillGradient|outline|horizontalLine|verticalLine)\(""")
 		val RENDER_ELEMENT = Regex("""addGuiElement\(""")
