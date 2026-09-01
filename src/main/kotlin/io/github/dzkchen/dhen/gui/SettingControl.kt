@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
+import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.SoundSetting
@@ -104,6 +105,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	protected open fun onDrag(localX: Int, localY: Int, width: Int) = Unit
 
+	protected open fun onRelease() = Unit
+
 	protected open fun onKeyPressed(key: Int, modifiers: Int): ControlKey = ControlKey.IGNORED
 
 	protected open fun onCharTyped(codepoint: Int): Boolean = false
@@ -136,6 +139,8 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		guarded(null, null) { onPress(localX, localY, width) }
 
 	fun drag(localX: Int, localY: Int, width: Int) = guarded(Unit, Unit) { onDrag(localX, localY, width) }
+
+	fun release() = guarded(Unit, Unit) { onRelease() }
 
 	fun keyPressed(key: Int, modifiers: Int): ControlKey =
 		guarded(ControlKey.IGNORED, ControlKey.CANCELLED) { onKeyPressed(key, modifiers) }
@@ -271,6 +276,7 @@ internal fun isPrintable(codepoint: Int): Boolean = codepoint in PRINTABLE_MIN..
 internal fun controlFor(setting: Setting<*>): SettingControl? = when (setting) {
 	is BooleanSetting -> ToggleControl(setting)
 	is NumberSetting -> SliderControl(setting)
+	is OrderedSelectionSetting -> OrderedSelectionControl(setting)
 	is SelectorSetting -> if (setting.listed) DropdownControl(setting) else CycleControl(setting)
 	is StringSetting -> TextControl(setting)
 	is ColorSetting -> ColorControl(setting)

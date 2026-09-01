@@ -103,6 +103,24 @@ class RepoConstantsTest {
 	}
 
 	@Test
+	fun `pet progress exposes current and next thresholds percentage and overflow`() {
+		write("pets", ConstantsFixture.PETS)
+		val constants = read()
+
+		val halfway = constants.petProgress("AMMONITE", "LEGENDARY", 50.5)
+		assertEquals(51, halfway.level)
+		assertEquals(50.0, halfway.currentLevelXp)
+		assertEquals(51.0, halfway.nextLevelXp)
+		assertEquals(50.0, halfway.percentage)
+		assertEquals(0.0, halfway.overflowXp)
+
+		val maxed = constants.petProgress("AMMONITE", "LEGENDARY", 149.0)
+		assertEquals(100, maxed.level)
+		assertEquals(100.0, maxed.percentage)
+		assertEquals(50.0, maxed.overflowXp)
+	}
+
+	@Test
 	fun `skill experience is spent one level at a time and stops at the cap the repo names`() {
 		write("leveling", ConstantsFixture.LEVELING)
 

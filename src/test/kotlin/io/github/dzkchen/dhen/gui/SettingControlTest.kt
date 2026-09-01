@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
+import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
@@ -34,7 +35,26 @@ class SettingControlTest {
 		assertInstanceOf(ColorControl::class.java, controlFor(ColorSetting("c", Color.rgba(0, 0, 0))))
 		assertInstanceOf(KeybindControl::class.java, controlFor(KeybindSetting("k")))
 		assertInstanceOf(ActionControl::class.java, controlFor(ActionSetting("a")))
+		assertInstanceOf(OrderedSelectionControl::class.java, controlFor(OrderedSelectionSetting("o", OPTIONS, listOf("A"))))
 		assertInstanceOf(SoundControl::class.java, controlFor(SoundSetting("sound", SoundEvents.NOTE_BLOCK_HARP.value())))
+	}
+
+	@Test
+	fun `ordered selection toggles inactive rows and drags enabled rows`() {
+		val setting = OrderedSelectionSetting("Lines", OPTIONS, listOf("A", "B"))
+		val control = OrderedSelectionControl(setting)
+		val thirdRow = CONTROL_ROW_HEIGHT + LIST_PAD + 2 * LIST_ROW_HEIGHT
+
+		assertEquals(ControlPress.CHANGED, control.press(0, thirdRow, WIDTH))
+		assertEquals(listOf("A", "B", "C"), setting.value)
+
+		val firstRow = CONTROL_ROW_HEIGHT + LIST_PAD
+		val secondRow = firstRow + LIST_ROW_HEIGHT
+		assertEquals(ControlPress.TRACK, control.press(WIDTH, firstRow, WIDTH))
+		control.drag(WIDTH, secondRow, WIDTH)
+		control.release()
+
+		assertEquals(listOf("B", "A", "C"), setting.value)
 	}
 
 	@Test

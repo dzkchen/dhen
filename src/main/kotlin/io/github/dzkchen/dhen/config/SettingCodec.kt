@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.config
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
@@ -38,12 +39,18 @@ internal object SettingCodec {
 		is ColorSetting -> JsonPrimitive(setting.value.argb)
 		is KeybindSetting -> JsonPrimitive(setting.value)
 		is SelectorSetting -> JsonPrimitive(setting.preferred)
+		is OrderedSelectionSetting -> JsonArray().also { array -> setting.value.forEach(array::add) }
 		is SoundSetting -> JsonPrimitive(setting.value.location().toString())
 		is StringSetting -> JsonPrimitive(setting.value)
 		else -> null
 	}
 
 	fun deserialize(setting: Setting<*>, element: JsonElement) {
+		if (setting is OrderedSelectionSetting) {
+			if (element !is JsonArray) return
+			setting.value = element.mapNotNull { it.takeIf(JsonElement::isJsonPrimitive)?.asString }
+			return
+		}
 		if (element !is JsonPrimitive) return
 		when (setting) {
 			is BooleanSetting -> setting.value = element.asBoolean

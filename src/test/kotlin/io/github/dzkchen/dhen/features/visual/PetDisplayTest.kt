@@ -22,11 +22,11 @@ class PetDisplayTest {
 	}
 
 	@Test
-	fun `the module declares its twenty eight settings and no movable element`() {
+	fun `the module keeps its menu features and adds the configurable current pet element`() {
 		assertEquals("Pet Display", PetDisplay.name)
 		assertEquals(Category.VISUAL, PetDisplay.category)
-		assertTrue(PetDisplay.hudElements.isEmpty())
-		assertEquals(11, PetDisplay.subscriptionCount)
+		assertEquals(listOf(PetDisplay.hudElement), PetDisplay.hudElements)
+		assertEquals(12, PetDisplay.subscriptionCount)
 		assertEquals(
 			listOf(
 				"Auto Pet Title",
@@ -58,8 +58,12 @@ class PetDisplayTest {
 				"Pet Slot 8",
 				"Pet Slot 9"
 			),
-			PetDisplay.settings.map { it.name }
+			PetDisplay.settings.take(28).map { it.name }
 		)
+		assertEquals(PetDisplay.settings.size, PetDisplay.settings.map { it.name }.distinct().size)
+		assertTrue(PetDisplay.settings.map { it.name }.containsAll(CURRENT_PET_SETTINGS))
+		assertEquals(listOf("Pet Name", "Next Level", "Held Item"), PetDisplay.enabledTextSetting.value)
+		assertEquals(listOf("Pet Name", "Next Level"), PetDisplay.expShareEnabledTextSetting.value)
 	}
 
 	@Test
@@ -182,5 +186,81 @@ class PetDisplayTest {
 		assertTrue(PetDisplay.favouritePetsOnlySetting.on)
 		assertEquals(Color.rgba(9, 8, 7, 6), PetDisplay.segmentColorSetting.value)
 		assertEquals(GLFW.GLFW_MOUSE_BUTTON_5, PetDisplay.petSlot1Setting.code)
+	}
+
+	@Test
+	fun `the current pet text order persists through the module setting codec`() {
+		PetDisplay.enabledTextSetting.value = listOf("Held Item", "Pet Name", "Total XP")
+		val stored = SettingCodec.writeInto(JsonObject(), PetDisplay.settings)
+
+		PetDisplay.enabledTextSetting.reset()
+		SettingCodec.readInto(stored, PetDisplay.settings, PetDisplay.name)
+
+		assertEquals(listOf("Held Item", "Pet Name", "Total XP"), PetDisplay.enabledTextSetting.value)
+	}
+
+	@Test
+	fun `visual reset actions restore the settings they own`() {
+		PetDisplay.staticRotationXSetting.value = 90.0
+		PetDisplay.spinRotationZSetting.value = 180.0
+		PetDisplay.backgroundPaddingSetting.value = 8.0
+		PetDisplay.expSharePlacementSetting.value = "Orbit"
+
+		PetDisplay.resetStaticRotationSetting.value.invoke()
+		PetDisplay.resetSpinRotationSetting.value.invoke()
+		PetDisplay.resetBackgroundSetting.value.invoke()
+		PetDisplay.resetOrganizationSetting.value.invoke()
+
+		assertEquals(0.0, PetDisplay.staticRotationXSetting.value)
+		assertEquals(0.0, PetDisplay.spinRotationZSetting.value)
+		assertEquals(4.0, PetDisplay.backgroundPaddingSetting.value)
+		assertEquals("Right", PetDisplay.expSharePlacementSetting.value)
+	}
+
+	private companion object {
+		val CURRENT_PET_SETTINGS = setOf(
+			"Preview Scale",
+			"Pet Icon",
+			"Skin Animation",
+			"Icon Scale",
+			"Static Rotation X",
+			"Rotation Speed Z",
+			"Background Enabled",
+			"Common Color",
+			"Mythic Color",
+			"XP Ring Enabled",
+			"Filled Ring Color",
+			"Separator Ring Enabled",
+			"HUD Pet Item Enabled",
+			"HUD Pet Item Placement",
+			"Exp-Share Pets",
+			"Exp-Share Placement Location",
+			"Orbit Direction",
+			"Hide Disabled Slots",
+			"Disabled Opacity",
+			"Exp-Share Pet Icon",
+			"Exp-Share Background Enabled",
+			"Exp-Share XP Ring Enabled",
+			"Exp-Share Pet Item Enabled",
+			"Enabled Text",
+			"Text Labels",
+			"Pet Level",
+			"Skin Symbol",
+			"Next Level %",
+			"XP Format",
+			"Text Scale",
+			"Text Location",
+			"Center Target",
+			"Vertical Alignment",
+			"Horizontal Alignment",
+			"Exp-Share Text Enabled",
+			"Exp-Share Text Mode",
+			"Bundled Location",
+			"Bundled Spacing",
+			"Exp-Share Enabled Text",
+			"Exp-Share Text Location",
+			"Exp-Share Vertical Alignment",
+			"Exp-Share Horizontal Alignment"
+		)
 	}
 }

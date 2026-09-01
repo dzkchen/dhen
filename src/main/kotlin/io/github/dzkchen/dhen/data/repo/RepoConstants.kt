@@ -22,6 +22,24 @@ class ReforgeStone internal constructor(val stone: String, val reforge: String, 
 
 class StarTier internal constructor(val essence: String, val essenceAmount: Int, val materials: Map<String, Int>)
 
+class PetLevelProgress internal constructor(
+	val level: Int,
+	val maxLevel: Int,
+	val currentLevelXp: Double,
+	val nextLevelXp: Double,
+	val totalXp: Double
+) {
+	val percentage: Double
+		get() {
+			if (level >= maxLevel) return 100.0
+			val needed = nextLevelXp - currentLevelXp
+			return if (needed <= 0.0) 0.0 else ((totalXp - currentLevelXp) / needed * 100.0).coerceIn(0.0, 100.0)
+		}
+
+	val overflowXp: Double
+		get() = if (level >= maxLevel) (totalXp - currentLevelXp).coerceAtLeast(0.0) else 0.0
+}
+
 private class PetLeveling(val extraLevels: List<Int>, val maxLevel: Int, val rarityOffsets: Map<String, Int>)
 
 enum class LevelLadder { SKILL, SLAYER, SKILL_TREE, GARDEN, CROP_MILESTONE }
@@ -80,19 +98,33 @@ class RepoConstants private constructor(
 	fun maxLevel(ladder: LevelLadder, key: String): Int = leveling.table(ladder, key).maxLevel
 
 	fun petLevel(type: String, tier: String, exp: Double, curveTier: String = tier): Int {
+		return petProgress(type, tier, exp, curveTier).level
+	}
+
+	fun petProgress(type: String, tier: String, exp: Double, curveTier: String = tier): PetLevelProgress {
 		val custom = customPets[type]
 		val offset = custom?.rarityOffsets?.let { it[curveTier] ?: it[tier] }
-			?: petRarityOffsets[curveTier] ?: petRarityOffsets[tier] ?: return 1
-		val tree = if (custom == null || custom.extraLevels.isEmpty()) petLevels else petLevels + custom.extraLevels
+			?: petRarityOffsets[curveTier] ?: petRarityOffsets[tier]
+			?: return PetLevelProgress(1, custom?.maxLevel ?: DEFAULT_PET_MAX_LEVEL, 0.0, 0.0, exp)
 		val maxLevel = custom?.maxLevel ?: DEFAULT_PET_MAX_LEVEL
-		var remaining = exp
+		var threshold = 0.0
 		var level = 1
-		for (index in offset until tree.size) {
-			if (level >= maxLevel || remaining < tree[index]) break
-			remaining -= tree[index]
+		var index = offset
+		while (level < maxLevel) {
+			val cost = petCost(index, custom) ?: break
+			if (exp < threshold + cost) break
+			threshold += cost
 			level++
+			index++
 		}
-		return level
+		val next = if (level >= maxLevel) threshold else petCost(index, custom)?.let { threshold + it } ?: threshold
+		return PetLevelProgress(level, maxLevel, threshold, next, exp)
+	}
+
+	private fun petCost(index: Int, custom: PetLeveling?): Int? {
+		if (index < petLevels.size) return petLevels[index]
+		val extra = index - petLevels.size
+		return custom?.extraLevels?.getOrNull(extra)
 	}
 
 	internal companion object {

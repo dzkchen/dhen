@@ -8,6 +8,7 @@ import net.minecraft.world.item.component.ItemLore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,6 +20,7 @@ class PetMenuTest {
 	@AfterEach
 	fun reset() {
 		CurrentPet.reset()
+		PetStorage.reset()
 	}
 
 	@Test
@@ -107,6 +109,53 @@ class PetMenuTest {
 		channels.loadout("(1/1) Loadouts", 25, lored("§7Armor: None", "§7Equipment: None"))
 
 		assertEquals("Golden Dragon", CurrentPet.name)
+	}
+
+	@Test
+	fun `pet and exp sharing menus retain the pet data used by the HUD`() {
+		val stored = pet("§8[Lvl 100] §6Mosquito", "§eClick to summon!", "a", "b")
+		val pets = MutableList(44) { ItemStack.EMPTY }
+		pets[10] = stored
+		PetStorage.observe("Pets", pets)
+		val sharing = MutableList(33) { ItemStack.EMPTY }
+		sharing[30] = stored
+
+		PetStorage.observe("Exp Sharing", sharing)
+
+		val record = PetStorage.expShare(0)!!
+		assertEquals(PET_UUID, record.uuid)
+		assertEquals("Mosquito", record.bareName)
+		assertEquals(100, record.level)
+		assertTrue(PetStorage.expShareActive(0, sharingIsCaring = false))
+		assertFalse(PetStorage.expShareActive(1, sharingIsCaring = false))
+		assertTrue(PetStorage.expShareActive(1, sharingIsCaring = true))
+	}
+
+	@Test
+	fun `a chat assertion resolves the retained pet record immediately`() {
+		val pets = MutableList(44) { ItemStack.EMPTY }
+		pets[10] = pet("§8[Lvl 100] §6Mosquito", "§eClick to summon!", "a", "b")
+		PetStorage.observe("Pets", pets)
+
+		channels.chatted("§aYou summoned your §6Mosquito§a!")
+
+		assertEquals(PET_UUID, CurrentPet.uuid)
+		assertEquals(100, CurrentPet.level)
+		assertEquals("LEGENDARY", CurrentPet.tier)
+		assertFalse(CurrentPet.stack.isEmpty)
+	}
+
+	@Test
+	fun `a tab assertion uses its fresh level while retaining the stored icon`() {
+		val pets = MutableList(44) { ItemStack.EMPTY }
+		pets[10] = pet("§8[Lvl 100] §6Mosquito", "§eClick to summon!", "a", "b")
+		PetStorage.observe("Pets", pets)
+
+		CurrentPet.tab("§6Mosquito", 82, "LEGENDARY", 35.0, 1_000L)
+
+		assertEquals(82, CurrentPet.level)
+		assertEquals(PET_UUID, CurrentPet.uuid)
+		assertFalse(CurrentPet.stack.isEmpty)
 	}
 
 	private fun pet(hoverName: String, vararg lore: String): ItemStack =

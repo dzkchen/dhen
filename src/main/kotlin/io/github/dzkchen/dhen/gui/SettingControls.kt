@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
+import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting
 import io.github.dzkchen.dhen.config.StringSetting
@@ -27,6 +28,7 @@ private const val SLIDER_DRAFT_MAX_LENGTH = 32
 private const val CAPTURE_PROMPT = "..."
 private const val UNBOUND_LABEL = "None"
 private const val DROPDOWN_GLYPH = "⌄"
+private const val ORDER_HANDLE = "↕"
 internal const val LIST_PAD = 3
 internal const val LIST_ROW_HEIGHT = 13
 private const val LIST_TEXT_INSET = 4
@@ -271,6 +273,139 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 	}
 
 	override fun onInvalidateMeasurement() = widestValue.invalidate()
+}
+
+internal class OrderedSelectionControl(
+	private val selection: OrderedSelectionSetting
+) : SettingControl(selection) {
+	private val optionText = Array(selection.options.size) { memo() }
+	private val handleText = memo()
+	private var dragged = ClickGuiShell.NONE
+
+	override val height: Int
+		get() = rowHeight + 2 * LIST_PAD + selection.options.size * LIST_ROW_HEIGHT
+
+	override fun onMeasure(font: Font, width: Int): Int = width
+
+	override fun onDraw(graphics: GuiGraphicsExtractor, font: Font, x: Int, y: Int, width: Int, pointerY: Int) {
+		drawLabel(graphics, font, x + CONTROL_TEXT_INSET, labelBlockTop(font, y), DhenPalette.TEXT_PRIMARY)
+		val top = y + rowHeight
+		val right = x + width
+		RoundedGui.frame(graphics, x, top, right, top + listHeight(), LIST_RADIUS, GlassGui.surface(), DhenPalette.BORDER)
+		val shownHandle = handleText.fit(font, ORDER_HANDLE, HANDLE_ROOM - 2 * LIST_TEXT_INSET)
+		val handleWidth = handleText.width(font, shownHandle) + 2 * LIST_TEXT_INSET
+		var rowTop = top + LIST_PAD
+		var row = 0
+		val selected = selection.value
+		for (index in selected.indices) {
+			drawOption(graphics, font, x, right, rowTop, width, selected[index], true, row == dragged, pointerY, handleWidth, shownHandle)
+			rowTop += LIST_ROW_HEIGHT
+			row++
+		}
+		for (option in selection.options) {
+			if (option in selected) continue
+			drawOption(graphics, font, x, right, rowTop, width, option, false, false, pointerY, handleWidth, shownHandle)
+			rowTop += LIST_ROW_HEIGHT
+			row++
+		}
+	}
+
+	override fun onPress(localX: Int, localY: Int, width: Int): ControlPress {
+		val row = rowAt(localY)
+		if (row == ClickGuiShell.NONE) return ControlPress.IGNORED
+		val selected = selection.value
+		if (row < selected.size && localX >= width - HANDLE_ROOM) {
+			dragged = row
+			return ControlPress.TRACK
+		}
+		selection.toggle(optionAt(row, selected))
+		return ControlPress.CHANGED
+	}
+
+	override fun onDrag(localX: Int, localY: Int, width: Int) {
+		if (dragged == ClickGuiShell.NONE) return
+		val target = rowAt(localY).coerceIn(0, selection.value.lastIndex)
+		if (target == dragged) return
+		selection.move(dragged, target)
+		dragged = target
+	}
+
+	override fun onRelease() {
+		dragged = ClickGuiShell.NONE
+	}
+
+	private fun drawOption(
+		graphics: GuiGraphicsExtractor,
+		font: Font,
+		left: Int,
+		right: Int,
+		top: Int,
+		width: Int,
+		option: String,
+		enabled: Boolean,
+		dragging: Boolean,
+		pointerY: Int,
+		handleWidth: Int,
+		shownHandle: String
+	) {
+		val hovered = pointerY >= top && pointerY < top + LIST_ROW_HEIGHT
+		if (hovered || dragging) {
+			RoundedGui.fill(
+				graphics,
+				left + LIST_PAD,
+				top,
+				right - LIST_PAD,
+				top + LIST_ROW_HEIGHT,
+				LIST_ROW_RADIUS,
+				if (dragging) GlassGui.raised() else GlassGui.interactive()
+			)
+		}
+		val memo = optionText[selection.options.indexOf(option)]
+		val room = width - 2 * (LIST_PAD + LIST_TEXT_INSET) - if (enabled) handleWidth else 0
+		val shown = memo.fit(font, option, room)
+		memo.text(
+			graphics,
+			font,
+			shown,
+			left + LIST_PAD + LIST_TEXT_INSET,
+			textTop(font, top, LIST_ROW_HEIGHT),
+			if (enabled) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
+		)
+		if (enabled) {
+			handleText.text(
+				graphics,
+				font,
+				shownHandle,
+				right - LIST_PAD - LIST_TEXT_INSET - handleText.width(font, shownHandle),
+				textTop(font, top, LIST_ROW_HEIGHT),
+				if (hovered) DhenPalette.accent else DhenPalette.TEXT_SECONDARY
+			)
+		}
+	}
+
+	private fun optionAt(row: Int, selected: List<String>): String {
+		if (row < selected.size) return selected[row]
+		var cursor = selected.size
+		for (option in selection.options) {
+			if (option in selected) continue
+			if (cursor == row) return option
+			cursor++
+		}
+		return selection.options.first()
+	}
+
+	private fun rowAt(localY: Int): Int {
+		val top = rowHeight + LIST_PAD
+		if (localY < top) return ClickGuiShell.NONE
+		val row = (localY - top) / LIST_ROW_HEIGHT
+		return if (row in selection.options.indices) row else ClickGuiShell.NONE
+	}
+
+	private fun listHeight(): Int = 2 * LIST_PAD + selection.options.size * LIST_ROW_HEIGHT
+
+	private companion object {
+		const val HANDLE_ROOM = 22
+	}
 }
 
 internal abstract class EditableControl(setting: Setting<*>) : SettingControl(setting) {

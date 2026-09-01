@@ -55,6 +55,8 @@ object ItemRepo {
 
 	val ready: Boolean get() = state == RepoState.READY
 
+	internal fun active(): Boolean = host != null
+
 	fun item(id: String): RepoItem? = catalog.item(id)
 
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)

@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.config
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import io.github.dzkchen.dhen.bootstrapMinecraft
@@ -170,6 +171,35 @@ class SettingTest {
 		assertEquals("B", unknownDefault.value)
 		unknownDefault.value = "missing"
 		assertEquals("A", unknownDefault.value)
+	}
+
+	@Test
+	fun `ordered selection sanitizes toggles and reorders enabled options`() {
+		val setting = OrderedSelectionSetting("Lines", listOf("A", "B", "C"), listOf("C", "missing", "A", "C"))
+
+		assertEquals(listOf("C", "A"), setting.value)
+		setting.toggle("B")
+		assertEquals(listOf("C", "A", "B"), setting.value)
+		setting.move(2, 0)
+		assertEquals(listOf("B", "C", "A"), setting.value)
+		setting.toggle("C")
+		assertEquals(listOf("B", "A"), setting.value)
+	}
+
+	@Test
+	fun `ordered selection persists enabled order and ignores invalid entries`() {
+		val setting = OrderedSelectionSetting("Lines", listOf("A", "B", "C"), listOf("A"))
+		val stored = JsonArray().apply {
+			add("C")
+			add("missing")
+			add("B")
+			add("C")
+		}
+
+		SettingCodec.deserialize(setting, stored)
+
+		assertEquals(listOf("C", "B"), setting.value)
+		assertEquals(listOf("C", "B"), SettingCodec.serialize(setting)!!.asJsonArray.map { it.asString })
 	}
 
 	@Test

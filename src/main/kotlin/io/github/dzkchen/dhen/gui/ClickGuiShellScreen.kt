@@ -234,7 +234,8 @@ internal class ClickGuiShellScreen(
 	}
 
 	private fun pressHostControl(control: SettingControl, x: Int, y: Int) {
-		if (pressControl(control, x, y) != ControlPress.CHANGED) return
+		val result = pressControl(control, x, y)
+		if (result != ControlPress.CHANGED && result != ControlPress.INVOKED) return
 		if (control.clientOwned) persistClient() else persistModules()
 	}
 
@@ -255,7 +256,7 @@ internal class ClickGuiShellScreen(
 		syncOverlay(control)
 		reflowQuarantined(control)
 		val resized = result == ControlPress.RESIZED || control.height != previousHeight
-		if (result == ControlPress.CHANGED || resized) reflowHost(control)
+		if (result == ControlPress.CHANGED || result == ControlPress.INVOKED || resized) reflowHost(control)
 		if (resized && control.expanded) hit.reveal(control.height)
 		return result
 	}
@@ -348,6 +349,7 @@ internal class ClickGuiShellScreen(
 	private fun cancelDrag() {
 		val control = dragged ?: return
 		dragged = null
+		control.release()
 		persistArmed(control)
 	}
 

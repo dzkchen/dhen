@@ -1,10 +1,12 @@
 package io.github.dzkchen.dhen.data.pet
 
+import io.github.dzkchen.dhen.data.item.ItemFixture
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -130,5 +132,65 @@ class PetStateTest {
 		CurrentPet.deselect()
 		assertEquals(CurrentPet.NO_SLOT, CurrentPet.menuSlot)
 		assertEquals("§6Mosquito", CurrentPet.name)
+	}
+
+	@Test
+	fun `the pet tab widget keeps its styled rarity skin level and percentage`() {
+		val styled = listOf(
+			"§r§ePet:",
+			"§r §7[Lvl 1,234] §dRabbit§9 ✦",
+			"§r§7XP: 123/456 (§e42.5%§7)"
+		)
+		val stripped = listOf("Pet:", " [Lvl 1,234] Rabbit ✦", "XP: 123/456 (42.5%)")
+
+		val pet = PetTabLine.read(styled, stripped)!!
+
+		assertEquals("§dRabbit ✦", pet.styledName)
+		assertEquals(1234, pet.level)
+		assertEquals("MYTHIC", pet.tier)
+		assertEquals(42.5, pet.progress)
+	}
+
+	@Test
+	fun `a strong assertion holds a stale tab update back for five seconds`() {
+		CurrentPet.summon("§6Fresh Pet", now = 1_000L)
+
+		CurrentPet.tab("§5Stale Pet", 80, "EPIC", 20.0, 2_000L)
+		CurrentPet.tick(6_000L)
+
+		assertEquals("§6Fresh Pet", CurrentPet.name)
+
+		CurrentPet.tick(6_001L)
+
+		assertEquals("§5Stale Pet", CurrentPet.name)
+		assertEquals(80, CurrentPet.level)
+		assertEquals(20.0, CurrentPet.progress)
+	}
+
+	@Test
+	fun `a tab pet fills empty state immediately`() {
+		CurrentPet.tab("§9Blue Whale", 64, "RARE", 75.0, 1_000L)
+
+		assertEquals("§9Blue Whale", CurrentPet.name)
+		assertEquals(64, CurrentPet.level)
+		assertEquals("RARE", CurrentPet.tier)
+		assertFalse(CurrentPet.stack.isEmpty)
+	}
+
+	@Test
+	fun `clearing the tab widget drops a delayed stale assertion`() {
+		CurrentPet.summon("§6Fresh Pet", now = 1_000L)
+		CurrentPet.tab("§5Stale Pet", 80, "EPIC", 20.0, 2_000L)
+
+		CurrentPet.clearPendingTab()
+		CurrentPet.tick(7_000L)
+
+		assertEquals("§6Fresh Pet", CurrentPet.name)
+	}
+
+	private companion object {
+		@JvmStatic
+		@BeforeAll
+		fun bootstrap() = ItemFixture.bootstrap()
 	}
 }
