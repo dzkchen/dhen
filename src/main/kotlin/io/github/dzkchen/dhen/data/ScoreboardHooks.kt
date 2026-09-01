@@ -36,8 +36,6 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		compareByDescending<PlayerScoreEntry> { it.value() }
 			.thenBy(String.CASE_INSENSITIVE_ORDER) { it.owner() }
 
-	private val areaLine = Regex("\\s*\u00a7\\d. \u00a7.(.*)")
-
 	override val failsafe = Failsafe("Dhen {} failed, its scoreboard state is off until restart")
 
 	private var channels: Channels? = null
@@ -61,6 +59,7 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		subscriptions = emptyArray()
 		channels = null
 		ScoreboardState.reset()
+		SidebarValues.reset()
 	}
 
 	override fun bound() = channels
@@ -140,15 +139,15 @@ internal object ScoreboardHooks : GuardedHooks<ScoreboardHooks.Channels> {
 		private fun publish(lines: List<String>, stripped: List<String>, headingChanged: Boolean) {
 			val previous = ScoreboardState.lines
 			val linesChanged = ScoreboardState.read(lines, stripped)
+			if (linesChanged) SidebarValues.read(lines)
 			if (!headingChanged && !linesChanged) return
 			updates.dispatch(ScoreboardUpdateEvent(lines, previous))
-			if (linesChanged) locate(lines)
+			if (linesChanged) locate()
 		}
 
-		private fun locate(lines: List<String>) {
+		private fun locate() {
 			val previous = ScoreboardState.area
-			val area = lines.firstNotNullOfOrNull { areaLine.matchEntire(it)?.groupValues?.get(1) }
-			if (ScoreboardState.locate(area?.let(::withoutCodes))) {
+			if (ScoreboardState.locate(SidebarValues.area?.let(::withoutCodes))) {
 				areas.dispatch(ScoreboardAreaChangeEvent(ScoreboardState.area, previous))
 			}
 		}

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -148,6 +149,38 @@ class TabWidgetHooksTest {
 		assertFalse(TabWidgetHooks.active())
 		assertTrue(TabWidget.entries.none { TabWidgetState.active(it) })
 		assertTrue(updates.isEmpty())
+	}
+
+	@Test
+	fun `the bank widget splits the co-op total from the personal half`() {
+		read(listOf(Component.literal("Info"), Component.literal(" Bank: 1,234,567 / 500,000")))
+
+		assertEquals("1,234,567", TabWidgetState.capture(TabWidget.BANK, "amount"))
+		assertEquals("500,000", TabWidgetState.capture(TabWidget.BANK, "personal"))
+	}
+
+	@Test
+	fun `a solo bank line captures the amount and no personal half`() {
+		read(listOf(Component.literal("Info"), Component.literal(" Bank: 1,234,567")))
+
+		assertEquals("1,234,567", TabWidgetState.capture(TabWidget.BANK, "amount"))
+		assertNull(TabWidgetState.capture(TabWidget.BANK, "personal"))
+	}
+
+	@Test
+	fun `the interest widget keeps the timer out of the bracketed amount`() {
+		read(listOf(Component.literal("Info"), Component.literal(" Interest: 3h 4m (123,456)")))
+
+		assertEquals("3h 4m", TabWidgetState.capture(TabWidget.INTEREST, "time"))
+		assertEquals("123,456", TabWidgetState.capture(TabWidget.INTEREST, "amount"))
+	}
+
+	@Test
+	fun `an interest line without a bracketed amount still captures its timer`() {
+		read(listOf(Component.literal("Info"), Component.literal(" Interest: 7h 12m")))
+
+		assertEquals("7h 12m", TabWidgetState.capture(TabWidget.INTEREST, "time"))
+		assertNull(TabWidgetState.capture(TabWidget.INTEREST, "amount"))
 	}
 
 	private fun read(lines: List<Component>) {

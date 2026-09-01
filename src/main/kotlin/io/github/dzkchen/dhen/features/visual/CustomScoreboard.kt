@@ -1,8 +1,11 @@
 package io.github.dzkchen.dhen.features.visual
 
-import io.github.dzkchen.dhen.config.BooleanSetting
+import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.data.ScoreboardState
-import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.IslandChangeEvent
+import io.github.dzkchen.dhen.event.PartyEvent
+import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.ScoreboardUpdateEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
@@ -21,20 +24,53 @@ object CustomScoreboard : Module(
 	category = Category.VISUAL,
 	description = "Replaces the vanilla SkyBlock sidebar with a movable Dhen scoreboard."
 ) {
-	internal val hideServerIdSetting = BooleanSetting(
-		"Hide Server ID",
-		description = "Replaces the server code on the date line with a plain date label."
+	private val DEFAULT_LINES = listOf(
+		ScoreboardLine.LOBBY_CODE,
+		ScoreboardLine.SEPARATOR_1,
+		ScoreboardLine.DATE,
+		ScoreboardLine.TIME,
+		ScoreboardLine.ISLAND,
+		ScoreboardLine.LOCATION,
+		ScoreboardLine.SEPARATOR_2,
+		ScoreboardLine.PURSE,
+		ScoreboardLine.BITS,
+		ScoreboardLine.SEPARATOR_3,
+		ScoreboardLine.QUIVER,
+		ScoreboardLine.SEPARATOR_4,
+		ScoreboardLine.SLAYER,
+		ScoreboardLine.PARTY,
+		ScoreboardLine.FOOTER,
+		ScoreboardLine.EXTRA
+	).map { it.label }
+
+	internal val linesSetting = OrderedSelectionSetting(
+		"Lines",
+		ScoreboardLine.labels,
+		DEFAULT_LINES,
+		description = "Which typed lines the scoreboard shows, in the order it shows them."
 	)
-	internal var hideServerId by hideServerIdSetting
+	private var enabledLines by linesSetting
+
+	private val composer = ScoreboardComposer()
 
 	internal val element = hud(CustomScoreboardElement())
 
+	private var shownLines: List<String> = emptyList()
+
 	init {
-		on<ScoreboardUpdateEvent> { element.update(ScoreboardState.title, it.lines) }
+		on<ScoreboardUpdateEvent> { rebuild() }
+		on<QuiverUpdateEvent> { rebuild() }
+		on<PartyEvent> { rebuild() }
+		on<IslandChangeEvent> { rebuild() }
+		on<ClientTickEvent.End> { if (composer.faded() || enabledLines !== shownLines) rebuild() }
 	}
 
-	override fun onEnabled() {
-		element.update(ScoreboardState.title, ScoreboardState.lines)
+	override fun onEnabled() = rebuild()
+
+	internal fun rebuild() {
+		composer.sampled()
+		shownLines = enabledLines
+		element.update(ScoreboardState.title, composer.compose(enabledLines))
 	}
 
 	@JvmStatic
@@ -45,7 +81,6 @@ internal class CustomScoreboardElement : HudElement("Scoreboard", HudAnchor.MIDD
 	private val titleMemo = DhenType.memo()
 	private val lineMemos = Array(MAX_LINES) { DhenType.memo() }
 	private val liveLines = Array(MAX_LINES) { "" }
-	private val hiddenLines = Array(MAX_LINES) { "" }
 	private var liveTitle = ""
 	private var liveLineCount = 0
 
@@ -99,19 +134,14 @@ internal class CustomScoreboardElement : HudElement("Scoreboard", HudAnchor.MIDD
 	internal fun update(title: String, lines: List<String>) {
 		liveTitle = title
 		liveLineCount = minOf(lines.size, MAX_LINES)
-		for (index in 0 until liveLineCount) {
-			val line = lines[index]
-			liveLines[index] = line
-			hiddenLines[index] = if (index == 0) hiddenServerId(line) else line
-		}
+		for (index in 0 until liveLineCount) liveLines[index] = lines[index]
 	}
 
 	internal fun contentAvailable(editing: Boolean): Boolean = editing || liveLineCount > 0
 
 	internal fun shownTitle(editing: Boolean): String = if (editing) PREVIEW_TITLE else liveTitle
 
-	internal fun shownLine(index: Int, editing: Boolean, inSkyBlock: Boolean): String =
-		shownLines(editing, inSkyBlock)[index]
+	internal fun shownLine(index: Int, editing: Boolean): String = shownLines(editing)[index]
 
 	internal fun shownCount(editing: Boolean): Int = if (editing) PREVIEW_LINES.size else liveLineCount
 
@@ -124,18 +154,10 @@ internal class CustomScoreboardElement : HudElement("Scoreboard", HudAnchor.MIDD
 		return width + PADDING * 2
 	}
 
-	private fun shownLines(editing: Boolean): Array<String> = shownLines(editing, SkyBlockLocation.inSkyBlock)
-
-	private fun shownLines(editing: Boolean, inSkyBlock: Boolean): Array<String> = when {
-		editing -> PREVIEW_LINES
-		CustomScoreboard.hideServerId && inSkyBlock -> hiddenLines
-		else -> liveLines
-	}
-
-	private fun hiddenServerId(line: String): String = "§7Date: ${line.substringBefore(SERVER_ID_SEPARATOR)}"
+	private fun shownLines(editing: Boolean): Array<String> = if (editing) PREVIEW_LINES else liveLines
 
 	private companion object {
-		const val MAX_LINES = 15
+		const val MAX_LINES = 40
 		const val RIGHT_MARGIN = 5
 		const val PADDING = 8
 		const val TITLE_GAP = 4
@@ -143,13 +165,12 @@ internal class CustomScoreboardElement : HudElement("Scoreboard", HudAnchor.MIDD
 		const val ACCENT_HEIGHT = 2
 		const val ACCENT_INSET = 4
 		const val RADIUS = 4f
-		const val SERVER_ID_SEPARATOR = " §8"
 		const val PREVIEW_TITLE = "SKYBLOCK"
 		val PREVIEW_LINES = arrayOf(
-			"§7Date: 09/01/26",
-			"§eVillage",
-			"§6Purse: 12,345,678",
-			"§bBits: 2,400"
+			"§7Late Summer 1st",
+			"§7⏣ §bVillage",
+			"§fPurse: §612,345,678 §7(§6+1,000§7)",
+			"§fBits: §b2,400"
 		)
 	}
 }

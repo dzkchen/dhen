@@ -26,6 +26,7 @@ import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
 import io.github.dzkchen.dhen.util.NanoClock
+import io.github.dzkchen.dhen.util.grouped
 import kotlinx.coroutines.delay
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -348,7 +349,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 		val hideAmount = infinite || shownArrow == QuiverArrow.NONE
 		val name = if (!hideAmount && amount != 1) shownArrow.displayName + "s" else shownArrow.displayName
 		val rarity = rarity(repoItem)
-		val prefix = if (hideAmount) "" else grouped(amount) + "x "
+		val prefix = if (hideAmount) "" else grouped(amount.coerceAtLeast(0).toLong()) + "x "
 		shown = DhenType.component(prefix).copy().append(
 			DhenType.component(name).copy()
 				.withStyle(ChatFormatting.getByCode(rarity.colorCode[1]) ?: ChatFormatting.GRAY)
@@ -383,26 +384,8 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 		return ItemRarity.NONE
 	}
 
-	private fun grouped(value: Int): String {
-		val text = value.coerceAtLeast(0).toString()
-		val separators = (text.length - 1) / GROUP_SIZE
-		if (separators == 0) return text
-		val result = StringBuilder(text.length + separators)
-		var first = text.length % GROUP_SIZE
-		if (first == 0) first = GROUP_SIZE
-		result.append(text, 0, first)
-		var index = first
-		while (index < text.length) {
-			result.append(',')
-			result.append(text, index, index + GROUP_SIZE)
-			index += GROUP_SIZE
-		}
-		return result.toString()
-	}
-
 	private companion object {
 		const val ICON_SIZE = 16
 		const val ICON_GAP = 1
-		const val GROUP_SIZE = 3
 	}
 }
