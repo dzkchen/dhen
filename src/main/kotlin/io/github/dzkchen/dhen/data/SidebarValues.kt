@@ -84,6 +84,8 @@ object SidebarValues {
 		reset()
 		if (claimed.size < lines.size) claimed = BooleanArray(lines.size)
 		for (index in lines.indices) claim(lines, index)
+		SidebarEvents.read(lines, claimed)
+		SidebarEvents.sweep(lines, claimed)
 		for (index in lines.indices) {
 			if (claimed[index] || lines[index].trim().length < MIN_UNKNOWN_LENGTH) continue
 			unknownBlock += lines[index].removePrefix(" ")
@@ -100,6 +102,7 @@ object SidebarValues {
 		objectiveBlock.clear()
 		unknownBlock.clear()
 		claimed.fill(false)
+		SidebarEvents.reset()
 	}
 
 	private fun claim(lines: List<String>, index: Int) {

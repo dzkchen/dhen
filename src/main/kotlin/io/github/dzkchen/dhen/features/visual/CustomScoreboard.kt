@@ -1,7 +1,10 @@
 package io.github.dzkchen.dhen.features.visual
 
+import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.OrderedSelectionSetting
+import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.ScoreboardState
+import io.github.dzkchen.dhen.data.SidebarEvent
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.CookieUpdateEvent
@@ -53,6 +56,7 @@ object CustomScoreboard : Module(
 		ScoreboardLine.NORTH_STARS,
 		ScoreboardLine.SOULFLOW,
 		ScoreboardLine.SEPARATOR_3,
+		ScoreboardLine.EVENTS,
 		ScoreboardLine.COOKIE,
 		ScoreboardLine.QUIVER,
 		ScoreboardLine.POWER,
@@ -67,6 +71,34 @@ object CustomScoreboard : Module(
 		ScoreboardLine.EXTRA
 	).map { it.label }
 
+	private val DEFAULT_EVENTS = listOf(
+		SidebarEvent.VOTING,
+		SidebarEvent.SERVER_CLOSE,
+		SidebarEvent.DUNGEONS,
+		SidebarEvent.KUUDRA,
+		SidebarEvent.DOJO,
+		SidebarEvent.DARK_AUCTION,
+		SidebarEvent.JACOB_CONTEST,
+		SidebarEvent.JACOB_MEDALS,
+		SidebarEvent.GALATEA,
+		SidebarEvent.SAFARI,
+		SidebarEvent.TRAPPER,
+		SidebarEvent.GARDEN,
+		SidebarEvent.FLIGHT_DURATION,
+		SidebarEvent.NEW_YEAR,
+		SidebarEvent.WINTER,
+		SidebarEvent.SPOOKY,
+		SidebarEvent.BROODMOTHER,
+		SidebarEvent.MINING,
+		SidebarEvent.DAMAGE,
+		SidebarEvent.MAGMA_BOSS,
+		SidebarEvent.CARNIVAL,
+		SidebarEvent.RIFT,
+		SidebarEvent.ESSENCE,
+		SidebarEvent.ACTIVE_TABLIST,
+		SidebarEvent.REDSTONE
+	).map { it.label }
+
 	internal val linesSetting = OrderedSelectionSetting(
 		"Lines",
 		ScoreboardLine.labels,
@@ -75,11 +107,28 @@ object CustomScoreboard : Module(
 	)
 	private var enabledLines by linesSetting
 
+	private var enabledEvents by OrderedSelectionSetting(
+		"Events",
+		SidebarEvent.labels,
+		DEFAULT_EVENTS,
+		description = "Which SkyBlock events the Events line shows, in the order it prefers them."
+	).withDependency { linesSetting.enabled(ScoreboardLine.EVENTS.label) }
+
+	private var allActiveEvents by BooleanSetting(
+		"Show All Active Events",
+		true,
+		description = "Show every active event rather than only the highest-priority one."
+	).withDependency { linesSetting.enabled(ScoreboardLine.EVENTS.label) }
+
 	private val composer = ScoreboardComposer()
 
 	internal val element = hud(CustomScoreboardElement())
 
 	private var shownLines: List<String> = emptyList()
+
+	private var shownEvents: List<String> = emptyList()
+
+	private var shownAllActive = true
 
 	private var mayorRequirement: Handle = Handle {}
 
@@ -106,7 +155,11 @@ object CustomScoreboard : Module(
 
 	internal fun ticked() {
 		ensureMayorFeed()
-		if (composer.faded() || composer.ticked() || enabledLines !== shownLines) rebuild()
+		if (composer.faded() || composer.ticked() || enabledLines !== shownLines ||
+			enabledEvents !== shownEvents || allActiveEvents != shownAllActive
+		) {
+			rebuild()
+		}
 	}
 
 	private fun ensureMayorFeed() {
@@ -128,7 +181,9 @@ object CustomScoreboard : Module(
 	internal fun rebuild() {
 		composer.sampled()
 		shownLines = enabledLines
-		element.update(ScoreboardState.title, composer.compose(enabledLines))
+		shownEvents = enabledEvents
+		shownAllActive = allActiveEvents
+		element.update(ScoreboardState.title, composer.compose(enabledLines, enabledEvents, allActiveEvents))
 	}
 
 	@JvmStatic

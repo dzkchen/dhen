@@ -3,6 +3,8 @@ package io.github.dzkchen.dhen.features.visual
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.PowderKind
 import io.github.dzkchen.dhen.data.ScoreboardState
+import io.github.dzkchen.dhen.data.SidebarEvent
+import io.github.dzkchen.dhen.data.SidebarEvents
 import io.github.dzkchen.dhen.data.SidebarField
 import io.github.dzkchen.dhen.data.SidebarValues
 import io.github.dzkchen.dhen.data.SkyBlockLocation
@@ -44,6 +46,7 @@ internal enum class ScoreboardLine(val label: String) {
 	NORTH_STARS("North Stars"),
 	SOULFLOW("Soulflow"),
 	SEPARATOR_3("Separator 3"),
+	EVENTS("Events"),
 	COOKIE("Cookie Buff"),
 	QUIVER("Quiver"),
 	POWER("Power"),
@@ -82,6 +85,8 @@ internal class ScoreboardComposer(
 	private var countdownShown = false
 	private var profileType = NORMAL_PROFILE
 	private var lastSecond = -1L
+	private var enabledEvents: List<String> = emptyList()
+	private var allActiveEvents = true
 
 	fun sampled() {
 		val now = clock.nanoTime()
@@ -103,9 +108,11 @@ internal class ScoreboardComposer(
 		return true
 	}
 
-	fun compose(enabled: List<String>): List<String> {
+	fun compose(enabled: List<String>, events: List<String>, allActive: Boolean): List<String> {
 		composed.clear()
 		countdownShown = false
+		enabledEvents = events
+		allActiveEvents = allActive
 		if (!SkyBlockLocation.inSkyBlock) {
 			composed += ScoreboardState.lines
 			return composed
@@ -149,6 +156,7 @@ internal class ScoreboardComposer(
 		ScoreboardLine.COLD -> coldLine()
 		ScoreboardLine.NORTH_STARS -> northStarsLine()
 		ScoreboardLine.SOULFLOW -> soulflowLine()
+		ScoreboardLine.EVENTS -> eventLines()
 		ScoreboardLine.COOKIE -> cookieLine()
 		ScoreboardLine.QUIVER -> quiverLine()
 		ScoreboardLine.POWER -> powerLine()
@@ -260,6 +268,23 @@ internal class ScoreboardComposer(
 		if (inRift()) return
 		val text = soulflowText() ?: return
 		composed += "${LABEL_COLOR}Soulflow: $SOULFLOW_COLOR$text${soulflow.suffix}"
+	}
+
+	private fun eventLines() {
+		for (label in enabledEvents) {
+			val event = SidebarEvent.of(label) ?: continue
+			if (!eventShown(event)) continue
+			val lines = SidebarEvents.lines(event)
+			if (lines.isEmpty()) continue
+			composed += lines
+			if (!allActiveEvents) return
+		}
+	}
+
+	private fun eventShown(event: SidebarEvent): Boolean = when (event) {
+		SidebarEvent.DOJO -> ScoreboardState.area in DOJO_AREAS
+		SidebarEvent.MAGMA_BOSS -> ScoreboardState.area == MAGMA_CHAMBER
+		else -> true
 	}
 
 	private fun cookieLine() {
@@ -401,17 +426,15 @@ internal class ScoreboardComposer(
 
 	private fun inKuudra(): Boolean = island() == Island.KUUDRA
 
-	private fun inGarden(): Boolean = island() == Island.GARDEN || island() == Island.GARDEN_GUEST
+	private fun inGarden(): Boolean = island().gardenIsland
 
-	private fun onPersonalIsland(): Boolean =
-		inGarden() || island() == Island.PRIVATE_ISLAND || island() == Island.PRIVATE_ISLAND_GUEST
+	private fun onPersonalIsland(): Boolean = island().personalIsland
 
 	private fun inCrystalHollows(): Boolean = island() == Island.CRYSTAL_HOLLOWS
 
 	private fun inWorkshop(): Boolean = island() == Island.JERRYS_WORKSHOP
 
-	private fun inAdvancedMining(): Boolean =
-		island() == Island.DWARVEN_MINES || island() == Island.MINESHAFT || inCrystalHollows()
+	private fun inAdvancedMining(): Boolean = island().advancedMining
 
 	private fun inColdArea(): Boolean = when (island()) {
 		Island.DWARVEN_MINES, Island.MINESHAFT -> true
@@ -459,6 +482,7 @@ internal class ScoreboardComposer(
 		const val DIFF_NANOS = 5_000_000_000L
 		const val MEGA_SERVER = "mega"
 		const val ICY_BIOME = "Icy Biome"
+		const val MAGMA_CHAMBER = "Magma Chamber"
 		const val INFINITE = "∞"
 		const val IRONMAN_MARK = "♲"
 		const val STRANDED_MARK = "☀"
@@ -486,6 +510,7 @@ internal class ScoreboardComposer(
 		const val NO_BAGS = "§cOpen \"Your Bags\"!"
 		const val NO_MAXWELL = "§cTalk to \"Maxwell\"!"
 		const val NO_TUNINGS = "§cNo Maxwell Tunings :("
+		val DOJO_AREAS = arrayOf("Dojo", "Dojo Arena")
 		val LEVEL_COLORS = arrayOf(
 			"§7", "§f", "§e", "§a", "§2", "§b", "§3", "§9", "§d", "§5", "§6", "§c", "§4"
 		)

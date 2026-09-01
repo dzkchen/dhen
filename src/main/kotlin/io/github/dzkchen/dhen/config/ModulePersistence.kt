@@ -45,11 +45,14 @@ object ModulePersistence {
 		"Powder" to "Mayor"
 	)
 
+	private val scoreboardEventsLineAdded = listOf("Separator 3" to "Events")
+
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) },
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_ARROW_HIT_SOUND_MODULE) },
 		{ doc: JsonObject -> doc.obj(MODULES)?.let(::foldVisualTweaks) },
-		{ doc: JsonObject -> doc.obj(MODULES)?.let(::offerNewScoreboardLines) }
+		{ doc: JsonObject -> doc.obj(MODULES)?.let { offerNewScoreboardLines(it, scoreboardLinesAdded) } },
+		{ doc: JsonObject -> doc.obj(MODULES)?.let { offerNewScoreboardLines(it, scoreboardEventsLineAdded) } }
 	)
 	internal val version: Int
 		get() = migrations.size
@@ -73,11 +76,11 @@ object ModulePersistence {
 		merged.addProperty(ENABLED, anyEnabled)
 	}
 
-	private fun offerNewScoreboardLines(modules: JsonObject) {
+	private fun offerNewScoreboardLines(modules: JsonObject, additions: List<Pair<String, String>>) {
 		val lines = modules.obj(SCOREBOARD_MODULE)?.obj(SETTINGS)?.getAsJsonArray(SCOREBOARD_LINES) ?: return
 		val held = ArrayList<String>(lines.size())
 		for (line in lines) held += line.asString
-		for ((after, added) in scoreboardLinesAdded) {
+		for ((after, added) in additions) {
 			if (added in held) continue
 			val at = held.indexOf(after)
 			if (at < 0) held += added else held.add(at + 1, added)

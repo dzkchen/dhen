@@ -40,7 +40,7 @@ class CustomScoreboardTest {
 
 	@Test
 	fun `the module declares its line catalogue and movable element`() {
-		assertEquals(listOf("Lines"), CustomScoreboard.settings.map { it.name })
+		assertEquals(listOf("Lines", "Events", "Show All Active Events"), CustomScoreboard.settings.map { it.name })
 		assertEquals(Category.VISUAL, CustomScoreboard.category)
 		assertEquals(listOf("Scoreboard"), CustomScoreboard.hudElements.map { it.name })
 		assertEquals(ScoreboardLine.labels, CustomScoreboard.linesSetting.options)
@@ -401,7 +401,56 @@ class CustomScoreboardTest {
 		assertTrue(composer.ticked())
 	}
 
+	@Test
+	fun `the events entry shows every active event in the order the setting lists them`() {
+		inSkyBlock(Island.DARK_AUCTION)
+		SidebarValues.read(listOf(" Time Left: §b11", " Dragon Essence: §d1,285"))
+
+		assertEquals(
+			listOf("Dragon Essence: §d1,285", "Time Left: §b11"),
+			composer().compose(listOf("Events"), listOf("Essence", "Dark Auction"))
+		)
+	}
+
+	@Test
+	fun `with all-active off the events entry stops after the first event that has lines`() {
+		inSkyBlock(Island.DARK_AUCTION)
+		SidebarValues.read(listOf(" Time Left: §b11", " Dragon Essence: §d1,285"))
+
+		assertEquals(
+			listOf("Time Left: §b11"),
+			composer().compose(listOf("Events"), listOf("Dark Auction", "Essence"), allActive = false)
+		)
+	}
+
+	@Test
+	fun `an event bound to another island stays off this one`() {
+		inSkyBlock(Island.HUB)
+		SidebarValues.read(listOf(" Pelts: §5711"))
+		assertEquals(emptyList<String>(), composer().compose(listOf("Events"), listOf("Trapper")))
+
+		inSkyBlock(Island.THE_FARMING_ISLANDS)
+		SidebarValues.read(listOf(" Pelts: §5711"))
+		assertEquals(listOf("Pelts: §5711"), composer().compose(listOf("Events"), listOf("Trapper")))
+	}
+
+	@Test
+	fun `an event line the setting leaves out is not shown`() {
+		inSkyBlock(Island.HUB)
+		SidebarValues.read(listOf(" §6§lGOLD §fmedals: §613"))
+
+		assertEquals(emptyList<String>(), composer().compose(listOf("Events"), listOf("Voting")))
+		assertEquals(
+			listOf("§6§lGOLD §fmedals: §613"),
+			composer().compose(listOf("Events"), listOf("Jacob's Medals"))
+		)
+	}
+
 	private fun composer() = ScoreboardComposer(NanoClock { now }, { epoch })
+
+	private fun ScoreboardComposer.compose(enabled: List<String>) = compose(enabled, emptyList(), true)
+
+	private fun ScoreboardComposer.compose(enabled: List<String>, events: List<String>) = compose(enabled, events, true)
 
 	private fun widget(widget: TabWidget, line: String) =
 		TabWidgetState.read(widget, listOf(line), listOf(line))

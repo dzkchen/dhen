@@ -129,7 +129,7 @@ class ModulePersistenceTest {
 			listOf(
 				"Lobby Code", "Separator 1", "Date", "Time", "Island", "Player Count", "Location", "Visiting",
 				"Profile", "Separator 2", "Purse", "Motes", "Bank", "Bits", "Copper", "Sowdust", "Gems", "Heat",
-				"Cold", "North Stars", "Soulflow", "Separator 3", "Cookie Buff", "Quiver", "Power", "Tuning",
+				"Cold", "North Stars", "Soulflow", "Separator 3", "Events", "Cookie Buff", "Quiver", "Power", "Tuning",
 				"Separator 4", "Objective", "Slayer", "Powder", "Mayor", "Party", "Footer", "Extra"
 			),
 			lines

@@ -37,6 +37,18 @@ enum class Island(val modeId: String?, val displayName: String?) {
 			else -> null
 		}
 
+	val privateIsland: Boolean
+		get() = this == PRIVATE_ISLAND || this == PRIVATE_ISLAND_GUEST
+
+	val gardenIsland: Boolean
+		get() = this == GARDEN || this == GARDEN_GUEST
+
+	val personalIsland: Boolean
+		get() = privateIsland || gardenIsland
+
+	val advancedMining: Boolean
+		get() = this == DWARVEN_MINES || this == MINESHAFT || this == CRYSTAL_HOLLOWS
+
 	val guestHost: Island?
 		get() = when (this) {
 			PRIVATE_ISLAND_GUEST -> PRIVATE_ISLAND
