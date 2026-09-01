@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.pet.CurrentPet
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ServerTickEvent
@@ -97,7 +98,7 @@ object MaskTimers : Module(
 		val player = if (zyryon) Minecraft.getInstance().player else null
 		for (index in masks.indices) {
 			val mask = masks[index]
-			if (zyryon) mask.worn = mask.wornOnHead(player)
+			if (zyryon) mask.worn = mask.equipped(player)
 			if (mask.invulnerabilityLeft > 0) mask.invulnerabilityLeft--
 			if (mask.cooldownLeft > 0) {
 				mask.cooldownLeft--
@@ -124,11 +125,12 @@ internal enum class Mask(
 	val cooldownTicks: Int,
 	val invulnerabilityTicks: Int,
 	pattern: String,
-	private val helmetId: String?
+	private val helmetId: String?,
+	private val petName: String? = null
 ) {
 	BONZO("Bonzo", "Mask", 3600, 60, "Your (?:.+ )?Bonzo's Mask saved your life!", "BONZO_MASK"),
 	SPIRIT("Spirit", "Mask", 600, 60, "Second Wind Activated! Your Spirit Mask saved your life!", "SPIRIT_MASK"),
-	PHOENIX("Phoenix", "Pet", 1200, 80, "Your Phoenix Pet saved you from certain death!", null);
+	PHOENIX("Phoenix", "Pet", 1200, 80, "Your Phoenix Pet saved you from certain death!", null, "Phoenix");
 
 	private val procLine: Matcher = Pattern.compile(pattern).matcher("")
 
@@ -144,10 +146,10 @@ internal enum class Mask(
 		if (invulnerability) invulnerabilityLeft = invulnerabilityTicks
 	}
 
-	fun wornOnHead(player: Player?): Boolean {
-		val id = helmetId ?: return false
-		if (player == null) return false
-		return id in SkyBlockItems.of(player.getItemBySlot(EquipmentSlot.HEAD)).id
+	fun equipped(player: Player?): Boolean = when {
+		helmetId != null -> player != null && helmetId in SkyBlockItems.of(player.getItemBySlot(EquipmentSlot.HEAD)).id
+		petName != null -> CurrentPet.bareName == petName
+		else -> false
 	}
 
 	fun reset() {

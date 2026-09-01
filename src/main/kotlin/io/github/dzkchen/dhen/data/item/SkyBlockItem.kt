@@ -19,7 +19,8 @@ class PetInfo internal constructor(
 	val exp: Double,
 	val heldItem: String?,
 	val candyUsed: Int,
-	val skin: String?
+	val skin: String?,
+	val ownedUuid: String? = null
 )
 
 class SkyBlockItem internal constructor(
@@ -270,7 +271,8 @@ class SkyBlockItem internal constructor(
 				exp = json.number("exp") ?: 0.0,
 				heldItem = json.text("heldItem"),
 				candyUsed = (json.number("candyUsed") ?: 0.0).toInt(),
-				skin = json.text("skin")
+				skin = json.text("skin"),
+				ownedUuid = json.text("uniqueId") ?: json.text("uuid")
 			)
 		}
 

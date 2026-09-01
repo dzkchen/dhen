@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.features.visual
 
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.pet.CurrentPet
 import io.github.dzkchen.dhen.module.Category
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -21,6 +22,7 @@ class MaskTimersTest {
 		MaskTimers.readyNotificationSetting.value = false
 		MaskTimers.clear()
 		SkyBlockLocation.reset()
+		CurrentPet.reset()
 	}
 
 	private fun inDungeon() = SkyBlockLocation.located("mini1A", true, "dungeon", "The Catacombs")
@@ -209,6 +211,28 @@ class MaskTimersTest {
 		assertTrue(spirit.listed)
 		assertEquals("Ready", spirit.value)
 		assertFalse(spirit.worn)
+	}
+
+	@Test
+	fun `the Phoenix row reads its worn arrow off the summoned pet`() {
+		assertFalse(Mask.PHOENIX.equipped(null))
+
+		CurrentPet.summon("§6Phoenix")
+		assertTrue(Mask.PHOENIX.equipped(null))
+
+		CurrentPet.summon("§6Mosquito")
+		assertFalse(Mask.PHOENIX.equipped(null))
+
+		CurrentPet.despawn()
+		assertFalse(Mask.PHOENIX.equipped(null))
+	}
+
+	@Test
+	fun `a helmet mask never reads the summoned pet`() {
+		CurrentPet.summon("§6Bonzo")
+
+		assertFalse(Mask.BONZO.equipped(null))
+		assertFalse(Mask.SPIRIT.equipped(null))
 	}
 
 	@Test

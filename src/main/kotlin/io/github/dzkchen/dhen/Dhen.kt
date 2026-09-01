@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.party.PartyHooks
+import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -40,6 +41,7 @@ import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.MaskTimers
+import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TimeChanger
@@ -146,6 +148,7 @@ object Dhen : ClientModInitializer {
 			TabWidgetHooks,
 			PartyHooks,
 			PlayerStatsHooks,
+			PetHooks,
 			firstRunExperience,
 			HypixelModApi
 		)
@@ -216,6 +219,7 @@ object Dhen : ClientModInitializer {
 			Animations,
 			Camera,
 			MaskTimers,
+			PetDisplay,
 			PlayerStatsHud,
 			RevertAxes,
 			TimeChanger,
@@ -315,6 +319,7 @@ object Dhen : ClientModInitializer {
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
+		PetHooks.install(modules.eventBus)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)

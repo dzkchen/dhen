@@ -28,6 +28,8 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
+import io.github.dzkchen.dhen.data.pet.CurrentPet
+import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.value.ItemValue
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TickHooks
@@ -395,6 +397,12 @@ class Diagnostics(
 			add(
 				"Player stats: health=${PlayerStats.health}/${PlayerStats.maxHealth}, mana=${PlayerStats.mana}/${PlayerStats.maxMana}, " +
 					"defense=${PlayerStats.defense}, speed=${PlayerStats.speed}"
+			)
+		}
+		if (PetHooks.active()) {
+			add(
+				"Current pet: ${if (CurrentPet.summoned) CurrentPet.bareName else "none"}, " +
+					"uuid=${CurrentPet.uuid.isNotEmpty()}, menuSlot=${CurrentPet.menuSlot}"
 			)
 		}
 		add("Item repo: state=${ItemRepo.state}, items=${ItemRepo.size}, needed by ${ItemRepo.required}")
