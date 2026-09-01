@@ -57,7 +57,16 @@ object Prices {
 
 	internal val polling: Boolean get() = pump.polling
 
+	internal val revision: Int get() = refreshRevision
+
 	val bazaar: BazaarSnapshot? get() = bazaarFeed.value
+
+	internal fun active(): Boolean = host != null
+
+	internal fun lowestBin(marketId: String): Double? {
+		val price = lowestBin(marketId, UNPRICED)
+		return if (price.isNaN()) null else price
+	}
 
 	fun product(marketId: String): BazaarProduct? = bazaarFeed.value?.product(marketId)
 
@@ -107,6 +116,7 @@ object Prices {
 		host = null
 		pump.reset()
 		announced.set(false)
+		refreshRevision = 0
 		for (feed in feeds) feed.reset()
 	}
 
@@ -133,6 +143,7 @@ object Prices {
 		val refreshed = feeds.filter { it.stale(now) }
 			.map { feed -> async { feed to feed.refresh(host.web, now) { this@Prices.host === host && isActive } } }
 			.awaitAll()
+		if (refreshed.any { (_, landed) -> landed }) refreshRevision++
 		if (refreshed.none { (feed, landed) -> landed && feed === bazaarFeed }) return@coroutineScope
 		val snapshot = bazaarFeed.value ?: return@coroutineScope
 		if (announced.compareAndSet(false, true)) {
@@ -156,4 +167,7 @@ object Prices {
 		val clock: NanoClock,
 		val onHypixel: () -> Boolean
 	)
+
+	@Volatile
+	private var refreshRevision = 0
 }

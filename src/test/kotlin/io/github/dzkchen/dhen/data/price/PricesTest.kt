@@ -45,6 +45,19 @@ class PricesTest {
 	}
 
 	@Test
+	fun `consumers can observe service availability lowest bins and refreshed snapshots`() {
+		assertFalse(Prices.active())
+		install()
+
+		assertTrue(Prices.active())
+		assertEquals(0, Prices.revision)
+		Prices.require()
+
+		assertEquals(1, Prices.revision)
+		assertEquals(500.0, Prices.lowestBin("HYPERION"))
+	}
+
+	@Test
 	fun `a client that is not on hypixel asks the api for nothing`() {
 		onHypixel = false
 		install()

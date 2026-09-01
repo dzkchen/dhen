@@ -25,8 +25,8 @@ class PetDisplayTest {
 	fun `the module keeps its menu features and adds the configurable current pet element`() {
 		assertEquals("Pet Display", PetDisplay.name)
 		assertEquals(Category.VISUAL, PetDisplay.category)
-		assertEquals(listOf(PetDisplay.hudElement), PetDisplay.hudElements)
-		assertEquals(12, PetDisplay.subscriptionCount)
+		assertEquals(listOf(PetDisplay.hudElement, PetDisplay.georgeElement), PetDisplay.hudElements)
+		assertEquals(14, PetDisplay.subscriptionCount)
 		assertEquals(
 			listOf(
 				"Auto Pet Title",
@@ -41,6 +41,11 @@ class PetDisplayTest {
 				"Show Exp Share",
 				"Show Tier Boost",
 				"Pet Item Scale",
+				"Pet Exp Tooltip",
+				"Show Pet Exp Always",
+				"Dragon Egg",
+				"George Helper",
+				"Fetch Other Tiers",
 				"Wheel Scale",
 				"Show Key Labels",
 				"Favourite Pets Only",
@@ -58,7 +63,7 @@ class PetDisplayTest {
 				"Pet Slot 8",
 				"Pet Slot 9"
 			),
-			PetDisplay.settings.take(28).map { it.name }
+			PetDisplay.settings.take(33).map { it.name }
 		)
 		assertEquals(PetDisplay.settings.size, PetDisplay.settings.map { it.name }.distinct().size)
 		assertTrue(PetDisplay.settings.map { it.name }.containsAll(CURRENT_PET_SETTINGS))
@@ -76,6 +81,22 @@ class PetDisplayTest {
 
 		assertTrue(PetDisplay.dungeonsOnlySetting.isVisible)
 		assertTrue(PetDisplay.highlightColorSetting.isVisible)
+	}
+
+	@Test
+	fun `pet helper controls preserve source defaults and dependencies`() {
+		assertTrue(PetDisplay.petExpTooltipSetting.on)
+		assertFalse(PetDisplay.showPetExpAlwaysSetting.on)
+		assertTrue(PetDisplay.dragonEggSetting.on)
+		assertTrue(PetDisplay.georgeHelperSetting.on)
+		assertFalse(PetDisplay.fetchOtherTiersSetting.on)
+
+		PetDisplay.petExpTooltipSetting.on = false
+		PetDisplay.georgeHelperSetting.on = false
+
+		assertFalse(PetDisplay.showPetExpAlwaysSetting.isVisible)
+		assertFalse(PetDisplay.dragonEggSetting.isVisible)
+		assertFalse(PetDisplay.fetchOtherTiersSetting.isVisible)
 	}
 
 	@Test

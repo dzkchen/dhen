@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.features.visual
 
+import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
@@ -16,6 +17,7 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.pet.CurrentPet
 import io.github.dzkchen.dhen.data.pet.PetLines
+import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
@@ -29,6 +31,8 @@ import io.github.dzkchen.dhen.event.EntityNameTagEvent
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
+import io.github.dzkchen.dhen.event.TooltipEvent
+import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.SharpGui
@@ -129,6 +133,39 @@ object PetDisplay : Module(
 		description = "How large the held pet item marker is drawn."
 	).withDependency { expShareSetting.on || tierBoostSetting.on }
 	private var petItemScale by petItemScaleSetting
+
+	internal val petExpTooltipSetting = BooleanSetting(
+		"Pet Exp Tooltip",
+		default = true,
+		description = "Shows progress to a pet's maximum level in its tooltip."
+	)
+	private var petExpTooltipEnabled by petExpTooltipSetting
+
+	internal val showPetExpAlwaysSetting = BooleanSetting(
+		"Show Pet Exp Always",
+		description = "Shows pet experience progress without holding Shift."
+	).withDependency { petExpTooltipSetting.on }
+	private var showPetExpAlways by showPetExpAlwaysSetting
+
+	internal val dragonEggSetting = BooleanSetting(
+		"Dragon Egg",
+		default = true,
+		description = "Shows Golden Dragon egg progress to level 100 before its level 200 curve."
+	).withDependency { petExpTooltipSetting.on }
+	private var dragonEgg by dragonEggSetting
+
+	internal val georgeHelperSetting = BooleanSetting(
+		"George Helper",
+		default = true,
+		description = "Lists the cheapest wanted pets in George's Offer Pets menu."
+	)
+	private var georgeHelperEnabled by georgeHelperSetting
+
+	internal val fetchOtherTiersSetting = BooleanSetting(
+		"Fetch Other Tiers",
+		description = "Checks adjacent rarities without adding Kat upgrade costs."
+	).withDependency { georgeHelperSetting.on }
+	private var fetchOtherTiers by fetchOtherTiersSetting
 
 	internal val wheelScaleSetting = NumberSetting(
 		"Wheel Scale",
@@ -618,17 +655,31 @@ object PetDisplay : Module(
 	private val petLevels = PetSlotLevels(TRACKED_SLOTS)
 	private val candyLabels = Array(MAX_CANDY + 1) { CANDY_COLOR + it }
 	private val petWheel = PetWheelScreen()
+	private val petExpTooltip = PetExpTooltip()
+	private val georgeHelper = GeorgeHelper()
 	internal val hudElement = hud(PetDisplayHud())
+	internal val georgeElement = hud(GeorgeHelperElement(georgeHelper))
 	private var repoRequirement = Handle {}
 	private var mayorRequirement = Handle {}
+	private var priceRequirement = Handle {}
 	private var repoHeld = false
 	private var mayorHeld = false
+	private var priceHeld = false
 
 	init {
 		on<ChatReceiveEvent> { autopetted(it) }
-		on<ContainerReadyEvent> { petWheel.ready(it) }
-		on<ContainerUpdatedEvent> { petWheel.updated(it) }
-		on<ContainerClosedEvent> { petWheel.closed(it) }
+		on<ContainerReadyEvent> {
+			petWheel.ready(it)
+			georgeHelper.ready(it)
+		}
+		on<ContainerUpdatedEvent> {
+			petWheel.updated(it)
+			georgeHelper.updated(it)
+		}
+		on<ContainerClosedEvent> {
+			petWheel.closed(it)
+			georgeHelper.closed(it)
+		}
 		on<ScreenRenderEvent.Pre> { petWheel.render(it) }
 		on<ContainerClickEvent> { petWheel.clicked(it) }
 		on<ContainerKeyEvent> { petWheel.keyed(it) }
@@ -636,7 +687,11 @@ object PetDisplay : Module(
 		on<SlotRenderEvent.Pre> { highlighted(it) }
 		on<SlotRenderEvent.Post> { decorated(it) }
 		on<EntityNameTagEvent> { renamed(it) }
+		on<TooltipEvent> {
+			if (petExpTooltipEnabled) petExpTooltip.add(it, showPetExpAlways, dragonEgg, shiftDown())
+		}
 		on<ClientTickEvent.End> { tickHud() }
+		on<WorldChangeEvent> { georgeHelper.reset() }
 	}
 
 	override fun onEnabled() {
@@ -647,11 +702,16 @@ object PetDisplay : Module(
 	override fun onDisabled() {
 		repoRequirement.unsubscribe()
 		mayorRequirement.unsubscribe()
+		priceRequirement.unsubscribe()
 		repoRequirement = Handle {}
 		mayorRequirement = Handle {}
+		priceRequirement = Handle {}
 		repoHeld = false
 		mayorHeld = false
+		priceHeld = false
 		petWheel.reset()
+		petExpTooltip.reset()
+		georgeHelper.reset()
 		hudElement.refresh()
 	}
 
@@ -659,6 +719,7 @@ object PetDisplay : Module(
 
 	private fun tickHud() {
 		ensureRequirements()
+		georgeHelper.tick(fetchOtherTiers)
 		hudElement.refresh()
 	}
 
@@ -671,6 +732,20 @@ object PetDisplay : Module(
 			mayorRequirement = MayorService.require()
 			mayorHeld = true
 		}
+		if (georgeHelperEnabled && !priceHeld && Prices.active()) {
+			priceRequirement = Prices.require()
+			priceHeld = true
+		} else if (!georgeHelperEnabled && priceHeld) {
+			priceRequirement.unsubscribe()
+			priceRequirement = Handle {}
+			priceHeld = false
+		}
+	}
+
+	private fun shiftDown(): Boolean {
+		val window = Minecraft.getInstance().window
+		return InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) ||
+			InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT)
 	}
 
 	internal fun titled(pet: String, dungeon: Boolean): Boolean =
