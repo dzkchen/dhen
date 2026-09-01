@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.event
 
 import io.github.dzkchen.dhen.util.Failsafe
+import net.minecraft.network.chat.Component
 import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Entity
 
@@ -27,6 +28,10 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 		guarded("entity glow", vanillaOutline) { it.glow(entity, vanillaOutline) }
 
 	@JvmStatic
+	fun entityNameTag(entity: Entity, vanillaNameTag: Component): Component =
+		guarded("entity name tag", vanillaNameTag) { it.nameTag(entity, vanillaNameTag) }
+
+	@JvmStatic
 	fun entityRenderCancelled(entity: Entity): Boolean = guarded("entity render", false) { it.rendering(entity) }
 
 	@JvmStatic
@@ -36,9 +41,11 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 		private val glows = bus.type<EntityGlowEvent>()
 		private val renders = bus.type<EntityRenderEvent>()
 		private val bossBars = bus.type<BossBarUpdateEvent>()
+		private val nameTags = bus.type<EntityNameTagEvent>()
 		private val glowEvents = ReusableEvent(::EntityGlowEvent, EntityGlowEvent::forget)
 		private val renderEvents = ReusableEvent(::EntityRenderEvent, EntityRenderEvent::forget)
 		private val bossBarEvents = ReusableEvent(::BossBarUpdateEvent, BossBarUpdateEvent::forget)
+		private val nameTagEvents = ReusableEvent(::EntityNameTagEvent, EntityNameTagEvent::forget)
 
 		fun glow(entity: Entity, vanillaOutline: Int): Int {
 			if (!glows.hasSubscribers) return vanillaOutline
@@ -50,6 +57,19 @@ internal object RenderHooks : GuardedHooks<RenderHooks.Channels> {
 				event.outline()
 			} finally {
 				glowEvents.release(event)
+			}
+		}
+
+		fun nameTag(entity: Entity, vanillaNameTag: Component): Component {
+			if (!nameTags.hasSubscribers) return vanillaNameTag
+			val event = nameTagEvents.borrow()
+			event.entity = entity
+			event.nameTag = vanillaNameTag
+			return try {
+				nameTags.dispatch(event)
+				event.nameTag
+			} finally {
+				nameTagEvents.release(event)
 			}
 		}
 

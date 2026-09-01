@@ -138,6 +138,34 @@ class RenderHooksTest {
 	}
 
 	@Test
+	fun `an unsubscribed name tag reaches the render state untouched`() {
+		val vanilla = Component.literal("§8[§7Lv99§8] §6Ammonite")
+
+		assertSame(vanilla, RenderHooks.entityNameTag(uninitialized<ItemEntity>(), vanilla))
+	}
+
+	@Test
+	fun `a subscriber's rewritten name tag is what the render state gets`() {
+		val rewritten = Component.literal("§6Ammonite")
+		bus.subscribe<EntityNameTagEvent> { it.nameTag = rewritten }
+
+		assertSame(
+			rewritten,
+			RenderHooks.entityNameTag(uninitialized<ItemEntity>(), Component.literal("§8[§7Lv99§8] §6Ammonite"))
+		)
+	}
+
+	@Test
+	fun `a name tag event releases its entity and its name when dispatch returns`() {
+		var seen: EntityNameTagEvent? = null
+		bus.subscribe<EntityNameTagEvent> { seen = it }
+		RenderHooks.entityNameTag(uninitialized<ItemEntity>(), Component.literal("§6Ammonite"))
+
+		assertThrows(NullPointerException::class.java) { seen!!.entity }
+		assertEquals("", seen!!.nameTag.string)
+	}
+
+	@Test
 	fun `a glow event releases its entity when dispatch returns`() {
 		var seen: EntityGlowEvent? = null
 		bus.subscribe<EntityGlowEvent> { seen = it }

@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.event
 
 import net.minecraft.client.renderer.entity.state.EntityRenderState
+import net.minecraft.network.chat.CommonComponents
+import net.minecraft.network.chat.Component
 import net.minecraft.util.ARGB
 import net.minecraft.world.BossEvent
 import net.minecraft.world.entity.Entity
@@ -64,5 +66,22 @@ class BossBarUpdateEvent internal constructor() : DeepProfiledEvent, Cancellable
 
 	internal fun forget() {
 		held = null
+	}
+}
+
+class EntityNameTagEvent internal constructor() : DeepProfiledEvent {
+	private var target: Entity? = null
+
+	var entity: Entity
+		get() = target!!
+		internal set(value) {
+			target = value
+		}
+
+	var nameTag: Component = CommonComponents.EMPTY
+
+	internal fun forget() {
+		target = null
+		nameTag = CommonComponents.EMPTY
 	}
 }

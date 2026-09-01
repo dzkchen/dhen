@@ -18,7 +18,7 @@ class PetDisplayTest {
 	}
 
 	@Test
-	fun `the module declares its five settings and no movable element`() {
+	fun `the module declares its twelve settings and no movable element`() {
 		assertEquals("Pet Display", PetDisplay.name)
 		assertEquals(Category.VISUAL, PetDisplay.category)
 		assertTrue(PetDisplay.hudElements.isEmpty())
@@ -28,7 +28,14 @@ class PetDisplayTest {
 				"Dungeons Only",
 				"Hide Autopet Messages",
 				"Highlight Active Pet",
-				"Highlight Color"
+				"Highlight Color",
+				"Hide Pet Level",
+				"Hide Max Pet Level",
+				"Pet Candy Used",
+				"Hide On Maxed",
+				"Show Exp Share",
+				"Show Tier Boost",
+				"Pet Item Scale"
 			),
 			PetDisplay.settings.map { it.name }
 		)
@@ -44,6 +51,43 @@ class PetDisplayTest {
 
 		assertTrue(PetDisplay.dungeonsOnlySetting.isVisible)
 		assertTrue(PetDisplay.highlightColorSetting.isVisible)
+	}
+
+	@Test
+	fun `Hide On Maxed rides on the candy count that it hides`() {
+		assertTrue(PetDisplay.hideOnMaxedSetting.isVisible)
+
+		PetDisplay.petCandySetting.on = false
+
+		assertFalse(PetDisplay.hideOnMaxedSetting.isVisible)
+	}
+
+	@Test
+	fun `the pet item scale hides once neither icon is drawn`() {
+		assertTrue(PetDisplay.petItemScaleSetting.isVisible)
+
+		PetDisplay.expShareSetting.on = false
+
+		assertTrue(PetDisplay.petItemScaleSetting.isVisible)
+
+		PetDisplay.tierBoostSetting.on = false
+
+		assertFalse(PetDisplay.petItemScaleSetting.isVisible)
+	}
+
+	@Test
+	fun `the candy count is on and the level hiders are off out of the box`() {
+		assertTrue(PetDisplay.petCandySetting.on)
+		assertTrue(PetDisplay.expShareSetting.on)
+		assertTrue(PetDisplay.tierBoostSetting.on)
+		assertFalse(PetDisplay.hideOnMaxedSetting.on)
+		assertFalse(PetDisplay.hidePetLevelSetting.on)
+		assertFalse(PetDisplay.hideMaxPetLevelSetting.on)
+	}
+
+	@Test
+	fun `the pet item scale keeps the ported default rather than snapping off its grid`() {
+		assertEquals(0.9, PetDisplay.petItemScaleSetting.value)
 	}
 
 	@Test

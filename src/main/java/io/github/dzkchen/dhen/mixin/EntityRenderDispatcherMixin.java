@@ -36,6 +36,9 @@ public abstract class EntityRenderDispatcherMixin {
 		final float partialTick
 	) {
 		state.outlineColor = RenderHooks.entityOutline(entity, state.outlineColor);
+		if (state.nameTag != null) {
+			state.nameTag = RenderHooks.entityNameTag(entity, state.nameTag);
+		}
 		return state;
 	}
 }
