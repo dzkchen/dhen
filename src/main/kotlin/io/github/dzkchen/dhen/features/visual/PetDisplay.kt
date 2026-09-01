@@ -13,7 +13,14 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.pet.CurrentPet
 import io.github.dzkchen.dhen.data.pet.PetLines
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
+import io.github.dzkchen.dhen.event.ContainerClickEvent
+import io.github.dzkchen.dhen.event.ContainerClosedEvent
+import io.github.dzkchen.dhen.event.ContainerKeyEvent
+import io.github.dzkchen.dhen.event.ContainerReadyEvent
+import io.github.dzkchen.dhen.event.ContainerScrollEvent
+import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.EntityNameTagEvent
+import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
@@ -204,13 +211,23 @@ object PetDisplay : Module(
 	private val petItems = SkyBlockItems.memo(TRACKED_SLOTS)
 	private val petLevels = PetSlotLevels(TRACKED_SLOTS)
 	private val candyLabels = Array(MAX_CANDY + 1) { CANDY_COLOR + it }
+	private val petWheel = PetWheelScreen()
 
 	init {
 		on<ChatReceiveEvent> { autopetted(it) }
+		on<ContainerReadyEvent> { petWheel.ready(it) }
+		on<ContainerUpdatedEvent> { petWheel.updated(it) }
+		on<ContainerClosedEvent> { petWheel.closed(it) }
+		on<ScreenRenderEvent.Pre> { petWheel.render(it) }
+		on<ContainerClickEvent> { petWheel.clicked(it) }
+		on<ContainerKeyEvent> { petWheel.keyed(it) }
+		on<ContainerScrollEvent> { petWheel.scrolled(it) }
 		on<SlotRenderEvent.Pre> { highlighted(it) }
 		on<SlotRenderEvent.Post> { decorated(it) }
 		on<EntityNameTagEvent> { renamed(it) }
 	}
+
+	override fun onDisabled() = petWheel.reset()
 
 	internal fun titled(pet: String, dungeon: Boolean): Boolean =
 		autoPetTitleSetting.on && pet.isNotEmpty() && (!dungeonsOnlySetting.on || dungeon)

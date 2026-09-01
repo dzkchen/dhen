@@ -138,6 +138,16 @@ class PetWheelCacheTest {
 		assertEquals(PetWheelCache.NO_SLOT, cache.slotAt(0))
 	}
 
+	@Test
+	fun `a reused window id does not make a different screen match the cached Pets session`() {
+		val title = Component.literal("Pets")
+		cache.refresh(title, 3, menuWithPets(2))
+
+		assertTrue(cache.belongsTo(title))
+		assertFalse(cache.belongsTo(Component.literal("Storage")))
+		assertTrue(cache.active)
+	}
+
 	private fun menu(): MutableList<ItemStack> = MutableList(MENU_SIZE) { ItemStack.EMPTY }
 
 	private fun menuWithPets(count: Int): MutableList<ItemStack> {

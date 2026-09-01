@@ -26,6 +26,7 @@ class PetDisplayTest {
 		assertEquals("Pet Display", PetDisplay.name)
 		assertEquals(Category.VISUAL, PetDisplay.category)
 		assertTrue(PetDisplay.hudElements.isEmpty())
+		assertEquals(11, PetDisplay.subscriptionCount)
 		assertEquals(
 			listOf(
 				"Auto Pet Title",

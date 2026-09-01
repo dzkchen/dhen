@@ -10,6 +10,7 @@ internal class PetWheelCache {
 	private val petSlots = IntArray(MAX_PETS)
 	private val favouriteSlots = IntArray(MAX_PETS)
 	private val titleMatcher = PETS_TITLE.matcher("")
+	private var menuTitle: Component? = null
 	private var petCount = 0
 	private var favouriteCount = 0
 	private var favouritesOnly = false
@@ -35,12 +36,20 @@ internal class PetWheelCache {
 	val pages: Int
 		get() = Math.ceilDiv(size, PETS_PER_PAGE).coerceAtLeast(1)
 
+	fun matches(title: Component): Boolean = titleMatcher.reset(withoutCodes(title.string)).matches()
+
+	fun belongsTo(title: Component): Boolean = active && menuTitle === title
+
 	fun refresh(title: Component, windowId: Int, stacks: List<ItemStack>): Boolean {
-		if (!titleMatcher.reset(withoutCodes(title.string)).matches()) return false
 		if (this.windowId != windowId) {
+			if (!matches(title)) return false
 			this.windowId = windowId
+			menuTitle = title
 			page = 0
 			vanilla = false
+		} else if (menuTitle !== title) {
+			if (!matches(title)) return false
+			menuTitle = title
 		}
 		petCount = 0
 		favouriteCount = 0
@@ -85,6 +94,7 @@ internal class PetWheelCache {
 
 	fun reset() {
 		windowId = NO_WINDOW
+		menuTitle = null
 		page = 0
 		vanilla = false
 		petCount = 0
