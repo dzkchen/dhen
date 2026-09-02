@@ -46,12 +46,16 @@ import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
+import io.github.dzkchen.dhen.features.inventory.AuctionPriceInput
 import io.github.dzkchen.dhen.features.inventory.ChickenHeadTimer
 import io.github.dzkchen.dhen.features.inventory.CrownOfAvarice
 import io.github.dzkchen.dhen.features.inventory.FireFreeze
 import io.github.dzkchen.dhen.features.inventory.FireVeilWand
 import io.github.dzkchen.dhen.features.inventory.ItemAbilities
+import io.github.dzkchen.dhen.features.inventory.ContainerState
 import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
+import io.github.dzkchen.dhen.features.inventory.ProtectItem
+import io.github.dzkchen.dhen.features.inventory.SlotBinding
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
@@ -265,6 +269,9 @@ object Dhen : ClientModInitializer {
 			FireFreeze,
 			InventorySearch,
 			ItemTooltip,
+			ProtectItem,
+			SlotBinding,
+			AuctionPriceInput,
 			Animations,
 			Box3D,
 			Camera,
@@ -409,6 +416,9 @@ object Dhen : ClientModInitializer {
 		ProfileHooks.install(
 			modules.eventBus,
 			flushedOnStop(configRoot.resolve("profiles.json"), emptyList(), ProfileHooks.authoritative)
+		)
+		ContainerState.install(
+			flushedOnStop(configRoot.resolve("containers.json"), emptyList(), ContainerState.authoritative)
 		)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)

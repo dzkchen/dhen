@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.dzkchen.dhen.event.ScreenHooks;
 import io.github.dzkchen.dhen.event.TooltipEvent;
+import io.github.dzkchen.dhen.features.inventory.ContainerOrigin;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -26,9 +27,30 @@ import java.util.List;
 import java.util.Optional;
 
 @Mixin(AbstractContainerScreen.class)
-public abstract class AbstractContainerScreenMixin {
+public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 	@Shadow
 	protected Slot hoveredSlot;
+
+	@Shadow
+	protected int leftPos;
+
+	@Shadow
+	protected int topPos;
+
+	@Override
+	public int dhenContainerLeft() {
+		return this.leftPos;
+	}
+
+	@Override
+	public int dhenContainerTop() {
+		return this.topPos;
+	}
+
+	@Override
+	public Slot dhenHoveredSlot() {
+		return this.hoveredSlot;
+	}
 
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void dhen$beforeClick(

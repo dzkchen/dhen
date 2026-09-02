@@ -11,8 +11,8 @@ import io.github.dzkchen.dhen.features.dungeon.legacyColor
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SLOT_BOX
-import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.SlotTint
+import io.github.dzkchen.dhen.gui.slotOutline
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -82,22 +82,15 @@ object ItemRarityOverlay : Module(
 		val solid = tint(rarity)
 		val faded = ARGB.color((opacitySetting.amount * ALPHA_FULL / PERCENT).toInt(), solid)
 		when (styleSetting.value) {
-			OUTLINE -> outline(graphics, x, y, faded)
+			OUTLINE -> slotOutline(graphics, x, y, faded)
 			FILLED_OUTLINE -> {
 				SlotTint.claim(faded, TINT_PRIORITY)
-				outline(graphics, x, y, ARGB.opaque(solid))
+				slotOutline(graphics, x, y, ARGB.opaque(solid))
 			}
 
 			CIRCLE -> RoundedGui.circle(graphics, x + SLOT_BOX / 2, y + SLOT_BOX / 2, SLOT_BOX / 2, faded)
 			else -> SlotTint.claim(faded, TINT_PRIORITY)
 		}
-	}
-
-	private fun outline(graphics: GuiGraphicsExtractor, x: Int, y: Int, color: Int) {
-		SharpGui.fill(graphics, x, y, x + SLOT_BOX, y + EDGE, color)
-		SharpGui.fill(graphics, x, y + SLOT_BOX - EDGE, x + SLOT_BOX, y + SLOT_BOX, color)
-		SharpGui.fill(graphics, x, y + EDGE, x + EDGE, y + SLOT_BOX - EDGE, color)
-		SharpGui.fill(graphics, x + SLOT_BOX - EDGE, y + EDGE, x + SLOT_BOX, y + SLOT_BOX - EDGE, color)
 	}
 
 	private fun hypixelTint(rarity: ItemRarity): Int = when (rarity) {
@@ -128,5 +121,4 @@ object ItemRarityOverlay : Module(
 	private const val PERCENT = 100.0
 	private const val ALPHA_FULL = 255.0
 	private const val TINT_PRIORITY = 0
-	private const val EDGE = 1
 }

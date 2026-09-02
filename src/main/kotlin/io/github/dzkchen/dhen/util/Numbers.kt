@@ -47,3 +47,24 @@ internal fun shortNumber(value: Long): String {
 	if (tenth == 0L || truncated >= SHORT_DECIMAL_LIMITS[index]) return whole.toString() + SHORT_SUFFIXES[index]
 	return whole.toString() + '.' + tenth + SHORT_SUFFIXES[index]
 }
+
+private const val COMPACT_SUFFIXES = "kmbtpe"
+
+private val COMPACT_MULTIPLIERS = longArrayOf(
+	1_000L,
+	1_000_000L,
+	1_000_000_000L,
+	1_000_000_000_000L,
+	1_000_000_000_000_000L,
+	1_000_000_000_000_000_000L
+)
+
+internal fun compactNumber(text: String): Long? {
+	val cleaned = text.lowercase().replace(",", "").trim()
+	if (cleaned.isEmpty()) return null
+	cleaned.toLongOrNull()?.let { return it }
+	val suffix = COMPACT_SUFFIXES.indexOf(cleaned[cleaned.length - 1])
+	if (suffix < 0) return null
+	val amount = cleaned.substring(0, cleaned.length - 1).toDoubleOrNull() ?: return null
+	return (amount * COMPACT_MULTIPLIERS[suffix]).toLong()
+}

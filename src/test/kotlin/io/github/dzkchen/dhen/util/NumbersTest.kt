@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.util
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class NumbersTest {
@@ -37,5 +38,45 @@ class NumbersTest {
 	fun `a negative reads as its own magnitude and the smallest long cannot loop`() {
 		assertEquals("-1.2k", shortNumber(-1_234L))
 		assertEquals("-9223372T", shortNumber(Long.MIN_VALUE))
+	}
+	@Test
+	fun `a bare number keeps every digit it was given`() {
+		assertEquals(1000L, compactNumber("1000"))
+		assertEquals(0L, compactNumber("0"))
+		assertEquals(1000L, compactNumber("1,000"))
+		assertEquals(-100L, compactNumber("-100"))
+	}
+
+	@Test
+	fun `a suffix multiplies and reads in either case`() {
+		assertEquals(10_000L, compactNumber("10k"))
+		assertEquals(10_000L, compactNumber("10K"))
+		assertEquals(10_000_000L, compactNumber("10m"))
+		assertEquals(1_000_000_000_000L, compactNumber("1t"))
+		assertEquals(1_000_000_000_000_000L, compactNumber("1p"))
+		assertEquals(1_000_000_000_000_000_000L, compactNumber("1e"))
+	}
+
+	@Test
+	fun `a decimal part survives the suffix and truncates toward zero`() {
+		assertEquals(1_500_000L, compactNumber("1.5m"))
+		assertEquals(2_500_000_000L, compactNumber("2.5b"))
+		assertEquals(1500L, compactNumber("1.5k"))
+		assertEquals(-3000L, compactNumber("-3k"))
+	}
+
+	@Test
+	fun `surrounding space is trimmed before anything else is read`() {
+		assertEquals(5_000_000L, compactNumber("  5M  "))
+		assertEquals(10_000_000L, compactNumber(" 10m"))
+	}
+
+	@Test
+	fun `nothing readable comes back as no number at all`() {
+		assertNull(compactNumber(""))
+		assertNull(compactNumber("   "))
+		assertNull(compactNumber("abc"))
+		assertNull(compactNumber("k"))
+		assertNull(compactNumber("1.5"))
 	}
 }
