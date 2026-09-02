@@ -42,6 +42,7 @@
 		"LevelChunkMixin",
 		"LivingEntityMixin",
 		"LoadingOverlayMixin",
+		"LocalPlayerMixin",
 		"LightmapMixin",
 		"MinecraftMixin",
 		"MouseHandlerMixin",
