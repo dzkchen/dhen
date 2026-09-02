@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.config.CorePersistence
 import io.github.dzkchen.dhen.config.ModulePersistence
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.HypixelModApi
+import io.github.dzkchen.dhen.data.ProfileHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
@@ -160,6 +161,7 @@ object Dhen : ClientModInitializer {
 			QuiverHooks,
 			MaxwellHooks,
 			CookieHooks,
+			ProfileHooks,
 			firstRunExperience,
 			HypixelModApi
 		)
@@ -358,6 +360,10 @@ object Dhen : ClientModInitializer {
 		QuiverHooks.install(modules.eventBus)
 		MaxwellHooks.install(modules.eventBus)
 		CookieHooks.install(modules.eventBus)
+		ProfileHooks.install(
+			modules.eventBus,
+			flushedOnStop(configRoot.resolve("profiles.json"), emptyList(), ProfileHooks.authoritative)
+		)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)

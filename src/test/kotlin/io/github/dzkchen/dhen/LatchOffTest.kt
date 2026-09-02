@@ -1,7 +1,9 @@
 package io.github.dzkchen.dhen
 
+import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.data.HypixelLocationHooks
 import io.github.dzkchen.dhen.data.HypixelModApi
+import io.github.dzkchen.dhen.data.ProfileHooks
 import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
@@ -23,12 +25,16 @@ import io.github.dzkchen.dhen.event.ScreenHooks
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LatchOffTest {
@@ -36,7 +42,7 @@ class LatchOffTest {
 	fun bootstrap() = bootstrapMinecraft()
 
 	@Test
-	fun `latching off leaves no hook with a live feed`() {
+	fun `latching off leaves no hook with a live feed`(@TempDir dir: Path) {
 		val bus = EventBus()
 		NetworkHooks.install(bus)
 		ScreenHooks.install(bus)
@@ -57,6 +63,7 @@ class LatchOffTest {
 		QuiverHooks.install(bus)
 		MaxwellHooks.install(bus)
 		CookieHooks.install(bus)
+		ProfileHooks.install(bus, ConfigStore(dir.resolve("profiles.json"), CoroutineScope(Dispatchers.Unconfined)))
 		Dhen.firstRunExperience.install(bus, alreadyShown = true)
 		HypixelModApi.install()
 		WorldRenderProbe.install(bus)
@@ -102,7 +109,7 @@ class LatchOffTest {
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
 			InteractionHooks, WorldRenderHooks, TickHooks, HypixelLocationHooks, ScoreboardHooks,
 			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
-			CookieHooks, Dhen.firstRunExperience, HypixelModApi
+			CookieHooks, ProfileHooks, Dhen.firstRunExperience, HypixelModApi
 		)
 		assertEquals(installed, Dhen.hooks.toSet())
 		assertEquals(Dhen.hooks.size, Dhen.hooks.mapTo(mutableSetOf(), Hooks::feed).size)
