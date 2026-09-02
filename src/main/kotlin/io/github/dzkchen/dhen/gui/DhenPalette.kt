@@ -35,6 +35,16 @@ internal object DhenPalette {
 	val accentMuted: Int get() = DhenTheme.activeOnRenderThread.accentMuted
 	val accentForeground: Int get() = DhenTheme.activeOnRenderThread.accentForeground
 
+	val HYPIXEL_COMMON: Int get() = DhenTheme.HYPIXEL_COMMON
+	val HYPIXEL_UNCOMMON: Int get() = DhenTheme.HYPIXEL_UNCOMMON
+	val HYPIXEL_RARE: Int get() = DhenTheme.HYPIXEL_RARE
+	val HYPIXEL_EPIC: Int get() = DhenTheme.HYPIXEL_EPIC
+	val HYPIXEL_LEGENDARY: Int get() = DhenTheme.HYPIXEL_LEGENDARY
+	val HYPIXEL_MYTHIC: Int get() = DhenTheme.HYPIXEL_MYTHIC
+	val HYPIXEL_DIVINE: Int get() = DhenTheme.HYPIXEL_DIVINE
+	val HYPIXEL_ULTIMATE: Int get() = DhenTheme.HYPIXEL_ULTIMATE
+	val HYPIXEL_SPECIAL: Int get() = DhenTheme.HYPIXEL_SPECIAL
+
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
 	fun mix(from: Int, to: Int, fraction: Float): Int {

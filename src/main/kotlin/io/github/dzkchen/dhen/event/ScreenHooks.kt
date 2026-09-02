@@ -57,6 +57,10 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 		guarded("container key", false) { it.pressed(screen, key, hovered) }
 
 	@JvmStatic
+	fun beforeContainerChar(screen: AbstractContainerScreen<*>, codepoint: Int): Boolean =
+		guarded("container char", false) { it.typed(screen, codepoint) }
+
+	@JvmStatic
 	fun beforeContainerScroll(
 		screen: AbstractContainerScreen<*>,
 		mouseX: Double,
@@ -109,6 +113,7 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 		private val closes = bus.type<GuiCloseEvent>()
 		private val clicks = bus.type<ContainerClickEvent>()
 		private val keys = bus.type<ContainerKeyEvent>()
+		private val chars = bus.type<ContainerCharEvent>()
 		private val scrolls = bus.type<ContainerScrollEvent>()
 		private val renderPre = bus.type<ScreenRenderEvent.Pre>()
 		private val renderPost = bus.type<ScreenRenderEvent.Post>()
@@ -166,6 +171,12 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 		fun pressed(screen: AbstractContainerScreen<*>, key: KeyEvent, hovered: Slot?): Boolean {
 			val event = ContainerKeyEvent(screen, key, hovered)
 			keys.dispatch(event)
+			return event.cancelled
+		}
+
+		fun typed(screen: AbstractContainerScreen<*>, codepoint: Int): Boolean {
+			val event = ContainerCharEvent(screen, codepoint)
+			chars.dispatch(event)
 			return event.cancelled
 		}
 

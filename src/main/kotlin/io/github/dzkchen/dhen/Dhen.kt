@@ -44,6 +44,9 @@ import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
+import io.github.dzkchen.dhen.features.inventory.InventorySearch
+import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
+import io.github.dzkchen.dhen.features.inventory.ItemTooltip
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
@@ -247,6 +250,9 @@ object Dhen : ClientModInitializer {
 			NoItemPlace,
 			PickupLog,
 			Tweaks,
+			ItemRarityOverlay,
+			InventorySearch,
+			ItemTooltip,
 			Animations,
 			Box3D,
 			Camera,

@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import io.github.dzkchen.dhen.features.visual.Camera;
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard;
@@ -11,6 +12,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Hud;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -129,5 +131,19 @@ public abstract class HudMixin {
 	)
 	private float dhen$nausea(final float original) {
 		return Camera.nauseaIntensity(original);
+	}
+
+	@Inject(method = "extractSlot", at = @At("HEAD"))
+	private void dhen$hotbarRarity(
+		final GuiGraphicsExtractor graphics,
+		final int x,
+		final int y,
+		final DeltaTracker deltaTracker,
+		final Player player,
+		final ItemStack stack,
+		final int seed,
+		final CallbackInfo callback
+	) {
+		ItemRarityOverlay.drawHotbarSlot(graphics, stack, x, y);
 	}
 }

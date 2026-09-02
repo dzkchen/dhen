@@ -106,6 +106,12 @@ class SkyBlockItem internal constructor(
 
 	val manaDisintegrators: Int get() = tag.getIntOr("mana_disintegrator_count", 0)
 
+	val baseStatBoost: Int get() = tag.getIntOr("baseStatBoostPercentage", 0)
+
+	val dungeonSkillRequirement: String get() = tag.getStringOr("dungeon_skill_req", "")
+
+	val dungeonFloor: Int get() = tag.getIntOr("item_tier", 0)
+
 	val helmetSkin: String get() = tag.getStringOr("skin", "")
 
 	val armorDye: String get() = tag.getStringOr("dye_item", "")

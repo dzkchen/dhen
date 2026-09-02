@@ -163,6 +163,13 @@ class ContainerKeyEvent internal constructor(
 	override var cancelled: Boolean = false
 }
 
+class ContainerCharEvent internal constructor(
+	val screen: AbstractContainerScreen<*>,
+	val codepoint: Int
+) : Event, Cancellable {
+	override var cancelled: Boolean = false
+}
+
 class ContainerScrollEvent internal constructor(
 	val screen: AbstractContainerScreen<*>,
 	val mouseX: Double,

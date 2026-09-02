@@ -5,7 +5,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.world.item.ItemStack
 import java.util.regex.Pattern
 
-enum class ItemRarity(baseColor: ChatFormatting, val magicalPower: Int) {
+enum class ItemRarity(val baseColor: ChatFormatting, val magicalPower: Int) {
 	NONE(ChatFormatting.GRAY, 0),
 	COMMON(ChatFormatting.WHITE, 3),
 	UNCOMMON(ChatFormatting.GREEN, 5),

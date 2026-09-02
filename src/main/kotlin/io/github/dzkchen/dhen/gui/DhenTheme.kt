@@ -46,6 +46,16 @@ internal data class DhenTheme(
 		private const val RGB_MASK = 0xFFFFFF
 		private const val ALPHA_SHIFT = 24
 
+		val HYPIXEL_COMMON = 0xFFFFFFFFu.toInt()
+		val HYPIXEL_UNCOMMON = 0xFF21FF2Au.toInt()
+		val HYPIXEL_RARE = 0xFF459BFFu.toInt()
+		val HYPIXEL_EPIC = 0xFFA335EEu.toInt()
+		val HYPIXEL_LEGENDARY = 0xFFFFA216u.toInt()
+		val HYPIXEL_MYTHIC = 0xFFFF55FFu.toInt()
+		val HYPIXEL_DIVINE = 0xFF55FFFFu.toInt()
+		val HYPIXEL_ULTIMATE = 0xFFD13228u.toInt()
+		val HYPIXEL_SPECIAL = 0xFFFF5555u.toInt()
+
 		val DEFAULT = DhenTheme()
 
 		val LIGHT = DhenTheme(

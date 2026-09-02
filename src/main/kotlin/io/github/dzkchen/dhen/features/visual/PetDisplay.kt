@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.features.visual
 
-import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
@@ -36,6 +35,7 @@ import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.input.shiftHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
@@ -688,7 +688,7 @@ object PetDisplay : Module(
 		on<SlotRenderEvent.Post> { decorated(it) }
 		on<EntityNameTagEvent> { renamed(it) }
 		on<TooltipEvent> {
-			if (petExpTooltipEnabled) petExpTooltip.add(it, showPetExpAlways, dragonEgg, shiftDown())
+			if (petExpTooltipEnabled) petExpTooltip.add(it, showPetExpAlways, dragonEgg, shiftHeld())
 		}
 		on<ClientTickEvent.End> { tickHud() }
 		on<WorldChangeEvent> { georgeHelper.reset() }
@@ -740,12 +740,6 @@ object PetDisplay : Module(
 			priceRequirement = Handle {}
 			priceHeld = false
 		}
-	}
-
-	private fun shiftDown(): Boolean {
-		val window = Minecraft.getInstance().window
-		return InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT) ||
-			InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT)
 	}
 
 	internal fun titled(pet: String, dungeon: Boolean): Boolean =
