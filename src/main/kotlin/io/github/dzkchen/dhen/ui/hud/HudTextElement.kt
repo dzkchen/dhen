@@ -1,6 +1,5 @@
 package io.github.dzkchen.dhen.ui.hud
 
-import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -23,8 +22,7 @@ class HudTextElement(
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		val ink = color ?: if (background) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_ON_WORLD
-		memo.shadowed(graphics, font, text, 0, 0, ink, scale)
+		memo.shadowed(graphics, font, text, 0, 0, color ?: textInk, scale)
 	}
 
 	override fun invalidateMeasurement() = memo.invalidate()

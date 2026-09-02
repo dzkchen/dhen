@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.ui.hud
 
+import io.github.dzkchen.dhen.gui.DhenPalette
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -32,6 +33,12 @@ abstract class HudElement(
 
 	internal open val hasContent: Boolean
 		get() = true
+
+	internal open val listed: Boolean
+		get() = true
+
+	protected val textInk: Int
+		get() = if (background) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_ON_WORLD
 
 	fun resetToDeclared(): Boolean {
 		if (

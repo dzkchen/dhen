@@ -3,8 +3,11 @@ package io.github.dzkchen.dhen.ui.hud
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -458,6 +461,36 @@ class HudEditorTest {
 		target.placeholder = !target.rendering
 		target.contentWidth = ELEMENT_WIDTH
 		target.contentHeight = ELEMENT_HEIGHT
+	}
+
+	@Test
+	fun `an element that opts out of listing is not an editor target at all`() {
+		val module = UnlistedModule()
+		val manager = ModuleManager()
+		manager.register(module)
+		manager.enable(module)
+		val editor = HudEditor(manager, metrics)
+
+		editor.layout(WIDTH, HEIGHT)
+
+		assertEquals(listOf("Shown"), editor.targets.map { it.element.name })
+		assertNull(editor.targetAt(0, 0).takeIf { it?.element === module.hidden })
+	}
+
+	private class UnlistedModule : Module("Unlisted", Category.VISUAL, "Fixture owning one unlisted element.") {
+		val hidden = hud(UnlistedHudElement("Hidden"))
+		val shown = hud(FixedHudElement("Shown", ELEMENT_WIDTH, ELEMENT_HEIGHT))
+	}
+
+	private class UnlistedHudElement(name: String) : HudElement(name) {
+		override val listed: Boolean
+			get() = false
+
+		override fun width(font: Font): Int = ELEMENT_WIDTH
+
+		override fun height(font: Font): Int = ELEMENT_HEIGHT
+
+		override fun render(graphics: GuiGraphicsExtractor, font: Font) = Unit
 	}
 
 	private class OverlayModule(

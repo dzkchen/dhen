@@ -284,7 +284,7 @@ internal class WrappedText {
 
 	fun widest(font: Font): Int {
 		var widest = 0
-		for (i in shown.indices) widest = maxOf(widest, memoAt(i).width(font, shown[i]))
+		for (i in shown.indices) widest = maxOf(widest, memos.memoAt(i).width(font, shown[i]))
 		return widest
 	}
 
@@ -298,7 +298,7 @@ internal class WrappedText {
 	) {
 		val lineHeight = DhenType.lineHeight(font)
 		for (i in shown.indices) {
-			val memo = memoAt(i)
+			val memo = memos.memoAt(i)
 			val text = shown[i]
 			val x = if (centered) left + ClickGuiShell.centeredLeft(measuredRoom, memo.width(font, text)) else left
 			memo.text(graphics, font, text, x, top + i * lineHeight, color)
@@ -311,15 +311,16 @@ internal class WrappedText {
 	}
 
 	private fun fitted(font: Font, text: String, room: Int): String {
-		val line = memoAt(shown.size).fit(font, text, room)
+		val line = memos.memoAt(shown.size).fit(font, text, room)
 		if (line.isNotEmpty() || shown.isEmpty()) shown += line
 		return line
 	}
 
-	private fun memoAt(index: Int): TextMemo {
-		while (memos.size <= index) memos += TextMemo()
-		return memos[index]
-	}
+}
+
+internal fun MutableList<TextMemo>.memoAt(index: Int): TextMemo {
+	while (size <= index) this += TextMemo()
+	return this[index]
 }
 
 internal object DhenType {

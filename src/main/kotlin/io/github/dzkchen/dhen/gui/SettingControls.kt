@@ -255,7 +255,7 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 				val fill = if (selected) GlassGui.raised() else GlassGui.interactive()
 				RoundedGui.fill(graphics, x + LIST_PAD, rowTop, right - LIST_PAD, rowTop + LIST_ROW_HEIGHT, LIST_ROW_RADIUS, fill)
 			}
-			val memo = optionMemo(i)
+			val memo = optionText.memoAt(i)
 			val shown = memo.fit(font, options[i], room)
 			val tint = when {
 				selected -> DhenPalette.accent
@@ -265,11 +265,6 @@ internal class DropdownControl(private val selector: SelectorSetting) : SettingC
 			memo.text(graphics, font, shown, x + LIST_PAD + LIST_TEXT_INSET, textTop(font, rowTop, LIST_ROW_HEIGHT), tint)
 			rowTop += LIST_ROW_HEIGHT
 		}
-	}
-
-	private fun optionMemo(index: Int): TextMemo {
-		while (optionText.size <= index) optionText += memo()
-		return optionText[index]
 	}
 
 	override fun onInvalidateMeasurement() = widestValue.invalidate()

@@ -230,9 +230,9 @@ internal class HudEditor(
 		private fun targetsOf(manager: ModuleManager, coreElements: List<HudElement>): List<HudTarget> {
 			val targets = mutableListOf<HudTarget>()
 			for (module in manager.ordered) {
-				for (element in module.hudElements) targets += HudTarget(module, element)
+				for (element in module.hudElements) if (element.listed) targets += HudTarget(module, element)
 			}
-			for (element in coreElements) targets += HudTarget(null, element)
+			for (element in coreElements) if (element.listed) targets += HudTarget(null, element)
 			return targets
 		}
 	}

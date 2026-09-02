@@ -51,6 +51,7 @@ import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.QuiverDisplay
 import io.github.dzkchen.dhen.features.visual.RevertAxes
+import io.github.dzkchen.dhen.features.visual.TabWidgetDisplay
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
@@ -239,6 +240,7 @@ object Dhen : ClientModInitializer {
 			PlayerStatsHud,
 			QuiverDisplay,
 			RevertAxes,
+			TabWidgetDisplay,
 			TimeChanger,
 			UtilityHuds,
 			VisualTweaks,

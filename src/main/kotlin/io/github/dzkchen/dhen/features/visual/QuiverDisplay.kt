@@ -18,7 +18,6 @@ import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
-import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -290,7 +289,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 			shown,
 			textLeft(),
 			(height - DhenType.lineHeight(font)) / 2,
-			if (background) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_ON_WORLD,
+			textInk,
 			scale
 		)
 	}
