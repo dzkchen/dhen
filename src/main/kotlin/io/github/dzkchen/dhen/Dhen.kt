@@ -45,6 +45,11 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
+import io.github.dzkchen.dhen.features.inventory.AnvilHelper
+import io.github.dzkchen.dhen.features.inventory.ChickenHeadTimer
+import io.github.dzkchen.dhen.features.inventory.CrownOfAvarice
+import io.github.dzkchen.dhen.features.inventory.FireFreeze
+import io.github.dzkchen.dhen.features.inventory.FireVeilWand
 import io.github.dzkchen.dhen.features.inventory.ItemAbilities
 import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip
@@ -253,6 +258,11 @@ object Dhen : ClientModInitializer {
 			Tweaks,
 			ItemRarityOverlay,
 			ItemAbilities,
+			AnvilHelper,
+			ChickenHeadTimer,
+			CrownOfAvarice,
+			FireVeilWand,
+			FireFreeze,
 			InventorySearch,
 			ItemTooltip,
 			Animations,

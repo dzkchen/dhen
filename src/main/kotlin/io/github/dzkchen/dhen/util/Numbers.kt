@@ -31,3 +31,19 @@ internal fun digits(text: String?): Long {
 	}
 	return value
 }
+
+private val SHORT_DIVISORS = longArrayOf(1_000L, 1_000_000L, 1_000_000_000L, 1_000_000_000_000L)
+private val SHORT_SUFFIXES = charArrayOf('k', 'M', 'B', 'T')
+private val SHORT_DECIMAL_LIMITS = longArrayOf(100L, 1_000L, 1_000_000L, 100L)
+
+internal fun shortNumber(value: Long): String {
+	if (value < 0L) return "-" + shortNumber(if (value == Long.MIN_VALUE) Long.MAX_VALUE else -value)
+	if (value < SHORT_DIVISORS[0]) return value.toString()
+	var index = 0
+	while (index + 1 < SHORT_DIVISORS.size && value >= SHORT_DIVISORS[index + 1]) index++
+	val truncated = value / (SHORT_DIVISORS[index] / 10)
+	val whole = truncated / 10
+	val tenth = truncated % 10
+	if (tenth == 0L || truncated >= SHORT_DECIMAL_LIMITS[index]) return whole.toString() + SHORT_SUFFIXES[index]
+	return whole.toString() + '.' + tenth + SHORT_SUFFIXES[index]
+}

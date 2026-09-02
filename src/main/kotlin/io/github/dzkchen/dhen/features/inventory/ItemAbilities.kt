@@ -67,6 +67,11 @@ object ItemAbilities : Module(
 		description = "Plays a note with that title."
 	).withDependency { readyAlertSetting.on }
 
+	internal val depletedMasksSetting = BooleanSetting(
+		"Depleted Bonzo's Masks",
+		description = "Washes a spent Bonzo's or Spirit Mask red, fading to green as it comes back."
+	)
+
 	internal val maskOnItemSetting = BooleanSetting(
 		"Mask Cooldown On Item",
 		default = true,
@@ -94,6 +99,7 @@ object ItemAbilities : Module(
 	private var readyShown by readySetting
 	private var readyAlertShown by readyAlertSetting
 	private var readySoundOn by readySoundSetting
+	private var depletedMasks by depletedMasksSetting
 	private var maskOnItem by maskOnItemSetting
 	private var maskAsDurability by maskDurabilitySetting
 	private var phoenixTopLeft by phoenixSetting
@@ -349,6 +355,7 @@ object ItemAbilities : Module(
 	private fun tinted(event: SlotRenderEvent.Pre) {
 		if (!SkyBlockLocation.inSkyBlock) return
 		val slot = event.slot
+		depleted(slot.item)
 		val ability = containerAbilities.of(slot.index, slot.item) ?: return
 		val tint = tintOf(ability, true)
 		if (tint != 0) SlotTint.claim(tint, TINT_PRIORITY)
@@ -361,6 +368,15 @@ object ItemAbilities : Module(
 		val ability = containerAbilities.of(slot.index, slot.item) ?: return
 		label(event.graphics, ability, slot.x, slot.y, true)
 		containerAbilities.other(slot.index)?.let { label(event.graphics, it, slot.x, slot.y, true) }
+	}
+
+	internal fun depleted(stack: ItemStack) {
+		if (!depletedMasks || !MaskTimers.enabled) return
+		val mask = deathSaveMask(stack) ?: return
+		val left = mask.cooldownLeft
+		if (left <= 0) return
+		val hue = GREEN_HUE * (1f - left.toFloat() / mask.cooldownTicks)
+		SlotTint.claim(Color.hsv(hue, 1f, 1f).argb, DEPLETED_PRIORITY)
 	}
 
 	private fun masked(graphics: GuiGraphicsExtractor, slot: Slot) {
@@ -398,14 +414,17 @@ object ItemAbilities : Module(
 		)
 	}
 
-	private fun maskOf(slot: Slot): Mask? = when (SkyBlockItems.of(slot.item).id) {
-		"BONZO_MASK", "STARRED_BONZO_MASK" -> Mask.BONZO
-		"SPIRIT_MASK", "STARRED_SPIRIT_MASK" -> Mask.SPIRIT
-		else -> if (phoenixTopLeft && slot.containerSlot == PHOENIX_SLOT && slot.container is Inventory) {
+	private fun maskOf(slot: Slot): Mask? = deathSaveMask(slot.item)
+		?: if (phoenixTopLeft && slot.containerSlot == PHOENIX_SLOT && slot.container is Inventory) {
 			Mask.PHOENIX
 		} else {
 			null
 		}
+
+	internal fun deathSaveMask(stack: ItemStack): Mask? = when (SkyBlockItems.of(stack).id) {
+		"BONZO_MASK", "STARRED_BONZO_MASK" -> Mask.BONZO
+		"SPIRIT_MASK", "STARRED_SPIRIT_MASK" -> Mask.SPIRIT
+		else -> null
 	}
 
 	internal fun tintOf(ability: ItemAbility, screenOpen: Boolean): Int {
@@ -448,6 +467,8 @@ object ItemAbilities : Module(
 	private fun screenOpen(): Boolean = Minecraft.getInstance()?.gui?.screen() != null
 
 	private const val TINT_PRIORITY = 20
+	private const val DEPLETED_PRIORITY = 5
+	private const val GREEN_HUE = 1f / 3f
 	private const val TEXT_RIGHT = 17
 	private const val TEXT_TOP = 9
 	private const val TEXT_SCALE = 1f

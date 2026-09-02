@@ -26,6 +26,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.util.Util
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.ItemStack
 import java.util.regex.Matcher
@@ -41,6 +42,9 @@ internal object PickupHooks : GuardedHooks<PickupHooks.Channels> {
 
 	private var channels: Channels? = null
 	private var subscriptions: Array<Handle> = emptyArray()
+	private val ignoredIds = arrayOfNulls<String>(IGNORE_CAPACITY)
+	private val ignoredUntil = LongArray(IGNORE_CAPACITY)
+	private var ignoreHand = 0
 
 	fun install(bus: EventBus) {
 		uninstall()
@@ -60,6 +64,19 @@ internal object PickupHooks : GuardedHooks<PickupHooks.Channels> {
 	}
 
 	override fun bound() = channels
+
+	internal fun ignore(id: String, millis: Long) {
+		if (id.isEmpty()) return
+		ignoredIds[ignoreHand] = id
+		ignoredUntil[ignoreHand] = Util.getMillis() + millis
+		ignoreHand = (ignoreHand + 1) % IGNORE_CAPACITY
+	}
+
+	private fun ignored(id: String): Boolean {
+		val now = Util.getMillis()
+		for (slot in ignoredIds.indices) if (ignoredIds[slot] == id && now < ignoredUntil[slot]) return true
+		return false
+	}
 
 	internal fun sackItemMessage(stripped: String): Boolean {
 		val marker = stripped.indexOf(ITEM_MARKER)
@@ -165,6 +182,7 @@ internal object PickupHooks : GuardedHooks<PickupHooks.Channels> {
 		}
 
 		private fun publish(snapshot: InventorySnapshot, index: Int, delta: Int) {
+			if (ignored(snapshot.id(index))) return
 			pickups.dispatch(
 				ItemPickupEvent(
 					snapshot.id(index),
@@ -186,6 +204,7 @@ internal object PickupHooks : GuardedHooks<PickupHooks.Channels> {
 		}
 	}
 
+	private const val IGNORE_CAPACITY = 4
 	private const val MENU_SLOT = 8
 	private const val ENCHANTED_BOOK = "ENCHANTED_BOOK"
 	private const val CHIMERA = "CHIMERA"

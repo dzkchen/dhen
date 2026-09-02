@@ -45,6 +45,7 @@ class ItemAbilitiesTest {
 				"Show When Ready",
 				"Ready Notification",
 				"Ready Sound",
+				"Depleted Bonzo's Masks",
 				"Mask Cooldown On Item",
 				"Mask As Durability",
 				"Phoenix As Top Left",

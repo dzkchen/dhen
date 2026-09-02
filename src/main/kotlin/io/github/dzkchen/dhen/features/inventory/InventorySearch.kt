@@ -13,7 +13,7 @@ import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.gui.RoundedQuad
-import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.SlotTint
 import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.gui.caret
 import io.github.dzkchen.dhen.gui.isPrintable
@@ -87,14 +87,7 @@ object InventorySearch : Module(
 		}
 		on<SlotRenderEvent.Pre> { event ->
 			if (!matches(event.slot.index, event.slot.item)) return@on
-			SharpGui.fill(
-				event.graphics,
-				event.slot.x,
-				event.slot.y,
-				event.slot.x + SLOT,
-				event.slot.y + SLOT,
-				highlightSetting.value.argb
-			)
+			SlotTint.claim(highlightSetting.value.argb, TINT_PRIORITY)
 		}
 		on<ScreenRenderEvent.Post> { event ->
 			if (event.screen !is AbstractContainerScreen<*>) return@on
@@ -238,7 +231,7 @@ object InventorySearch : Module(
 	private const val BOTTOM_GAP = 30
 	private const val TEXT_INSET = 8
 	private const val CARET_ROOM = 2
-	private const val SLOT = 16
+	private const val TINT_PRIORITY = 30
 	private const val CACHED_SLOTS = 128
 	private const val LONG_LIMIT = 9.0e18
 }

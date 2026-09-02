@@ -63,6 +63,8 @@ internal object WorldDraw {
 	private const val TRACER_DROP = 0.2f
 	private const val WORLD_TEXT_SCALE = 0.025f
 	private const val BEAM_PERIOD = 40L
+	private const val CIRCLE_SEGMENTS = 64
+	private const val CIRCLE_STEP = 2.0 * Math.PI / CIRCLE_SEGMENTS
 
 	private val wireEdges = intArrayOf(
 		0, 1, 2, 3, 4, 5, 6, 7,
@@ -105,6 +107,50 @@ internal object WorldDraw {
 		color: Int,
 		width: Float = DEFAULT_LINE_WIDTH
 	) = drawTracer(event, to.x, to.y, to.z, color, width)
+
+	fun drawWireCircle(
+		event: WorldRenderEvent,
+		center: Vec3,
+		radius: Double,
+		color: Int,
+		width: Float = DEFAULT_LINE_WIDTH,
+		depth: WorldDepth = WorldDepth.TESTED
+	) = drawWireCircle(event, center.x, center.y, center.z, radius, color, width, depth)
+
+	fun drawWireCircle(
+		event: WorldRenderEvent,
+		centerX: Double,
+		centerY: Double,
+		centerZ: Double,
+		radius: Double,
+		color: Int,
+		width: Float = DEFAULT_LINE_WIDTH,
+		depth: WorldDepth = WorldDepth.TESTED
+	) {
+		if (!radius.isFinite() || radius <= 0.0) return
+		val camera = event.camera.pos
+		val x = cameraRelative(centerX, camera.x)
+		val y = cameraRelative(centerY, camera.y)
+		val z = cameraRelative(centerZ, camera.z)
+		val span = radius.toFloat()
+		val renderType = WorldRenderTypes.line(depth, color)
+		event.collector.submitCustomGeometry(event.pose, renderType) { _, buffer ->
+			var segment = 0
+			while (segment < CIRCLE_SEGMENTS) {
+				val from = CIRCLE_STEP * segment
+				val to = CIRCLE_STEP * (segment + 1)
+				val fromX = x + span * cos(from).toFloat()
+				val fromZ = z + span * sin(from).toFloat()
+				val toX = x + span * cos(to).toFloat()
+				val toZ = z + span * sin(to).toFloat()
+				val dx = toX - fromX
+				val dz = toZ - fromZ
+				val edge = worldLineSpan(dx, 0f, dz)
+				if (edge > 0f) line(buffer, fromX, y, fromZ, toX, y, toZ, dx / edge, 0f, dz / edge, color, width)
+				segment++
+			}
+		}
+	}
 
 	fun drawTracer(
 		event: WorldRenderEvent,
@@ -223,7 +269,7 @@ internal object WorldDraw {
 		color: Int,
 		scale: Float = 1f,
 		depth: WorldDepth = WorldDepth.TESTED
-	) = drawTextInternal(event, null, text, pos, color, scale, depth)
+	) = drawTextInternal(event, null, text, pos.x, pos.y, pos.z, color, scale, depth)
 
 	fun drawText(
 		event: WorldRenderEvent,
@@ -233,7 +279,19 @@ internal object WorldDraw {
 		color: Int,
 		scale: Float = 1f,
 		depth: WorldDepth = WorldDepth.TESTED
-	) = drawTextInternal(event, memo, text, pos, color, scale, depth)
+	) = drawTextInternal(event, memo, text, pos.x, pos.y, pos.z, color, scale, depth)
+
+	fun drawText(
+		event: WorldRenderEvent,
+		memo: TextMemo,
+		text: String,
+		x: Double,
+		y: Double,
+		z: Double,
+		color: Int,
+		scale: Float = 1f,
+		depth: WorldDepth = WorldDepth.TESTED
+	) = drawTextInternal(event, memo, text, x, y, z, color, scale, depth)
 
 	fun drawBeaconBeam(
 		event: WorldRenderEvent,
@@ -303,7 +361,9 @@ internal object WorldDraw {
 		event: WorldRenderEvent,
 		memo: TextMemo?,
 		text: String,
-		pos: Vec3,
+		x: Double,
+		y: Double,
+		z: Double,
 		color: Int,
 		scale: Float,
 		depth: WorldDepth
@@ -316,9 +376,9 @@ internal object WorldDraw {
 		val displayMode = worldTextDisplayMode(depth)
 		withRestoredWorldPose(event.pose) {
 			translate(
-				cameraRelative(pos.x, camera.pos.x),
-				cameraRelative(pos.y, camera.pos.y),
-				cameraRelative(pos.z, camera.pos.z)
+				cameraRelative(x, camera.pos.x),
+				cameraRelative(y, camera.pos.y),
+				cameraRelative(z, camera.pos.z)
 			)
 			mulPose(camera.orientation)
 			scale(textScale, -textScale, textScale)

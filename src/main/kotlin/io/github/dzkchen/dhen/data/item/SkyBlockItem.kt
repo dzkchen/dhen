@@ -80,6 +80,8 @@ class SkyBlockItem internal constructor(
 
 	val jalapenoBooks: Int get() = tag.getIntOr("jalapeno_count", 0)
 
+	val collectedCoins: Long get() = tag.getLongOr("collected_coins", 0L)
+
 	val hasStatsBook: Boolean get() = tag.contains("stats_book")
 
 	val hasQuiverArrow: Boolean get() = tag.contains("quiver_arrow")
