@@ -93,6 +93,15 @@ class FireFreezeTest {
 	}
 
 	@Test
+	fun `a thunder spark blocks an arming sound only within two blocks of it`() {
+		assertTrue(FireFreeze.nearSpark(1.0, 1.0, 1.0))
+		assertTrue(FireFreeze.nearSpark(0.0, 1.9, 0.0))
+		assertFalse(FireFreeze.nearSpark(2.0, 0.0, 0.0))
+		assertFalse(FireFreeze.nearSpark(0.0, 1.5, 1.5))
+		assertFalse(FireFreeze.nearSpark(-1.5, -1.5, 0.0))
+	}
+
+	@Test
 	fun `a frozen mob is yellow for its first five seconds and red for its last`() {
 		val mobs = FrozenMobs()
 		assertEquals(legacyColor(ChatFormatting.YELLOW), mobs.inkFor(FireFreeze.FREEZE_TICKS))

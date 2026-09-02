@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.item.Skulls
 import io.github.dzkchen.dhen.event.EntityRenderEvent
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.legacyCodes
@@ -76,6 +77,10 @@ object RenderOptimizer : Module(
 	private var hideTentacles by hideTentaclesSetting
 	private var hideFire by hideFireSetting
 
+	private val tentacle = Skulls.texture("TENTACLE")
+	private val soulWeaver = Skulls.texture("DUNGEONS_SOUL_WEAVER")
+	private val abilityOrb = Skulls.texture("DUNGEONS_ABILITY_ORB")
+	private val defenseOrb = Skulls.texture("DUNGEONS_SUPPORT_ORB")
 	private val nameVerdicts = WeakHashMap<Entity, NameVerdict>()
 
 	init {
@@ -129,9 +134,9 @@ object RenderOptimizer : Module(
 		for (worn in packet.slots) {
 			if (worn.first != EquipmentSlot.HEAD) continue
 			val texture = SkyBlockItems.skullTexture(worn.second) ?: continue
-			if (hideTentacles && texture == TENTACLE_TEXTURE) return true
-			if (hideSoulWeaver && texture == SOUL_WEAVER_TEXTURE) return true
-			if (hideHealerOrbs && (texture == ABILITY_ORB_TEXTURE || texture == DEFENSE_ORB_TEXTURE)) return true
+			if (hideTentacles && texture == tentacle) return true
+			if (hideSoulWeaver && texture == soulWeaver) return true
+			if (hideHealerOrbs && (texture == abilityOrb || texture == defenseOrb)) return true
 		}
 		return false
 	}
@@ -166,12 +171,4 @@ object RenderOptimizer : Module(
 	private val ORB_LABELS = listOf("DEFENSE", "ABILITY DAMAGE")
 	private const val STAR = '✯'
 	private const val HEALTH_SUFFIX = "§c❤"
-	private const val TENTACLE_TEXTURE =
-		"ewogICJ0aW1lc3RhbXAiIDogMTcxOTg1NzI3NzI0OSwKICAicHJvZmlsZUlkIiA6ICIxODA1Y2E2MmM0ZDI0M2NiOWQxYmY4YmM5N2E1YjgyNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJSdWxsZWQiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzdkODM2NzQ5MjZiODk3MTRlNmI1YTU1NDcwNTAxYzA0YjA2NmRkODdiZjZjMzM1Y2RkYzZlNjBhMWExYTVmNSIKICAgIH0KICB9Cn0="
-	private const val SOUL_WEAVER_TEXTURE =
-		"eyJ0aW1lc3RhbXAiOjE1NTk1ODAzNjI1NTMsInByb2ZpbGVJZCI6ImU3NmYwZDlhZjc4MjQyYzM5NDY2ZDY3MjE3MzBmNDUzIiwicHJvZmlsZU5hbWUiOiJLbGxscmFoIiwic2lnbmF0dXJlUmVxdWlyZWQiOnRydWUsInRleHR1cmVzIjp7IlNLSU4iOnsidXJsIjoiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8yZjI0ZWQ2ODc1MzA0ZmE0YTFmMGM3ODViMmNiNmE2YTcyNTYzZTlmM2UyNGVhNTVlMTgxNzg0NTIxMTlhYTY2In19fQ=="
-	private const val ABILITY_ORB_TEXTURE =
-		"ewogICJ0aW1lc3RhbXAiIDogMTYzODUyNDAzODE5OCwKICAicHJvZmlsZUlkIiA6ICIzOWEzOTMzZWE4MjU0OGU3ODQwNzQ1YzBjNGY3MjU2ZCIsCiAgInByb2ZpbGVOYW1lIiA6ICJkZW1pbmVjcmFmdGVybG9sIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzVlZTRiYjQ4MjFkMGY1ZWQ4NjVjMjEwOTBhODBiNWVlN2Q1MjI2ODQ3NmVlMjVkMzg5NzEwZjdjYzlmMTEwZDYiCiAgICB9CiAgfQp9"
-	private const val DEFENSE_ORB_TEXTURE =
-		"ewogICJ0aW1lc3RhbXAiIDogMTYwNTM1NjUyNzQzOSwKICAicHJvZmlsZUlkIiA6ICJhYTZhNDA5NjU4YTk0MDIwYmU3OGQwN2JkMzVlNTg5MyIsCiAgInByb2ZpbGVOYW1lIiA6ICJiejE0IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE1NzhiNGFmM2ZkZDkxNTFiODUwYjEzYzY3YzQ1ODAyMjRjN2Y2MDA1MjcxM2YyZDE1MWY3YzE1ZGMwZDdiMzQiCiAgICB9CiAgfQp9"
 }

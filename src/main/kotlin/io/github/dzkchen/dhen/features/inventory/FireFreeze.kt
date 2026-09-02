@@ -4,6 +4,8 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.item.Skulls
 import io.github.dzkchen.dhen.event.EntityRenderEvent
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.ServerTickEvent
@@ -29,6 +31,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.phys.Vec3
 
@@ -75,6 +78,11 @@ object FireFreeze : Module(
 	private val areas = arrayOfNulls<FreezeArea>(MAX_AREAS)
 	private var areaCount = 0
 	private val frozen = FrozenMobs()
+	private val freezeSkull = Skulls.texture("FIRE_FREEZE_SKULLS")
+	private val sparkSkull = Skulls.texture("THUNDER_SPARK")
+	private val skullKeys = arrayOfNulls<ItemStack>(SKULL_CAPACITY)
+	private val skullMatched = BooleanArray(SKULL_CAPACITY)
+	private var skullHand = 0
 
 	init {
 		on<PacketReceiveEvent.Pre> { event ->
@@ -96,6 +104,7 @@ object FireFreeze : Module(
 	internal fun forget() {
 		areas.fill(null)
 		areaCount = 0
+		skullKeys.fill(null)
 		frozen.forget()
 	}
 
@@ -143,7 +152,7 @@ object FireFreeze : Module(
 		val path = packet.sound.value().location().path
 		val tick = ServerClock.ticks
 		if (path == ARMING_SOUND && packet.volume == ARMING_VOLUME && packet.pitch in MIN_PITCH..MAX_PITCH) {
-			armed(packet.x, packet.y, packet.z, packet.pitch, tick)
+			if (!sparked(packet.x, packet.y, packet.z)) armed(packet.x, packet.y, packet.z, packet.pitch, tick)
 			return
 		}
 		if (path == TRIGGER_SOUND && packet.volume == TRIGGER_VOLUME && packet.pitch == TRIGGER_PITCH) {
@@ -184,11 +193,50 @@ object FireFreeze : Module(
 
 	private fun hid(event: EntityRenderEvent) {
 		if (!customCircle || !SkyBlockLocation.inSkyBlock) return
+		val wanted = freezeSkull ?: return
 		val stand = event.entity as? ArmorStand ?: return
 		if (!stand.isInvisible || !zeroed(stand)) return
-		if (stand.getItemBySlot(EquipmentSlot.HEAD).item != Items.PLAYER_HEAD) return
-		if (covering(stand.x, stand.z)) event.cancelled = true
+		val head = stand.getItemBySlot(EquipmentSlot.HEAD)
+		if (head.item != Items.PLAYER_HEAD) return
+		if (wearsSkull(head, wanted)) event.cancelled = true
 	}
+
+	private fun wearsSkull(head: ItemStack, wanted: String): Boolean {
+		val home = skullHome(head)
+		for (step in 0 until SKULL_PROBE) {
+			val slot = (home + step) and SKULL_MASK
+			if (skullKeys[slot] === head) return skullMatched[slot]
+			if (skullKeys[slot] == null) return placeSkull(slot, head, wanted)
+		}
+		return placeSkull((home + (skullHand++ and (SKULL_PROBE - 1))) and SKULL_MASK, head, wanted)
+	}
+
+	private fun placeSkull(slot: Int, head: ItemStack, wanted: String): Boolean {
+		val matched = SkyBlockItems.skullTexture(head) == wanted
+		skullKeys[slot] = head
+		skullMatched[slot] = matched
+		return matched
+	}
+
+	private fun skullHome(head: ItemStack): Int {
+		val hash = System.identityHashCode(head)
+		return (hash xor (hash ushr 16)) and SKULL_MASK
+	}
+
+	private fun sparked(x: Double, y: Double, z: Double): Boolean {
+		val wanted = sparkSkull ?: return false
+		val level = Minecraft.getInstance()?.level ?: return false
+		for (entity in level.entitiesForRendering()) {
+			if (entity !is ArmorStand || !nearSpark(entity.x - x, entity.y - y, entity.z - z)) continue
+			val held = entity.getItemBySlot(EquipmentSlot.MAINHAND)
+			if (held.item != Items.PLAYER_HEAD) continue
+			if (SkyBlockItems.skullTexture(held) == wanted) return true
+		}
+		return false
+	}
+
+	internal fun nearSpark(dx: Double, dy: Double, dz: Double): Boolean =
+		dx * dx + dy * dy + dz * dz < SPARK_RANGE * SPARK_RANGE
 
 	private fun zeroed(stand: ArmorStand): Boolean {
 		val head = stand.headPose
@@ -232,6 +280,10 @@ object FireFreeze : Module(
 	private const val LINE_WIDTH = 5f
 	private const val CIRCLE_ALPHA = 245
 	private const val STALE_TICKS = 40L
+	private const val SPARK_RANGE = 2.0
+	private const val SKULL_CAPACITY = 64
+	private const val SKULL_MASK = SKULL_CAPACITY - 1
+	private const val SKULL_PROBE = 4
 }
 
 internal class FreezeArea(
