@@ -4,6 +4,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal const val BEFORE_FEATURES = 100
 
+internal const val AFTER_PRODUCERS = -100
+
 class EventBus {
 	private val lock = Any()
 	private val types = ConcurrentHashMap<Class<out Event>, EventType<out Event>>()

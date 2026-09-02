@@ -1,6 +1,12 @@
 package io.github.dzkchen.dhen.event
 
+import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
+import net.minecraft.network.syncher.SynchedEntityData
+import java.util.Optional
+
+internal fun trackedName(entry: SynchedEntityData.DataValue<*>): Component? =
+	(entry.value() as? Optional<*>)?.orElse(null) as? Component
 
 sealed class PacketReceiveEvent : DeepProfiledEvent {
 	private var held: Packet<*>? = null

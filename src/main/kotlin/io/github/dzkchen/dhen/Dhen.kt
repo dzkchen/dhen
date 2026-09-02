@@ -48,7 +48,15 @@ import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
+import io.github.dzkchen.dhen.features.dungeon.ClassColors
+import io.github.dzkchen.dhen.features.visual.Box3D
+import io.github.dzkchen.dhen.features.visual.DamageSplash
+import io.github.dzkchen.dhen.features.visual.EntityHighlight
+import io.github.dzkchen.dhen.features.visual.HidePlayers
 import io.github.dzkchen.dhen.features.visual.MaskTimers
+import io.github.dzkchen.dhen.features.visual.MobHighlight
+import io.github.dzkchen.dhen.features.visual.NametagTweaks
+import io.github.dzkchen.dhen.features.visual.RenderOptimizer
 import io.github.dzkchen.dhen.features.visual.MoveableVanillaHud
 import io.github.dzkchen.dhen.features.visual.PetDisplay
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
@@ -77,6 +85,7 @@ import io.github.dzkchen.dhen.privacy.ModRegistry
 import io.github.dzkchen.dhen.privacy.PrivacyLog
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.module.ModuleNotifier
+import io.github.dzkchen.dhen.render.EntityHighlights
 import io.github.dzkchen.dhen.render.WorldRenderTypes
 import io.github.dzkchen.dhen.sound.SoundManager
 import io.github.dzkchen.dhen.theme.ThemeRuntime
@@ -218,6 +227,7 @@ object Dhen : ClientModInitializer {
 			resetHudLayout = ::resetHudLayout,
 			themes = themes,
 			toggleWorldRender = WorldRenderProbe::toggle,
+			toggleHighlight = { EntityHighlights.toggleDebugRule(EntityHighlight::boxStyle, EntityHighlight::debugColor) },
 			openArcPreview = ::openArcPreview,
 			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
 			showNotice = ::previewPrivacyNotice,
@@ -238,13 +248,21 @@ object Dhen : ClientModInitializer {
 			PickupLog,
 			Tweaks,
 			Animations,
+			Box3D,
 			Camera,
+			ClassColors,
 			CustomScoreboard,
+			DamageSplash,
+			EntityHighlight,
+			HidePlayers,
 			MaskTimers,
+			MobHighlight,
+			NametagTweaks,
 			MoveableVanillaHud,
 			PetDisplay,
 			PlayerStatsHud,
 			QuiverDisplay,
+			RenderOptimizer,
 			RevertAxes,
 			TabWidgetDisplay,
 			TimeChanger,
@@ -357,6 +375,7 @@ object Dhen : ClientModInitializer {
 		RenderHooks.install(modules.eventBus)
 		InteractionHooks.install(modules.eventBus)
 		WorldRenderHooks.install(modules.eventBus)
+		EntityHighlights.install(modules.eventBus)
 		TickHooks.install(modules.eventBus)
 		HypixelLocationHooks.install(modules.eventBus)
 		ScoreboardHooks.install(modules.eventBus)

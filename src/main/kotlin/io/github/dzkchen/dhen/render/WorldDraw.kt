@@ -104,6 +104,15 @@ internal object WorldDraw {
 		to: Vec3,
 		color: Int,
 		width: Float = DEFAULT_LINE_WIDTH
+	) = drawTracer(event, to.x, to.y, to.z, color, width)
+
+	fun drawTracer(
+		event: WorldRenderEvent,
+		toX: Double,
+		toY: Double,
+		toZ: Double,
+		color: Int,
+		width: Float = DEFAULT_LINE_WIDTH
 	) {
 		val camera = event.camera
 		val yaw = -camera.yRot * DEGREES_TO_RADIANS - Math.PI.toFloat()
@@ -115,9 +124,9 @@ internal object WorldDraw {
 			Mth.sin(yaw.toDouble()) * horizontal,
 			Mth.sin(pitch.toDouble()) - TRACER_DROP,
 			Mth.cos(yaw.toDouble()) * horizontal,
-			cameraRelative(to.x, target.x),
-			cameraRelative(to.y, target.y),
-			cameraRelative(to.z, target.z),
+			cameraRelative(toX, target.x),
+			cameraRelative(toY, target.y),
+			cameraRelative(toZ, target.z),
 			color,
 			width,
 			WorldDepth.THROUGH_WALLS
@@ -382,7 +391,7 @@ internal object WorldDraw {
 		}
 	}
 
-	private fun drawWireBox(
+	fun drawWireBox(
 		event: WorldRenderEvent,
 		minX: Double,
 		minY: Double,
@@ -423,7 +432,7 @@ internal object WorldDraw {
 		}
 	}
 
-	private fun drawFilledBox(
+	fun drawFilledBox(
 		event: WorldRenderEvent,
 		minX: Double,
 		minY: Double,

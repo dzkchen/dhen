@@ -27,6 +27,7 @@ class CommandRegistry<S>(
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
+	private val toggleHighlight: () -> Boolean = { false },
 	private val openArcPreview: () -> Unit = {},
 	private val showAlert: () -> Unit = {},
 	private val showNotice: () -> Unit = {},
@@ -212,6 +213,11 @@ class CommandRegistry<S>(
 			.then(
 				literal<S>("worldrender").executes { context ->
 					report(context.source, "World-render probe ${if (toggleWorldRender()) "on" else "off"}.")
+				}
+			)
+			.then(
+				literal<S>("highlight").executes { context ->
+					report(context.source, "Zombie highlight ${if (toggleHighlight()) "on" else "off"}.")
 				}
 			)
 			.then(soundCommand())
