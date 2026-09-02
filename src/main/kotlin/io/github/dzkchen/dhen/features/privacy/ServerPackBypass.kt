@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.ServerPackConsentScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.privacy.ServerPackCache
 import io.github.dzkchen.dhen.privacy.ServerPacks
 import io.github.dzkchen.dhen.privacy.ShaderStripTracker
 import io.github.dzkchen.dhen.privacy.TrackPackDetector
@@ -41,6 +42,7 @@ object ServerPackBypass : Module(
 
 	override fun onEnabled() {
 		publish()
+		ServerPackCache.launcher = ::launch
 	}
 
 	override fun onDisabled() {

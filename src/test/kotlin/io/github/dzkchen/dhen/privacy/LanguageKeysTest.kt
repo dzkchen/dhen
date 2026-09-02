@@ -18,6 +18,7 @@ class LanguageKeysTest {
 	@AfterEach
 	fun reset() {
 		LanguageKeys.uninstall()
+		LanguageKeys.markMountedServerPack(null)
 		ModRegistry.mode = ModRegistry.Mode.AUTO
 	}
 
@@ -53,6 +54,29 @@ class LanguageKeysTest {
 		ModRegistry.mode = ModRegistry.Mode.BLOCK_ALL
 		assertFalse(LanguageKeys.isWhitelistedKey("key.example.open"))
 		assertFalse(LanguageKeys.isWhitelistedKey("unknown"))
+	}
+
+	@Test
+	fun `a mounted cache is filed as server pack keys rather than as dhen's own`() {
+		val output = BiConsumer<String, String> { _, _ -> }
+		LanguageKeys.markMountedServerPack(ServerPackCache.PACK_ID)
+		LanguageKeys.beginReload()
+		LanguageKeys.trackingConsumer(pack(ServerPackCache.PACK_ID), output).accept("menu.disconnect", "Leave")
+		LanguageKeys.commitReload()
+
+		assertEquals("Leave", LanguageKeys.serverPackValue("menu.disconnect"))
+		assertNull(LanguageKeys.ownerOf("menu.disconnect"))
+	}
+
+	@Test
+	fun `the cache id claims nothing while no cache is mounted`() {
+		val output = BiConsumer<String, String> { _, _ -> }
+		LanguageKeys.beginReload()
+		LanguageKeys.trackingConsumer(pack(ServerPackCache.PACK_ID), output).accept("menu.disconnect", "Leave")
+		LanguageKeys.commitReload()
+
+		assertNull(LanguageKeys.serverPackValue("menu.disconnect"))
+		assertNull(LanguageKeys.ownerOf("menu.disconnect"))
 	}
 
 	@Test

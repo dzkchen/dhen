@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.mixin;
 
 import io.github.dzkchen.dhen.font.DhenFontPack;
+import io.github.dzkchen.dhen.privacy.ServerPackCache;
 import java.util.function.Consumer;
 import net.minecraft.client.resources.ClientPackSource;
 import net.minecraft.server.packs.repository.BuiltInPackSource;
@@ -14,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BuiltInPackSourceMixin {
 	@Inject(method = "loadPacks", at = @At("RETURN"))
 	private void dhen$addFontPack(final Consumer<Pack> packs, final CallbackInfo info) {
-		if ((Object) this instanceof ClientPackSource) DhenFontPack.contribute(packs);
+		if (!((Object) this instanceof ClientPackSource)) return;
+		DhenFontPack.contribute(packs);
+		ServerPackCache.contribute(packs);
 	}
 }

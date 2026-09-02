@@ -43,6 +43,8 @@ object LanguageKeys {
 	private var snapshot = Snapshot.EMPTY
 	@Volatile
 	private var generation = 0L
+	@Volatile
+	private var mountedServerPack: String? = null
 
 	private var subscription: Handle? = null
 
@@ -106,7 +108,7 @@ object LanguageKeys {
 				output.accept(key, value)
 			}
 		}
-		if (pack.packId().startsWith(SERVER_PACK_PREFIX)) {
+		if (isServerPackId(pack.packId())) {
 			return BiConsumer { key, value ->
 				target.server[key] = value
 				output.accept(key, value)
@@ -139,6 +141,13 @@ object LanguageKeys {
 		}
 	}
 
+	internal fun markMountedServerPack(packId: String?) {
+		mountedServerPack = packId
+	}
+
+	private fun isServerPackId(packId: String): Boolean =
+		packId.startsWith(SERVER_PACK_PREFIX) || packId == mountedServerPack
+
 	internal fun clearServerPack() {
 		staging.remove()
 		synchronized(stateLock) {
@@ -164,7 +173,7 @@ object LanguageKeys {
 		if (pack is ModPackResources) return pack.fabricModMetadata.id
 		val packId = pack.packId()
 		if (FabricLoader.getInstance().isModLoaded(packId)) return packId
-		if (packId.startsWith(SERVER_PACK_PREFIX)) return null
+		if (isServerPackId(packId)) return null
 		return codeSource(pack.javaClass)?.let(classOwners::get)
 	}
 

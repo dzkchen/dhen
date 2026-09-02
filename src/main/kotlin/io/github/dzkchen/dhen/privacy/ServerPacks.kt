@@ -38,6 +38,15 @@ object ServerPacks {
 	}
 
 	@JvmStatic
+	fun fastAccept(id: UUID, url: String, hash: String, required: Boolean): Boolean {
+		if (mode != Mode.ASK && mode != Mode.ALWAYS_ON) return false
+		if (!ServerPackCache.fetchable(url)) return false
+		offerConsent(id, required)
+		ServerPackCache.requested(id, url, hash)
+		return true
+	}
+
+	@JvmStatic
 	fun offerConsent(id: UUID, required: Boolean) {
 		if (mode != Mode.ASK || consentOffered) return
 		consentOffered = true
@@ -76,6 +85,7 @@ object ServerPacks {
 		wrapped -= id
 		full -= id
 		if (pendingConsent == id) pendingConsent = null
+		ServerPackCache.released(id)
 		ShaderStripTracker.clear()
 	}
 
@@ -86,6 +96,7 @@ object ServerPacks {
 		pendingConsent = null
 		pendingRequired = false
 		lastConsentAt = NO_CONSENT_TIME
+		ServerPackCache.released(null)
 		ShaderStripTracker.clear()
 	}
 

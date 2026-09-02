@@ -9,6 +9,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -35,7 +36,8 @@ public abstract class ClientCommonPacketListenerImplMixin {
 				+ "(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;"
 				+ "Lnet/minecraft/network/PacketProcessor;)V",
 			shift = At.Shift.AFTER
-		)
+		),
+		cancellable = true
 	)
 	private void dhen$serverPackPushed(
 		final ClientboundResourcePackPushPacket packet,
@@ -44,6 +46,14 @@ public abstract class ClientCommonPacketListenerImplMixin {
 		LocalUrls.serverConnected(this.connection.getRemoteAddress());
 		TrackPackDetector.recordRequest(packet.url(), packet.hash());
 		ServerPacks.pushed(packet.id());
+		if (!ServerPacks.fastAccept(packet.id(), packet.url(), packet.hash(), packet.required())) return;
+		this.connection.send(
+			new ServerboundResourcePackPacket(packet.id(), ServerboundResourcePackPacket.Action.ACCEPTED)
+		);
+		this.connection.send(
+			new ServerboundResourcePackPacket(packet.id(), ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED)
+		);
+		callback.cancel();
 	}
 
 	@Inject(
