@@ -145,7 +145,7 @@ object LanguageKeys {
 		mountedServerPack = packId
 	}
 
-	private fun isServerPackId(packId: String): Boolean =
+	internal fun isServerPackId(packId: String): Boolean =
 		packId.startsWith(SERVER_PACK_PREFIX) || packId == mountedServerPack
 
 	internal fun clearServerPack() {

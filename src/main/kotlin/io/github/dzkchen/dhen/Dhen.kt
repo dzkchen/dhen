@@ -22,6 +22,7 @@ import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.PackModelRepo
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
@@ -376,6 +377,7 @@ object Dhen : ClientModInitializer {
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)
 		ItemRepo.install(ioScope, configRoot.resolve("repo"))
+		PackModelRepo.install(ioScope, configRoot.resolve("packmodels"))
 		Prices.install(ioScope, modules.eventBus, clientThread)
 		MayorService.install(ioScope, modules.eventBus, clientThread)
 		PlayerProfiles.install(ioScope, clientThread, baseUrl = { ClientPrefs.profileProxy.value })
@@ -406,6 +408,7 @@ object Dhen : ClientModInitializer {
 		contained("hook registry") { hooks.forEach { contained(it.feed, it::uninstall) } }
 		contained("world render probe", WorldRenderProbe::uninstall)
 		contained("item repository", ItemRepo::uninstall)
+		contained("pack model table", PackModelRepo::uninstall)
 		contained("price feed", Prices::uninstall)
 		contained("mayor feed", MayorService::uninstall)
 		contained("player profiles", PlayerProfiles::uninstall)

@@ -40,6 +40,10 @@ internal object ItemFixture {
 
 	private fun bindComponents(item: Item) {
 		val holder = BuiltInRegistries.ITEM.wrapAsHolder(item) as Holder.Reference<Item>
-		if (!holder.areComponentsBound()) holder.bindComponents(DataComponentMap.EMPTY)
+		if (!holder.areComponentsBound()) holder.bindComponents(vanillaDefaults(item))
 	}
+
+	private fun vanillaDefaults(item: Item): DataComponentMap = DataComponentMap.builder()
+		.set(DataComponents.ITEM_MODEL, BuiltInRegistries.ITEM.getKey(item))
+		.build()
 }
