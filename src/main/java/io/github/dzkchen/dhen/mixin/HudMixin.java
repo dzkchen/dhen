@@ -2,7 +2,8 @@ package io.github.dzkchen.dhen.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
-import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay;
+import io.github.dzkchen.dhen.features.inventory.HotbarSlot;
+import io.github.dzkchen.dhen.features.inventory.ItemAbilities;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import io.github.dzkchen.dhen.features.visual.Camera;
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard;
@@ -134,7 +135,7 @@ public abstract class HudMixin {
 	}
 
 	@Inject(method = "extractSlot", at = @At("HEAD"))
-	private void dhen$hotbarRarity(
+	private void dhen$hotbarUnderlay(
 		final GuiGraphicsExtractor graphics,
 		final int x,
 		final int y,
@@ -144,6 +145,20 @@ public abstract class HudMixin {
 		final int seed,
 		final CallbackInfo callback
 	) {
-		ItemRarityOverlay.drawHotbarSlot(graphics, stack, x, y);
+		HotbarSlot.tint(graphics, stack, x, y);
+	}
+
+	@Inject(method = "extractSlot", at = @At("RETURN"))
+	private void dhen$hotbarOverlay(
+		final GuiGraphicsExtractor graphics,
+		final int x,
+		final int y,
+		final DeltaTracker deltaTracker,
+		final Player player,
+		final ItemStack stack,
+		final int seed,
+		final CallbackInfo callback
+	) {
+		ItemAbilities.labelHotbarSlot(graphics, stack, x, y);
 	}
 }

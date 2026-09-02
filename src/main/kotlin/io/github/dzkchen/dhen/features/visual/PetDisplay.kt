@@ -34,7 +34,8 @@ import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.SlotTint
+import io.github.dzkchen.dhen.gui.slotText
 import io.github.dzkchen.dhen.input.shiftHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -754,16 +755,8 @@ object PetDisplay : Module(
 
 	private fun highlighted(event: SlotRenderEvent.Pre) {
 		if (!highlight || !SkyBlockLocation.inSkyBlock) return
-		val slot = event.slot
-		if (slot.index != CurrentPet.menuSlot) return
-		SharpGui.fill(
-			event.graphics,
-			slot.x,
-			slot.y,
-			slot.x + SLOT_SIZE,
-			slot.y + SLOT_SIZE,
-			highlightColorSetting.value.argb
-		)
+		if (event.slot.index != CurrentPet.menuSlot) return
+		SlotTint.claim(highlightColorSetting.value.argb, TINT_PRIORITY)
 	}
 
 	private fun renamed(event: EntityNameTagEvent) {
@@ -788,7 +781,7 @@ object PetDisplay : Module(
 		if (!petCandy || pet.candyUsed <= NO_CANDY) return
 		if (hideOnMaxed && PetLines.maxed(petLevels.of(slot.index, stack), pet.type)) return
 		val label = if (pet.candyUsed <= MAX_CANDY) candyLabels[pet.candyUsed] else CANDY_COLOR + pet.candyUsed
-		slotText(graphics, label, slot.x + CANDY_RIGHT, slot.y + CANDY_TOP, CANDY_SCALE)
+		slotText(graphics, label, slot.x + CANDY_RIGHT, slot.y + CANDY_TOP, CANDY_SCALE, DhenPalette.TEXT_PRIMARY)
 	}
 
 	private fun holding(graphics: GuiGraphicsExtractor, slot: Slot, pet: PetInfo) {
@@ -801,20 +794,7 @@ object PetDisplay : Module(
 	private fun petItem(graphics: GuiGraphicsExtractor, slot: Slot, icon: String) {
 		val scale = petItemScaleSetting.amount.toFloat()
 		val scaled = (DhenType.width(Minecraft.getInstance().font, icon) * scale).toInt()
-		slotText(graphics, icon, slot.x + PET_ITEM_RIGHT - scaled, slot.y + PET_ITEM_TOP, scale)
-	}
-
-	private fun slotText(graphics: GuiGraphicsExtractor, text: String, right: Int, top: Int, scale: Float) {
-		val font = Minecraft.getInstance().font
-		val pose = graphics.pose()
-		pose.pushMatrix()
-		try {
-			pose.translate((right - DhenType.width(font, text)).toFloat(), top.toFloat())
-			pose.scale(scale, scale)
-			DhenType.text(graphics, font, text, 0, 0, DhenPalette.TEXT_PRIMARY, true)
-		} finally {
-			pose.popMatrix()
-		}
+		slotText(graphics, icon, slot.x + PET_ITEM_RIGHT - scaled, slot.y + PET_ITEM_TOP, scale, DhenPalette.TEXT_PRIMARY)
 	}
 
 	private fun petSlotSetting(slot: Int): KeybindSetting = KeybindSetting(
@@ -824,7 +804,7 @@ object PetDisplay : Module(
 	).withDependency { !useHotbarBindsSetting.on }
 
 	private const val TITLE_TICKS = 40
-	private const val SLOT_SIZE = 16
+	private const val TINT_PRIORITY = 10
 	private const val TRACKED_SLOTS = 128
 	private const val LONE_STACK = 1
 	private const val NO_CANDY = 0

@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.event
 
+import io.github.dzkchen.dhen.gui.SlotTint
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -199,10 +200,12 @@ internal object ScreenHooks : GuardedHooks<ScreenHooks.Channels> {
 			event.screen = screen
 			event.graphics = graphics
 			event.slot = slot
+			SlotTint.begin()
 			return try {
 				slotPre.dispatch(event)
 				event.cancelled
 			} finally {
+				SlotTint.end(graphics, slot.x, slot.y)
 				slotPreEvents.release(event)
 			}
 		}

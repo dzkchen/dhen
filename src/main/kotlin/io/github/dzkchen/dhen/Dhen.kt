@@ -45,6 +45,7 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
+import io.github.dzkchen.dhen.features.inventory.ItemAbilities
 import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip
 import io.github.dzkchen.dhen.features.qol.Tweaks
@@ -251,6 +252,7 @@ object Dhen : ClientModInitializer {
 			PickupLog,
 			Tweaks,
 			ItemRarityOverlay,
+			ItemAbilities,
 			InventorySearch,
 			ItemTooltip,
 			Animations,

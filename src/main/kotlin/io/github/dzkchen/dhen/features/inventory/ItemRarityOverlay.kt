@@ -10,7 +10,9 @@ import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.features.dungeon.legacyColor
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.RoundedGui
+import io.github.dzkchen.dhen.gui.SLOT_BOX
 import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.SlotTint
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -61,8 +63,7 @@ object ItemRarityOverlay : Module(
 		}
 	}
 
-	@JvmStatic
-	fun drawHotbarSlot(graphics: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
+	internal fun drawHotbarSlot(graphics: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
 		if (!enabled || !drawOnHotbarSetting.on) return
 		try {
 			draw(graphics, stack, x, y)
@@ -83,20 +84,20 @@ object ItemRarityOverlay : Module(
 		when (styleSetting.value) {
 			OUTLINE -> outline(graphics, x, y, faded)
 			FILLED_OUTLINE -> {
-				SharpGui.fill(graphics, x, y, x + SLOT, y + SLOT, faded)
+				SlotTint.claim(faded, TINT_PRIORITY)
 				outline(graphics, x, y, ARGB.opaque(solid))
 			}
 
-			CIRCLE -> RoundedGui.circle(graphics, x + SLOT / 2, y + SLOT / 2, SLOT / 2, faded)
-			else -> SharpGui.fill(graphics, x, y, x + SLOT, y + SLOT, faded)
+			CIRCLE -> RoundedGui.circle(graphics, x + SLOT_BOX / 2, y + SLOT_BOX / 2, SLOT_BOX / 2, faded)
+			else -> SlotTint.claim(faded, TINT_PRIORITY)
 		}
 	}
 
 	private fun outline(graphics: GuiGraphicsExtractor, x: Int, y: Int, color: Int) {
-		SharpGui.fill(graphics, x, y, x + SLOT, y + EDGE, color)
-		SharpGui.fill(graphics, x, y + SLOT - EDGE, x + SLOT, y + SLOT, color)
-		SharpGui.fill(graphics, x, y + EDGE, x + EDGE, y + SLOT - EDGE, color)
-		SharpGui.fill(graphics, x + SLOT - EDGE, y + EDGE, x + SLOT, y + SLOT - EDGE, color)
+		SharpGui.fill(graphics, x, y, x + SLOT_BOX, y + EDGE, color)
+		SharpGui.fill(graphics, x, y + SLOT_BOX - EDGE, x + SLOT_BOX, y + SLOT_BOX, color)
+		SharpGui.fill(graphics, x, y + EDGE, x + EDGE, y + SLOT_BOX - EDGE, color)
+		SharpGui.fill(graphics, x + SLOT_BOX - EDGE, y + EDGE, x + SLOT_BOX, y + SLOT_BOX - EDGE, color)
 	}
 
 	private fun hypixelTint(rarity: ItemRarity): Int = when (rarity) {
@@ -126,6 +127,6 @@ object ItemRarityOverlay : Module(
 	private const val MAX_OPACITY = 100.0
 	private const val PERCENT = 100.0
 	private const val ALPHA_FULL = 255.0
-	private const val SLOT = 16
+	private const val TINT_PRIORITY = 0
 	private const val EDGE = 1
 }
