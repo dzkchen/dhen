@@ -14,7 +14,6 @@ class HudRuntime(
 	private val manager: ModuleManager,
 	internal val coreElements: List<HudElement> = emptyList()
 ) {
-	private val restorePoint = Matrix3x2f()
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
 	fun render(graphics: GuiGraphicsExtractor, font: Font) {
@@ -37,50 +36,9 @@ class HudRuntime(
 		module: Module?,
 		element: HudElement
 	) {
-		val pose = graphics.pose()
-		restorePoint.set(pose)
-		try {
-			if (!element.hasContent) return
-			val scale = element.scale
-			val width = HudLayout.scaled(element.width(font), scale)
-			val height = HudLayout.scaled(element.height(font, screenHeight), scale)
-			val x = element.placeX(screenWidth, width)
-			val y = element.placeY(screenHeight, height)
-			if (element.background) {
-				drawPlate(graphics, x, y, width, height, scale, screenWidth, screenHeight)
-			}
-			pose.translate(x.toFloat(), y.toFloat())
-			pose.scale(scale, scale)
-			element.render(graphics, font)
-		} catch (throwable: Throwable) {
-			element.markFailed()
-			if (module == null) log.error("Core HUD element '{}' failed", element.name, throwable)
-			else module.reportError(throwable)
-		} finally {
-			pose.set(restorePoint)
-		}
-	}
-
-	private fun drawPlate(
-		graphics: GuiGraphicsExtractor,
-		x: Int,
-		y: Int,
-		width: Int,
-		height: Int,
-		scale: Float,
-		screenWidth: Int,
-		screenHeight: Int
-	) {
-		val pad = HudLayout.platePad(scale)
-		RoundedGui.fill(
-			graphics,
-			maxOf(0, x - pad),
-			maxOf(0, y - pad),
-			minOf(screenWidth, x + width + pad),
-			minOf(screenHeight, y + height + pad),
-			HudLayout.plateRadius(scale),
-			GlassGui.surface()
-		)
+		val failure = drawHudElement(graphics, font, screenWidth, screenHeight, element, gated = true) ?: return
+		if (module == null) log.error("Core HUD element '{}' failed", element.name, failure)
+		else module.reportError(failure)
 	}
 
 	fun resetLayouts(): Int {
@@ -94,6 +52,62 @@ class HudRuntime(
 		manager.forEachHudElement { element -> element.invalidateMeasurement() }
 		for (index in coreElements.indices) coreElements[index].invalidateMeasurement()
 	}
+}
+
+private val restorePoint = Matrix3x2f()
+
+internal fun drawHudElement(
+	graphics: GuiGraphicsExtractor,
+	font: Font,
+	screenWidth: Int,
+	screenHeight: Int,
+	element: HudElement,
+	gated: Boolean
+): Throwable? {
+	val pose = graphics.pose()
+	restorePoint.set(pose)
+	try {
+		if (gated && !element.hasContent) return null
+		val scale = element.scale
+		val width = HudLayout.scaled(element.width(font), scale)
+		val height = HudLayout.scaled(element.height(font, screenHeight), scale)
+		val x = element.placeX(screenWidth, width)
+		val y = element.placeY(screenHeight, height)
+		if (element.background) {
+			drawPlate(graphics, x, y, width, height, scale, screenWidth, screenHeight)
+		}
+		pose.translate(x.toFloat(), y.toFloat())
+		pose.scale(scale, scale)
+		element.render(graphics, font)
+	} catch (throwable: Throwable) {
+		element.markFailed()
+		return throwable
+	} finally {
+		pose.set(restorePoint)
+	}
+	return null
+}
+
+private fun drawPlate(
+	graphics: GuiGraphicsExtractor,
+	x: Int,
+	y: Int,
+	width: Int,
+	height: Int,
+	scale: Float,
+	screenWidth: Int,
+	screenHeight: Int
+) {
+	val pad = HudLayout.platePad(scale)
+	RoundedGui.fill(
+		graphics,
+		maxOf(0, x - pad),
+		maxOf(0, y - pad),
+		minOf(screenWidth, x + width + pad),
+		minOf(screenHeight, y + height + pad),
+		HudLayout.plateRadius(scale),
+		GlassGui.surface()
+	)
 }
 
 internal inline fun ModuleManager.forEachHudElement(action: (HudElement) -> Unit) {

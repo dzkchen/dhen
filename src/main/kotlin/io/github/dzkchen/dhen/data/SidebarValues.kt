@@ -34,6 +34,7 @@ enum class PowderKind(val displayName: String, val color: String) {
 
 object SidebarValues {
 	private const val MIN_UNKNOWN_LENGTH = 4
+	private const val DECIMAL_POINT = '.'
 	private const val SLAYER_BLOCK_LINES = 3
 
 	private val fields = SidebarField.entries
@@ -133,7 +134,7 @@ object SidebarValues {
 			SidebarField.TIME -> matcher.group("symbol")?.let { "$text $it" } ?: text
 			else -> text
 		}
-		numbers[field.ordinal] = digits(text)
+		numbers[field.ordinal] = digits(text.substringBefore(DECIMAL_POINT))
 		when (field) {
 			SidebarField.LOCATION -> area = matcher.group("area")
 			SidebarField.VISITING -> maxVisitors = digits(matcher.group("max"))

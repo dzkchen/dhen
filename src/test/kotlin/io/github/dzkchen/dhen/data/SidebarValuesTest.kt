@@ -51,6 +51,14 @@ class SidebarValuesTest {
 	}
 
 	@Test
+	fun `a fractional purse counts whole coins rather than folding in its decimal`() {
+		SidebarValues.read(listOf(" Purse: §61,234.5"))
+
+		assertEquals("1,234.5", SidebarValues.text(SidebarField.PURSE))
+		assertEquals(1_234L, SidebarValues.number(SidebarField.PURSE))
+	}
+
+	@Test
 	fun `the location line is taken whole, and its area alone is offered beside it`() {
 		SidebarValues.read(listOf(" §7⏣ §bVillage"))
 

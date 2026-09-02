@@ -17,6 +17,7 @@ import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.maxwell.MaxwellHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
+import io.github.dzkchen.dhen.data.pickup.PickupHooks
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
@@ -41,6 +42,7 @@ import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
+import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
@@ -157,6 +159,7 @@ object Dhen : ClientModInitializer {
 			TablistHooks,
 			TabWidgetHooks,
 			PartyHooks,
+			PickupHooks,
 			PlayerStatsHooks,
 			PetHooks,
 			QuiverHooks,
@@ -230,6 +233,7 @@ object Dhen : ClientModInitializer {
 			AutoSprint,
 			ArrowFix,
 			NoItemPlace,
+			PickupLog,
 			Tweaks,
 			Animations,
 			Camera,
@@ -357,6 +361,7 @@ object Dhen : ClientModInitializer {
 		TablistHooks.install(modules.eventBus)
 		TabWidgetHooks.install(modules.eventBus)
 		PartyHooks.install(modules.eventBus)
+		PickupHooks.install(modules.eventBus)
 		PlayerStatsHooks.install(modules.eventBus)
 		PetHooks.install(modules.eventBus)
 		QuiverHooks.install(modules.eventBus)

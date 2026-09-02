@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
+import io.github.dzkchen.dhen.data.pickup.PickupHooks
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
@@ -58,6 +59,7 @@ class LatchOffTest {
 		TablistHooks.install(bus)
 		TabWidgetHooks.install(bus)
 		PartyHooks.install(bus)
+		PickupHooks.install(bus)
 		PlayerStatsHooks.install(bus)
 		PetHooks.install(bus)
 		QuiverHooks.install(bus)
@@ -108,7 +110,7 @@ class LatchOffTest {
 		val installed = setOf(
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
 			InteractionHooks, WorldRenderHooks, TickHooks, HypixelLocationHooks, ScoreboardHooks,
-			TablistHooks, TabWidgetHooks, PartyHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
+			TablistHooks, TabWidgetHooks, PartyHooks, PickupHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
 			CookieHooks, ProfileHooks, Dhen.firstRunExperience, HypixelModApi
 		)
 		assertEquals(installed, Dhen.hooks.toSet())
