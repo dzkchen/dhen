@@ -33,7 +33,7 @@ object PackModelRepo {
 	private const val MODEL = "model"
 	private const val TEXTURE = "texture"
 
-	private val DHEN = RepoSource("dzkchen", "dhen-repo", "main")
+	private val DHEN = RepoSource("dzkchen", "dhen-REPO", "main")
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 	private val loading = AtomicBoolean(false)
 
