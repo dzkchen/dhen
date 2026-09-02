@@ -120,7 +120,7 @@ class ModuleUnregisterTest {
 	}
 
 	private fun hudElements(manager: ModuleManager): List<HudElement> =
-		buildList { manager.forEachHudElement { add(it) } }
+		buildList { manager.forEachHudElement { _, element -> add(element) } }
 
 	private class TestEvent : Event
 

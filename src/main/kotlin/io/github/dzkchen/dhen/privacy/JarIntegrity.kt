@@ -4,6 +4,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.gui.TamperWarningScreen
+import io.github.dzkchen.dhen.util.Failsafe
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.text
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,8 @@ import java.util.HexFormat
 
 internal object JarIntegrity {
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
+
+	private val failsafe = Failsafe("Dhen {} failed, its tamper warning is off until restart")
 
 	@Volatile
 	private var result: IntegrityResult = IntegrityResult.Pending
@@ -53,13 +56,15 @@ internal object JarIntegrity {
 	}
 
 	fun tick(client: Minecraft) {
-		val parent = client.gui.screen()
-		if (parent !is TitleScreen || shown || dismissed) return
-		val mismatch = result as? IntegrityResult.Tampered ?: return
-		shown = true
-		client.gui.setScreen(
-			TamperWarningScreen(parent, mismatch.expected, mismatch.actual, mismatch.releaseUrl, ::dismiss, openRelease)
-		)
+		failsafe.guard("jar integrity check") {
+			val parent = client.gui.screen()
+			if (parent !is TitleScreen || shown || dismissed) return
+			val mismatch = result as? IntegrityResult.Tampered ?: return
+			shown = true
+			client.gui.setScreen(
+				TamperWarningScreen(parent, mismatch.expected, mismatch.actual, mismatch.releaseUrl, ::dismiss, openRelease)
+			)
+		}
 	}
 
 	private fun dismiss() {

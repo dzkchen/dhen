@@ -168,7 +168,7 @@ private class VanillaHudLayerWrapper(
 			try {
 				transform.begin(graphics.pose(), graphics.guiWidth(), graphics.guiHeight(), MoveableVanillaHud.moves(layer))
 			} catch (throwable: Throwable) {
-				failsafe.fail(layer.failureLabel, throwable)
+				MoveableVanillaHud.reportError(throwable)
 				false
 			}
 		}

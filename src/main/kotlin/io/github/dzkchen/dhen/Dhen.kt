@@ -174,6 +174,7 @@ object Dhen : ClientModInitializer {
 	private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 	private val stores = mutableListOf<ConfigStore>()
 	private val failsafe = Failsafe()
+	private val textMeasurements = Failsafe("Dhen {} failed, its text measurements are frozen until restart")
 	private lateinit var coreStore: ConfigStore
 	private lateinit var moduleStore: ConfigStore
 	private lateinit var clickGuiView: ClickGuiState
@@ -441,7 +442,7 @@ object Dhen : ClientModInitializer {
 		ContainerHooks.tick()
 		val options = client.options
 		if (DhenType.fontOptionsChanged(options.forceUnicodeFont().get(), options.japaneseGlyphVariants().get())) {
-			invalidateTextMeasurements()
+			textMeasurements.guard("font option change") { invalidateTextMeasurements() }
 		}
 		if (openGuiKey.consumeClick() && client.level != null) clickGuiScreen()?.let(client.gui::setScreen)
 	}

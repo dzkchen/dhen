@@ -43,13 +43,19 @@ class HudRuntime(
 
 	fun resetLayouts(): Int {
 		var reset = 0
-		manager.forEachHudElement { element -> if (element.resetToDeclared()) reset++ }
+		manager.forEachHudElement { _, element -> if (element.resetToDeclared()) reset++ }
 		for (index in coreElements.indices) if (coreElements[index].resetToDeclared()) reset++
 		return reset
 	}
 
 	fun invalidateMeasurements() {
-		manager.forEachHudElement { element -> element.invalidateMeasurement() }
+		manager.forEachHudElement { module, element ->
+			try {
+				element.invalidateMeasurement()
+			} catch (throwable: Throwable) {
+				module.reportError(throwable)
+			}
+		}
 		for (index in coreElements.indices) coreElements[index].invalidateMeasurement()
 	}
 }
@@ -110,11 +116,12 @@ private fun drawPlate(
 	)
 }
 
-internal inline fun ModuleManager.forEachHudElement(action: (HudElement) -> Unit) {
+internal inline fun ModuleManager.forEachHudElement(action: (Module, HudElement) -> Unit) {
 	val modules = ordered
 	for (moduleIndex in modules.indices) {
-		val elements = modules[moduleIndex].hudElements
-		for (elementIndex in elements.indices) action(elements[elementIndex])
+		val module = modules[moduleIndex]
+		val elements = module.hudElements
+		for (elementIndex in elements.indices) action(module, elements[elementIndex])
 	}
 }
 
