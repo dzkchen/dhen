@@ -841,6 +841,67 @@ class CommandRegistryTest {
 		private val actionValue by action
 	}
 
+	@Test
+	fun `the chat hider subtree lists, adds and removes through the command surface`() {
+		val hider = FakeChatHider()
+		var persists = 0
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			chatHider = hider,
+			persistModules = { persists++ }
+		) { _, message -> captured += message }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen chathider", Any())
+		assertEquals(listOf("nothing hidden"), captured)
+
+		captured.clear()
+		dispatcher.execute("dhen chathider add ^You are AFK", Any())
+		assertEquals(listOf("added ^You are AFK"), captured)
+		assertEquals(listOf("^You are AFK"), hider.held)
+		assertEquals(1, persists)
+
+		captured.clear()
+		dispatcher.execute("dhen chathider list", Any())
+		assertEquals(listOf("^You are AFK"), captured)
+
+		captured.clear()
+		dispatcher.execute("dhen chathider remove ^You are AFK", Any())
+		assertEquals(listOf("removed ^You are AFK"), captured)
+		assertTrue(hider.held.isEmpty())
+		assertEquals(2, persists)
+	}
+
+	@Test
+	fun `a registry without a chat hider says the surface is unavailable`() {
+		val registry = registry()
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen chathider", Any())
+
+		assertEquals(listOf(ChatHiderCommands.UNAVAILABLE), captured)
+	}
+
+	private class FakeChatHider : ChatHiderCommands {
+		val held = mutableListOf<String>()
+
+		override fun add(pattern: String): String {
+			held += pattern
+			return "added $pattern"
+		}
+
+		override fun remove(pattern: String): String {
+			held -= pattern
+			return "removed $pattern"
+		}
+
+		override fun list(): List<String> = held.ifEmpty { listOf("nothing hidden") }
+
+		override fun patterns(): List<String> = held
+	}
+
 	private companion object {
 		const val SERVER_TICK_FEED = "Server tick: no feed, the server tick feed is off until restart"
 	}

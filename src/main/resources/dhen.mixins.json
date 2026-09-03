@@ -15,6 +15,7 @@
 		"BlindnessFogEnvironmentMixin",
 		"BuiltInPackSourceMixin",
 		"CameraMixin",
+		"ChatComponentAccessor",
 		"ClientBrandRetrieverMixin",
 		"ClientClockManagerAccessor",
 		"ClientCommonPacketListenerImplMixin",

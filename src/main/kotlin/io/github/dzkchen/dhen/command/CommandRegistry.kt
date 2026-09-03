@@ -9,6 +9,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import com.mojang.brigadier.builder.RequiredArgumentBuilder.argument
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
@@ -25,6 +26,7 @@ class CommandRegistry<S>(
 	private val persistCore: () -> Unit = {},
 	private val resetHudLayout: () -> Int = { 0 },
 	private val themes: ThemeCommands = ThemeCommands.NONE,
+	private val chatHider: ChatHiderCommands = ChatHiderCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
 	private val toggleHighlight: () -> Boolean = { false },
@@ -72,7 +74,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme")
+				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme | chathider")
 			}
 			.then(
 				literal<S>("module").then(
@@ -114,7 +116,38 @@ class CommandRegistry<S>(
 			.then(resetAllCommand())
 			.then(effectsCommand())
 			.then(themeCommand())
+			.then(chatHiderCommand())
 			.then(debugCommand())
+
+	private fun chatHiderCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("chathider")
+			.executes { context -> reportAll(context.source, chatHider.list()) }
+			.then(literal<S>("list").executes { context -> reportAll(context.source, chatHider.list()) })
+			.then(
+				literal<S>("add").then(
+					argument<S, String>("pattern", StringArgumentType.greedyString())
+						.executes { context -> hidden(context.source, chatHider.add(pattern(context))) }
+				)
+			)
+			.then(
+				literal<S>("remove").then(
+					argument<S, String>("pattern", StringArgumentType.greedyString())
+						.suggests(suggesting(chatHider::patterns))
+						.executes { context -> hidden(context.source, chatHider.remove(pattern(context))) }
+				)
+			)
+
+	private fun pattern(context: CommandContext<S>): String = StringArgumentType.getString(context, "pattern")
+
+	private fun hidden(source: S, message: String): Int {
+		persistModules()
+		return report(source, message)
+	}
+
+	private fun reportAll(source: S, lines: List<String>): Int {
+		for (line in lines) feedback(source, line)
+		return Command.SINGLE_SUCCESS
+	}
 
 	private fun resetAllCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("reset-all")
