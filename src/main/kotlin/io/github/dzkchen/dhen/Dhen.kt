@@ -93,6 +93,7 @@ import io.github.dzkchen.dhen.features.visual.TabWidgetDisplay
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
+import io.github.dzkchen.dhen.features.visual.Waypoints
 import io.github.dzkchen.dhen.features.visual.VanillaHudLayer
 import io.github.dzkchen.dhen.font.FontRuntime
 import io.github.dzkchen.dhen.gui.ArcPreviewScreen
@@ -258,6 +259,7 @@ object Dhen : ClientModInitializer {
 			hud = hudCommands,
 			sounds = soundCommands,
 			previews = previewCommands,
+			waypoints = Waypoints,
 			available = { !failsafe.failed },
 			persistModules = ::persistModules
 		) { source, line ->
@@ -314,6 +316,7 @@ object Dhen : ClientModInitializer {
 			TimeChanger,
 			UtilityHuds,
 			VisualTweaks,
+			Waypoints,
 			SpoofAsVanilla,
 			ChannelSpoofing,
 			ModWhitelist,

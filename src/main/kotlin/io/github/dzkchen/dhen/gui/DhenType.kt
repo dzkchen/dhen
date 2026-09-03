@@ -360,6 +360,9 @@ internal object DhenType {
 			)
 			.append(overWorldComponent(suffix))
 
+	fun buttonOverWorld(label: String, command: String): Component =
+		overWorldComponent(label).withStyle { style -> style.withClickEvent(ClickEvent.RunCommand(command)) }
+
 	fun suggestedOverWorld(text: String, command: String, hover: String): Component =
 		overWorldComponent(text).withStyle { style ->
 			style

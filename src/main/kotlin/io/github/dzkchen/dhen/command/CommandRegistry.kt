@@ -33,6 +33,7 @@ class CommandRegistry<S>(
 	private val hud: HudCommands = HudCommands.NONE,
 	private val sounds: SoundCommands = SoundCommands.NONE,
 	private val previews: PreviewCommands = PreviewCommands.NONE,
+	private val waypoints: WaypointCommands = WaypointCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
@@ -102,6 +103,8 @@ class CommandRegistry<S>(
 			.then(literal<S>("reset-all").executes { context -> report(context.source, hud.resetLayout()) })
 			.then(helpCommand())
 			.then(sendCoordsCommand())
+			.then(sendPingCommand())
+			.then(waypointCommand())
 			.then(wikiCommand())
 			.then(literal<S>("wikithis").executes { context -> report(context.source, utilities.heldItemWiki()) })
 			.then(literal<S>("lastopened").executes { context -> report(context.source, utilities.openLastStorage()) })
@@ -159,6 +162,66 @@ class CommandRegistry<S>(
 						}
 				)
 			)
+
+	private fun sendPingCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("sendping")
+			.executes { context -> report(context.source, waypoints.sendPing("")) }
+			.then(
+				argument<S, String>("note", StringArgumentType.greedyString()).executes { context ->
+					report(context.source, waypoints.sendPing(StringArgumentType.getString(context, "note")))
+				}
+			)
+
+	private fun waypointCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("waypoint")
+			.executes { context -> reportAll(context.source, waypoints.list()) }
+			.then(literal<S>("list").executes { context -> reportAll(context.source, waypoints.list()) })
+			.then(
+				literal<S>("add").then(
+					argument<S, String>("name", StringArgumentType.word()).executes { context ->
+						stored(context.source, waypoints.save(StringArgumentType.getString(context, "name")))
+					}
+				)
+			)
+			.then(
+				literal<S>("remove").then(
+					argument<S, String>("name", StringArgumentType.word())
+						.suggests(suggesting(waypoints::names))
+						.executes { context ->
+							stored(context.source, waypoints.forget(StringArgumentType.getString(context, "name")))
+						}
+				)
+			)
+			.then(atCoordinates("hide", labelled = false) { x, y, z, _ -> waypoints.hide(x, y, z) })
+			.then(atCoordinates("redraw", labelled = true, action = waypoints::redraw))
+
+	private fun atCoordinates(
+		name: String,
+		labelled: Boolean,
+		action: (Int, Int, Int, String) -> String
+	): LiteralArgumentBuilder<S> {
+		val depth = argument<S, Int>("z", IntegerArgumentType.integer())
+			.executes { context -> report(context.source, at(context, "", action)) }
+		if (labelled) {
+			depth.then(
+				argument<S, String>("label", StringArgumentType.greedyString()).executes { context ->
+					report(context.source, at(context, StringArgumentType.getString(context, "label"), action))
+				}
+			)
+		}
+		return literal<S>(name).then(
+			argument<S, Int>("x", IntegerArgumentType.integer())
+				.then(argument<S, Int>("y", IntegerArgumentType.integer()).then(depth))
+		)
+	}
+
+	private fun at(context: CommandContext<S>, label: String, action: (Int, Int, Int, String) -> String): String =
+		action(
+			IntegerArgumentType.getInteger(context, "x"),
+			IntegerArgumentType.getInteger(context, "y"),
+			IntegerArgumentType.getInteger(context, "z"),
+			label
+		)
 
 	private fun pattern(context: CommandContext<S>): String = StringArgumentType.getString(context, "pattern")
 
