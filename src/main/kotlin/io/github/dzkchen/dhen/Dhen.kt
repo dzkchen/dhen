@@ -38,6 +38,7 @@ import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
 import io.github.dzkchen.dhen.features.chat.ChatTweaks
+import io.github.dzkchen.dhen.features.chat.PartyHelper
 import io.github.dzkchen.dhen.features.chat.SkyBlockKick
 import io.github.dzkchen.dhen.features.privacy.ModWhitelist
 import io.github.dzkchen.dhen.features.privacy.ServerPackBypass
@@ -265,6 +266,7 @@ object Dhen : ClientModInitializer {
 			NoItemPlace,
 			PickupLog,
 			ChatTweaks,
+			PartyHelper,
 			SkyBlockKick,
 			Tweaks,
 			ItemRarityOverlay,
