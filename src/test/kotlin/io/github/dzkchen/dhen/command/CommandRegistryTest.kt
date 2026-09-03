@@ -33,6 +33,7 @@ import io.github.dzkchen.dhen.module.ModuleManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import net.minecraft.core.component.DataComponents
+import net.minecraft.resources.Identifier
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.component.ItemLore
 import org.junit.jupiter.api.AfterEach
@@ -50,7 +51,7 @@ import org.lwjgl.glfw.GLFW
 
 class CommandRegistryTest {
 	private fun registry(): CommandRegistry<Any> =
-		CommandRegistry(ModuleManager()) { _, message -> captured += message }
+		CommandRegistry(ModuleManager()) { _, line -> captured += line.string }
 
 	private val captured = mutableListOf<String>()
 
@@ -126,14 +127,53 @@ class CommandRegistryTest {
 
 	@Test
 	fun `a registry built with only a manager and feedback defaults every callback`() {
-		val feedback: (Any, String) -> Unit = { _, message -> captured += message }
+		val feedback: (Any, Component) -> Unit = { _, line -> captured += line.string }
 		val registry = CommandRegistry(ModuleManager(), feedback = feedback)
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
 		dispatcher.execute("dhen", Any())
 
-		assertTrue(captured.single().contains("Dhen commands"))
+		assertTrue(captured.single().contains("help"))
+	}
+
+	@Test
+	fun `help pages the tree and filters it by a search`() {
+		val registry = registry()
+		registry.register("greet", "hi", owner = "test") { executes { Command.SINGLE_SUCCESS } }
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen help", Any())
+		val firstPage = captured.toList()
+		assertTrue(firstPage.first().startsWith("Dhen commands — page 1 of "))
+		assertEquals(15, firstPage.count { it.startsWith("/dhen ") } + firstPage.count { it == "/dhen" })
+		assertTrue(firstPage.last().startsWith("Type /dhen help -p"))
+
+		captured.clear()
+		dispatcher.execute("dh help theme", Any())
+		assertTrue(captured.first().endsWith("matching 'theme'"))
+		assertEquals(listOf("/dhen theme", "/dhen theme list", "/dhen theme use <name>", "/dhen theme export", "/dhen theme export <name>", "/dhen theme reload"), captured.drop(1))
+
+		captured.clear()
+		dispatcher.execute("dhen help greet", Any())
+		assertEquals(listOf("/greet"), captured.drop(1))
+
+		captured.clear()
+		dispatcher.execute("dhen help zzz", Any())
+		assertEquals(listOf("No Dhen command matches 'zzz'."), captured)
+	}
+
+	@Test
+	fun `help clamps a page past the end`() {
+		val registry = registry()
+		val dispatcher = CommandDispatcher<Any>()
+		registry.install(dispatcher)
+
+		dispatcher.execute("dhen help -p 999", Any())
+
+		val header = captured.first()
+		assertEquals(header.substringAfter("page ").substringBefore(" of"), header.substringAfter(" of ").trim())
 	}
 
 	@Test
@@ -142,7 +182,7 @@ class CommandRegistryTest {
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
 			available = { available }
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		var runs = 0
 		registry.register("greet", owner = "test") {
 			executes { runs++; Command.SINGLE_SUCCESS }
@@ -184,7 +224,7 @@ class CommandRegistryTest {
 	fun `module suggestions filter by the typed prefix`() {
 		val manager = ModuleManager()
 		manager.register(TestModule())
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -199,7 +239,7 @@ class CommandRegistryTest {
 	fun `module toggle flips state and reports through both roots`() {
 		val manager = ModuleManager()
 		val module = manager.register(TestModule())
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -235,7 +275,7 @@ class CommandRegistryTest {
 		val registry = CommandRegistry<Any>(
 			manager,
 			persistModules = { persisted++ }
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -251,7 +291,15 @@ class CommandRegistryTest {
 	@Test
 	fun `edit opens the HUD editor through both roots`() {
 		var opened = 0
-		val registry = CommandRegistry<Any>(ModuleManager(), { opened++ }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			hud = object : HudCommands by HudCommands.NONE {
+				override fun openEditor(): String {
+					opened++
+					return "Opening the HUD editor."
+				}
+			}
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -267,8 +315,13 @@ class CommandRegistryTest {
 		var opened = 0
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			openSoundManager = { opened++ }
-		) { _, message -> captured += message }
+			sounds = object : SoundCommands by SoundCommands.NONE {
+				override fun openManager(): String {
+					opened++
+					return "Opening the Sound Manager."
+				}
+			}
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -284,15 +337,15 @@ class CommandRegistryTest {
 		var pending = 3
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			{},
-			{},
-			{
-				resets++
-				val reset = pending
-				pending = 0
-				reset
+			hud = object : HudCommands by HudCommands.NONE {
+				override fun resetLayout(): String {
+					resets++
+					val reset = pending
+					pending = 0
+					return HudCommands.resetSummary(reset)
+				}
 			}
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -305,14 +358,8 @@ class CommandRegistryTest {
 	}
 
 	@Test
-	fun `reset-all reports a single element without pluralizing`() {
-		val registry = CommandRegistry<Any>(ModuleManager(), {}, {}, { 1 }) { _, message -> captured += message }
-		val dispatcher = CommandDispatcher<Any>()
-		registry.install(dispatcher)
-
-		dispatcher.execute("dhen reset-all", Any())
-
-		assertEquals("Reset 1 HUD element to the declared layout.", captured.last())
+	fun `the reset summary names one element without pluralizing`() {
+		assertEquals("Reset 1 HUD element to the declared layout.", HudCommands.resetSummary(1))
 	}
 
 	@Test
@@ -320,8 +367,13 @@ class CommandRegistryTest {
 		var probe = false
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			toggleWorldRender = { probe = !probe; probe }
-		) { _, message -> captured += message }
+			previews = object : PreviewCommands by PreviewCommands.NONE {
+				override fun toggleWorldRender(): String {
+					probe = !probe
+					return "World-render probe ${if (probe) "on" else "off"}."
+				}
+			}
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -337,7 +389,7 @@ class CommandRegistryTest {
 	@Test
 	fun `effects toggles the glass tier and persists every change`() {
 		var persisted = 0
-		val registry = CommandRegistry<Any>(ModuleManager(), {}, { persisted++ }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(ModuleManager(), persistCore = { persisted++ }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -363,10 +415,7 @@ class CommandRegistryTest {
 		var reloads = 0
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			{},
-			{},
-			{ 0 },
-			object : ThemeCommands {
+			themes = object : ThemeCommands {
 				override fun names() = listOf("Default", "ocean")
 				override fun summary() = "Themes: Default (active), ocean."
 				override fun select(name: String) = "Theme set to '$name'."
@@ -380,7 +429,7 @@ class CommandRegistryTest {
 					notify("Read 2 themes.")
 				}
 			}
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -407,13 +456,10 @@ class CommandRegistryTest {
 	fun `theme suggestions filter by the typed prefix`() {
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			{},
-			{},
-			{ 0 },
-			object : ThemeCommands by ThemeCommands.NONE {
+			themes = object : ThemeCommands by ThemeCommands.NONE {
 				override fun names() = listOf("Default", "ocean")
 			}
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -447,7 +493,7 @@ class CommandRegistryTest {
 		val module = manager.register(DebugModule())
 		manager.enable(module)
 		manager.eventBus.type<DebugEvent>().dispatch(DebugEvent())
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -476,7 +522,15 @@ class CommandRegistryTest {
 	@Test
 	fun `debug alert invokes the core preview`() {
 		var shown = 0
-		val registry = CommandRegistry<Any>(ModuleManager(), showAlert = { shown++ }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			previews = object : PreviewCommands by PreviewCommands.NONE {
+				override fun showAlert(): String {
+					shown++
+					return "Showing the Dhen alert preview."
+				}
+			}
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -489,7 +543,15 @@ class CommandRegistryTest {
 	@Test
 	fun `debug arc opens the retained primitive preview`() {
 		var shown = 0
-		val registry = CommandRegistry<Any>(ModuleManager(), openArcPreview = { shown++ }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(
+			ModuleManager(),
+			previews = object : PreviewCommands by PreviewCommands.NONE {
+				override fun openArcPreview(): String {
+					shown++
+					return "Opening the annular-segment preview."
+				}
+			}
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -505,12 +567,14 @@ class CommandRegistryTest {
 		var requested = -1
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
-			setSoundVolume = { sound, percent ->
-				identifier = sound.toString()
-				requested = percent
-				165
+			sounds = object : SoundCommands by SoundCommands.NONE {
+				override fun setVolume(sound: Identifier, percent: Int): String {
+					identifier = sound.toString()
+					requested = percent
+					return "Set $sound to 165% volume."
+				}
 			}
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -528,7 +592,7 @@ class CommandRegistryTest {
 		HypixelLocationHooks.install(manager.eventBus)
 		try {
 			HypixelLocationHooks.located("mini1A", skyBlock = true, mode = "dungeon", map = "Dungeon")
-			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 			val dispatcher = CommandDispatcher<Any>()
 			registry.install(dispatcher)
 
@@ -553,7 +617,7 @@ class CommandRegistryTest {
 		TablistHooks.install(manager.eventBus) { listOf(Component.literal("Info")) }
 		try {
 			TablistHooks.refresh()
-			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 			val dispatcher = CommandDispatcher<Any>()
 			registry.install(dispatcher)
 
@@ -577,7 +641,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug repo reports the item repo without downloading anything`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -595,7 +659,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug repo download toggles the requirement on and back off`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 		ItemRepo.install(CoroutineScope(Dispatchers.Unconfined), repo, RepoSync(DataFixture.NEU, repo, DataFixture.OFFLINE))
@@ -619,7 +683,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug repo with an id reports that an unloaded repo has no such item`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -631,7 +695,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug item reports an empty hand rather than reading a stack`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -651,7 +715,7 @@ class CommandRegistryTest {
 		}
 		stack.set(DataComponents.LORE, ItemLore(listOf(Component.literal("§d§lMYTHIC DUNGEON SWORD"))))
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -669,7 +733,7 @@ class CommandRegistryTest {
 			putString("petInfo", """{"type":"GOLDEN_DRAGON","tier":"LEGENDARY","candyUsed":2}""")
 		}
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -682,7 +746,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug value reports an empty hand rather than valuing a stack`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { null }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -696,7 +760,7 @@ class CommandRegistryTest {
 		ItemFixture.bootstrap()
 		val stack = ItemFixture.stack { putString("id", "HYPERION"); putInt("rarity_upgrades", 1) }
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager, diagnostics = Diagnostics(manager) { stack }) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -716,7 +780,7 @@ class CommandRegistryTest {
 			event.text = Component.literal("§c1,530/1,530❤     §a1,204❈ Defense     §b1,050/1,050✎ Mana")
 			manager.eventBus.type<ActionBarEvent>().dispatch(event)
 			manager.eventBus.type<ClientTickEvent.End>().dispatch(ClientTickEvent.End)
-			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 			val dispatcher = CommandDispatcher<Any>()
 			registry.install(dispatcher)
 
@@ -746,7 +810,7 @@ class CommandRegistryTest {
 		TabWidgetHooks.install(manager.eventBus) { true }
 		try {
 			TablistHooks.refresh()
-			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 			val dispatcher = CommandDispatcher<Any>()
 			registry.install(dispatcher)
 
@@ -774,7 +838,7 @@ class CommandRegistryTest {
 		PartyHooks.install(manager.eventBus, self = { "Me" }, request = {})
 		try {
 			PartyHooks.reconciled(true, "Alice", mapOf("Alice" to PartyRole.LEADER, "Me" to PartyRole.MEMBER), 2)
-			val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+			val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 			val dispatcher = CommandDispatcher<Any>()
 			registry.install(dispatcher)
 
@@ -795,7 +859,7 @@ class CommandRegistryTest {
 
 	@Test
 	fun `debug lists every registered command with its owner`() {
-		val registry = CommandRegistry<Any>(ModuleManager()) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(ModuleManager()) { _, line -> captured += line.string }
 		registry.register("waypoints", "wp", owner = "dhen-dungeons") { }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
@@ -808,7 +872,7 @@ class CommandRegistryTest {
 	@Test
 	fun `debug command controls deep profiling explicitly`() {
 		val manager = ModuleManager()
-		val registry = CommandRegistry<Any>(manager) { _, message -> captured += message }
+		val registry = CommandRegistry<Any>(manager) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
@@ -849,7 +913,7 @@ class CommandRegistryTest {
 			ModuleManager(),
 			chatHider = hider,
 			persistModules = { persists++ }
-		) { _, message -> captured += message }
+		) { _, line -> captured += line.string }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 

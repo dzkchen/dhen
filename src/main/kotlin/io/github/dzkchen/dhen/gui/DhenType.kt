@@ -9,9 +9,11 @@ import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
+import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.util.ARGB
 import net.minecraft.util.FormattedCharSequence
+import java.net.URI
 
 internal const val ELLIPSIS = "…"
 
@@ -357,6 +359,16 @@ internal object DhenType {
 				}
 			)
 			.append(overWorldComponent(suffix))
+
+	fun suggestedOverWorld(text: String, command: String, hover: String): Component =
+		overWorldComponent(text).withStyle { style ->
+			style
+				.withClickEvent(ClickEvent.SuggestCommand(command))
+				.withHoverEvent(HoverEvent.ShowText(overWorldComponent(hover)))
+		}
+
+	fun linkedOverWorld(text: String, url: URI): Component =
+		overWorldComponent(text).withStyle { style -> style.withClickEvent(ClickEvent.OpenUrl(url)) }
 
 	fun copyableOverWorld(text: String, copyText: String): Component =
 		Component.literal(text).setStyle(

@@ -1,6 +1,27 @@
 package io.github.dzkchen.dhen.data.repo
 
 internal object ConstantsFixture {
+	const val ISLANDS = """
+		{
+		  "area_names": {"hub": "Hub"},
+		  "island_warps": [
+		    {"warp": "hub", "mode": "hub", "x": 0, "y": 0, "z": 0},
+		    {"warp": "Crystals", "aliases": ["ch", "nucleus"], "mode": "crystal_hollows"},
+		    {"mode": "nowhere"}
+		  ]
+		}
+	"""
+
+	const val SACKS = """
+		{
+		  "sacks": {
+		    "Agronomy": {"item": "LARGE_AGRONOMY_SACK", "contents": ["sugar_cane", "INK_SACK-2"]},
+		    "Combat": {"item": "LARGE_COMBAT_SACK", "contents": ["BONE", "SUGAR_CANE"]},
+		    "Broken": {"item": "NOTHING"}
+		  }
+		}
+	"""
+
 	const val REFORGE_STONES = """
 		{
 		  "SPIRIT_STONE": {

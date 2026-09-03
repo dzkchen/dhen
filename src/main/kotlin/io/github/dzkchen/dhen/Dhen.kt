@@ -37,7 +37,12 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
+import io.github.dzkchen.dhen.command.HudCommands
+import io.github.dzkchen.dhen.command.PreviewCommands
+import io.github.dzkchen.dhen.command.SoundCommands
+import io.github.dzkchen.dhen.event.TabCompleteHooks
 import io.github.dzkchen.dhen.features.chat.ChatMacros
+import io.github.dzkchen.dhen.features.chat.Commands
 import io.github.dzkchen.dhen.features.chat.ChatTweaks
 import io.github.dzkchen.dhen.features.chat.PartyHelper
 import io.github.dzkchen.dhen.features.chat.SkyBlockKick
@@ -183,6 +188,7 @@ object Dhen : ClientModInitializer {
 			InteractionHooks,
 			WorldRenderHooks,
 			TickHooks,
+			TabCompleteHooks,
 			HypixelLocationHooks,
 			ScoreboardHooks,
 			TablistHooks,
@@ -241,23 +247,18 @@ object Dhen : ClientModInitializer {
 		}
 		val commands = CommandRegistry<FabricClientCommandSource>(
 			modules,
-			openHudEditor = ::openHudEditor,
 			persistCore = ::persistCore,
-			resetHudLayout = ::resetHudLayout,
 			themes = themes,
 			chatHider = ChatTweaks,
 			commandAliases = ChatMacros,
-			toggleWorldRender = WorldRenderProbe::toggle,
-			toggleHighlight = { EntityHighlights.toggleDebugRule(EntityHighlight::boxStyle, EntityHighlight::debugColor) },
-			openArcPreview = ::openArcPreview,
-			showAlert = { DhenAlert.show("Dhen Alert", "Title and subtitle preview") },
-			showNotice = ::previewPrivacyNotice,
+			utilities = Commands,
+			hud = hudCommands,
+			sounds = soundCommands,
+			previews = previewCommands,
 			available = { !failsafe.failed },
-			persistModules = ::persistModules,
-			openSoundManager = ::openSoundManager,
-			setSoundVolume = SoundManager::setVolumePercent
-		) { source, message ->
-			source.sendFeedback(DhenType.overWorld(message))
+			persistModules = ::persistModules
+		) { source, line ->
+			source.sendFeedback(line)
 		}
 		themes.reload()
 		fonts.prime()
@@ -269,6 +270,7 @@ object Dhen : ClientModInitializer {
 			PickupLog,
 			ChatTweaks,
 			ChatMacros,
+			Commands,
 			PartyHelper,
 			SkyBlockKick,
 			Tweaks,
@@ -416,6 +418,7 @@ object Dhen : ClientModInitializer {
 		WorldRenderHooks.install(modules.eventBus)
 		EntityHighlights.install(modules.eventBus)
 		TickHooks.install(modules.eventBus)
+		TabCompleteHooks.install(modules.eventBus)
 		HypixelLocationHooks.install(modules.eventBus)
 		ScoreboardHooks.install(modules.eventBus)
 		TablistHooks.install(modules.eventBus)
@@ -513,6 +516,50 @@ object Dhen : ClientModInitializer {
 			textMeasurements.guard("font option change") { invalidateTextMeasurements() }
 		}
 		if (openGuiKey.consumeClick() && client.level != null) clickGuiScreen()?.let(client.gui::setScreen)
+	}
+
+	private val hudCommands = object : HudCommands {
+		override fun openEditor(): String {
+			openHudEditor()
+			return "Opening the HUD editor."
+		}
+
+		override fun resetLayout(): String = HudCommands.resetSummary(resetHudLayout())
+	}
+
+	private val soundCommands = object : SoundCommands {
+		override fun openManager(): String {
+			openSoundManager()
+			return "Opening the Sound Manager."
+		}
+
+		override fun setVolume(sound: Identifier, percent: Int): String =
+			"Set $sound to ${SoundManager.setVolumePercent(sound, percent)}% volume."
+	}
+
+	private val previewCommands = object : PreviewCommands {
+		override fun toggleWorldRender(): String =
+			"World-render probe ${if (WorldRenderProbe.toggle()) "on" else "off"}."
+
+		override fun toggleHighlight(): String {
+			val on = EntityHighlights.toggleDebugRule(EntityHighlight::boxStyle, EntityHighlight::debugColor)
+			return "Zombie highlight ${if (on) "on" else "off"}."
+		}
+
+		override fun openArcPreview(): String {
+			Dhen.openArcPreview()
+			return "Opening the annular-segment preview."
+		}
+
+		override fun showAlert(): String {
+			DhenAlert.show("Dhen Alert", "Title and subtitle preview")
+			return "Showing the Dhen alert preview."
+		}
+
+		override fun showNotice(): String {
+			previewPrivacyNotice()
+			return "Raising a privacy alert preview."
+		}
 	}
 
 	private fun openHudEditor() = clientThread.dispatch(EmptyCoroutineContext) {

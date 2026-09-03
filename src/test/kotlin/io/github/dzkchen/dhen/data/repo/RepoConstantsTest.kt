@@ -215,6 +215,30 @@ class RepoConstantsTest {
 	private fun RepoConstants.level(skill: String, experience: Double): Int =
 		level(LevelLadder.SKILL, experience, skill)
 
+	@Test
+	fun `island warps read their names and every alias, lowercased`() {
+		write("islands", ConstantsFixture.ISLANDS)
+
+		assertEquals(listOf("hub", "crystals", "ch", "nucleus"), read().warps.toList())
+	}
+
+	@Test
+	fun `sack contents read as one uppercase set across every sack`() {
+		write("sacks", ConstantsFixture.SACKS)
+
+		assertEquals(listOf("SUGAR_CANE", "INK_SACK-2", "BONE"), read().sackItemIds.toList())
+	}
+
+	@Test
+	fun `a repo missing the warp and sack constants leaves both empty rather than broken`() {
+		write("reforgestones", ConstantsFixture.REFORGE_STONES)
+
+		val constants = read()
+
+		assertTrue(constants.warps.isEmpty())
+		assertTrue(constants.sackItemIds.isEmpty())
+	}
+
 	private fun read(): RepoConstants = RepoConstants.read(home.resolve("constants"))
 
 	private fun write(name: String, body: String) {

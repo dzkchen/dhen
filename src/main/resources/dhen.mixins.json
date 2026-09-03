@@ -23,6 +23,7 @@
 		"ClientLanguageMixin",
 		"ClientPacketListenerMixin",
 		"ClockInstanceMixin",
+		"CommandDispatcherMixin",
 		"CommandNodeAccessor",
 		"ComponentSerializationMixin",
 		"CompositePackResourcesMixin",

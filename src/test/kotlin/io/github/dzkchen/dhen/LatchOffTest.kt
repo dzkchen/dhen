@@ -23,6 +23,7 @@ import io.github.dzkchen.dhen.event.RenderHooks
 import io.github.dzkchen.dhen.data.cookie.CookieHooks
 import io.github.dzkchen.dhen.data.maxwell.MaxwellHooks
 import io.github.dzkchen.dhen.event.ScreenHooks
+import io.github.dzkchen.dhen.event.TabCompleteHooks
 import io.github.dzkchen.dhen.event.TickHooks
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
@@ -54,6 +55,7 @@ class LatchOffTest {
 		InteractionHooks.install(bus)
 		WorldRenderHooks.install(bus)
 		TickHooks.install(bus)
+		TabCompleteHooks.install(bus)
 		HypixelLocationHooks.install(bus)
 		ScoreboardHooks.install(bus)
 		TablistHooks.install(bus)
@@ -109,7 +111,7 @@ class LatchOffTest {
 	fun `the registry names every hook the entrypoint installs`() {
 		val installed = setOf(
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
-			InteractionHooks, WorldRenderHooks, TickHooks, HypixelLocationHooks, ScoreboardHooks,
+			InteractionHooks, WorldRenderHooks, TickHooks, TabCompleteHooks, HypixelLocationHooks, ScoreboardHooks,
 			TablistHooks, TabWidgetHooks, PartyHooks, PickupHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
 			CookieHooks, ProfileHooks, Dhen.firstRunExperience, HypixelModApi
 		)

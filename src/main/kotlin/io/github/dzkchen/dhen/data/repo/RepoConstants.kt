@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
+import io.github.dzkchen.dhen.util.textOrNull
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -80,7 +81,9 @@ class RepoConstants private constructor(
 	private val petLevels: List<Int>,
 	private val petRarityOffsets: Map<String, Int>,
 	private val customPets: Map<String, PetLeveling>,
-	private val leveling: Leveling
+	private val leveling: Leveling,
+	val warps: Set<String>,
+	val sackItemIds: Set<String>
 ) {
 	val reforgeStoneCount: Int get() = reforgeStones.size
 
@@ -144,7 +147,9 @@ class RepoConstants private constructor(
 			cropMilestones = emptyMap()
 		)
 
-		val EMPTY = RepoConstants(emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING)
+		val EMPTY = RepoConstants(
+			emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING, emptySet(), emptySet()
+		)
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		private val UNSPEAKABLE = Regex("[^a-z0-9\\s_-]")
@@ -161,7 +166,9 @@ class RepoConstants private constructor(
 				petLevels = pets.array("pet_levels").ints(),
 				petRarityOffsets = offsets.ints(0),
 				customPets = customPets(pets.obj("custom_pet_leveling")),
-				leveling = leveling(read(constants, "leveling"), read(constants, "garden"))
+				leveling = leveling(read(constants, "leveling"), read(constants, "garden")),
+				warps = warps(read(constants, "islands")),
+				sackItemIds = sackItemIds(read(constants, "sacks"))
 			)
 		}
 
@@ -174,6 +181,31 @@ class RepoConstants private constructor(
 				log.warn("Dhen could not read the repo constant {}", name, throwable)
 				JsonObject()
 			}
+		}
+
+		private fun warps(json: JsonObject): Set<String> {
+			val array = json.array("island_warps") ?: return emptySet()
+			val warps = LinkedHashSet<String>(array.size())
+			for (element in array) {
+				val entry = element as? JsonObject ?: continue
+				entry.text("warp")?.let { warps += it.lowercase(Locale.ROOT) }
+				entry.array("aliases")?.forEach { alias ->
+					alias.textOrNull()?.let { warps += it.lowercase(Locale.ROOT) }
+				}
+			}
+			return warps
+		}
+
+		private fun sackItemIds(json: JsonObject): Set<String> {
+			val sacks = json.obj("sacks") ?: return emptySet()
+			val ids = LinkedHashSet<String>()
+			for ((_, element) in sacks.entrySet()) {
+				val sack = element as? JsonObject ?: continue
+				sack.array("contents")?.forEach { id ->
+					id.textOrNull()?.let { ids += it.uppercase(Locale.ROOT) }
+				}
+			}
+			return ids
 		}
 
 		private fun reforgeStones(json: JsonObject): Map<String, ReforgeStone> {

@@ -50,6 +50,8 @@ object ItemRepo {
 
 	val size: Int get() = catalog.size
 
+	val ids: Set<String> get() = catalog.ids
+
 	val required: Int get() = pump.count
 
 	internal val retrying: Boolean get() = pump.polling

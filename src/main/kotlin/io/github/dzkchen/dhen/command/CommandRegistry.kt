@@ -13,32 +13,30 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import io.github.dzkchen.dhen.diagnostic.Diagnostics
+import com.mojang.brigadier.tree.CommandNode
 import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.Effects
 import io.github.dzkchen.dhen.module.ModuleManager
 import net.minecraft.commands.arguments.IdentifierArgument
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import java.util.Locale
 
 class CommandRegistry<S>(
 	private val manager: ModuleManager,
-	private val openHudEditor: () -> Unit = {},
 	private val persistCore: () -> Unit = {},
-	private val resetHudLayout: () -> Int = { 0 },
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val chatHider: ChatHiderCommands = ChatHiderCommands.NONE,
 	private val commandAliases: CommandAliasCommands = CommandAliasCommands.NONE,
+	private val utilities: CommandUtilities = CommandUtilities.NONE,
+	private val hud: HudCommands = HudCommands.NONE,
+	private val sounds: SoundCommands = SoundCommands.NONE,
+	private val previews: PreviewCommands = PreviewCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
-	private val toggleWorldRender: () -> Boolean = { false },
-	private val toggleHighlight: () -> Boolean = { false },
-	private val openArcPreview: () -> Unit = {},
-	private val showAlert: () -> Unit = {},
-	private val showNotice: () -> Unit = {},
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
-	private val openSoundManager: () -> Unit = {},
-	private val setSoundVolume: (Identifier, Int) -> Int = { _, percent -> percent },
-	private val feedback: (S, String) -> Unit
+	private val feedback: (S, Component) -> Unit
 ) {
 	private val registrations = linkedMapOf<String, RegisteredCommand<S>>()
 
@@ -63,8 +61,7 @@ class CommandRegistry<S>(
 	}
 
 	fun install(dispatcher: CommandDispatcher<S>) {
-		dispatcher.register(core("dhen").requires { available() })
-		dispatcher.register(core("dh").requires { available() })
+		for (name in RESERVED) dispatcher.register(core(name).requires { available() })
 		for (registration in registrations.values) {
 			for (lit in registration.literals) {
 				dispatcher.register(literal<S>(lit).apply(registration.build).requires { available() })
@@ -74,9 +71,7 @@ class CommandRegistry<S>(
 
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
-			.executes { context ->
-				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme | chathider | alias")
-			}
+			.executes { context -> report(context.source, "Type /$name help for every Dhen command.") }
 			.then(
 				literal<S>("module").then(
 					argument<S, String>("name", StringArgumentType.word())
@@ -102,19 +97,15 @@ class CommandRegistry<S>(
 						)
 				)
 			)
-			.then(
-				literal<S>("edit").executes { context ->
-					openHudEditor()
-					report(context.source, "Opening the HUD editor.")
-				}
-			)
-			.then(
-				literal<S>("sounds").executes { context ->
-					openSoundManager()
-					report(context.source, "Opening the Sound Manager.")
-				}
-			)
-			.then(resetAllCommand())
+			.then(literal<S>("edit").executes { context -> report(context.source, hud.openEditor()) })
+			.then(literal<S>("sounds").executes { context -> report(context.source, sounds.openManager()) })
+			.then(literal<S>("reset-all").executes { context -> report(context.source, hud.resetLayout()) })
+			.then(helpCommand())
+			.then(sendCoordsCommand())
+			.then(wikiCommand())
+			.then(literal<S>("wikithis").executes { context -> report(context.source, utilities.heldItemWiki()) })
+			.then(literal<S>("lastopened").executes { context -> report(context.source, utilities.openLastStorage()) })
+			.then(literal<S>("link").executes { context -> report(context.source, utilities.link()) })
 			.then(effectsCommand())
 			.then(themeCommand())
 			.then(chatHiderCommand())
@@ -177,18 +168,8 @@ class CommandRegistry<S>(
 	}
 
 	private fun reportAll(source: S, lines: List<String>): Int {
-		for (line in lines) feedback(source, line)
+		for (line in lines) feedback(source, DhenType.overWorld(line))
 		return Command.SINGLE_SUCCESS
-	}
-
-	private fun resetAllCommand(): LiteralArgumentBuilder<S> =
-		literal<S>("reset-all")
-			.executes { context -> report(context.source, resetSummary(resetHudLayout())) }
-
-	private fun resetSummary(reset: Int): String = when (reset) {
-		0 -> "Every HUD element is already at its declared layout."
-		1 -> "Reset 1 HUD element to the declared layout."
-		else -> "Reset $reset HUD elements to the declared layout."
 	}
 
 	private fun effectsCommand(): LiteralArgumentBuilder<S> =
@@ -236,157 +217,166 @@ class CommandRegistry<S>(
 		}
 
 	private fun answering(source: S, action: ((String) -> Unit) -> Unit): Int {
-		action { message -> feedback(source, message) }
+		action { message -> feedback(source, DhenType.overWorld(message)) }
 		return Command.SINGLE_SUCCESS
 	}
 
 	private fun report(source: S, message: String): Int {
-		feedback(source, message)
+		feedback(source, DhenType.overWorld(message))
 		return Command.SINGLE_SUCCESS
+	}
+
+	private fun wikiCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("wiki")
+			.executes { context -> report(context.source, utilities.wiki("")) }
+			.then(
+				argument<S, String>("search", StringArgumentType.greedyString()).executes { context ->
+					report(context.source, utilities.wiki(StringArgumentType.getString(context, "search")))
+				}
+			)
+
+	private fun sendCoordsCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("sendcoords")
+			.executes { context -> report(context.source, utilities.sendCoordinates("")) }
+			.then(
+				argument<S, String>("message", StringArgumentType.greedyString()).executes { context ->
+					report(context.source, utilities.sendCoordinates(StringArgumentType.getString(context, "message")))
+				}
+			)
+
+	private fun helpCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("help")
+			.executes { context -> help(context, FIRST_PAGE, "") }
+			.then(
+				literal<S>("-p").then(
+					argument<S, Int>("page", IntegerArgumentType.integer(FIRST_PAGE))
+						.executes { context -> help(context, IntegerArgumentType.getInteger(context, "page"), "") }
+						.then(
+							argument<S, String>("search", StringArgumentType.greedyString()).executes { context ->
+								help(
+									context,
+									IntegerArgumentType.getInteger(context, "page"),
+									StringArgumentType.getString(context, "search")
+								)
+							}
+						)
+				)
+			)
+			.then(
+				argument<S, String>("search", excluding("-p", StringArgumentType.greedyString())).executes { context ->
+					help(context, FIRST_PAGE, StringArgumentType.getString(context, "search"))
+				}
+			)
+
+	private fun help(context: CommandContext<S>, page: Int, search: String): Int {
+		val source = context.source
+		val paths = commandPaths(context.rootNode).filter { search.isEmpty() || it.contains(search, ignoreCase = true) }
+		if (paths.isEmpty()) return report(source, "No Dhen command matches '$search'.")
+		val pages = (paths.size + PAGE_SIZE - 1) / PAGE_SIZE
+		val shown = page.coerceIn(FIRST_PAGE, pages)
+		report(source, "Dhen commands — page $shown of $pages" + if (search.isEmpty()) "" else ", matching '$search'")
+		for (path in paths.drop((shown - 1) * PAGE_SIZE).take(PAGE_SIZE)) feedback(source, suggestion(path))
+		if (pages > 1) report(source, "Type /dhen help -p <page> to read the rest.")
+		return Command.SINGLE_SUCCESS
+	}
+
+	private fun suggestion(path: String): Component =
+		DhenType.suggestedOverWorld(path, path.substringBefore(ARGUMENT_MARK), hover(path))
+
+	private fun hover(path: String): String {
+		val registration = registrations[path.substringBefore(' ').removePrefix("/")] ?: return CLICK_HINT
+		if (registration.aliases.isEmpty()) return CLICK_HINT
+		return "Also " + registration.aliases.joinToString(", ") { "/$it" }
+	}
+
+	private fun commandPaths(root: CommandNode<S>): List<String> {
+		val paths = ArrayList<String>()
+		for (name in listOf(CORE_COMMAND) + registrations.values.map { it.literals.first() }) {
+			val node = root.getChild(name) ?: continue
+			collectPaths(node, "/$name", paths)
+		}
+		return paths
+	}
+
+	private fun collectPaths(node: CommandNode<S>, path: String, into: MutableList<String>) {
+		if (node.command != null) into += path
+		for (child in node.children) collectPaths(child, "$path ${child.usageText}", into)
 	}
 
 	private fun debugCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("debug")
 			.executes { context ->
-				for (line in diagnostics.lines()) feedback(context.source, line)
-				for (registration in registrations.values) feedback(context.source, ownerLine(registration))
-				Command.SINGLE_SUCCESS
+				reportAll(context.source, diagnostics.lines() + registrations.values.map(::ownerLine))
 			}
 			.then(
 				literal<S>("deep")
 					.then(deepMode("on", true))
 					.then(deepMode("off", false))
 			)
-			.then(
-				literal<S>("arc").executes { context ->
-					openArcPreview()
-					report(context.source, "Opening the annular-segment preview.")
-				}
-			)
-			.then(
-				literal<S>("alert").executes { context ->
-					showAlert()
-					report(context.source, "Showing the Dhen alert preview.")
-				}
-			)
-			.then(
-				literal<S>("notify").executes { context ->
-					showNotice()
-					report(context.source, "Raising a privacy alert preview.")
-				}
-			)
-			.then(
-				literal<S>("worldrender").executes { context ->
-					report(context.source, "World-render probe ${if (toggleWorldRender()) "on" else "off"}.")
-				}
-			)
-			.then(
-				literal<S>("highlight").executes { context ->
-					report(context.source, "Zombie highlight ${if (toggleHighlight()) "on" else "off"}.")
-				}
-			)
+			.then(literal<S>("arc").executes { context -> report(context.source, previews.openArcPreview()) })
+			.then(literal<S>("alert").executes { context -> report(context.source, previews.showAlert()) })
+			.then(literal<S>("notify").executes { context -> report(context.source, previews.showNotice()) })
+			.then(literal<S>("worldrender").executes { context -> report(context.source, previews.toggleWorldRender()) })
+			.then(literal<S>("highlight").executes { context -> report(context.source, previews.toggleHighlight()) })
 			.then(soundCommand())
 			.then(
-				literal<S>("party").executes { context ->
-					for (line in diagnostics.partyLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("party").executes { context -> reportAll(context.source, diagnostics.partyLines()) }
 			)
 			.then(
-				literal<S>("scoreboard").executes { context ->
-					for (line in diagnostics.scoreboardLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("scoreboard").executes { context -> reportAll(context.source, diagnostics.scoreboardLines()) }
 			)
 			.then(
-				literal<S>("tablist").executes { context ->
-					for (line in diagnostics.tablistWidgetLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("tablist").executes { context -> reportAll(context.source, diagnostics.tablistWidgetLines()) }
 			)
 			.then(
-				literal<S>("stats").executes { context ->
-					for (line in diagnostics.statsLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("stats").executes { context -> reportAll(context.source, diagnostics.statsLines()) }
 			)
 			.then(
-				literal<S>("item").executes { context ->
-					for (line in diagnostics.heldItemLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("item").executes { context -> reportAll(context.source, diagnostics.heldItemLines()) }
 			)
 			.then(
-				literal<S>("value").executes { context ->
-					for (line in diagnostics.valueLines()) feedback(context.source, line)
-					Command.SINGLE_SUCCESS
-				}
+				literal<S>("value").executes { context -> reportAll(context.source, diagnostics.valueLines()) }
 			)
 			.then(
 				literal<S>("prices")
-					.executes { context ->
-						for (line in diagnostics.priceLines(toggle = false)) feedback(context.source, line)
-						Command.SINGLE_SUCCESS
-					}
+					.executes { context -> reportAll(context.source, diagnostics.priceLines(toggle = false)) }
 					.then(
-						literal<S>("download").executes { context ->
-							for (line in diagnostics.priceLines(toggle = true)) feedback(context.source, line)
-							Command.SINGLE_SUCCESS
-						}
+						literal<S>("download").executes { context -> reportAll(context.source, diagnostics.priceLines(toggle = true)) }
 					)
 					.then(
 						argument<S, String>(
 							"item",
 							excluding("download", StringArgumentType.greedyString())
 						).executes { context ->
-							val query = StringArgumentType.getString(context, "item")
-							for (line in diagnostics.marketLines(query)) feedback(context.source, line)
-							Command.SINGLE_SUCCESS
+							reportAll(context.source, diagnostics.marketLines(StringArgumentType.getString(context, "item")))
 						}
 					)
 			)
 			.then(
 				literal<S>("mayor")
-					.executes { context ->
-						for (line in diagnostics.mayorLines(toggle = false)) feedback(context.source, line)
-						Command.SINGLE_SUCCESS
-					}
+					.executes { context -> reportAll(context.source, diagnostics.mayorLines(toggle = false)) }
 					.then(
-						literal<S>("download").executes { context ->
-							for (line in diagnostics.mayorLines(toggle = true)) feedback(context.source, line)
-							Command.SINGLE_SUCCESS
-						}
+						literal<S>("download").executes { context -> reportAll(context.source, diagnostics.mayorLines(toggle = true)) }
 					)
 			)
 			.then(
 				literal<S>("repo")
-					.executes { context ->
-						for (line in diagnostics.repoLines(toggle = false)) feedback(context.source, line)
-						Command.SINGLE_SUCCESS
-					}
+					.executes { context -> reportAll(context.source, diagnostics.repoLines(toggle = false)) }
 					.then(
-						literal<S>("download").executes { context ->
-							for (line in diagnostics.repoLines(toggle = true)) feedback(context.source, line)
-							Command.SINGLE_SUCCESS
-						}
+						literal<S>("download").executes { context -> reportAll(context.source, diagnostics.repoLines(toggle = true)) }
 					)
 					.then(
 						argument<S, String>(
 							"item",
 							excluding("download", StringArgumentType.greedyString())
 						).executes { context ->
-							val query = StringArgumentType.getString(context, "item")
-							for (line in diagnostics.itemLines(query)) feedback(context.source, line)
-							Command.SINGLE_SUCCESS
+							reportAll(context.source, diagnostics.itemLines(StringArgumentType.getString(context, "item")))
 						}
 					)
 			)
 			.then(
 				literal<S>("profile")
-					.executes { context ->
-						for (line in diagnostics.profileLines()) feedback(context.source, line)
-						Command.SINGLE_SUCCESS
-					}
+					.executes { context -> reportAll(context.source, diagnostics.profileLines()) }
 					.then(
 						literal<S>("url")
 							.executes { context -> report(context.source, diagnostics.profileProxyShown()) }
@@ -421,8 +411,8 @@ class CommandRegistry<S>(
 			argument<S, Identifier>("identifier", IdentifierArgument.id()).then(
 				argument<S, Int>("percent", IntegerArgumentType.integer()).executes { context ->
 					val identifier = context.getArgument("identifier", Identifier::class.java)
-					val percent = setSoundVolume(identifier, IntegerArgumentType.getInteger(context, "percent"))
-					report(context.source, "Set $identifier to $percent% volume.")
+					val percent = IntegerArgumentType.getInteger(context, "percent")
+					report(context.source, sounds.setVolume(identifier, percent))
 				}
 			)
 		)
@@ -447,7 +437,14 @@ class CommandRegistry<S>(
 		LiteralExcludingStringArgument(literal, delegate)
 
 	internal companion object {
-		internal val RESERVED = setOf("dhen", "dh")
+		internal const val CORE_COMMAND = "dhen"
+
+		internal val RESERVED = listOf(CORE_COMMAND, "dh")
+
+		private const val PAGE_SIZE = 15
+		private const val FIRST_PAGE = 1
+		private const val CLICK_HINT = "Click to put this in the chat box."
+		private const val ARGUMENT_MARK = " <"
 	}
 }
 
