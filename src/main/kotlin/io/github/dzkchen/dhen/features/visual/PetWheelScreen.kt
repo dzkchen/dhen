@@ -471,7 +471,7 @@ internal class PetWheelScreen {
 		if (session.closesAfterAction) player.closeContainer()
 	}
 
-	private fun custom(screen: AbstractContainerScreen<*>): Boolean =
+	internal fun custom(screen: AbstractContainerScreen<*>): Boolean =
 		session.cache.custom && screen.menu.containerId == session.cache.windowId && session.cache.belongsTo(screen.title)
 
 	private fun updateLayout(screen: AbstractContainerScreen<*>) {

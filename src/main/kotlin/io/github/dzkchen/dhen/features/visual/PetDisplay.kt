@@ -41,6 +41,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.decoration.ArmorStand
@@ -657,6 +658,8 @@ object PetDisplay : Module(
 	private val petLevels = IntArray(TRACKED_SLOTS)
 	private val candyLabels = Array(MAX_CANDY + 1) { CANDY_COLOR + it }
 	private val petWheel = PetWheelScreen()
+
+	internal fun wheelOwns(screen: AbstractContainerScreen<*>): Boolean = enabled && petWheel.custom(screen)
 	private val petExpTooltip = PetExpTooltip()
 	private val georgeHelper = GeorgeHelper()
 	internal val hudElement = hud(PetDisplayHud())

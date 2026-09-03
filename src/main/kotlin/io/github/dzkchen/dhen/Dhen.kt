@@ -67,6 +67,9 @@ import io.github.dzkchen.dhen.features.inventory.ContainerState
 import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
 import io.github.dzkchen.dhen.features.inventory.ProtectItem
 import io.github.dzkchen.dhen.features.inventory.SlotBinding
+import io.github.dzkchen.dhen.features.inventory.WardrobeKeybinds
+import io.github.dzkchen.dhen.features.inventory.PetKeybinds
+import io.github.dzkchen.dhen.features.inventory.LoadoutKeybinds
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip
 import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.visual.Animations
@@ -285,6 +288,9 @@ object Dhen : ClientModInitializer {
 			ItemTooltip,
 			ProtectItem,
 			SlotBinding,
+			WardrobeKeybinds,
+			PetKeybinds,
+			LoadoutKeybinds,
 			AuctionPriceInput,
 			StorageOverlay,
 			Animations,
