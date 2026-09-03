@@ -6,8 +6,9 @@ import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.gui.LiveWorldScreen
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SharpGui
-import io.github.dzkchen.dhen.gui.TextMemo
+import io.github.dzkchen.dhen.gui.centeredText
 import io.github.dzkchen.dhen.gui.isPrintable
+import io.github.dzkchen.dhen.gui.pillButton
 import io.github.dzkchen.dhen.gui.textTop
 import io.github.dzkchen.dhen.input.TextInputTarget
 import io.github.dzkchen.dhen.util.compactNumber
@@ -64,12 +65,12 @@ internal class AuctionInputScreen(
 			DhenPalette.BORDER
 		)
 		graphics.item(stack, centerX - ITEM_HALF, centerY + ITEM_TOP)
-		centered(graphics, headerMemo, if (undercut) UNDERCUT_HEADER else NORMAL_HEADER, centerX, centerY + HEADER_TOP, DhenPalette.accent)
-		centered(graphics, marketMemo, marketText, centerX, centerY + MARKET_TOP, DhenPalette.TEXT_SECONDARY)
-		centered(graphics, statusMemo, statusText, centerX, centerY + STATUS_TOP, statusColor())
+		centeredText(graphics, font, headerMemo, if (undercut) UNDERCUT_HEADER else NORMAL_HEADER, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + HEADER_TOP, DhenPalette.accent, TEXT_PAD)
+		centeredText(graphics, font, marketMemo, marketText, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + MARKET_TOP, DhenPalette.TEXT_SECONDARY, TEXT_PAD)
+		centeredText(graphics, font, statusMemo, statusText, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + STATUS_TOP, statusColor(), TEXT_PAD)
 		drawInput(graphics, centerX, centerY)
-		drawButton(graphics, doneMemo, DONE_LABEL, centerX, centerY + DONE_TOP, mouseX, mouseY)
-		drawButton(graphics, modeMemo, modeLabel(), centerX, centerY + MODE_TOP, mouseX, mouseY)
+		pillButton(graphics, font, doneMemo, DONE_LABEL, centerX - BOX_HALF_WIDTH, centerX + BOX_HALF_WIDTH, centerY + DONE_TOP, BUTTON_HEIGHT, mouseX, mouseY, TEXT_PAD)
+		pillButton(graphics, font, modeMemo, modeLabel(), centerX - BOX_HALF_WIDTH, centerX + BOX_HALF_WIDTH, centerY + MODE_TOP, BUTTON_HEIGHT, mouseX, mouseY, TEXT_PAD)
 		if (overItem(mouseX, mouseY, centerX, centerY)) {
 			graphics.setTooltipForNextFrame(font, stack, mouseX, mouseY)
 		}
@@ -183,34 +184,6 @@ internal class AuctionInputScreen(
 		if (input.isEmpty()) return
 		val caret = textLeft + inputMemo.width(font, shown)
 		SharpGui.fill(graphics, caret, top + CARET_INSET, caret + 1, top + BOX_HEIGHT - CARET_INSET, DhenPalette.accent)
-	}
-
-	private fun drawButton(
-		graphics: GuiGraphicsExtractor,
-		memo: TextMemo,
-		label: String,
-		centerX: Int,
-		top: Int,
-		mouseX: Int,
-		mouseY: Int
-	) {
-		val left = centerX - BOX_HALF_WIDTH
-		val right = centerX + BOX_HALF_WIDTH
-		val hovered = mouseX in left until right && mouseY in top until top + BUTTON_HEIGHT
-		RoundedGui.pill(graphics, left, top, right, top + BUTTON_HEIGHT, GlassGui.raised(hovered))
-		centered(graphics, memo, label, centerX, textTop(font, top, BUTTON_HEIGHT), DhenPalette.TEXT_PRIMARY)
-	}
-
-	private fun centered(
-		graphics: GuiGraphicsExtractor,
-		memo: TextMemo,
-		text: String,
-		centerX: Int,
-		top: Int,
-		color: Int
-	) {
-		val shown = memo.fit(font, text, PANEL_HALF_WIDTH * 2 - 2 * TEXT_PAD)
-		memo.text(graphics, font, shown, centerX - memo.width(font, shown) / 2, top, color)
 	}
 
 	private fun statusColor(): Int = when {

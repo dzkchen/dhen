@@ -63,7 +63,7 @@ internal object TickHooks : GuardedHooks<TickHooks.ServerChannels> {
 	private fun worldChanged() {
 		try {
 			ServerClock.reset()
-			TickClock.cancelWorldScopedWaits()
+			TickClock.cancelWaits()
 		} catch (throwable: Throwable) {
 			uninstall()
 			failsafe.fail("tick clock reset", throwable)

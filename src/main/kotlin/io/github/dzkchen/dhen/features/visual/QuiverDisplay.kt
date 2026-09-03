@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.data.Island
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -14,7 +15,6 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.RepoItem
 import io.github.dzkchen.dhen.data.repo.RepoState
 import io.github.dzkchen.dhen.event.ClientTickEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
@@ -81,8 +81,7 @@ object QuiverDisplay : Module(
 	internal val equipment = QuiverEquipment()
 	internal val element = hud(QuiverDisplayElement())
 	internal val warning = QuiverWarning(NanoClock.SYSTEM, QuiverState::amount)
-	private var repoRequirement: Handle = Handle {}
-	private var repoHeld = false
+	private val repoHold = RequirementHold(ItemRepo::active, ItemRepo::require)
 	private var ticks = 0
 
 	init {
@@ -106,14 +105,12 @@ object QuiverDisplay : Module(
 	}
 
 	override fun onEnabled() {
-		ensureRepo()
+		repoHold.ensure()
 		element.refresh()
 	}
 
 	override fun onDisabled() {
-		repoRequirement.unsubscribe()
-		repoRequirement = Handle {}
-		repoHeld = false
+		repoHold.release()
 		ticks = 0
 		equipment.clear()
 		warning.reset()
@@ -125,7 +122,7 @@ object QuiverDisplay : Module(
 	internal fun ticked() {
 		val reminder = warning.takeReminder()
 		if (reminder != null) instanceAlert(reminder)
-		ensureRepo()
+		repoHold.ensure()
 		element.refresh()
 		if (!SkyBlockLocation.inSkyBlock) {
 			samplingDue(false)
@@ -163,12 +160,6 @@ object QuiverDisplay : Module(
 			BOW_IN_INVENTORY -> equipment.hasBow
 			else -> equipment.holdingBow
 		}
-
-	private fun ensureRepo() {
-		if (repoHeld || !ItemRepo.active()) return
-		repoRequirement = ItemRepo.require()
-		repoHeld = true
-	}
 
 	internal fun currentShowIcon(): Boolean = showIcon
 

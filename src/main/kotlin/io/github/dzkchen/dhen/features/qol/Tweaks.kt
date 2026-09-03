@@ -5,10 +5,9 @@ import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
-import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.slotCenteredText
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
-import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -56,25 +55,7 @@ object Tweaks : Module(
 			val stack = event.slot.item
 			if (!stack.`is`(Items.CAKE)) return@on
 			val year = cakeYears.year(stack) ?: return@on
-			val graphics = event.graphics
-			val font = Minecraft.getInstance().font
-			val pose = graphics.pose()
-			pose.pushMatrix()
-			try {
-				pose.translate((event.slot.x + SLOT_CENTER).toFloat(), (event.slot.y + SLOT_CENTER).toFloat())
-				pose.scale(CAKE_SCALE, CAKE_SCALE)
-				DhenType.text(
-					graphics,
-					font,
-					year,
-					-DhenType.width(font, year) / 2,
-					-DhenType.lineHeight(font) / 2,
-					DhenPalette.accent,
-					true
-				)
-			} finally {
-				pose.popMatrix()
-			}
+			slotCenteredText(event.graphics, year, event.slot.x + SLOT_CENTER, event.slot.y + SLOT_CENTER, CAKE_SCALE, DhenPalette.accent)
 		}
 	}
 

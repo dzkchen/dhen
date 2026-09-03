@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.config.ColorSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.Island
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.event.ClientTickEvent
@@ -97,7 +98,7 @@ object MobHighlight : Module(
 	private val standNames = WeakHashMap<ArmorStand, String>()
 	private var arachne: Entity? = null
 	private var rule: Handle? = null
-	private var mayorRequirement = Handle {}
+	private val mayorHold = RequirementHold(MayorService::active, MayorService::require)
 
 	init {
 		on<ClientTickEvent.End> { sweep() }
@@ -108,14 +109,13 @@ object MobHighlight : Module(
 	override fun onEnabled() {
 		paints.defaultReturnValue(NO_HIGHLIGHT)
 		rule = EntityHighlights.glow { entity -> paints.getInt(entity) }
-		if (MayorService.active()) mayorRequirement = MayorService.require()
+		mayorHold.ensure()
 	}
 
 	override fun onDisabled() {
 		rule?.unsubscribe()
 		rule = null
-		mayorRequirement.unsubscribe()
-		mayorRequirement = Handle {}
+		mayorHold.release()
 		forget()
 	}
 

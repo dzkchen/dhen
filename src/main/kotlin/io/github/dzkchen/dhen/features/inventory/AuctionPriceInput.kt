@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.features.inventory
 
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
@@ -9,7 +10,6 @@ import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
 import io.github.dzkchen.dhen.event.ContainerKeyEvent
 import io.github.dzkchen.dhen.event.GuiOpenEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.mixin.AbstractSignEditScreenAccessor
 import io.github.dzkchen.dhen.module.Category
@@ -49,8 +49,7 @@ object AuctionPriceInput : Module(
 	private var captured: ItemStack? = null
 	private var lastText = ""
 	private var lastUndercut: Boolean? = null
-	private var priceRequirement: Handle = Handle {}
-	private var priceHeld = false
+	private val priceHold = RequirementHold(Prices::active, Prices::require)
 
 	init {
 		for (setting in listOf(defaultModeSetting, rememberTextSetting, rememberModeSetting)) registerSetting(setting)
@@ -58,14 +57,12 @@ object AuctionPriceInput : Module(
 		on<ContainerClickEvent> { event -> capture(event) }
 		on<ContainerKeyEvent> { event -> confirm(event) }
 		on<GuiOpenEvent> { event -> swap(event) }
-		on<ClientTickEvent.End> { requirePrices() }
+		on<ClientTickEvent.End> { priceHold.ensure() }
 	}
 
 	override fun onDisabled() {
 		captured = null
-		priceRequirement.unsubscribe()
-		priceRequirement = Handle {}
-		priceHeld = false
+		priceHold.release()
 	}
 
 	internal fun rememberedText(): String = if (rememberTextSetting.on) lastText else ""
@@ -130,12 +127,6 @@ object AuctionPriceInput : Module(
 		if (lines[1] != CARETS || lines[2] != AUCTION_LINE || lines[3] != BID_LINE) return
 		captured = null
 		event.screen = AuctionInputScreen(sign.blockPos, frontText, lines, stack)
-	}
-
-	private fun requirePrices() {
-		if (priceHeld || !Prices.active()) return
-		priceRequirement = Prices.require()
-		priceHeld = true
 	}
 
 	private fun title(screen: AbstractContainerScreen<*>): String = withoutCodes(screen.title.string)

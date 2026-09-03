@@ -3,12 +3,12 @@ package io.github.dzkchen.dhen.features.visual
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.ScoreboardState
 import io.github.dzkchen.dhen.data.SidebarEvent
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.CookieUpdateEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.MayorChangeEvent
 import io.github.dzkchen.dhen.event.MaxwellUpdateEvent
@@ -130,9 +130,7 @@ object CustomScoreboard : Module(
 
 	private var shownAllActive = true
 
-	private var mayorRequirement: Handle = Handle {}
-
-	private var mayorHeld = false
+	private val mayorHold = RequirementHold(MayorService::active, MayorService::require)
 
 	init {
 		on<ScoreboardUpdateEvent> { rebuild() }
@@ -151,7 +149,7 @@ object CustomScoreboard : Module(
 		rebuild()
 	}
 
-	override fun onDisabled() = releaseMayorFeed()
+	override fun onDisabled() = mayorHold.release()
 
 	internal fun ticked() {
 		ensureMayorFeed()
@@ -162,21 +160,7 @@ object CustomScoreboard : Module(
 		}
 	}
 
-	private fun ensureMayorFeed() {
-		val wanted = linesSetting.enabled(ScoreboardLine.MAYOR.label)
-		if (wanted && !mayorHeld && MayorService.active()) {
-			mayorRequirement = MayorService.require()
-			mayorHeld = true
-		} else if (!wanted && mayorHeld) {
-			releaseMayorFeed()
-		}
-	}
-
-	private fun releaseMayorFeed() {
-		mayorRequirement.unsubscribe()
-		mayorRequirement = Handle {}
-		mayorHeld = false
-	}
+	private fun ensureMayorFeed() = mayorHold.ensure(linesSetting.enabled(ScoreboardLine.MAYOR.label))
 
 	internal fun rebuild() {
 		composer.sampled()

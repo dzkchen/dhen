@@ -490,6 +490,14 @@ internal class ItemValueTest : RepoBackedTest() {
 	}
 
 	@Test
+	fun `a potion only the NPC buys reads its NPC floor by its raw id, not its market id`() {
+		val valuation = value(item { putString("id", "POTION"); putString("potion", "speed"); putInt("potion_level", 8) })
+
+		assertEquals(20.0, valuation.total)
+		assertEquals(listOf("POTION-SPEED-8"), valuation.breakdown.map { it.label })
+	}
+
+	@Test
 	fun `an item whose recipe is cheaper than the NPC keeps the NPC price`() {
 		assertEquals(100.0, value(item { putString("id", "NPC_RICH") }).total)
 	}
@@ -563,7 +571,8 @@ internal class ItemValueTest : RepoBackedTest() {
 			"RING_B" to "{\"internalname\":\"RING_B\",\"recipes\":[" +
 				"{\"type\":\"crafting\",\"A1\":\"RING_A:1\"}," +
 				"{\"type\":\"crafting\",\"A1\":\"CRAFT_PART:3\"}]}",
-			"NO_RECIPE" to "{\"internalname\":\"NO_RECIPE\"}"
+			"NO_RECIPE" to "{\"internalname\":\"NO_RECIPE\"}",
+			"POTION-SPEED-8" to "{\"internalname\":\"POTION-SPEED-8\",\"recipe\":{\"A1\":\"CRAFT_PART:4\"}}"
 		)
 
 		private val LOWEST_BINS = """
@@ -595,6 +604,7 @@ internal class ItemValueTest : RepoBackedTest() {
 			  "ENCHANTED_BOOK-SCAVENGER-4": 100.0,
 			  "ENCHANTED_BOOK-SCAVENGER-5": 200.0,
 			  "ENCHANTED_BOOK-VICIOUS-3": 400.0,
+			  "POTION-SPEED-8": 10.0,
 			  "TURBO_GOURD": 90.0,
 			  "ENCHANTED_TURBO_GOURD": 900.0,
 			  "GOLDEN_BOUNTY": 300.0,
@@ -636,6 +646,7 @@ internal class ItemValueTest : RepoBackedTest() {
 			  "items": [
 			    {"id": "MANDRAA_NPC", "npc_sell_price": 1},
 			    {"id": "NPC_ONLY", "npc_sell_price": 10},
+			    {"id": "POTION", "npc_sell_price": 10},
 			    {"id": "NPC_RICH", "npc_sell_price": 100},
 			    {"id": "BULK", "npc_sell_price": 10},
 			    {"id": "LOOPY", "npc_sell_price": 1},

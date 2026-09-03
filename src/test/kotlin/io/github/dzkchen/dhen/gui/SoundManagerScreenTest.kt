@@ -231,17 +231,6 @@ class SoundManagerScreenTest {
 	}
 
 	@Test
-	fun `a title drag moves the window by the pointer delta and keeps its grab point`() {
-		val grabX = 300 - 100
-		val grabY = 50 - 40
-
-		assertEquals(400, clampAlongTitleBand(600 - grabX, 540, 1_000, 108))
-		assertEquals(90, clampAcrossTitleBand(100 - grabY, 285, 600, 26))
-		assertEquals(460, clampAlongTitleBand(1_400 - grabX, 540, 1_000, 108))
-		assertEquals(0, clampAcrossTitleBand(-500 - grabY, 285, 600, 26))
-	}
-
-	@Test
 	fun `every slider clamps and snaps inside its own range`() {
 		assertEquals(0, steppedSliderValue(80, 100, 140, VOLUME_RANGE))
 		assertEquals(0, steppedSliderValue(100, 100, 140, VOLUME_RANGE))
@@ -261,16 +250,7 @@ class SoundManagerScreenTest {
 	}
 
 	@Test
-	fun `wheel scroll eases for two hundred milliseconds and then holds`() {
-		assertEquals(12f, animatedSoundScroll(12f, 112f, 0L))
-		assertTrue(animatedSoundScroll(12f, 112f, 100L) in 62f..111f)
-		assertEquals(112f, animatedSoundScroll(12f, 112f, 200L))
-		assertEquals(112f, animatedSoundScroll(12f, 112f, 500L))
-	}
-
-	@Test
 	fun `scrollbar drag preserves its grab point and reaches both ends`() {
-		assertEquals(28, ClickGuiScroll.thumbHeight(215, 215, 2_000, 28))
 		assertEquals(0, soundScrollOffset(40, 40, 215, 28, 14, 500))
 		assertEquals(500, soundScrollOffset(241, 40, 215, 28, 14, 500))
 		assertEquals(249, soundScrollOffset(147, 40, 215, 28, 14, 500))

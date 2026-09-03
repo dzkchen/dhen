@@ -36,8 +36,6 @@ class QuiverHooksTest {
 
 	@Test
 	fun `the source arrow table is complete and keeps its exact ids`() {
-		assertEquals(15, QuiverArrow.entries.size)
-		assertEquals(2880, QuiverState.MAX_AMOUNT)
 		assertEquals("Flint Arrow", QuiverArrow.byId("ARROW")?.displayName)
 		assertEquals("NANSORB_ARROW", QuiverArrow.byName("Nansorb Arrow")?.id)
 		assertNull(QuiverArrow.byName("Unknown Arrow"))

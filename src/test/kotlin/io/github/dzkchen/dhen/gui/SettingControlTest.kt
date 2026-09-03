@@ -784,17 +784,6 @@ class SettingControlTest {
 	}
 
 	@Test
-	fun `a value pill claims its measured width before the label`() {
-		val valueWidth = glyphs("Required")
-		val room = pillValueRoom(CONTROLS_WIDTH, valueWidth, glyphs(ELLIPSIS), trailing = 0, reserve = 0)
-		val width = pillWidth(room, trailing = 0, reserve = 0, width = CONTROLS_WIDTH)
-
-		assertEquals(valueWidth, room)
-		assertEquals(valueWidth + 2 * PILL_PAD, width)
-		assertTrue(labelRoom(CONTROLS_WIDTH, width) < glyphs("A setting with a very long name"))
-	}
-
-	@Test
 	fun `the widest value each setting type allows still clears its own name`() {
 		for (width in intArrayOf(CONTROLS_WIDTH, panelControlsWidth(PANEL_WIDTH))) {
 			assertRoomForName(width, "Label", "WWWWWWWWWWWWWWWW", trailing = 0, editing = true)

@@ -411,7 +411,7 @@ object ItemValue {
 		fun base(marketId: String, label: String): Double = priced(label, floored(marketId))
 
 		private fun floored(marketId: String): Double {
-			val npc = Prices.priceOr(marketId, PriceSource.NPC_SELL, Double.NaN)
+			val npc = Prices.priceOr(item.id, PriceSource.NPC_SELL, Double.NaN)
 			val price = price(marketId)
 			if (npc.isNaN() || price != npc) return price
 			val craft = crafts.of(marketId)

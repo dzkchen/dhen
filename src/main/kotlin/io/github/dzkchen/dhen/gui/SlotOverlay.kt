@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.gui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import kotlin.math.roundToInt
 
 internal const val SLOT_BOX = 16
 
@@ -57,7 +58,21 @@ internal fun slotText(
 ) {
 	val font = Minecraft.getInstance().font
 	val width = memo?.width(font, text) ?: DhenType.width(font, text)
-	slotMark(graphics, font, text, right - width, top, scale, color, memo)
+	slotMark(graphics, font, text, right - (width * scale).roundToInt(), top, scale, color, memo)
+}
+
+internal fun slotCenteredText(
+	graphics: GuiGraphicsExtractor,
+	text: String,
+	centerX: Int,
+	centerY: Int,
+	scale: Float,
+	color: Int
+) {
+	val font = Minecraft.getInstance().font
+	val left = centerX - (DhenType.width(font, text) * scale / 2).roundToInt()
+	val top = centerY - (DhenType.lineHeight(font) * scale / 2).roundToInt()
+	slotMark(graphics, font, text, left, top, scale, color)
 }
 
 internal fun slotMark(

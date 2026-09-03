@@ -39,21 +39,21 @@ internal class TamperWarningScreen(
 		val top = panelTop()
 		val right = left + panelWidth()
 		GlassGui.roundedFrame(graphics, left, top, right, top + PANEL_HEIGHT, PANEL_RADIUS, GlassGui.canvas(), DhenPalette.BORDER)
-		drawCentered(graphics, titleMemo, TITLE, left, right, top + TITLE_TOP, DhenPalette.accent)
+		centeredText(graphics, font, titleMemo, TITLE, left, right, top + TITLE_TOP, DhenPalette.accent, TEXT_PAD)
 		var y = top + LINES_TOP
 		for (index in lines.indices) {
-			drawCentered(graphics, lineMemos[index], lines[index], left, right, y, DhenPalette.TEXT_PRIMARY)
+			centeredText(graphics, font, lineMemos[index], lines[index], left, right, y, DhenPalette.TEXT_PRIMARY, TEXT_PAD)
 			y += LINE_HEIGHT
 		}
 		y += HASH_GAP
 		for (index in hashes.indices) {
-			drawCentered(graphics, hashMemos[index], hashes[index], left, right, y, DhenPalette.TEXT_SECONDARY)
+			centeredText(graphics, font, hashMemos[index], hashes[index], left, right, y, DhenPalette.TEXT_SECONDARY, TEXT_PAD)
 			y += LINE_HEIGHT
 		}
 		val downloadTop = top + DOWNLOAD_TOP
 		val dismissTop = top + DISMISS_TOP
-		drawButton(graphics, downloadMemo, DOWNLOAD_LABEL, left, right, downloadTop, mouseX, mouseY)
-		drawButton(graphics, dismissMemo, DISMISS_LABEL, left, right, dismissTop, mouseX, mouseY)
+		pillButton(graphics, font, downloadMemo, DOWNLOAD_LABEL, buttonLeft(), buttonLeft() + BUTTON_WIDTH, downloadTop, BUTTON_HEIGHT, mouseX, mouseY, TEXT_PAD)
+		pillButton(graphics, font, dismissMemo, DISMISS_LABEL, buttonLeft(), buttonLeft() + BUTTON_WIDTH, dismissTop, BUTTON_HEIGHT, mouseX, mouseY, TEXT_PAD)
 	}
 
 	override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
@@ -82,37 +82,6 @@ internal class TamperWarningScreen(
 	override fun onClose() {
 		minecraft.gui.setScreen(parent)
 	}
-
-	private fun drawButton(
-		graphics: GuiGraphicsExtractor,
-		memo: TextMemo,
-		label: String,
-		panelLeft: Int,
-		panelRight: Int,
-		top: Int,
-		mouseX: Int,
-		mouseY: Int
-	) {
-		val left = panelLeft + (panelRight - panelLeft - BUTTON_WIDTH) / 2
-		val hovered = mouseX in left until left + BUTTON_WIDTH && mouseY in top until top + BUTTON_HEIGHT
-		RoundedGui.pill(graphics, left, top, left + BUTTON_WIDTH, top + BUTTON_HEIGHT, GlassGui.raised(hovered))
-		drawCentered(graphics, memo, label, left, left + BUTTON_WIDTH, textTop(top, BUTTON_HEIGHT), DhenPalette.TEXT_PRIMARY)
-	}
-
-	private fun drawCentered(
-		graphics: GuiGraphicsExtractor,
-		memo: TextMemo,
-		text: String,
-		left: Int,
-		right: Int,
-		top: Int,
-		color: Int
-	) {
-		val shown = memo.fit(font, text, right - left - 2 * TEXT_PAD)
-		memo.text(graphics, font, shown, left + (right - left - memo.width(font, shown)) / 2, top, color)
-	}
-
-	private fun textTop(top: Int, height: Int): Int = top + (height - DhenType.lineHeight(font)) / 2
 
 	private fun panelWidth(): Int = minOf(PANEL_WIDTH, width - 2 * SCREEN_PAD)
 

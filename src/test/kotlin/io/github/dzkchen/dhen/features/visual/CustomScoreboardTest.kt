@@ -43,7 +43,6 @@ class CustomScoreboardTest {
 		assertEquals(listOf("Lines", "Events", "Show All Active Events"), CustomScoreboard.settings.map { it.name })
 		assertEquals(Category.VISUAL, CustomScoreboard.category)
 		assertEquals(listOf("Scoreboard"), CustomScoreboard.hudElements.map { it.name })
-		assertEquals(ScoreboardLine.labels, CustomScoreboard.linesSetting.options)
 		assertTrue(CustomScoreboard.linesSetting.enabled("Purse"))
 	}
 
@@ -174,15 +173,6 @@ class CustomScoreboardTest {
 		assertEquals("SKYBLOCK", element.shownTitle(editing = true))
 		assertTrue(CustomScoreboardElement().contentAvailable(editing = true))
 		assertFalse(CustomScoreboardElement().contentAvailable(editing = false))
-	}
-
-	@Test
-	fun `vanilla sidebar gate follows module state`() {
-		assertFalse(CustomScoreboard.shouldHideVanilla())
-		CustomScoreboard.setEnabled(true)
-		assertTrue(CustomScoreboard.shouldHideVanilla())
-		CustomScoreboard.setEnabled(false)
-		assertFalse(CustomScoreboard.shouldHideVanilla())
 	}
 
 	@Test

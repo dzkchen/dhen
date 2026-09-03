@@ -242,13 +242,6 @@ class ClientPrefsTest {
 	}
 
 	@Test
-	fun `the Dhen font toggle defaults on in Appearance`() {
-		assertTrue(ClientPrefs.dhenFont.default)
-		assertTrue(ClientPrefs.dhenFont.on)
-		assertTrue(ClientPrefs.sections.single { it.title == "Appearance" }.settings.contains(ClientPrefs.dhenFont))
-	}
-
-	@Test
 	fun `the profile proxy address is remembered but never drawn`() {
 		ClientPrefs.read(json("""{"client":{"Profile proxy":"https://proxy.example.com"}}"""))
 

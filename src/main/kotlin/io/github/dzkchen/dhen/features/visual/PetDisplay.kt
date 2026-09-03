@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.Island
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -27,13 +28,12 @@ import io.github.dzkchen.dhen.event.ContainerReadyEvent
 import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.EntityNameTagEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
-import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.SLOT_BOX
 import io.github.dzkchen.dhen.gui.SlotTint
 import io.github.dzkchen.dhen.gui.slotText
 import io.github.dzkchen.dhen.input.shiftHeld
@@ -41,7 +41,6 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.inventory.Slot
@@ -660,12 +659,9 @@ object PetDisplay : Module(
 	private val georgeHelper = GeorgeHelper()
 	internal val hudElement = hud(PetDisplayHud())
 	internal val georgeElement = hud(GeorgeHelperElement(georgeHelper))
-	private var repoRequirement = Handle {}
-	private var mayorRequirement = Handle {}
-	private var priceRequirement = Handle {}
-	private var repoHeld = false
-	private var mayorHeld = false
-	private var priceHeld = false
+	private val repoHold = RequirementHold(ItemRepo::active, ItemRepo::require)
+	private val mayorHold = RequirementHold(MayorService::active, MayorService::require)
+	private val priceHold = RequirementHold(Prices::active, Prices::require)
 
 	init {
 		on<ChatReceiveEvent> { autopetted(it) }
@@ -701,15 +697,9 @@ object PetDisplay : Module(
 	}
 
 	override fun onDisabled() {
-		repoRequirement.unsubscribe()
-		mayorRequirement.unsubscribe()
-		priceRequirement.unsubscribe()
-		repoRequirement = Handle {}
-		mayorRequirement = Handle {}
-		priceRequirement = Handle {}
-		repoHeld = false
-		mayorHeld = false
-		priceHeld = false
+		repoHold.release()
+		mayorHold.release()
+		priceHold.release()
 		petWheel.reset()
 		petExpTooltip.reset()
 		georgeHelper.reset()
@@ -725,22 +715,9 @@ object PetDisplay : Module(
 	}
 
 	private fun ensureRequirements() {
-		if (!repoHeld && ItemRepo.active()) {
-			repoRequirement = ItemRepo.require()
-			repoHeld = true
-		}
-		if (!mayorHeld && MayorService.active()) {
-			mayorRequirement = MayorService.require()
-			mayorHeld = true
-		}
-		if (georgeHelperEnabled && !priceHeld && Prices.active()) {
-			priceRequirement = Prices.require()
-			priceHeld = true
-		} else if (!georgeHelperEnabled && priceHeld) {
-			priceRequirement.unsubscribe()
-			priceRequirement = Handle {}
-			priceHeld = false
-		}
+		repoHold.ensure()
+		mayorHold.ensure()
+		priceHold.ensure(georgeHelperEnabled)
 	}
 
 	internal fun titled(pet: String, dungeon: Boolean): Boolean =
@@ -792,9 +769,7 @@ object PetDisplay : Module(
 	}
 
 	private fun petItem(graphics: GuiGraphicsExtractor, slot: Slot, icon: String) {
-		val scale = petItemScaleSetting.amount.toFloat()
-		val scaled = (DhenType.width(Minecraft.getInstance().font, icon) * scale).toInt()
-		slotText(graphics, icon, slot.x + PET_ITEM_RIGHT - scaled, slot.y + PET_ITEM_TOP, scale, DhenPalette.TEXT_PRIMARY)
+		slotText(graphics, icon, slot.x + PET_ITEM_RIGHT, slot.y + PET_ITEM_TOP, petItemScaleSetting.amount.toFloat(), DhenPalette.TEXT_PRIMARY)
 	}
 
 	private fun petSlotSetting(slot: Int): KeybindSetting = KeybindSetting(
@@ -813,7 +788,7 @@ object PetDisplay : Module(
 	private const val CANDY_RIGHT = 13
 	private const val CANDY_TOP = 1
 	private const val CANDY_SCALE = 0.9f
-	private const val PET_ITEM_RIGHT = 22
+	private const val PET_ITEM_RIGHT = SLOT_BOX
 	private const val PET_ITEM_TOP = -1
 	private const val EXP_SHARE = "PET_ITEM_EXP_SHARE"
 	private const val TIER_BOOST = "PET_ITEM_TIER_BOOST"

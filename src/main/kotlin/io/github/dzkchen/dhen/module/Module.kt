@@ -9,10 +9,7 @@ import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.util.NanoClock
-import io.github.dzkchen.dhen.util.delayServerTicks
 import io.github.dzkchen.dhen.util.delayTicks
-import io.github.dzkchen.dhen.util.repeatServerTicks
-import io.github.dzkchen.dhen.util.repeatTicks
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,20 +42,12 @@ abstract class Module(
 	private val settingList = mutableListOf<Setting<*>>()
 	private val hudList = mutableListOf<HudElement>()
 	private val disposables = mutableListOf<Handle>()
-	@Volatile
-	private var clientTickTiming: HandlerTiming? = null
-	@Volatile
-	private var serverTickTiming: HandlerTiming? = null
 
 	val settings: List<Setting<*>>
 		get() = settingList.toList()
 	val hudElements: List<HudElement> = Collections.unmodifiableList(hudList)
 	val handlerTimings: List<HandlerTiming>
-		get() = buildList(registrations.size + 2) {
-			registrations.mapTo(this) { it.timing }
-			clientTickTiming?.let(::add)
-			serverTickTiming?.let(::add)
-		}
+		get() = registrations.map { it.timing }
 	val subscriptionCount: Int
 		get() = registrations.size
 	@Volatile
@@ -102,31 +91,6 @@ abstract class Module(
 
 	protected fun inTicks(ticks: Int, block: () -> Unit): Job? =
 		launch { delayTicks(ticks); block() }
-
-	protected fun inServerTicks(ticks: Int, block: () -> Unit): Job? =
-		launch { delayServerTicks(ticks); block() }
-
-	protected fun everyTicks(ticks: Int, block: () -> Unit): Job? {
-		val scope = moduleScope ?: return null
-		val timing = tickTiming(server = false)
-		val profiler = host.profiler
-		return scope.launch { repeatTicks(ticks) { isolated(profiler, timing, block = block) } }
-	}
-
-	protected fun everyServerTicks(ticks: Int, block: () -> Unit): Job? {
-		val scope = moduleScope ?: return null
-		val timing = tickTiming(server = true)
-		val profiler = host.profiler
-		return scope.launch { repeatServerTicks(ticks) { isolated(profiler, timing, block = block) } }
-	}
-
-	private fun tickTiming(server: Boolean): HandlerTiming = synchronized(stateLock) {
-		if (server) {
-			serverTickTiming ?: HandlerTiming(SERVER_TICK_TASK).also { serverTickTiming = it }
-		} else {
-			clientTickTiming ?: HandlerTiming(CLIENT_TICK_TASK).also { clientTickTiming = it }
-		}
-	}
 
 	private inline fun isolated(
 		profiler: HandlerProfiler,
@@ -202,8 +166,6 @@ abstract class Module(
 		for (handle in disposables) handle.unsubscribe()
 		disposables.clear()
 		for (registration in registrations) registration.resetTiming()
-		clientTickTiming = null
-		serverTickTiming = null
 		host = Host.UNBOUND
 	}
 
@@ -323,7 +285,5 @@ abstract class Module(
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		internal const val ERROR_THRESHOLD = 5
 		internal const val ERROR_WINDOW_MS = 10_000L
-		private const val CLIENT_TICK_TASK = "ClientTickTask"
-		private const val SERVER_TICK_TASK = "ServerTickTask"
 	}
 }

@@ -3,13 +3,13 @@ package io.github.dzkchen.dhen.features.inventory
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.OrderedSelectionSetting
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.gui.DhenType
@@ -81,8 +81,7 @@ object CrownOfAvarice : Module(
 
 	internal val session = CoinSession()
 	private val composer = StringBuilder(LINE_CAPACITY)
-	private var mayorRequirement = Handle {}
-	private var mayorHeld = false
+	private val mayorHold = RequirementHold(MayorService::active, MayorService::require)
 	private var currentUuid = ""
 	private var totalCoins = 0L
 	private var coinsEarned = 0L
@@ -101,9 +100,7 @@ object CrownOfAvarice : Module(
 	override fun onEnabled() = reset()
 
 	override fun onDisabled() {
-		mayorRequirement.unsubscribe()
-		mayorRequirement = Handle {}
-		mayorHeld = false
+		mayorHold.release()
 		forget()
 	}
 
@@ -189,10 +186,7 @@ object CrownOfAvarice : Module(
 	}
 
 	private fun ticked() {
-		if (!mayorHeld && MayorService.active()) {
-			mayorRequirement = MayorService.require()
-			mayorHeld = true
-		}
+		mayorHold.ensure()
 		val open = Minecraft.getInstance()?.gui?.screen() is InventoryScreen
 		if (element.buttonsShown != open) {
 			element.buttonsShown = open

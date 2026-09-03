@@ -192,7 +192,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 				font,
 				entry.title,
 				left + CATEGORY_TEXT_INSET,
-				textTop(rowTop, CATEGORY_HEIGHT),
+				textTop(font, rowTop, CATEGORY_HEIGHT),
 				if (selected) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_SECONDARY
 			)
 			index++
@@ -221,7 +221,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 
 	private fun drawHeader(graphics: GuiGraphicsExtractor, header: SoundHeader, left: Int, top: Int) {
 		RoundedGui.fill(graphics, left, top + ROW_INSET, left + VIEW_WIDTH, top + ROW_HEIGHT - ROW_INSET, ROW_RADIUS, GlassGui.raised())
-		drawCentered(graphics, header.memo, header.title, left, left + VIEW_WIDTH, textTop(top, ROW_HEIGHT), DhenPalette.accent)
+		centeredText(graphics, font, header.memo, header.title, left, left + VIEW_WIDTH, textTop(font, top, ROW_HEIGHT), DhenPalette.accent, 0)
 	}
 
 	private fun drawSound(
@@ -252,7 +252,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		}
 		val nameRoom = if (picking == null) sliderLeft - left - NAME_PAD - NAME_CONTROL_GAP else VIEW_WIDTH - 2 * NAME_PAD
 		val shown = sound.memo.fit(font, sound.rowName, nameRoom)
-		sound.memo.text(graphics, font, shown, left + NAME_PAD, textTop(top, ROW_HEIGHT), DhenPalette.TEXT_PRIMARY)
+		sound.memo.text(graphics, font, shown, left + NAME_PAD, textTop(font, top, ROW_HEIGHT), DhenPalette.TEXT_PRIMARY)
 		if (picking != null) return
 		val volume = SoundManager.getVolumePercent(sound.identifier, sound.matchPitch)
 		val value = sound.volumeLabel(volume)
@@ -317,12 +317,12 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			if (searchFocused) DhenPalette.accent else DhenPalette.BORDER
 		)
 		if (query.isEmpty() && !searchFocused) {
-			drawCentered(graphics, searchMemo, SEARCH_PLACEHOLDER, searchLeft, searchLeft + SEARCH_WIDTH, textTop(searchTop, SEARCH_HEIGHT), DhenPalette.TEXT_DISABLED)
+			centeredText(graphics, font, searchMemo, SEARCH_PLACEHOLDER, searchLeft, searchLeft + SEARCH_WIDTH, textTop(font, searchTop, SEARCH_HEIGHT), DhenPalette.TEXT_DISABLED, SEARCH_TEXT_PAD)
 			return
 		}
 		val shown = searchMemo.fit(font, query, SEARCH_WIDTH - 2 * SEARCH_TEXT_PAD, fromEnd = true)
 		val textLeft = searchLeft + SEARCH_TEXT_PAD
-		searchMemo.text(graphics, font, shown, textLeft, textTop(searchTop, SEARCH_HEIGHT), DhenPalette.TEXT_PRIMARY)
+		searchMemo.text(graphics, font, shown, textLeft, textTop(font, searchTop, SEARCH_HEIGHT), DhenPalette.TEXT_PRIMARY)
 		if (searchFocused) {
 			val caret = textLeft + searchMemo.width(font, shown)
 			SharpGui.fill(graphics, caret, searchTop + CARET_INSET, caret + 1, searchTop + SEARCH_HEIGHT - CARET_INSET, DhenPalette.accent)
@@ -649,7 +649,7 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 			return scrollShown
 		}
 		val target = rows.offset.toFloat()
-		scrollShown = if (Effects.reduced) target else animatedSoundScroll(scrollFrom, target, now - scrollStartedAt)
+		scrollShown = if (Effects.reduced) target else GlassGui.tween(scrollFrom, target, now - scrollStartedAt, SCROLL_MILLIS)
 		if (scrollShown == target) scrollAnimating = false
 		return scrollShown
 	}
@@ -659,20 +659,6 @@ internal class SoundManagerScreen(private val parent: Screen) : LiveWorldScreen(
 		scrollFrom = offset
 		scrollAnimating = false
 	}
-
-	private fun drawCentered(
-		graphics: GuiGraphicsExtractor,
-		memo: TextMemo,
-		text: String,
-		left: Int,
-		right: Int,
-		top: Int,
-		color: Int
-	) {
-		memo.text(graphics, font, text, left + (right - left - memo.width(font, text)) / 2, top, color)
-	}
-
-	private fun textTop(top: Int, height: Int): Int = top + (height - DhenType.lineHeight(font)) / 2
 
 	private companion object {
 		const val TITLE = "Sound Manager"
@@ -912,9 +898,6 @@ internal fun clampAlongTitleBand(position: Int, window: Int, viewport: Int, reac
 
 internal fun clampAcrossTitleBand(position: Int, window: Int, viewport: Int, band: Int): Int =
 	position.coerceIn(0, maxOf(0, viewport - if (window <= viewport) window else band))
-
-internal fun animatedSoundScroll(from: Float, target: Float, elapsed: Long): Float =
-	GlassGui.tween(from, target, elapsed, SCROLL_MILLIS)
 
 internal fun soundScrollOffset(
 	mouseY: Int,

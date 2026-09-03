@@ -7,7 +7,6 @@ import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
 import io.github.dzkchen.dhen.util.ServerClock
 import io.github.dzkchen.dhen.util.TickClock
-import io.github.dzkchen.dhen.util.delayServerTicks
 import io.github.dzkchen.dhen.util.delayTicks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -174,9 +173,9 @@ class TickHooksTest {
 	}
 
 	@Test
-	fun `an island change resets the server clock and cancels a pending server wait`() {
+	fun `an island change resets the server clock and cancels a pending tick wait`() {
 		val scope = CoroutineScope(Dispatchers.Unconfined)
-		val waiting = scope.launch { delayServerTicks(500) }
+		val waiting = scope.launch { delayTicks(500) }
 		try {
 			receive(timePacket())
 			nanos += 4 * SECOND
@@ -196,9 +195,9 @@ class TickHooksTest {
 	}
 
 	@Test
-	fun `leaving skyblock cancels a pending server wait without a disconnect`() {
+	fun `leaving skyblock cancels a pending tick wait without a disconnect`() {
 		val scope = CoroutineScope(Dispatchers.Unconfined)
-		val waiting = scope.launch { delayServerTicks(500) }
+		val waiting = scope.launch { delayTicks(500) }
 		try {
 			bus.type<IslandChangeEvent>().dispatch(IslandChangeEvent(Island.NONE, Island.HUB))
 

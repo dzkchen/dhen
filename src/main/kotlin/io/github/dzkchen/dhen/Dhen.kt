@@ -451,7 +451,7 @@ object Dhen : ClientModInitializer {
 		contained("notifications", Notifications::uninstall)
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
-		contained("tick clock", TickClock::shutdown)
+		contained("tick clock", TickClock::cancelWaits)
 		contained("hook registry") { hooks.forEach { contained(it.feed, it::uninstall) } }
 		contained("world render probe", WorldRenderProbe::uninstall)
 		contained("item repository", ItemRepo::uninstall)

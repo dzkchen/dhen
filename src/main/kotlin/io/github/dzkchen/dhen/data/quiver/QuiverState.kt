@@ -25,7 +25,6 @@ enum class QuiverArrow(val id: String, val displayName: String) {
 }
 
 object QuiverState {
-	const val MAX_AMOUNT = 2880
 
 	private val amounts = IntArray(QuiverArrow.entries.size)
 

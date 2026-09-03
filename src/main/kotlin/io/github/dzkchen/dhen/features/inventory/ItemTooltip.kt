@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
+import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
@@ -12,7 +13,6 @@ import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.GuiCloseEvent
-import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.input.controlHeld
 import io.github.dzkchen.dhen.input.keyHeld
@@ -105,8 +105,7 @@ object ItemTooltip : Module(
 		private set
 
 	private var hoveredSlot = NO_SLOT
-	private var priceRequirement = Handle {}
-	private var priceHeld = false
+	private val priceHold = RequirementHold(Prices::active, Prices::require)
 	private var cachedStack: ItemStack? = null
 	private var cachedFingerprint = 0
 	private var cachedLines: List<Component> = emptyList()
@@ -244,7 +243,7 @@ object ItemTooltip : Module(
 		hoveredSlot = NO_SLOT
 		cachedStack = null
 		cachedLines = emptyList()
-		releasePrices()
+		priceHold.release()
 	}
 
 	private fun lines(stack: ItemStack): List<Component> {
@@ -293,20 +292,7 @@ object ItemTooltip : Module(
 
 	private fun flag(on: Boolean): Int = if (on) 1 else 0
 
-	private fun ensurePrices() {
-		if (showPricesSetting.on && !priceHeld && Prices.active()) {
-			priceRequirement = Prices.require()
-			priceHeld = true
-		} else if (!showPricesSetting.on && priceHeld) {
-			releasePrices()
-		}
-	}
-
-	private fun releasePrices() {
-		priceRequirement.unsubscribe()
-		priceRequirement = Handle {}
-		priceHeld = false
-	}
+	private fun ensurePrices() = priceHold.ensure(showPricesSetting.on)
 
 	private const val CATACOMBS = "CATACOMBS"
 	private const val NO_SLOT = -1
