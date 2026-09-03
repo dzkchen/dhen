@@ -22,6 +22,8 @@ internal object CorePersistence {
 
 	private val RETIRED_CLIENT_KEYS = arrayOf("Layout", "Arrow keys")
 
+	internal val authoritative = setOf(HUD)
+
 	val migrations: List<(JsonObject) -> Unit> = listOf(
 		{ doc: JsonObject -> doc.remove(DRAGGABLE_PANELS) },
 		{ doc: JsonObject -> moveEffectsFlagIntoClientBlock(doc) },

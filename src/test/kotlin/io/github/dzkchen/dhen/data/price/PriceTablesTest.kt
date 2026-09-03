@@ -36,6 +36,29 @@ class PriceTablesTest {
 	}
 
 	@Test
+	fun `a market id is read back into the NEU name the repo files it under`() {
+		assertEquals("ULTIMATE_WISE;5", PriceTables.neuId("ENCHANTED_BOOK-ULTIMATE_WISE-5"))
+		assertEquals("AMMONITE;4", PriceTables.neuId("PET-AMMONITE-LEGENDARY"))
+		assertEquals("GOLDEN_DRAGON;4", PriceTables.neuId("PET-GOLDEN_DRAGON-LEGENDARY-200"))
+		assertEquals("POTION_HASTE;4", PriceTables.neuId("POTION-HASTE-4"))
+		assertEquals("DRAGON_RUNE;3", PriceTables.neuId("RUNE-DRAGON-3"))
+		assertEquals(
+			"ATTRIBUTE_SHARD_LIFE_REGENERATION;1",
+			PriceTables.neuId("ATTRIBUTE_SHARD-LIFE_REGENERATION-1")
+		)
+	}
+
+	@Test
+	fun `a market id the repo files under its own name is left for the direct lookup`() {
+		assertNull(PriceTables.neuId("HYPERION"))
+		assertNull(PriceTables.neuId("LOG-2"))
+		assertNull(PriceTables.neuId("PET-AMMONITE-SPECIAL"))
+		assertNull(PriceTables.neuId("PET-AMMONITE-LEGENDARY-SHINY"))
+		assertNull(PriceTables.neuId("POTION-SPEED-8-ENHANCED"))
+		assertNull(PriceTables.neuId("ATTRIBUTE_SHARD-LIFE_REGENERATION-0"))
+	}
+
+	@Test
 	fun `a spare lowest bin key whose tier is not a pet tier is dropped rather than guessed`() {
 		assertNull(PriceTables.neuMarketId("SOMETHING;9"))
 		assertNull(PriceTables.neuMarketId("SOMETHING;X"))

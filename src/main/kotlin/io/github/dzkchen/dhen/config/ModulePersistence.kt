@@ -47,6 +47,8 @@ object ModulePersistence {
 
 	private val scoreboardEventsLineAdded = listOf("Separator 3" to "Events")
 
+	internal val authoritative = setOf(HUD)
+
 	internal val migrations: List<(JsonObject) -> Unit> = listOf(
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_SOUND_MANAGER_MODULE) },
 		{ doc: JsonObject -> doc.obj(MODULES)?.remove(RETIRED_ARROW_HIT_SOUND_MODULE) },

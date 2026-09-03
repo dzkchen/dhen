@@ -42,6 +42,7 @@ import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
@@ -652,7 +653,8 @@ object PetDisplay : Module(
 
 	private val nametags = PetNametags()
 	private val petItems = SkyBlockItems.memo(TRACKED_SLOTS)
-	private val petLevels = PetSlotLevels(TRACKED_SLOTS)
+	private val leveledNames = arrayOfNulls<Component>(TRACKED_SLOTS)
+	private val petLevels = IntArray(TRACKED_SLOTS)
 	private val candyLabels = Array(MAX_CANDY + 1) { CANDY_COLOR + it }
 	private val petWheel = PetWheelScreen()
 	private val petExpTooltip = PetExpTooltip()
@@ -756,9 +758,20 @@ object PetDisplay : Module(
 
 	private fun candied(graphics: GuiGraphicsExtractor, slot: Slot, stack: ItemStack, pet: PetInfo) {
 		if (!petCandy || pet.candyUsed <= NO_CANDY) return
-		if (hideOnMaxed && PetLines.maxed(petLevels.of(slot.index, stack), pet.type)) return
+		if (hideOnMaxed && PetLines.maxed(petLevel(slot.index, stack), pet.type)) return
 		val label = if (pet.candyUsed <= MAX_CANDY) candyLabels[pet.candyUsed] else CANDY_COLOR + pet.candyUsed
 		slotText(graphics, label, slot.x + CANDY_RIGHT, slot.y + CANDY_TOP, CANDY_SCALE, DhenPalette.TEXT_PRIMARY)
+	}
+
+	private fun petLevel(slot: Int, stack: ItemStack): Int {
+		val name = stack.hoverName
+		if (slot < 0 || slot >= petLevels.size) return PetLines.level(name.string)
+		val held = leveledNames[slot]
+		if (held !== name && held != name) {
+			leveledNames[slot] = name
+			petLevels[slot] = PetLines.level(name.string)
+		}
+		return petLevels[slot]
 	}
 
 	private fun holding(graphics: GuiGraphicsExtractor, slot: Slot, pet: PetInfo) {

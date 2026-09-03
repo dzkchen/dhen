@@ -1,8 +1,6 @@
-package io.github.dzkchen.dhen.gui
+package io.github.dzkchen.dhen.sound
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
-import io.github.dzkchen.dhen.sound.SoundManager
-import io.github.dzkchen.dhen.sound.soundStore
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundEvents

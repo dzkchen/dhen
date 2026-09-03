@@ -125,6 +125,21 @@ class ConfigStoreTest {
 	}
 
 	@Test
+	fun `an authoritative key is written whole wherever it is nested`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("modules.json")
+		Files.writeString(path, """{"version":0,"modules":{"Utility HUDs":{"enabled":true,"hud":{"FPS":{"x":300}}}}}""")
+		val store = ConfigStore(path, CoroutineScope(Dispatchers.IO), authoritative = setOf("hud"), debounce = {})
+		store.load()
+
+		store.save(json("""{"modules":{"Utility HUDs":{"enabled":true,"hud":{}}}}""")).join()
+
+		val written = json(Files.readString(path))
+		val module = written.getAsJsonObject("modules").getAsJsonObject("Utility HUDs")
+		assertEquals(0, module.getAsJsonObject("hud").size())
+		assertTrue(module.get("enabled").asBoolean)
+	}
+
+	@Test
 	fun `debounce coalesces rapid saves into one write of the latest snapshot`(@TempDir dir: Path) = runBlocking {
 		val gate = CompletableDeferred<Unit>()
 		val path = dir.resolve("core.json")

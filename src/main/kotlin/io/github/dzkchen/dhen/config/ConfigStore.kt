@@ -112,7 +112,7 @@ class ConfigStore(
 		val result = base.deepCopy()
 		for ((key, value) in overlay.entrySet()) {
 			val existing = result.get(key)
-			if (key !in replaced && existing is JsonObject && value is JsonObject) result.add(key, deepMerge(existing, value))
+			if (key !in replaced && existing is JsonObject && value is JsonObject) result.add(key, deepMerge(existing, value, replaced))
 			else result.add(key, value)
 		}
 		return result

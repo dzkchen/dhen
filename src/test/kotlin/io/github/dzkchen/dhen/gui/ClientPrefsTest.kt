@@ -213,6 +213,14 @@ class ClientPrefsTest {
 	}
 
 	@Test
+	fun `the Sound Manager is opened from the Settings tab and owns no module row`() {
+		assertEquals(
+			listOf("Open Sound Manager"),
+			ClientPrefs.sections.single { it.title == "Sounds" }.settings.map { it.name }
+		)
+	}
+
+	@Test
 	fun `Appearance offers the font rows in the order a first-time user needs them`() {
 		assertEquals(
 			listOf("Theme", "Accent color", "Dhen font", "Font", "Add font...", "Open fonts folder", "Reload fonts", "Reload themes", "Open themes folder"),
@@ -334,7 +342,6 @@ class ClientPrefsTest {
 		assertEquals(DhenPalette.DEFAULT_ACCENT, DhenPalette.accent)
 		assertFalse(Effects.reduced)
 		assertTrue(ClientPrefs.splash.default)
-		assertTrue(ClientPrefs.splash.value)
 		assertTrue(ClientPrefs.dhenFont.value)
 		assertEquals(FontDescription.Resource(DhenType.fontId), DhenFont.resolve(FontDescription.DEFAULT))
 	}

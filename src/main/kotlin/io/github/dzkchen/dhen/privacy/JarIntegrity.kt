@@ -3,7 +3,6 @@ package io.github.dzkchen.dhen.privacy
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
-import io.github.dzkchen.dhen.gui.TamperWarningScreen
 import io.github.dzkchen.dhen.util.Failsafe
 import io.github.dzkchen.dhen.util.array
 import io.github.dzkchen.dhen.util.text

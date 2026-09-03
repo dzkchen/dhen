@@ -122,7 +122,6 @@ class PetWheelCacheTest {
 
 		cache.refresh(Component.literal("Pets"), 1, menuWithPets(3))
 
-		assertTrue(cache.vanilla)
 		assertFalse(cache.custom)
 	}
 
@@ -131,9 +130,9 @@ class PetWheelCacheTest {
 		cache.refresh(Component.literal("Pets"), 3, menuWithPets(2))
 
 		assertFalse(cache.close(2))
-		assertTrue(cache.active)
+		assertTrue(cache.custom)
 		assertTrue(cache.close(3))
-		assertFalse(cache.active)
+		assertFalse(cache.custom)
 		assertFalse(cache.showVanilla())
 		assertEquals(PetWheelCache.NO_SLOT, cache.slotAt(0))
 	}
@@ -145,7 +144,7 @@ class PetWheelCacheTest {
 
 		assertTrue(cache.belongsTo(title))
 		assertFalse(cache.belongsTo(Component.literal("Storage")))
-		assertTrue(cache.active)
+		assertTrue(cache.custom)
 	}
 
 	private fun menu(): MutableList<ItemStack> = MutableList(MENU_SIZE) { ItemStack.EMPTY }

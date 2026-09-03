@@ -65,7 +65,7 @@ internal class ItemValueTest : RepoBackedTest() {
 
 		assertEquals(3000.0, valuation.total)
 		assertEquals(3000.0, valuation.base)
-		assertEquals(listOf("ENCHANTED_BOOK-ULTIMATE_WISE-5"), valuation.breakdown.map { it.label })
+		assertEquals(listOf("Ultimate Wise V"), valuation.breakdown.map { it.label })
 	}
 
 	@Test
@@ -93,10 +93,13 @@ internal class ItemValueTest : RepoBackedTest() {
 	}
 
 	@Test
-	fun `a divine item pays the reforge apply cost the repo lists for divine`() {
-		val valuation = value(item { putString("id", "HYPERION"); putString("modifier", "spiritual") }, ItemRarity.DIVINE)
+	fun `a recombobulated rarity above mythic pays its own apply cost, not the one below`() {
+		val valuation = value(
+			item { putString("id", "HYPERION"); putString("modifier", "spiritual"); putInt("rarity_upgrades", 1) },
+			ItemRarity.DIVINE
+		)
 
-		assertEquals(1000.0 + 200.0 + 200000.0, valuation.total)
+		assertEquals(1000.0 + 5000.0 + 200.0 + 200000.0, valuation.total)
 	}
 
 	@Test
@@ -304,6 +307,7 @@ internal class ItemValueTest : RepoBackedTest() {
 
 		assertEquals(1000.0 + 5 * 30.0, valuation.total)
 		assertEquals(listOf("Hyperion", "SIL_EX x5"), valuation.breakdown.map { it.label })
+		assertEquals(1000.0 + 3 * 30.0, value(enchanted("HYPERION", "efficiency", 8)).total)
 	}
 
 	@Test
@@ -362,8 +366,7 @@ internal class ItemValueTest : RepoBackedTest() {
 	}
 
 	@Test
-	fun `silex is the efficiency levels above the five an item comes with`() {
-		assertEquals(1000.0 + 3 * 30.0, value(enchanted("HYPERION", "efficiency", 8)).total)
+	fun `an item at the five efficiency levels it comes with is charged no silex`() {
 		assertEquals(1000.0, value(enchanted("HYPERION", "efficiency", 5)).total)
 	}
 
@@ -494,7 +497,15 @@ internal class ItemValueTest : RepoBackedTest() {
 		val valuation = value(item { putString("id", "POTION"); putString("potion", "speed"); putInt("potion_level", 8) })
 
 		assertEquals(20.0, valuation.total)
-		assertEquals(listOf("POTION-SPEED-8"), valuation.breakdown.map { it.label })
+		assertEquals(listOf("Speed VIII Potion"), valuation.breakdown.map { it.label })
+	}
+
+	@Test
+	fun `a pet listed at its NPC price is floored by the recipe its NEU entry carries`() {
+		val valuation = value(pet("JELLYFISH", 0.0))
+
+		assertEquals(45.0, valuation.total)
+		assertEquals("Jellyfish level 1", valuation.breakdown.single().label)
 	}
 
 	@Test
@@ -572,7 +583,11 @@ internal class ItemValueTest : RepoBackedTest() {
 				"{\"type\":\"crafting\",\"A1\":\"RING_A:1\"}," +
 				"{\"type\":\"crafting\",\"A1\":\"CRAFT_PART:3\"}]}",
 			"NO_RECIPE" to "{\"internalname\":\"NO_RECIPE\"}",
-			"POTION-SPEED-8" to "{\"internalname\":\"POTION-SPEED-8\",\"recipe\":{\"A1\":\"CRAFT_PART:4\"}}"
+			"POTION_SPEED;8" to "{\"internalname\":\"POTION_SPEED;8\",\"displayname\":\"§9Speed VIII Potion\"," +
+				"\"recipe\":{\"A1\":\"CRAFT_PART:4\"}}",
+			"ULTIMATE_WISE;5" to "{\"internalname\":\"ULTIMATE_WISE;5\",\"displayname\":\"§dUltimate Wise V\"}",
+			"JELLYFISH;4" to "{\"internalname\":\"JELLYFISH;4\",\"displayname\":\"§6Jellyfish\"," +
+				"\"recipe\":{\"A1\":\"CRAFT_PART:9\"}}"
 		)
 
 		private val LOWEST_BINS = """
@@ -597,6 +612,7 @@ internal class ItemValueTest : RepoBackedTest() {
 			  "PET-GOLDEN_DRAGON-LEGENDARY-100": 100.0,
 			  "PET-GOLDEN_DRAGON-LEGENDARY-200": 1000000.0,
 			  "PET-AMMONITE-LEGENDARY": 20.0,
+			  "PET-JELLYFISH-LEGENDARY": 20.0,
 			  "ENCHANTED_BOOK-ULTIMATE_WISE-5": 3000.0,
 			  "ENCHANTED_BOOK-TOXOPHILITE-1": 64.0,
 			  "ENCHANTED_BOOK-SHARPNESS-5": 8.0,
@@ -647,6 +663,7 @@ internal class ItemValueTest : RepoBackedTest() {
 			    {"id": "MANDRAA_NPC", "npc_sell_price": 1},
 			    {"id": "NPC_ONLY", "npc_sell_price": 10},
 			    {"id": "POTION", "npc_sell_price": 10},
+			    {"id": "PET", "npc_sell_price": 20},
 			    {"id": "NPC_RICH", "npc_sell_price": 100},
 			    {"id": "BULK", "npc_sell_price": 10},
 			    {"id": "LOOPY", "npc_sell_price": 1},

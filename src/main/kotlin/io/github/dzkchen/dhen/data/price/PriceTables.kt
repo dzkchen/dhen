@@ -7,9 +7,14 @@ import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.text
 
 internal object PriceTables {
-	private const val POTION = "POTION_"
-	private const val RUNE = "_RUNE"
-	private const val ATTRIBUTE_SHARD = "ATTRIBUTE_SHARD_"
+	private const val BOOK = "ENCHANTED_BOOK"
+	private const val PET = "PET"
+	private const val POTION = "POTION"
+	private const val RUNE = "RUNE"
+	private const val ATTRIBUTE_SHARD = "ATTRIBUTE_SHARD"
+	private const val POTION_NAME = "${POTION}_"
+	private const val RUNE_NAME = "_$RUNE"
+	private const val SHARD_NAME = "${ATTRIBUTE_SHARD}_"
 	private const val NPC_SELL_PRICE = "npc_sell_price"
 
 	val PET_TIERS = arrayOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
@@ -35,17 +40,38 @@ internal object PriceTables {
 		val name = key.substringBefore(';')
 		val tier = level.substringBefore('+')
 		return when {
-			name.startsWith(POTION) -> "POTION-${name.removePrefix(POTION)}-$tier"
-			name.endsWith(RUNE) -> "RUNE-${name.removeSuffix(RUNE)}-$tier"
-			name.startsWith(ATTRIBUTE_SHARD) -> attributeShardId(name, tier)
-			else -> PET_TIERS.getOrNull(tier.toIntOrNull() ?: -1)?.let { "PET-$name-$it" }
+			name.startsWith(POTION_NAME) -> "$POTION-${name.removePrefix(POTION_NAME)}-$tier"
+			name.endsWith(RUNE_NAME) -> "$RUNE-${name.removeSuffix(RUNE_NAME)}-$tier"
+			name.startsWith(SHARD_NAME) -> attributeShardId(name, tier)
+			else -> PET_TIERS.getOrNull(tier.toIntOrNull() ?: -1)?.let { "$PET-$name-$it" }
 		}
 	}
 
+	fun neuId(marketId: String): String? {
+		val kind = marketId.substringBefore('-', "")
+		if (kind.isEmpty() || kind.length + 1 >= marketId.length) return null
+		val rest = marketId.substring(kind.length + 1)
+		val name = rest.substringBeforeLast('-', "")
+		val level = rest.substringAfterLast('-')
+		if (name.isEmpty()) return null
+		return when (kind) {
+			BOOK -> level.toIntOrNull()?.let { "$name;$it" }
+			PET -> if (level.toIntOrNull() == null) petId(name, level)
+			else petId(name.substringBeforeLast('-', ""), name.substringAfterLast('-'))
+			POTION -> level.toIntOrNull()?.let { "$POTION_NAME$name;$it" }
+			RUNE -> level.toIntOrNull()?.let { "$name$RUNE_NAME;$it" }
+			ATTRIBUTE_SHARD -> level.toIntOrNull()?.takeIf { it > 0 }?.let { "$SHARD_NAME$name;$it" }
+			else -> null
+		}
+	}
+
+	private fun petId(name: String, tier: String): String? =
+		if (name.isEmpty()) null else PET_TIERS.indexOf(tier).takeIf { it >= 0 }?.let { "$name;$it" }
+
 	private fun attributeShardId(name: String, tier: String): String? {
-		val attribute = name.removePrefix(ATTRIBUTE_SHARD)
+		val attribute = name.removePrefix(SHARD_NAME)
 		val level = tier.toIntOrNull() ?: return null
-		return if (attribute.isEmpty() || level <= 0) null else "ATTRIBUTE_SHARD-$attribute-$level"
+		return if (attribute.isEmpty() || level <= 0) null else "$ATTRIBUTE_SHARD-$attribute-$level"
 	}
 
 	private inline fun cheapest(body: String, marketId: (String) -> String?): Map<String, Double> {

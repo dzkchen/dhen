@@ -165,3 +165,11 @@ internal class WorldClockAnchor {
 		return ClockNetworkState(totalTicks + whole, (progressed - whole).toFloat(), rate)
 	}
 }
+
+internal interface WorldClockAccess {
+	fun dhenTotalTicks(): Long
+
+	fun dhenPartialTick(): Float
+
+	fun dhenRate(): Float
+}

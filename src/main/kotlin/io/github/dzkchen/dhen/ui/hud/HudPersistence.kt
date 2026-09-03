@@ -21,6 +21,7 @@ object HudPersistence {
 	fun snapshot(elements: List<HudElement>): JsonObject {
 		val hud = JsonObject()
 		for (element in elements) {
+			if (element.atDeclared) continue
 			hud.add(element.name, JsonObject().apply {
 				addProperty(ANCHOR, element.anchor.name)
 				addProperty(OFFSET_X, element.offsetX)

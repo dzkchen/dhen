@@ -401,6 +401,9 @@ internal class UtilityReadout(
 	internal var liveText: String = ""
 		private set
 
+	override val listed: Boolean
+		get() = toggle.on
+
 	override val hasContent: Boolean
 		get() = contentAvailable(editingHud())
 

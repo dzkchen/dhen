@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.ItemRarity
 import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
+import io.github.dzkchen.dhen.data.pet.PetLines
 import io.github.dzkchen.dhen.data.pet.PetProgress
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -12,6 +13,7 @@ import io.github.dzkchen.dhen.event.ContainerClosedEvent
 import io.github.dzkchen.dhen.event.ContainerReadyEvent
 import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.TooltipEvent
+import io.github.dzkchen.dhen.event.legacyCodes
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
@@ -25,6 +27,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import java.util.Locale
+import java.util.regex.Matcher
+import java.util.regex.Pattern
 import kotlin.math.ceil
 import kotlin.math.round
 
@@ -41,7 +45,8 @@ internal class PetExpTooltip {
 		val insertion = insertionIndex(event.lines)
 		if (insertion < 0) return
 		val pet = items.of(0, event.stack).pet ?: return
-		val lines = lines(pet, dragonEgg)
+		val lines =
+			if (fresh(pet, dragonEgg)) cachedLines else lines(pet, dragonEgg, PetProgress.of(pet).maxLevel)
 		if (lines.isEmpty()) return
 		event.edit().addAll(insertion.coerceAtMost(event.lines.size), lines)
 	}
@@ -51,29 +56,18 @@ internal class PetExpTooltip {
 		cachedLines = emptyList()
 	}
 
-	private fun lines(pet: PetInfo, dragonEgg: Boolean): List<Component> {
-		val repoCommit = ItemRepo.commit
-		if (
-			pet === cachedPet && dragonEgg == cachedDragonEgg && repoCommit == cachedRepoCommit
-		) return cachedLines
-		return cache(pet, dragonEgg, PetProgress.of(pet).maxLevel, repoCommit)
-	}
-
-	internal fun lines(pet: PetInfo, dragonEgg: Boolean, maxLevel: Int): List<Component> =
-		cache(pet, dragonEgg, maxLevel, ItemRepo.commit)
-
-	private fun cache(pet: PetInfo, dragonEgg: Boolean, maxLevel: Int, repoCommit: String?): List<Component> {
-		if (
-			pet === cachedPet && dragonEgg == cachedDragonEgg && maxLevel == cachedMaxLevel &&
-			repoCommit == cachedRepoCommit
-		) return cachedLines
+	internal fun lines(pet: PetInfo, dragonEgg: Boolean, maxLevel: Int): List<Component> {
+		if (fresh(pet, dragonEgg) && maxLevel == cachedMaxLevel) return cachedLines
 		cachedPet = pet
 		cachedDragonEgg = dragonEgg
 		cachedMaxLevel = maxLevel
-		cachedRepoCommit = repoCommit
+		cachedRepoCommit = ItemRepo.commit
 		cachedLines = buildLines(pet, dragonEgg, maxLevel)
 		return cachedLines
 	}
+
+	private fun fresh(pet: PetInfo, dragonEgg: Boolean): Boolean =
+		pet === cachedPet && dragonEgg == cachedDragonEgg && ItemRepo.commit == cachedRepoCommit
 
 	internal fun insertionIndex(lines: List<Component>): Int {
 		for (index in lines.indices) if (lines[index].string.contains(MAX_LEVEL_MARKER)) return index + 2
@@ -290,5 +284,67 @@ internal class GeorgeHelperElement(private val helper: GeorgeHelper) : HudElemen
 			" §7- §6Legendary Black Cat§7: §612,500,000 coins",
 			"§7Total Cost: §612,500,000 coins"
 		)
+	}
+}
+
+internal class PetNametags {
+	private val nametag: Matcher = Pattern.compile(NAMETAG).matcher("")
+	private val ids = IntArray(CAPACITY) { NO_ENTITY }
+	private val sources = arrayOfNulls<Component>(CAPACITY)
+	private val rewrites = arrayOfNulls<Component>(CAPACITY)
+	private var hidesLevel = false
+	private var hidesMaxLevel = false
+	private var evictionHand = 0
+
+	fun rewrite(entityId: Int, nameTag: Component, hideLevel: Boolean, hideMaxLevel: Boolean): Component {
+		if (hideLevel != hidesLevel || hideMaxLevel != hidesMaxLevel) {
+			hidesLevel = hideLevel
+			hidesMaxLevel = hideMaxLevel
+			ids.fill(NO_ENTITY)
+		}
+		val home = entityId and MASK
+		for (step in 0 until PROBE) {
+			val slot = (home + step) and MASK
+			if (ids[slot] == entityId) return recall(slot, entityId, nameTag)
+			if (ids[slot] == NO_ENTITY) return place(slot, entityId, nameTag)
+		}
+		return place((home + (evictionHand++ and (PROBE - 1))) and MASK, entityId, nameTag)
+	}
+
+	private fun rewritten(styled: String): Component? {
+		if (!nametag.reset(styled).matches()) return null
+		val level = nametag.group(LEVEL).toIntOrNull() ?: PetLines.UNKNOWN_LEVEL
+		val hidden = hidesLevel || (hidesMaxLevel && PetLines.maxed(level))
+		val named = nametag.group(RARITY) + nametag.group(PET) + (nametag.group(SKIN) ?: "")
+		return Component.literal(if (hidden) named else nametag.group(START) + GAP + named)
+	}
+
+	private fun recall(slot: Int, entityId: Int, nameTag: Component): Component {
+		val source = sources[slot]
+		if (source === nameTag || source == nameTag) return rewrites[slot] ?: nameTag
+		return place(slot, entityId, nameTag)
+	}
+
+	private fun place(slot: Int, entityId: Int, nameTag: Component): Component {
+		val rewritten = rewritten(legacyCodes(nameTag))
+		ids[slot] = entityId
+		sources[slot] = nameTag
+		rewrites[slot] = rewritten
+		return rewritten ?: nameTag
+	}
+
+	private companion object {
+		private const val GAP = " "
+		private const val NAMETAG =
+			"(?<start>§8\\[§7Lv(?<lvl>\\d+)§8]) (?<rarity>§.)(?<pet>[\\w\\s]+)(?<skin>§. ✦)?"
+		private const val CAPACITY = 64
+		private const val MASK = CAPACITY - 1
+		private const val PROBE = 4
+		private const val NO_ENTITY = -1
+		private const val START = "start"
+		private const val LEVEL = "lvl"
+		private const val RARITY = "rarity"
+		private const val PET = "pet"
+		private const val SKIN = "skin"
 	}
 }

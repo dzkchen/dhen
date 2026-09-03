@@ -4,8 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.config.KeybindSetting
 import net.minecraft.client.KeyMapping
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
@@ -13,7 +11,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class PetWheelInteractionTest {
+class PetWheelLayoutTest {
 	private val layout = PetWheelLayout()
 	private val customBinds = Array(PetWheelCache.PETS_PER_PAGE) { index ->
 		KeybindSetting("Test Pet Slot ${index + 1}", GLFW.GLFW_KEY_1 + index)
@@ -130,27 +128,6 @@ class PetWheelInteractionTest {
 		assertEquals(2, resolve(GLFW.GLFW_MOUSE_BUTTON_4, mouse = true, visibleCount = 9, useHotbar = true))
 		assertEquals(PetWheelLayout.NO_INDEX, resolve(GLFW.GLFW_KEY_2, mouse = false, visibleCount = 9, useHotbar = true))
 		assertEquals(PetWheelLayout.NO_INDEX, resolve(GLFW.GLFW_MOUSE_BUTTON_4, mouse = false, visibleCount = 9, useHotbar = true))
-	}
-
-	@Test
-	fun `debounce accepts the first action and the exact delay edge`() {
-		val debounce = PetWheelDebounce()
-
-		assertTrue(debounce.accept(0L))
-		assertFalse(debounce.accept(299L))
-		assertTrue(debounce.accept(300L))
-		assertFalse(debounce.accept(599L))
-		assertTrue(debounce.accept(600L))
-	}
-
-	@Test
-	fun `debounce reset starts a new action window`() {
-		val debounce = PetWheelDebounce()
-		debounce.accept(1_000L)
-
-		debounce.reset()
-
-		assertTrue(debounce.accept(1_001L))
 	}
 
 	private fun resolve(code: Int, mouse: Boolean, visibleCount: Int, useHotbar: Boolean): Int = PetWheelInput.resolve(

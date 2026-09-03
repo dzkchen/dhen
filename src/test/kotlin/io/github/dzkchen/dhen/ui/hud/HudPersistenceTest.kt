@@ -20,6 +20,30 @@ import java.nio.file.Path
 
 class HudPersistenceTest {
 	@Test
+	fun `a reset element leaves the file it was written into`(@TempDir dir: Path) = runBlocking {
+		val path = dir.resolve("modules.json")
+		val manager = ModuleManager()
+		val module = OverlayModule().also { manager.register(it) }
+		manager.enable(module.name)
+		val store = ConfigStore(
+			path,
+			CoroutineScope(Dispatchers.IO),
+			migrations = ModulePersistence.migrations,
+			authoritative = ModulePersistence.authoritative,
+			debounce = {}
+		)
+
+		module.status.offsetX = 300
+		store.save(ModulePersistence.snapshot(manager)).join()
+		assertEquals(300, hudBlock(path).getAsJsonObject("Status").get("x").asInt)
+
+		module.status.resetToDeclared()
+		store.save(ModulePersistence.snapshot(manager)).join()
+
+		assertEquals(0, hudBlock(path).size())
+	}
+
+	@Test
 	fun `element layout survives a simulated restart`(@TempDir dir: Path) = runBlocking {
 		val path = dir.resolve("modules.json")
 
@@ -144,6 +168,9 @@ class HudPersistenceTest {
 
 		assertEquals(HudElement.MAX_SCALE, element.scale)
 	}
+
+	private fun hudBlock(path: Path): JsonObject =
+		json(Files.readString(path)).getAsJsonObject("modules").getAsJsonObject("Overlay").getAsJsonObject("hud")
 
 	private class OverlayModule : Module(
 		name = "Overlay",

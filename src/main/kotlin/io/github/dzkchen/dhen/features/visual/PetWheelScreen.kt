@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.features.visual
 
 import com.mojang.blaze3d.platform.InputConstants
+import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.pet.CurrentPet
 import io.github.dzkchen.dhen.event.ContainerClickEvent
@@ -17,24 +18,243 @@ import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.TextMemo
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.lwjgl.glfw.GLFW
 import java.util.Locale
+import java.util.regex.Pattern
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+internal class PetWheelCache {
+	private val petSlots = IntArray(MAX_PETS)
+	private val favouriteSlots = IntArray(MAX_PETS)
+	private val titleMatcher = PETS_TITLE.matcher("")
+	private var menuTitle: Component? = null
+	private var petCount = 0
+	private var favouriteCount = 0
+	private var favouritesOnly = false
+
+	var windowId: Int = NO_WINDOW
+		private set
+
+	var page: Int = 0
+		private set
+
+	private var vanilla: Boolean = false
+
+	private val active: Boolean
+		get() = windowId != NO_WINDOW
+
+	val custom: Boolean
+		get() = active && !vanilla
+
+	val size: Int
+		get() = if (favouritesOnly) favouriteCount else petCount
+
+	val pages: Int
+		get() = Math.ceilDiv(size, PETS_PER_PAGE).coerceAtLeast(1)
+
+	private fun matches(title: Component): Boolean = titleMatcher.reset(withoutCodes(title.string)).matches()
+
+	fun belongsTo(title: Component): Boolean = active && menuTitle === title
+
+	fun refresh(title: Component, windowId: Int, stacks: List<ItemStack>): Boolean {
+		if (this.windowId != windowId) {
+			if (!matches(title)) return false
+			this.windowId = windowId
+			menuTitle = title
+			page = 0
+			vanilla = false
+		} else if (menuTitle !== title) {
+			if (!matches(title)) return false
+			menuTitle = title
+		}
+		petCount = 0
+		favouriteCount = 0
+		var index = FIRST_PET_SLOT
+		while (index <= LAST_PET_SLOT && index < stacks.size) {
+			if (index % ROW_WIDTH in FIRST_PET_COLUMN..LAST_PET_COLUMN) retain(index, stacks[index])
+			index++
+		}
+		clampPage()
+		return true
+	}
+
+	fun showFavouritesOnly(show: Boolean) {
+		if (favouritesOnly == show) return
+		favouritesOnly = show
+		clampPage()
+	}
+
+	fun movePage(offset: Int): Int {
+		page = if (pages == 1) 0 else Math.floorMod(page + offset, pages)
+		return page
+	}
+
+	fun slotAt(visibleIndex: Int): Int {
+		if (visibleIndex !in 0 until PETS_PER_PAGE) return NO_SLOT
+		val index = page * PETS_PER_PAGE + visibleIndex
+		if (index >= size) return NO_SLOT
+		return if (favouritesOnly) favouriteSlots[index] else petSlots[index]
+	}
+
+	fun showVanilla(): Boolean {
+		if (!active) return false
+		vanilla = true
+		return true
+	}
+
+	fun close(windowId: Int): Boolean {
+		if (this.windowId != windowId) return false
+		reset()
+		return true
+	}
+
+	fun reset() {
+		windowId = NO_WINDOW
+		menuTitle = null
+		page = 0
+		vanilla = false
+		petCount = 0
+		favouriteCount = 0
+	}
+
+	private fun retain(index: Int, stack: ItemStack) {
+		if (stack.isEmpty || !stack.`is`(Items.PLAYER_HEAD)) return
+		petSlots[petCount++] = index
+		if (!withoutCodes(stack.hoverName.string).startsWith(FAVOURITE_PREFIX)) return
+		favouriteSlots[favouriteCount++] = index
+	}
+
+	private fun clampPage() {
+		page = page.coerceAtMost(pages - 1)
+	}
+
+	companion object {
+		const val NO_SLOT = -1
+		const val PETS_PER_PAGE = 9
+		private const val NO_WINDOW = -1
+		private const val FIRST_PET_SLOT = 10
+		private const val LAST_PET_SLOT = 43
+		private const val ROW_WIDTH = 9
+		private const val FIRST_PET_COLUMN = 1
+		private const val LAST_PET_COLUMN = 7
+		private const val MAX_PETS = 28
+		private const val FAVOURITE_PREFIX = "⭐ "
+		private val PETS_TITLE = Pattern.compile(
+			"^(?:\\(\\d+/\\d+\\) )?Pets(?: \\(\\d+/\\d+\\))?$",
+			Pattern.CASE_INSENSITIVE
+		)
+	}
+}
+
+internal class PetWheelLayout {
+	var referenceScale = 1f
+		private set
+	var referenceWidth = REFERENCE_WIDTH
+		private set
+	var referenceHeight = REFERENCE_HEIGHT
+		private set
+	var centerX = REFERENCE_WIDTH / 2f
+		private set
+	var centerY = REFERENCE_HEIGHT / 2f - CENTER_Y_OFFSET
+		private set
+	var innerRadius = 0f
+		private set
+	var outerRadius = 0f
+		private set
+	private var segmentCount = 0
+	var segmentAngle = 0.0
+		private set
+
+	fun update(guiWidth: Int, guiHeight: Int, scalePercent: Double, segmentCount: Int) {
+		require(guiWidth > 0 && guiHeight > 0)
+		referenceScale = min(guiWidth / REFERENCE_WIDTH, guiHeight / REFERENCE_HEIGHT)
+		referenceWidth = guiWidth / referenceScale
+		referenceHeight = guiHeight / referenceScale
+		centerX = referenceWidth / 2f
+		centerY = referenceHeight / 2f - CENTER_Y_OFFSET
+		val desiredRadius = BASE_OUTER_RADIUS * (scalePercent.coerceIn(MIN_SCALE, MAX_SCALE) / 100.0).toFloat()
+		val heightLimit = (referenceHeight - RESERVED_HEIGHT) / 2f
+		val widthLimit = (referenceWidth - RESERVED_WIDTH) / 2f
+		val maximumRadius = min(heightLimit, widthLimit).coerceAtLeast(MIN_OUTER_RADIUS)
+		outerRadius = min(desiredRadius, maximumRadius)
+		innerRadius = outerRadius * INNER_RADIUS_RATIO
+		this.segmentCount = segmentCount.coerceIn(0, PetWheelCache.PETS_PER_PAGE)
+		segmentAngle = if (this.segmentCount == 0) 0.0 else PI * 2.0 / this.segmentCount
+	}
+
+	fun hoveredIndex(pointerX: Double, pointerY: Double): Int {
+		if (segmentCount == 0) return NO_INDEX
+		val x = pointerX / referenceScale - centerX
+		val y = pointerY / referenceScale - centerY
+		if (x * x + y * y <= innerRadius * innerRadius) return NO_INDEX
+		val clockwise = (atan2(y, x) + PI / 2.0 + segmentAngle / 2.0) / segmentAngle
+		return Math.floorMod(floor(clockwise).toInt(), segmentCount)
+	}
+
+	companion object {
+		const val NO_INDEX = -1
+		private const val REFERENCE_WIDTH = 960f
+		private const val REFERENCE_HEIGHT = 540f
+		private const val CENTER_Y_OFFSET = 8f
+		private const val BASE_OUTER_RADIUS = 138f
+		private const val INNER_RADIUS_RATIO = 0.55f
+		private const val RESERVED_HEIGHT = 96f
+		private const val RESERVED_WIDTH = 220f
+		private const val MIN_OUTER_RADIUS = 82f
+		private const val MIN_SCALE = 70.0
+		private const val MAX_SCALE = 135.0
+	}
+}
+
+internal object PetWheelInput {
+	fun resolve(
+		code: Int,
+		mouse: Boolean,
+		visibleCount: Int,
+		useHotbarBinds: Boolean,
+		petSlotBinds: Array<KeybindSetting>,
+		hotbarBinds: Array<KeyMapping>
+	): Int {
+		val limit = visibleCount.coerceIn(0, PetWheelCache.PETS_PER_PAGE)
+		if (useHotbarBinds) {
+			val input = if (mouse) InputConstants.Type.MOUSE.getOrCreate(code) else InputConstants.Type.KEYSYM.getOrCreate(code)
+			var index = 0
+			while (index < limit && index < hotbarBinds.size) {
+				if (hotbarBinds[index].matches(input)) return index
+				index++
+			}
+			return PetWheelLayout.NO_INDEX
+		}
+		var index = 0
+		while (index < limit && index < petSlotBinds.size) {
+			val binding = petSlotBinds[index].code
+			val bindingIsMouse = binding in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
+			if (binding == code && bindingIsMouse == mouse) return index
+			index++
+		}
+		return PetWheelLayout.NO_INDEX
+	}
+}
+
 internal class PetWheelSession {
 	val cache = PetWheelCache()
-	private val debounce = PetWheelDebounce()
+	private var hasAction = false
+	private var lastActionAt = 0L
 
 	var actionSlot = PetWheelCache.NO_SLOT
 		private set
@@ -46,10 +266,10 @@ internal class PetWheelSession {
 	val visibleCount: Int
 		get() = (cache.size - cache.page * PetWheelCache.PETS_PER_PAGE).coerceIn(0, PetWheelCache.PETS_PER_PAGE)
 
-	fun refresh(title: net.minecraft.network.chat.Component, windowId: Int, stacks: List<ItemStack>): Boolean {
+	fun refresh(title: Component, windowId: Int, stacks: List<ItemStack>): Boolean {
 		val previous = cache.windowId
 		if (!cache.refresh(title, windowId, stacks)) return false
-		if (previous != windowId) debounce.reset()
+		if (previous != windowId) clearDebounce()
 		return true
 	}
 
@@ -57,7 +277,10 @@ internal class PetWheelSession {
 
 	fun accept(visibleIndex: Int, quickMove: Boolean, now: Long): Boolean {
 		val slot = target(visibleIndex)
-		if (slot == PetWheelCache.NO_SLOT || !debounce.accept(now)) return false
+		if (slot == PetWheelCache.NO_SLOT) return false
+		if (hasAction && now - lastActionAt < ACTION_DELAY_MS) return false
+		hasAction = true
+		lastActionAt = now
 		actionSlot = slot
 		actionInput = if (quickMove) ContainerInput.QUICK_MOVE else ContainerInput.PICKUP
 		closesAfterAction = !quickMove
@@ -67,20 +290,28 @@ internal class PetWheelSession {
 	fun close(windowId: Int): Boolean {
 		if (!cache.close(windowId)) return false
 		resetAction()
-		debounce.reset()
 		return true
 	}
 
 	fun reset() {
 		cache.reset()
 		resetAction()
-		debounce.reset()
 	}
 
 	private fun resetAction() {
 		actionSlot = PetWheelCache.NO_SLOT
 		actionInput = ContainerInput.PICKUP
 		closesAfterAction = false
+		clearDebounce()
+	}
+
+	private fun clearDebounce() {
+		hasAction = false
+		lastActionAt = 0L
+	}
+
+	private companion object {
+		const val ACTION_DELAY_MS = 300L
 	}
 }
 
@@ -187,7 +418,7 @@ internal class PetWheelScreen {
 		clearSnapshot()
 	}
 
-	private fun refreshed(title: net.minecraft.network.chat.Component, windowId: Int, incoming: List<ItemStack>) {
+	private fun refreshed(title: Component, windowId: Int, incoming: List<ItemStack>) {
 		if (!session.refresh(title, windowId, incoming)) return
 		var index = 0
 		while (index < stacks.size) {

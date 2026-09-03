@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.sound
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
-import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.json
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
@@ -461,14 +460,6 @@ class SoundManagerTest {
 		}
 
 		assertTrue(SoundManager.rawRecentSounds().isEmpty())
-	}
-
-	@Test
-	fun `the manager is opened from the Settings tab and owns no module row`() {
-		assertEquals(
-			listOf("Open Sound Manager"),
-			ClientPrefs.sections.single { it.title == "Sounds" }.settings.map { it.name }
-		)
 	}
 
 	private fun suffix(recent: RecentSound): Int = recent.identifier.path.substringAfterLast('_').toInt()

@@ -1,11 +1,19 @@
-package io.github.dzkchen.dhen.gui
+package io.github.dzkchen.dhen.sound
 
+import io.github.dzkchen.dhen.gui.ClickGuiScroll
+import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.Effects
+import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.HAIRLINE_INSET
+import io.github.dzkchen.dhen.gui.LiveWorldScreen
+import io.github.dzkchen.dhen.gui.RoundedGui
+import io.github.dzkchen.dhen.gui.ScrollingStack
+import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.TextMemo
+import io.github.dzkchen.dhen.gui.centeredText
+import io.github.dzkchen.dhen.gui.textTop
 import io.github.dzkchen.dhen.input.TextInputTarget
-import io.github.dzkchen.dhen.sound.ANY_PITCH
-import io.github.dzkchen.dhen.sound.RECENT_RAW_LIMIT
-import io.github.dzkchen.dhen.sound.RecentSound
-import io.github.dzkchen.dhen.sound.SoundManager
-import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent

@@ -1,7 +1,8 @@
 package io.github.dzkchen.dhen.gui
 
-import io.github.dzkchen.dhen.uninitialized
+import io.github.dzkchen.dhen.features.privacy.ServerPackConsentScreen
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
+import io.github.dzkchen.dhen.uninitialized
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.network.chat.Component

@@ -88,7 +88,7 @@ import io.github.dzkchen.dhen.gui.ClientPrefs
 import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.Notifications
-import io.github.dzkchen.dhen.gui.SoundManagerScreen
+import io.github.dzkchen.dhen.sound.SoundManagerScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.privacy.LocalUrls
 import io.github.dzkchen.dhen.privacy.LanguageKeys
@@ -210,8 +210,8 @@ object Dhen : ClientModInitializer {
 	private fun initialize() {
 		val configRoot = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 		ioScope.launch { ModRegistry.primeShaderOwners() }
-		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations)
-		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations)
+		coreStore = flushedOnStop(configRoot.resolve("core.json"), CorePersistence.migrations, CorePersistence.authoritative)
+		moduleStore = flushedOnStop(configRoot.resolve("modules.json"), ModulePersistence.migrations, ModulePersistence.authoritative)
 		SoundManager.install(
 			flushedOnStop(configRoot.resolve("sounds.json"), SoundManager.migrations, SoundManager.authoritative)
 		)

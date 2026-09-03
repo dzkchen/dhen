@@ -1,7 +1,10 @@
-package io.github.dzkchen.dhen.gui
+package io.github.dzkchen.dhen.sound
 
-import io.github.dzkchen.dhen.sound.ANY_PITCH
-import io.github.dzkchen.dhen.sound.SoundManager
+import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.RoundedGui
+import io.github.dzkchen.dhen.gui.TextMemo
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.resources.Identifier

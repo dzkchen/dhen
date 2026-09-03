@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.command
 import com.mojang.brigadier.Command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.config.ModulePersistence
@@ -262,7 +263,7 @@ class CommandRegistryTest {
 	}
 
 	@Test
-	fun `sounds opens the manager through both roots`() {
+	fun `sounds opens the manager`() {
 		var opened = 0
 		val registry = CommandRegistry<Any>(
 			ModuleManager(),
@@ -272,9 +273,8 @@ class CommandRegistryTest {
 		registry.install(dispatcher)
 
 		dispatcher.execute("dhen sounds", Any())
-		dispatcher.execute("dh sounds", Any())
 
-		assertEquals(2, opened)
+		assertEquals(1, opened)
 		assertEquals("Opening the Sound Manager.", captured.last())
 	}
 
@@ -457,19 +457,13 @@ class CommandRegistryTest {
 			"Dhen debug: deep profiling off, modules.json v${ModulePersistence.version}",
 			captured.single { it.startsWith("Dhen debug:") }
 		)
-		assertEquals(
-			listOf(
-				"Packets", "Screens", "Containers", "Input", "World", "Entity render", "Interactions",
-				"World render", "Ticks", "Location", "Scoreboard", "Tab list", "Tab list widgets",
-				"Party", "Pickup log", "Player stats", "Pets", "Quiver state", "Maxwell state",
-				"Booster cookie state", "Per-profile storage", "First-run welcome", "Hypixel Mod API"
-			).map { "$it: no feed, off until restart" },
-			captured.filter { it.endsWith("no feed, off until restart") }
-		)
+		val feeds = captured.filter { it.contains("no feed") } - SERVER_TICK_FEED
+		assertEquals(Dhen.hooks.count { !it.active() }, feeds.size)
+		assertTrue(feeds.all { it.endsWith(": no feed, off until restart") })
 		val reported = listOf("Server tick:", "Item repo:", "Prices:", "Debug Module:", "  DebugEvent:")
 		assertEquals(
 			listOf(
-				"Server tick: no feed, the server tick feed is off until restart",
+				SERVER_TICK_FEED,
 				"Item repo: state=IDLE, items=0, needed by 0",
 				"Prices: needed by 0, bazaar=0 products",
 				"Debug Module: subscriptions=1, keybinds=1, hud=0, errors=1",
@@ -480,31 +474,29 @@ class CommandRegistryTest {
 	}
 
 	@Test
-	fun `debug alert invokes the core preview through both command roots`() {
+	fun `debug alert invokes the core preview`() {
 		var shown = 0
 		val registry = CommandRegistry<Any>(ModuleManager(), showAlert = { shown++ }) { _, message -> captured += message }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
 		dispatcher.execute("dhen debug alert", Any())
-		dispatcher.execute("dh debug alert", Any())
 
-		assertEquals(2, shown)
-		assertEquals(listOf("Showing the Dhen alert preview.", "Showing the Dhen alert preview."), captured)
+		assertEquals(1, shown)
+		assertEquals(listOf("Showing the Dhen alert preview."), captured)
 	}
 
 	@Test
-	fun `debug arc opens the retained primitive preview through both command roots`() {
+	fun `debug arc opens the retained primitive preview`() {
 		var shown = 0
 		val registry = CommandRegistry<Any>(ModuleManager(), openArcPreview = { shown++ }) { _, message -> captured += message }
 		val dispatcher = CommandDispatcher<Any>()
 		registry.install(dispatcher)
 
 		dispatcher.execute("dhen debug arc", Any())
-		dispatcher.execute("dh debug arc", Any())
 
-		assertEquals(2, shown)
-		assertEquals(listOf("Opening the annular-segment preview.", "Opening the annular-segment preview."), captured)
+		assertEquals(1, shown)
+		assertEquals(listOf("Opening the annular-segment preview."), captured)
 	}
 
 	@Test
@@ -847,6 +839,10 @@ class CommandRegistryTest {
 		val action = ActionSetting("Action")
 		@Suppress("unused")
 		private val actionValue by action
+	}
+
+	private companion object {
+		const val SERVER_TICK_FEED = "Server tick: no feed, the server tick feed is off until restart"
 	}
 
 	private class DebugEvent : Event

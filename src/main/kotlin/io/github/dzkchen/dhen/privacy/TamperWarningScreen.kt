@@ -1,5 +1,11 @@
-package io.github.dzkchen.dhen.gui
+package io.github.dzkchen.dhen.privacy
 
+import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.ELLIPSIS
+import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.centeredText
+import io.github.dzkchen.dhen.gui.pillButton
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent

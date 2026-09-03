@@ -121,18 +121,15 @@ class PetDisplayTest {
 	}
 
 	@Test
-	fun `the candy count is on and the level hiders are off out of the box`() {
+	fun `the candy count is on, the level hiders are off and the icons keep their ported defaults`() {
 		assertTrue(PetDisplay.petCandySetting.on)
 		assertTrue(PetDisplay.expShareSetting.on)
 		assertTrue(PetDisplay.tierBoostSetting.on)
 		assertFalse(PetDisplay.hideOnMaxedSetting.on)
 		assertFalse(PetDisplay.hidePetLevelSetting.on)
 		assertFalse(PetDisplay.hideMaxPetLevelSetting.on)
-	}
-
-	@Test
-	fun `the pet item scale keeps the ported default rather than snapping off its grid`() {
 		assertEquals(0.9, PetDisplay.petItemScaleSetting.value)
+		assertEquals(0xFF00FFFF.toInt(), PetDisplay.highlightColorSetting.value.argb)
 	}
 
 	@Test
@@ -157,11 +154,6 @@ class PetDisplayTest {
 		PetDisplay.autoPetTitleSetting.on = true
 
 		assertFalse(PetDisplay.titled("", dungeon = true))
-	}
-
-	@Test
-	fun `the highlight colour defaults to opaque cyan`() {
-		assertEquals(0xFF00FFFF.toInt(), PetDisplay.highlightColorSetting.value.argb)
 	}
 
 	@Test

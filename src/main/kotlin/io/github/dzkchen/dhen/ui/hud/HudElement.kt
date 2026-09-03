@@ -40,18 +40,16 @@ abstract class HudElement(
 	protected val textInk: Int
 		get() = if (background) DhenPalette.TEXT_PRIMARY else DhenPalette.TEXT_ON_WORLD
 
-	fun resetToDeclared(): Boolean {
-		if (
-			anchor == declaredAnchor &&
+	internal val atDeclared: Boolean
+		get() = anchor == declaredAnchor &&
 			offsetX == declaredOffsetX &&
 			offsetY == declaredOffsetY &&
 			scale == declaredScale &&
 			visible == declaredVisible &&
-			background == declaredBackground &&
-			!failed
-		) {
-			return false
-		}
+			background == declaredBackground
+
+	fun resetToDeclared(): Boolean {
+		if (atDeclared && !failed) return false
 		anchor = declaredAnchor
 		offsetX = declaredOffsetX
 		offsetY = declaredOffsetY

@@ -1,10 +1,6 @@
-package io.github.dzkchen.dhen.gui
+package io.github.dzkchen.dhen.sound
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
-import io.github.dzkchen.dhen.sound.ANY_PITCH
-import io.github.dzkchen.dhen.sound.RECENT_RAW_LIMIT
-import io.github.dzkchen.dhen.sound.RecentSound
-import io.github.dzkchen.dhen.sound.SoundRuleKey
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvent
 import org.junit.jupiter.api.Assertions.assertEquals

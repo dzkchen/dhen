@@ -15,7 +15,6 @@ import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.GuiOpenEvent
 import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
-import io.github.dzkchen.dhen.gui.ServerPackConsentScreen
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.privacy.PackOverrides

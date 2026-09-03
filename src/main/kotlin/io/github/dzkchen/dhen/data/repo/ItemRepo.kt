@@ -2,6 +2,7 @@ package io.github.dzkchen.dhen.data.repo
 
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.data.RequirementPump
+import io.github.dzkchen.dhen.data.price.PriceTables
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.util.NanoClock
 import kotlinx.coroutines.CoroutineScope
@@ -57,7 +58,7 @@ object ItemRepo {
 
 	internal fun active(): Boolean = host != null
 
-	fun item(id: String): RepoItem? = catalog.item(id)
+	fun item(id: String): RepoItem? = catalog.item(id) ?: PriceTables.neuId(id)?.let(catalog::item)
 
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)
 

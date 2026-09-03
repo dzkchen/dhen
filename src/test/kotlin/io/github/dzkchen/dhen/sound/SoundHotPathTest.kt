@@ -121,25 +121,6 @@ class SoundHotPathTest {
 	}
 
 	@Test
-	fun `pending replacements drain once each in the order they were offered`() {
-		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
-		val pling = SoundEvents.NOTE_BLOCK_PLING.value().location()
-		assertTrue(SoundManager.offerReplacement(harp, 0.75f, 1.5f))
-		assertTrue(SoundManager.offerReplacement(pling, 0.5f, 0.5f))
-
-		val played = mutableListOf<SoundInstance>()
-		val collect: (SoundInstance) -> Unit = { played += it }
-		assertTrue(SoundManager.playPendingReplacement(collect))
-		assertTrue(SoundManager.playPendingReplacement(collect))
-		assertFalse(SoundManager.playPendingReplacement(collect))
-
-		assertEquals(listOf(harp, pling), played.map { it.identifier })
-		assertEquals(2, played.distinct().size)
-		assertEquals(0.75f, requestedField(played.first(), "volume"))
-		assertEquals(1.5f, requestedField(played.first(), "pitch"))
-	}
-
-	@Test
 	fun `a full queue plays the original instead of cancelling it into silence`() {
 		val arrow = SoundEvents.ARROW_HIT_PLAYER.location()
 		val harp = SoundEvents.NOTE_BLOCK_HARP.value().location()
@@ -195,22 +176,24 @@ class SoundHotPathTest {
 	}
 
 	@Test
-	fun `offers from another thread are drained exactly once and in ring order`() {
+	fun `offers from another thread are drained once, in ring order, at the volume they carried`() {
 		val identifiers = List(PENDING_REPLACEMENT_LIMIT) { Identifier.fromNamespaceAndPath("test", "offthread_$it") }
 		val ready = CountDownLatch(1)
 		val offering = Thread {
 			ready.countDown()
-			for (identifier in identifiers) SoundManager.offerReplacement(identifier, 1f, 1f)
+			for (identifier in identifiers) SoundManager.offerReplacement(identifier, 0.75f, 1.5f)
 		}
 		offering.start()
 		ready.await()
 		offering.join()
 
-		val drained = mutableListOf<Identifier>()
-		val collect: (SoundInstance) -> Unit = { drained += it.identifier }
+		val drained = mutableListOf<SoundInstance>()
+		val collect: (SoundInstance) -> Unit = { drained += it }
 		while (SoundManager.playPendingReplacement(collect)) assertTrue(drained.isNotEmpty())
 
-		assertEquals(identifiers, drained)
+		assertEquals(identifiers, drained.map { it.identifier })
+		assertEquals(0.75f, requestedField(drained.first(), "volume"))
+		assertEquals(1.5f, requestedField(drained.first(), "pitch"))
 	}
 
 	private fun install(document: String) {

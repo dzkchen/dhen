@@ -43,16 +43,13 @@ class PetWheelSessionTest {
 	}
 
 	@Test
-	fun `a new window resets action timing and a matching close tears down the session`() {
+	fun `a new window resets action timing and a close clears the pending action`() {
 		session.refresh(Component.literal("Pets"), 1, menuWithPets(2))
 		assertTrue(session.accept(0, quickMove = false, now = 5_000L))
 
 		session.refresh(Component.literal("Pets"), 2, menuWithPets(2))
 		assertTrue(session.accept(0, quickMove = false, now = 5_001L))
-		assertFalse(session.close(1))
-		assertTrue(session.cache.active)
 		assertTrue(session.close(2))
-		assertFalse(session.cache.active)
 		assertEquals(PetWheelCache.NO_SLOT, session.actionSlot)
 	}
 

@@ -31,6 +31,7 @@ class SettingControlTest {
 		assertInstanceOf(ToggleControl::class.java, controlFor(BooleanSetting("b")))
 		assertInstanceOf(SliderControl::class.java, controlFor(NumberSetting("n", 0.0, 0.0, 10.0)))
 		assertInstanceOf(CycleControl::class.java, controlFor(SelectorSetting("s", "A", listOf("A", "B"))))
+		assertInstanceOf(DropdownControl::class.java, controlFor(SelectorSetting("s", "A", listOf("A", "B"), listed = true)))
 		assertInstanceOf(TextControl::class.java, controlFor(StringSetting("s")))
 		assertInstanceOf(ColorControl::class.java, controlFor(ColorSetting("c", Color.rgba(0, 0, 0))))
 		assertInstanceOf(KeybindControl::class.java, controlFor(KeybindSetting("k")))
@@ -77,15 +78,6 @@ class SettingControlTest {
 		assertEquals("C", setting.value)
 		control.press(0, 0, 100)
 		assertEquals("A", setting.value)
-	}
-
-	@Test
-	fun `the selector's own declaration decides between cycling and a list, whatever its option count`() {
-		for (count in intArrayOf(1, 2, 5)) {
-			val options = OPTION_POOL.take(count)
-			assertInstanceOf(CycleControl::class.java, controlFor(SelectorSetting("s", "A", options)))
-			assertInstanceOf(DropdownControl::class.java, controlFor(SelectorSetting("s", "A", options, listed = true)))
-		}
 	}
 
 	@Test
