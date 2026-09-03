@@ -20,7 +20,9 @@ import io.github.dzkchen.dhen.input.shiftHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.grouped
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
@@ -244,6 +246,13 @@ object ItemTooltip : Module(
 		cachedStack = null
 		cachedLines = emptyList()
 		priceHold.release()
+	}
+
+	internal fun decorated(stack: ItemStack): List<Component> {
+		val vanilla = Screen.getTooltipFromItem(Minecraft.getInstance(), stack)
+		if (!enabled || !SkyBlockLocation.inSkyBlock) return vanilla
+		val written = lines(stack)
+		return if (written.isEmpty()) vanilla else vanilla + written
 	}
 
 	private fun lines(stack: ItemStack): List<Component> {

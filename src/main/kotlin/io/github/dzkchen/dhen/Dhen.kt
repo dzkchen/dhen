@@ -45,6 +45,8 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
+import io.github.dzkchen.dhen.features.inventory.StorageOverlay
+import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
 import io.github.dzkchen.dhen.features.inventory.AuctionPriceInput
 import io.github.dzkchen.dhen.features.inventory.ChickenHeadTimer
@@ -272,6 +274,7 @@ object Dhen : ClientModInitializer {
 			ProtectItem,
 			SlotBinding,
 			AuctionPriceInput,
+			StorageOverlay,
 			Animations,
 			Box3D,
 			Camera,
@@ -419,6 +422,10 @@ object Dhen : ClientModInitializer {
 		)
 		ContainerState.install(
 			flushedOnStop(configRoot.resolve("containers.json"), emptyList(), ContainerState.authoritative)
+		)
+		StorageSnapshots.install(
+			flushedOnStop(configRoot.resolve("storage.json"), emptyList(), StorageSnapshots.authoritative),
+			ioScope
 		)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)

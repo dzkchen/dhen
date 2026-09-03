@@ -74,6 +74,9 @@ object InventorySearch : Module(
 	internal var result: String? = null
 		private set
 
+	internal val searching: Boolean
+		get() = enabled && tokens.isNotEmpty()
+
 	init {
 		for (setting in listOf(ignoreCapsSetting, searchLoreSetting, highlightSetting)) registerSetting(setting)
 
@@ -90,7 +93,7 @@ object InventorySearch : Module(
 			SlotTint.claim(highlightSetting.value.argb, TINT_PRIORITY)
 		}
 		on<ScreenRenderEvent.Post> { event ->
-			if (event.screen !is AbstractContainerScreen<*>) return@on
+			if (event.screen !is AbstractContainerScreen<*> && event.screen !is StorageOverlayScreen) return@on
 			draw(event)
 		}
 		on<GuiCloseEvent> { focused = false }

@@ -86,7 +86,9 @@ sealed class SlotRenderEvent : DeepProfiledEvent {
 	class Post internal constructor() : SlotRenderEvent()
 }
 
-class TooltipEvent internal constructor() : DeepProfiledEvent {
+class TooltipEvent internal constructor() : DeepProfiledEvent, Cancellable {
+	override var cancelled: Boolean = false
+
 	private var host: AbstractContainerScreen<*>? = null
 
 	private var canvas: GuiGraphicsExtractor? = null
@@ -136,6 +138,7 @@ class TooltipEvent internal constructor() : DeepProfiledEvent {
 	internal fun reuse(lines: List<Component>) {
 		vanillaLines = lines
 		rewrittenLines = null
+		cancelled = false
 	}
 
 	internal fun forget() {

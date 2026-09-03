@@ -147,6 +147,9 @@ public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 			return;
 		}
 		try {
+			if (event.getCancelled()) {
+				return;
+			}
 			original.call(graphics, font, event.getLines(), image, event.getX(), event.getY(), style);
 		} finally {
 			ScreenHooks.releaseTooltip(event);

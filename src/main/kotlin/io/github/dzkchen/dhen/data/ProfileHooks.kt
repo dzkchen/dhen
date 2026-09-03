@@ -33,6 +33,8 @@ internal object ProfileHooks : GuardedHooks<ProfileHooks.Channels> {
 
 	private var channels: Channels? = null
 
+	val profile: String? get() = channels?.key
+
 	private var subscriptions: Array<Handle> = emptyArray()
 
 	fun install(
@@ -75,7 +77,8 @@ internal object ProfileHooks : GuardedHooks<ProfileHooks.Channels> {
 		private val maxwellUpdates = bus.type<MaxwellUpdateEvent>()
 		private val profiles = store.load().obj(PROFILES) ?: JsonObject()
 		private val profileLine = Pattern.compile(PROFILE_LINE).matcher("")
-		private var key: String? = null
+		var key: String? = null
+			private set
 
 		fun widget(event: TabWidgetUpdateEvent) {
 			if (event.widget != TabWidget.PROFILE) return
