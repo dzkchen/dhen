@@ -27,6 +27,7 @@ class CommandRegistry<S>(
 	private val resetHudLayout: () -> Int = { 0 },
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val chatHider: ChatHiderCommands = ChatHiderCommands.NONE,
+	private val commandAliases: CommandAliasCommands = CommandAliasCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val toggleWorldRender: () -> Boolean = { false },
 	private val toggleHighlight: () -> Boolean = { false },
@@ -74,7 +75,7 @@ class CommandRegistry<S>(
 	private fun core(name: String): LiteralArgumentBuilder<S> =
 		literal<S>(name)
 			.executes { context ->
-				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme | chathider")
+				report(context.source, "Dhen commands: /$name module <name> toggle|reset | debug | edit | sounds | reset-all | effects | theme | chathider | alias")
 			}
 			.then(
 				literal<S>("module").then(
@@ -117,6 +118,7 @@ class CommandRegistry<S>(
 			.then(effectsCommand())
 			.then(themeCommand())
 			.then(chatHiderCommand())
+			.then(aliasCommand())
 			.then(debugCommand())
 
 	private fun chatHiderCommand(): LiteralArgumentBuilder<S> =
@@ -126,20 +128,50 @@ class CommandRegistry<S>(
 			.then(
 				literal<S>("add").then(
 					argument<S, String>("pattern", StringArgumentType.greedyString())
-						.executes { context -> hidden(context.source, chatHider.add(pattern(context))) }
+						.executes { context -> stored(context.source, chatHider.add(pattern(context))) }
 				)
 			)
 			.then(
 				literal<S>("remove").then(
 					argument<S, String>("pattern", StringArgumentType.greedyString())
 						.suggests(suggesting(chatHider::patterns))
-						.executes { context -> hidden(context.source, chatHider.remove(pattern(context))) }
+						.executes { context -> stored(context.source, chatHider.remove(pattern(context))) }
+				)
+			)
+
+	private fun aliasCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("alias")
+			.executes { context -> reportAll(context.source, commandAliases.list()) }
+			.then(literal<S>("list").executes { context -> reportAll(context.source, commandAliases.list()) })
+			.then(
+				literal<S>("add").then(
+					argument<S, String>("alias", StringArgumentType.word()).then(
+						argument<S, String>("command", StringArgumentType.greedyString())
+							.executes { context ->
+								stored(
+									context.source,
+									commandAliases.add(
+										StringArgumentType.getString(context, "alias"),
+										StringArgumentType.getString(context, "command")
+									)
+								)
+							}
+					)
+				)
+			)
+			.then(
+				literal<S>("remove").then(
+					argument<S, String>("alias", StringArgumentType.word())
+						.suggests(suggesting(commandAliases::aliases))
+						.executes { context ->
+							stored(context.source, commandAliases.remove(StringArgumentType.getString(context, "alias")))
+						}
 				)
 			)
 
 	private fun pattern(context: CommandContext<S>): String = StringArgumentType.getString(context, "pattern")
 
-	private fun hidden(source: S, message: String): Int {
+	private fun stored(source: S, message: String): Int {
 		persistModules()
 		return report(source, message)
 	}
@@ -414,8 +446,8 @@ class CommandRegistry<S>(
 	private fun excluding(literal: String, delegate: StringArgumentType): ArgumentType<String> =
 		LiteralExcludingStringArgument(literal, delegate)
 
-	private companion object {
-		private val RESERVED = setOf("dhen", "dh")
+	internal companion object {
+		internal val RESERVED = setOf("dhen", "dh")
 	}
 }
 

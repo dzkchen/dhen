@@ -37,6 +37,7 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldHooks
 import io.github.dzkchen.dhen.event.WorldRenderHooks
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
+import io.github.dzkchen.dhen.features.chat.ChatMacros
 import io.github.dzkchen.dhen.features.chat.ChatTweaks
 import io.github.dzkchen.dhen.features.chat.PartyHelper
 import io.github.dzkchen.dhen.features.chat.SkyBlockKick
@@ -245,6 +246,7 @@ object Dhen : ClientModInitializer {
 			resetHudLayout = ::resetHudLayout,
 			themes = themes,
 			chatHider = ChatTweaks,
+			commandAliases = ChatMacros,
 			toggleWorldRender = WorldRenderProbe::toggle,
 			toggleHighlight = { EntityHighlights.toggleDebugRule(EntityHighlight::boxStyle, EntityHighlight::debugColor) },
 			openArcPreview = ::openArcPreview,
@@ -266,6 +268,7 @@ object Dhen : ClientModInitializer {
 			NoItemPlace,
 			PickupLog,
 			ChatTweaks,
+			ChatMacros,
 			PartyHelper,
 			SkyBlockKick,
 			Tweaks,
