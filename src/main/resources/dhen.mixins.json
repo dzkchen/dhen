@@ -17,6 +17,8 @@
 		"BuiltInPackSourceMixin",
 		"CameraMixin",
 		"ChatComponentAccessor",
+		"ChatComponentMixin",
+		"ChatScreenMixin",
 		"ClientBrandRetrieverMixin",
 		"ClientClockManagerAccessor",
 		"ClientCommonPacketListenerImplMixin",

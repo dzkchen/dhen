@@ -11,6 +11,12 @@ public interface ChatComponentAccessor {
 	@Accessor("trimmedMessages")
 	List<GuiMessage.Line> chatTrimmedMessages();
 
+	@Accessor("allMessages")
+	List<GuiMessage> chatAllMessages();
+
 	@Accessor("chatScrollbarPos")
 	int chatScrollbarPos();
+
+	@Accessor("chatScrollbarPos")
+	void chatScrollbarPos(int position);
 }

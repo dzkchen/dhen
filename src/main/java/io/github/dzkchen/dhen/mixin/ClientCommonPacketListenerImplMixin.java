@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.mixin;
 
+import io.github.dzkchen.dhen.features.qol.NetworkResilience;
 import io.github.dzkchen.dhen.privacy.LocalUrls;
 import io.github.dzkchen.dhen.privacy.ServerPacks;
 import io.github.dzkchen.dhen.privacy.TrackPackDetector;
@@ -7,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
@@ -82,6 +84,17 @@ public abstract class ClientCommonPacketListenerImplMixin {
 		if (!ServerPacks.suppressesPrompt()) return status;
 		this.minecraft.getDownloadedPackSource().allowServerPacks();
 		return ServerData.ServerPackStatus.ENABLED;
+	}
+
+	@Inject(method = "onPacketError", at = @At("HEAD"), cancellable = true)
+	private void dhen$keepConnectionOnPacketError(
+		final Packet<?> packet,
+		final Exception error,
+		final CallbackInfo callback
+	) {
+		if (NetworkResilience.keepsConnection(packet, error)) {
+			callback.cancel();
+		}
 	}
 
 	@Inject(

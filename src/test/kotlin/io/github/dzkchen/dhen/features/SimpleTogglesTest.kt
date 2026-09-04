@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.features.privacy.ChannelSpoofing
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
+import io.github.dzkchen.dhen.features.qol.NetworkResilience
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.module.Category
@@ -21,9 +22,11 @@ import org.junit.jupiter.api.Test
 
 class SimpleTogglesTest {
 	@Test
-	fun `declares the five native modules`() {
+	fun `declares the six native modules`() {
 		assertEquals("Arrow Fix", ArrowFix.name)
 		assertEquals(Category.QOL, ArrowFix.category)
+		assertEquals("Network Resilience", NetworkResilience.name)
+		assertEquals(Category.QOL, NetworkResilience.category)
 		assertEquals("No Item Place", NoItemPlace.name)
 		assertEquals(Category.QOL, NoItemPlace.category)
 		assertEquals("Revert Axes", RevertAxes.name)
@@ -33,6 +36,7 @@ class SimpleTogglesTest {
 		assertEquals("Channel Spoofing", ChannelSpoofing.name)
 		assertEquals(Category.PRIVACY, ChannelSpoofing.category)
 		assertTrue(ArrowFix.settings.isEmpty())
+		assertTrue(NetworkResilience.settings.isEmpty())
 		assertTrue(NoItemPlace.settings.isEmpty())
 		assertTrue(RevertAxes.settings.isEmpty())
 		assertTrue(SpoofAsVanilla.settings.isEmpty())

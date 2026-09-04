@@ -45,6 +45,9 @@ import io.github.dzkchen.dhen.command.SoundCommands
 import io.github.dzkchen.dhen.event.TabCompleteHooks
 import io.github.dzkchen.dhen.features.chat.ChatMacros
 import io.github.dzkchen.dhen.features.chat.Commands
+import io.github.dzkchen.dhen.features.chat.ChatHistory
+import io.github.dzkchen.dhen.features.chat.ChatSearch
+import io.github.dzkchen.dhen.features.chat.ChatTabs
 import io.github.dzkchen.dhen.features.chat.ChatTweaks
 import io.github.dzkchen.dhen.features.chat.PartyHelper
 import io.github.dzkchen.dhen.features.chat.SkyBlockKick
@@ -56,6 +59,7 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.EtherwarpAutoSneak
 import io.github.dzkchen.dhen.features.qol.EtherwarpSound
 import io.github.dzkchen.dhen.features.qol.LCEtherwarp
+import io.github.dzkchen.dhen.features.qol.NetworkResilience
 import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
@@ -302,10 +306,14 @@ object Dhen : ClientModInitializer {
 			LCEtherwarp,
 			EtherwarpAutoSneak,
 			ZeroPingEtherwarp,
+			NetworkResilience,
 			NoCursorReset,
 			NoItemPlace,
 			PickupLog,
 			ChatTweaks,
+			ChatHistory,
+			ChatSearch,
+			ChatTabs,
 			ChatMacros,
 			Commands,
 			PartyHelper,
