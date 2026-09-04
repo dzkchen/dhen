@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.event.EntityGlowEvent
 import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.render.BoxStyle
 import io.github.dzkchen.dhen.render.EntityHighlights
 import io.github.dzkchen.dhen.render.WorldDepth
 import net.minecraft.client.Minecraft
@@ -23,16 +24,16 @@ object Box3D : Module(
 ) {
 	internal val modeSetting = SelectorSetting(
 		"Mode",
-		FILLED_OUTLINE,
-		listOf(OUTLINE, FILL, FILLED_OUTLINE),
+		BoxStyle.FILLED_OUTLINE,
+		BoxStyle.options,
 		description = "Whether the box is drawn as edges, as a solid, or both."
 	)
 	internal val lineWidthSetting = NumberSetting("Line Width", 2.5, 1.0, 10.0, 0.1)
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 	internal val outlineOpacitySetting = NumberSetting("Outline Opacity", 35.0, 0.0, 100.0, 1.0)
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 	internal val fillOpacitySetting = NumberSetting("Fill Opacity", 35.0, 0.0, 100.0, 1.0)
-		.withDependency { modeSetting.value != OUTLINE }
+		.withDependency { BoxStyle.fills(modeSetting.value) }
 	internal val phaseSetting = BooleanSetting(
 		"Phase",
 		true,
@@ -81,8 +82,8 @@ object Box3D : Module(
 
 	private fun render(event: WorldRenderEvent) {
 		if (glowingCount == 0) return
-		val outline = mode != FILL
-		val fill = mode != OUTLINE
+		val outline = BoxStyle.outlines(mode)
+		val fill = BoxStyle.fills(mode)
 		val depth = if (phase) WorldDepth.THROUGH_WALLS else WorldDepth.TESTED
 		val width = lineWidth.toFloat()
 		val partialTick = Minecraft.getInstance().deltaTracker.getGameTimeDeltaPartialTick(true)
@@ -111,9 +112,6 @@ object Box3D : Module(
 
 	private fun opacity(percent: Double): Int = (percent * FULL_ALPHA / PERCENT).toInt()
 
-	private const val OUTLINE = "Outline"
-	private const val FILL = "Fill"
-	private const val FILLED_OUTLINE = "Filled Outline"
 	private const val CAPACITY = 64
 	private const val INFLATE = 0.1
 	private const val FULL_ALPHA = 255.0

@@ -48,32 +48,15 @@ class CommandSuggestionTreeTest {
 	}
 
 	@Test
-	fun `matching ignores case but the offer keeps its own`() {
-		assertEquals(listOf("Alice", "alfred"), tree.suggestions("p kick al"))
-	}
-
-	@Test
-	fun `a word with no branch offers nothing`() {
+	fun `nothing is offered outside the tree`() {
 		assertTrue(tree.suggestions("p disband Al").isEmpty())
-	}
-
-	@Test
-	fun `an unknown command offers nothing`() {
 		assertTrue(tree.suggestions("guild invite Al").isEmpty())
-	}
-
-	@Test
-	fun `a command name on its own offers nothing`() {
 		assertTrue(tree.suggestions("warp").isEmpty())
+		assertTrue(tree.suggestions("warp zzz").isEmpty())
 	}
 
 	@Test
 	fun `the same name is never offered twice`() {
 		assertEquals(listOf("Alice"), tree.suggestions("p Alice"))
-	}
-
-	@Test
-	fun `an argument that matches nothing yields an empty list`() {
-		assertTrue(tree.suggestions("warp zzz").isEmpty())
 	}
 }

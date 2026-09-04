@@ -98,7 +98,7 @@ object ChatMacros : Module(
 	private val promoteOn by commandToggle("Promote", default = false)
 	private val demoteOn by commandToggle("Demote", default = false)
 	private val kickOn by commandToggle("Kick")
-	private val kickOfflineOn by commandToggle("Kick Offline", alsoNeeds = { kickOn })
+	private val kickOfflineOn by commandToggle("Kick Offline", default = false, alsoNeeds = { kickOn })
 	private val queueOn by commandToggle("Queue Commands")
 	private val downtimeOn by commandToggle("Downtime")
 	private val reinviteOn by commandToggle("Reinvite", default = false)

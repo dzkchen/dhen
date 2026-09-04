@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.features.chat
 
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.party.NOT_IN_PARTY
+import io.github.dzkchen.dhen.data.party.PartyChat
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.event.AFTER_PRODUCERS
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
@@ -47,7 +49,7 @@ object PartyHelper : Module(
 				event.cancelled = true
 			}
 
-			stripped.startsWith(NO_PARTY) -> forget()
+			stripped.startsWith(NOT_IN_PARTY) -> forget()
 
 			stripped.startsWith(DIVIDER_MARK) -> {
 				event.cancelled = true
@@ -55,7 +57,7 @@ object PartyHelper : Module(
 				if (pendingDividers == 0) reformatted()
 			}
 
-			else -> partyListRole(stripped)?.let { role ->
+			else -> PartyChat.listRole(stripped)?.let { role ->
 				readPartyRows(event.styled, role, roster)
 				event.cancelled = true
 			}
@@ -77,7 +79,6 @@ object PartyHelper : Module(
 	private const val SHORT_LIST = "pl"
 	private const val PARTY_LIST = "party list"
 	private const val SHORT_PARTY_LIST = "p list"
-	private const val NO_PARTY = "You are not currently in a party"
 	private const val DIVIDER_MARK = "-----"
 	private const val SURROUNDING_DIVIDERS = 2
 }

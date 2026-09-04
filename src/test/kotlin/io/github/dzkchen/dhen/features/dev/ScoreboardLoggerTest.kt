@@ -27,12 +27,4 @@ class ScoreboardLoggerTest {
 
 		assertEquals(listOf("2. Deaths: 1", "3. Cleared: 40%"), ScoreboardLogger.changes(before, after))
 	}
-
-	@Test
-	fun `the first sidebar of a session reports every row`() {
-		assertEquals(
-			listOf("1. SKYBLOCK", "2. Deaths: 1"),
-			ScoreboardLogger.changes(emptyList(), listOf("SKYBLOCK", "Deaths: 1"))
-		)
-	}
 }

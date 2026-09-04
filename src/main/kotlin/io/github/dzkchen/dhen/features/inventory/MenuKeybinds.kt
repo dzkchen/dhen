@@ -5,6 +5,7 @@ import io.github.dzkchen.dhen.config.KeybindScreenPolicy
 import io.github.dzkchen.dhen.config.KeybindSetting
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.event.withoutCodes
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.chat.Component
@@ -62,12 +63,8 @@ internal object MenuKeybinds {
 		return held
 	}
 
-	fun click(screen: AbstractContainerScreen<*>, slot: Int) {
-		val minecraft = Minecraft.getInstance()
-		val player = minecraft.player ?: return
-		val gameMode = minecraft.gameMode ?: return
-		gameMode.handleContainerInput(screen.menu.containerId, slot, LEFT_BUTTON, ContainerInput.PICKUP, player)
-	}
+	fun click(screen: AbstractContainerScreen<*>, slot: Int) =
+		clickSlot(screen.menu, slot, LEFT_BUTTON, ContainerInput.PICKUP)
 
 	fun bound(setting: KeybindSetting, code: Int, mouse: Boolean): Boolean =
 		setting.isBound && setting.code == code && (setting.code in MOUSE_BUTTONS) == mouse
@@ -77,8 +74,10 @@ internal object MenuKeybinds {
 		return NO_MENU_BIND
 	}
 
-	fun hotbarIndex(code: Int, mouse: Boolean, limit: Int): Int {
-		val slots = Minecraft.getInstance().options.keyHotbarSlots
+	fun hotbarIndex(code: Int, mouse: Boolean, limit: Int): Int =
+		hotbarIndex(code, mouse, limit, Minecraft.getInstance().options.keyHotbarSlots)
+
+	fun hotbarIndex(code: Int, mouse: Boolean, limit: Int, slots: Array<KeyMapping>): Int {
 		val input = if (mouse) InputConstants.Type.MOUSE.getOrCreate(code)
 		else InputConstants.Type.KEYSYM.getOrCreate(code)
 		var index = 0

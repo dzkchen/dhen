@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.event.BlockOutlineEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.render.BoxStyle
 import io.github.dzkchen.dhen.render.WorldDepth
 import io.github.dzkchen.dhen.render.WorldDraw
 import io.github.dzkchen.dhen.util.Color
@@ -22,20 +23,20 @@ object BlockOverlay : Module(
 ) {
 	private val modeSetting = SelectorSetting(
 		"Mode",
-		FILLED_OUTLINE,
-		listOf(OUTLINE, FILL, FILLED_OUTLINE),
+		BoxStyle.FILLED_OUTLINE,
+		BoxStyle.options,
 		description = "Whether the block is drawn as edges, as a solid, or both."
 	)
 	private var mode by modeSetting
 
 	private var fillColor by ColorSetting("Fill Color", Color.rgba(0, 134, 255, 50), allowAlpha = true)
-		.withDependency { modeSetting.value != OUTLINE }
+		.withDependency { BoxStyle.fills(modeSetting.value) }
 
 	private var outlineColor by ColorSetting("Outline Color", Color.rgba(0, 134, 255))
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 
 	private var lineWidth by NumberSetting("Line Width", 2.5, 1.0, 10.0, 0.1)
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 
 	private var phase by BooleanSetting("Phase", description = "Draws the outline through walls.")
 
@@ -68,8 +69,8 @@ object BlockOverlay : Module(
 			pos.z + shape.max(Direction.Axis.Z),
 			outlineColor.argb,
 			fillColor.argb,
-			mode != FILL,
-			mode != OUTLINE,
+			BoxStyle.outlines(mode),
+			BoxStyle.fills(mode),
 			lineWidth.toFloat(),
 			if (phase) WorldDepth.THROUGH_WALLS else WorldDepth.TESTED
 		)
@@ -82,7 +83,4 @@ object BlockOverlay : Module(
 		return client.options.keyShift.isDown && EtherwarpGuess.etherwarpItem(player.mainHandItem) != null
 	}
 
-	private const val OUTLINE = "Outline"
-	private const val FILL = "Fill"
-	private const val FILLED_OUTLINE = "Filled Outline"
 }

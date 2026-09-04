@@ -94,10 +94,13 @@ internal object StorageSnapshots {
 
 	fun exists(index: Int): Boolean {
 		follow()
-		return present[index] || contents[index] != null || stored[index] != null
+		return index in 0 until PAGES && (present[index] || contents[index] != null || stored[index] != null)
 	}
 
-	fun rows(index: Int): Int = rowCounts[index]
+	fun rows(index: Int): Int {
+		follow()
+		return rowCounts[index]
+	}
 
 	fun capture(page: Int, slots: List<ItemStack>, save: Boolean) {
 		follow()

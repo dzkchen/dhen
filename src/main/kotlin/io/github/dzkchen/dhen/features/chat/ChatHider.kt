@@ -1,8 +1,7 @@
 package io.github.dzkchen.dhen.features.chat
 
+import io.github.dzkchen.dhen.config.RowBook
 import io.github.dzkchen.dhen.util.shortNumber
-
-internal const val HIDER_SEPARATOR = "\n"
 
 internal val EXPLOSIVE_SHOT = Regex("""^Your Explosive Shot hit (\d+) (?:enemy|enemies) for ([\d,.]+) damage\.$""")
 
@@ -18,12 +17,13 @@ internal fun explosiveShotSummary(stripped: String): String? {
 
 internal fun validPattern(pattern: String): Boolean = runCatching { Regex(pattern) }.isSuccess
 
-internal class ChatHider(private val stored: () -> String) {
-	private var source: String? = null
-	private val custom = mutableListOf<Regex>()
+internal class ChatHider(stored: () -> String) {
+	private val book = RowBook<String, Regex>(stored) { pattern ->
+		if (pattern.isEmpty()) null else runCatching { Regex(pattern) }.getOrNull()?.let { pattern to it }
+	}
 	private var lastBlank = false
 
-	fun patterns(): List<String> = compiled().map { it.pattern }
+	fun patterns(): List<String> = book.all().keys.toList()
 
 	fun hides(stripped: String): Boolean {
 		if (stripped.isBlank()) {
@@ -31,24 +31,12 @@ internal class ChatHider(private val stored: () -> String) {
 			lastBlank = true
 			return false
 		}
-		if (USELESS.any { it.matches(stripped) } || compiled().any { it.matches(stripped) }) return true
+		if (USELESS.any { it.matches(stripped) } || book.all().values.any { it.matches(stripped) }) return true
 		lastBlank = false
 		return false
 	}
 
 	fun forget() {
 		lastBlank = false
-	}
-
-	private fun compiled(): List<Regex> {
-		val current = stored()
-		if (current === source) return custom
-		source = current
-		custom.clear()
-		for (pattern in current.split(HIDER_SEPARATOR)) {
-			if (pattern.isEmpty()) continue
-			runCatching { Regex(pattern) }.getOrNull()?.let { custom += it }
-		}
-		return custom
 	}
 }

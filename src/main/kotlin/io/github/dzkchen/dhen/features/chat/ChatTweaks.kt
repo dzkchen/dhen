@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.features.chat
 import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.command.ChatHiderCommands
 import io.github.dzkchen.dhen.config.BooleanSetting
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
@@ -86,7 +87,7 @@ object ChatTweaks : Module(
 		val current = hider.patterns()
 		if (pattern in current) return "'$pattern' is already hidden."
 		if (!validPattern(pattern)) return "'$pattern' is not a valid regular expression."
-		storedHiders = (current + pattern).joinToString(HIDER_SEPARATOR)
+		storedHiders = (current + pattern).joinToString(ROW_SEPARATOR)
 		return "Hiding chat lines matching '$pattern'."
 	}
 
@@ -94,7 +95,7 @@ object ChatTweaks : Module(
 		val current = hider.patterns()
 		val kept = current - pattern
 		if (kept.size == current.size) return "No hidden pattern reads '$pattern'."
-		storedHiders = kept.joinToString(HIDER_SEPARATOR)
+		storedHiders = kept.joinToString(ROW_SEPARATOR)
 		return "Stopped hiding chat lines matching '$pattern'."
 	}
 

@@ -10,7 +10,6 @@ import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.isPrintable
 import io.github.dzkchen.dhen.input.controlHeld
 import io.github.dzkchen.dhen.input.shiftHeld
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
@@ -394,12 +393,8 @@ internal class StorageOverlayScreen(
 	}
 
 	private fun dispatch(slot: Slot, button: Int, forced: ContainerInput?, shift: Boolean) {
-		val client = Minecraft.getInstance()
-		val player = client.player ?: return
-		val gameMode = client.gameMode ?: return
-		if (player.containerMenu !== menu) return
 		val input = forced ?: if (shift) ContainerInput.QUICK_MOVE else ContainerInput.PICKUP
-		gameMode.handleContainerInput(menu.containerId, slot.index, button, input, player)
+		clickSlot(menu, slot.index, button, input)
 	}
 
 	private fun scrollToKnob(y: Int) {

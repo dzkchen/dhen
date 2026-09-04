@@ -133,7 +133,7 @@ object Waypoints : Module(
 
 	private var storedWaypoints by StringSetting("Saved Waypoints").hide()
 
-	private val book = WaypointBook { storedWaypoints }
+	private val book = savedBook { storedWaypoints }
 	private val live = ArrayList<LiveWaypoint>()
 
 	init {

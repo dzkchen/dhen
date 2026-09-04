@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.command.TextReplacerCommands
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.ColorSetting
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
 import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.hide
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
@@ -25,18 +26,17 @@ import kotlinx.coroutines.withContext
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.ComponentSerialization
 
-internal const val ROW_SEPARATOR = "\n"
 internal const val FIELD_SEPARATOR = "\u0000"
 
 private val WHITE = Color.rgba(255, 255, 255)
 
-internal fun replacementRows(stored: String): List<Pair<String, String>> =
+internal fun storedReplacements(stored: String): List<Pair<String, String>> =
 	stored.split(ROW_SEPARATOR).mapNotNull { row ->
 		val split = row.indexOf(FIELD_SEPARATOR)
 		if (split <= 0 || split == row.length - 1) null else row.substring(0, split) to row.substring(split + 1)
 	}
 
-internal fun formatRows(rows: List<Pair<String, String>>): String =
+internal fun formatReplacements(rows: List<Pair<String, String>>): String =
 	rows.joinToString(ROW_SEPARATOR) { it.first + FIELD_SEPARATOR + it.second }
 
 internal fun replacementComponent(value: String): Component {
@@ -94,26 +94,26 @@ object TextReplacer : Module(
 		if (find.isEmpty()) return "A replacement needs something to look for."
 		if (find.contains(ROW_SEPARATOR) || find.contains(FIELD_SEPARATOR)) return "'$find' cannot be searched for."
 		if (replacement.isEmpty()) return "'$find' needs something to become."
-		storedRows = formatRows(replacementRows(storedRows).filterNot { it.first == find } + (find to replacement))
+		storedRows = formatReplacements(storedReplacements(storedRows).filterNot { it.first == find } + (find to replacement))
 		if (!enabled) return "'$find' will read as '$replacement' once Text Replacer is switched on."
 		return "Replacing '$find' with '$replacement'."
 	}
 
 	override fun remove(find: String): String {
-		val rows = replacementRows(storedRows)
+		val rows = storedReplacements(storedRows)
 		val kept = rows.filterNot { it.first == find }
 		if (kept.size == rows.size) return "Nothing replaces '$find'."
-		storedRows = formatRows(kept)
+		storedRows = formatReplacements(kept)
 		return "Stopped replacing '$find'."
 	}
 
 	override fun list(): List<String> {
-		val rows = replacementRows(storedRows)
+		val rows = storedReplacements(storedRows)
 		if (rows.isEmpty()) return listOf("Nothing is replaced yet. Add one with /dhen replace add <find> <replacement>.")
 		return rows.map { "'${it.first}' reads as '${it.second}'" }
 	}
 
-	override fun finds(): List<String> = replacementRows(storedRows).map { it.first }
+	override fun finds(): List<String> = storedReplacements(storedRows).map { it.first }
 
 	override fun name(name: String, replacement: String): String {
 		CustomNames.rebuild(mapOf(name to replacementComponent(replacement)))
@@ -138,7 +138,7 @@ object TextReplacer : Module(
 	}
 
 	private fun userRewrites(stored: String): List<Rewrite> =
-		replacementRows(stored).map { Rewrite(it.first, replacementComponent(it.second)) }
+		storedReplacements(stored).map { Rewrite(it.first, replacementComponent(it.second)) }
 
 	private fun iconRewrites(): List<Rewrite> {
 		if (!mobIcons || !SkyBlockLocation.inSkyBlock) return emptyList()

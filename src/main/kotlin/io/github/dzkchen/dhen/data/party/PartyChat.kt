@@ -38,7 +38,6 @@ internal object PartyChat {
 	private val dungeonJoin = Regex("^Party Finder > (\\w{1,16}) joined the dungeon group! \\((\\w+) Level (\\d+)\\)$")
 	private val kuudraJoin =
 		Regex("^Party Finder > ((?:\\[[^]]*?])? ?)?(\\w{1,16}) joined the group! \\(Combat Level (\\d+)\\)$")
-	private val membersList = Regex("^Party (Leader|Moderators|Members): (.+)$")
 	private val floorEnter = Regex("-+\\s.+ entered.+The Catacombs, Floor [IVX]+!\\s-+")
 
 	private val disbandPatterns = arrayOf(
@@ -47,8 +46,15 @@ internal object PartyChat {
 		Regex("^The party was disbanded because all invites expired and the party was empty.$"),
 		Regex("^The party was disbanded because the party leader disconnected.$"),
 		Regex("^You left the party.$"),
-		Regex("^You are not currently in a party.$")
+		Regex("^$NOT_IN_PARTY.$")
 	)
+
+	fun listRole(stripped: String): PartyRole? = when {
+		stripped.startsWith(LEADER_LINE) -> PartyRole.LEADER
+		stripped.startsWith(MODERATOR_LINE) -> PartyRole.MOD
+		stripped.startsWith(MEMBER_LINE) -> PartyRole.MEMBER
+		else -> null
+	}
 
 	fun read(line: String, roster: PartyRoster) {
 		val message = line.trim()
@@ -105,12 +111,11 @@ internal object PartyChat {
 			if (pattern.containsMatchIn(message)) return roster.disband()
 		}
 
-		membersList.find(message)?.let { match ->
-			val leaderLine = match.groupValues[1] == "Leader"
-			for (segment in match.groupValues[2].split(" ●")) {
+		listRole(message)?.let { role ->
+			for (segment in message.substringAfter(": ").split(" ●")) {
 				val member = memberFormat.find(segment.trim()) ?: continue
 				roster.add(member.groupValues[2])
-				if (leaderLine) roster.lead(member.groupValues[2])
+				if (role == PartyRole.LEADER) roster.lead(member.groupValues[2])
 			}
 			return
 		}
@@ -134,3 +139,9 @@ internal object PartyChat {
 		dungeonJoin.find(message)?.let { return roster.add(it.groupValues[1]) }
 	}
 }
+
+internal const val NOT_IN_PARTY = "You are not currently in a party"
+
+private const val LEADER_LINE = "Party Leader: "
+private const val MODERATOR_LINE = "Party Moderators: "
+private const val MEMBER_LINE = "Party Members: "

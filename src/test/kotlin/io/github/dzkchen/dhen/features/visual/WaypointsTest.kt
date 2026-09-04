@@ -130,7 +130,7 @@ class WaypointsTest {
 	fun `saved waypoints survive a round trip through their stored line`() {
 		val stored = formatSaved(listOf(SavedPoint("crypt", "HUB", 1, 2, 3), SavedPoint("bank", "HUB", -4, 5, -6)))
 		var text = stored
-		val book = WaypointBook { text }
+		val book = savedBook { text }
 		assertEquals(listOf("crypt", "bank"), book.all().keys.toList())
 		val bank = requireNotNull(book.all()["bank"])
 		assertEquals("HUB", bank.island)
@@ -143,7 +143,7 @@ class WaypointsTest {
 
 	@Test
 	fun `a malformed stored line is skipped rather than breaking the rest`() {
-		val book = WaypointBook { "crypt HUB 1 2 3\nrubbish\n\nbank DWARVEN_MINES -4 5 -6" }
+		val book = savedBook { "crypt HUB 1 2 3\nrubbish\n\nbank DWARVEN_MINES -4 5 -6" }
 		assertEquals(listOf("crypt", "bank"), book.all().keys.toList())
 	}
 

@@ -12,6 +12,9 @@ import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.features.inventory.MenuKeybinds
+import io.github.dzkchen.dhen.features.inventory.NO_MENU_BIND
+import io.github.dzkchen.dhen.features.inventory.clickSlot
 import io.github.dzkchen.dhen.gui.ArcGui
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
@@ -231,23 +234,9 @@ internal object PetWheelInput {
 		hotbarBinds: Array<KeyMapping>
 	): Int {
 		val limit = visibleCount.coerceIn(0, PetWheelCache.PETS_PER_PAGE)
-		if (useHotbarBinds) {
-			val input = if (mouse) InputConstants.Type.MOUSE.getOrCreate(code) else InputConstants.Type.KEYSYM.getOrCreate(code)
-			var index = 0
-			while (index < limit && index < hotbarBinds.size) {
-				if (hotbarBinds[index].matches(input)) return index
-				index++
-			}
-			return PetWheelLayout.NO_INDEX
-		}
-		var index = 0
-		while (index < limit && index < petSlotBinds.size) {
-			val binding = petSlotBinds[index].code
-			val bindingIsMouse = binding in GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
-			if (binding == code && bindingIsMouse == mouse) return index
-			index++
-		}
-		return PetWheelLayout.NO_INDEX
+		val index = if (useHotbarBinds) MenuKeybinds.hotbarIndex(code, mouse, limit, hotbarBinds)
+		else MenuKeybinds.boundIndex(code, mouse, petSlotBinds)
+		return if (index == NO_MENU_BIND || index >= limit) PetWheelLayout.NO_INDEX else index
 	}
 }
 
@@ -396,7 +385,7 @@ internal class PetWheelScreen {
 		val index = PetWheelInput.resolve(
 			event.input.key(),
 			mouse = false,
-			session.visibleCount,
+			PetWheelCache.PETS_PER_PAGE,
 			PetDisplay.useHotbarBindsSetting.on,
 			PetDisplay.petSlotSettings,
 			Minecraft.getInstance().options.keyHotbarSlots
@@ -454,20 +443,12 @@ internal class PetWheelScreen {
 	private fun action(screen: AbstractContainerScreen<*>, visibleIndex: Int, quickMove: Boolean) {
 		val slotIndex = session.target(visibleIndex)
 		if (slotIndex == PetWheelCache.NO_SLOT) return
-		val minecraft = Minecraft.getInstance()
-		val player = minecraft.player ?: return
-		val gameMode = minecraft.gameMode ?: return
+		val player = Minecraft.getInstance().player ?: return
 		if (player.containerMenu !== screen.menu || slotIndex !in screen.menu.slots.indices) return
 		val slot = screen.menu.slots[slotIndex]
 		if (slot.index != slotIndex || !samePetStack(visibleStacks[visibleIndex], slot.item)) return
 		if (!session.accept(visibleIndex, quickMove, System.currentTimeMillis())) return
-		gameMode.handleContainerInput(
-			screen.menu.containerId,
-			session.actionSlot,
-			LEFT_BUTTON,
-			session.actionInput,
-			player
-		)
+		clickSlot(screen.menu, session.actionSlot, LEFT_BUTTON, session.actionInput)
 		if (session.closesAfterAction) player.closeContainer()
 	}
 

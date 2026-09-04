@@ -15,7 +15,6 @@ import io.github.dzkchen.dhen.input.keyHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.Color
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
@@ -125,13 +124,11 @@ object SlotBinding : Module(
 		val menu = event.screen.menu
 		if (!menu.carried.isEmpty) return
 		if (locked(menu.slots.getOrNull(slot.index)) || locked(menu.slots.getOrNull(partner))) return
-		val player = Minecraft.getInstance().player ?: return
-		val gameMode = Minecraft.getInstance().gameMode ?: return
 		val onHotbar = slot.index in ContainerState.HOTBAR_FIRST..ContainerState.HOTBAR_LAST
 		val hotbarButton = (if (onHotbar) slot.index else partner) - ContainerState.HOTBAR_FIRST
 		val sourceSlot = if (onHotbar) partner else slot.index
 		event.cancelled = true
-		gameMode.handleContainerInput(menu.containerId, sourceSlot, hotbarButton, ContainerInput.SWAP, player)
+		clickSlot(menu, sourceSlot, hotbarButton, ContainerInput.SWAP)
 	}
 
 	private fun locked(slot: Slot?): Boolean =

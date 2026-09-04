@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.gui.ArcPreviewScreen
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.render.BoxStyle
 import io.github.dzkchen.dhen.render.EntityHighlights
 import io.github.dzkchen.dhen.render.WorldDepth
 import io.github.dzkchen.dhen.render.WorldDraw
@@ -23,8 +24,8 @@ object RenderTest : Module(
 ) {
 	private val styleSetting = SelectorSetting(
 		"Styled Box Style",
-		default = FILL,
-		options = listOf(OUTLINE, FILL, FILLED_OUTLINE),
+		default = BoxStyle.FILL,
+		options = BoxStyle.options,
 		description = "How the middle box around you is drawn."
 	)
 
@@ -80,8 +81,8 @@ object RenderTest : Module(
 			STYLED_INFLATE,
 			ink,
 			ARGB.color(HALF_ALPHA, ink),
-			style != FILL,
-			style != OUTLINE,
+			BoxStyle.outlines(style),
+			BoxStyle.fills(style),
 			LINE_WIDTH,
 			WorldDepth.TESTED
 		)
@@ -146,9 +147,6 @@ object RenderTest : Module(
 		client.execute { client.gui.setScreen(ArcPreviewScreen(client.gui.screen())) }
 	}
 
-	private const val OUTLINE = "Outline"
-	private const val FILL = "Fill"
-	private const val FILLED_OUTLINE = "Filled Outline"
 	private const val WIRE_INFLATE = 2.0
 	private const val STYLED_INFLATE = 1.0
 	private const val FILLED_INFLATE = 0.5

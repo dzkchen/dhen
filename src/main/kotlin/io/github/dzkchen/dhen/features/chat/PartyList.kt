@@ -18,13 +18,6 @@ internal val PARTY_LIST_HEADER = Regex("""^Party Members \(\d+\)$""")
 
 private val ENTRY_SEPARATOR = Regex("""^(?:\s|§[rR])+""")
 
-internal fun partyListRole(stripped: String): PartyRole? = when {
-	stripped.startsWith(LEADER_LINE) -> PartyRole.LEADER
-	stripped.startsWith(MODERATOR_LINE) -> PartyRole.MOD
-	stripped.startsWith(MEMBER_LINE) -> PartyRole.MEMBER
-	else -> null
-}
-
 internal fun readPartyRows(styled: String, role: PartyRole, into: MutableList<PartyListRow>) {
 	for (chunk in styled.substringAfter(COLON).split(ONLINE_DOT)) {
 		val entry = ENTRY_SEPARATOR.replaceFirst(chunk, "")
@@ -89,9 +82,6 @@ private fun button(label: String, command: String, hover: String): MutableCompon
 
 private fun nameCharacter(character: Char): Boolean = character == '_' || character.isLetterOrDigit()
 
-private const val LEADER_LINE = "Party Leader: "
-private const val MODERATOR_LINE = "Party Moderators: "
-private const val MEMBER_LINE = "Party Members: "
 private const val COLON = ':'
 private const val ONLINE_DOT = '●'
 private const val LEGACY_PREFIX = '§'

@@ -6,6 +6,8 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder.literal
 import com.mojang.brigadier.builder.RequiredArgumentBuilder.argument
 import com.mojang.brigadier.tree.CommandNode
 import io.github.dzkchen.dhen.command.CommandRegistry
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
+import io.github.dzkchen.dhen.config.RowBook
 import java.util.Locale
 
 interface CommandNodeAccess {
@@ -16,35 +18,21 @@ interface CommandNodeAccess {
 	fun commandArguments(): MutableMap<String, CommandNode<*>>
 }
 
-internal const val ALIAS_SEPARATOR = "\n"
+internal class AliasBook(stored: () -> String) {
+	private val book = RowBook<String, String>(stored) { line ->
+		val space = line.indexOf(' ')
+		if (space <= 0 || space == line.length - 1) null else line.substring(0, space) to line.substring(space + 1)
+	}
 
-internal class AliasBook(private val stored: () -> String) {
-	private var source: String? = null
-	private val entries = linkedMapOf<String, String>()
-
-	fun all(): Map<String, String> = current()
+	fun all(): Map<String, String> = book.all()
 
 	fun rewrite(command: String): String? {
-		val entries = current()
+		val entries = book.all()
 		if (entries.isEmpty()) return null
 		val space = command.indexOf(' ')
 		val alias = if (space < 0) command else command.substring(0, space)
 		val replacement = entries[alias.lowercase(Locale.ROOT)] ?: return null
 		return if (space < 0) replacement else replacement + command.substring(space)
-	}
-
-	private fun current(): Map<String, String> {
-		val text = stored()
-		if (text === source) return entries
-		source = text
-		entries.clear()
-		for (line in text.split(ALIAS_SEPARATOR)) {
-			if (line.isEmpty()) continue
-			val space = line.indexOf(' ')
-			if (space <= 0 || space == line.length - 1) continue
-			entries[line.substring(0, space)] = line.substring(space + 1)
-		}
-		return entries
 	}
 }
 
@@ -58,7 +46,7 @@ internal fun aliasFault(alias: String, replacement: String): String? = when {
 }
 
 internal fun formatAliases(entries: Map<String, String>): String =
-	entries.entries.joinToString(ALIAS_SEPARATOR) { "${it.key} ${it.value}" }
+	entries.entries.joinToString(ROW_SEPARATOR) { "${it.key} ${it.value}" }
 
 internal fun <S> installAliases(dispatcher: CommandDispatcher<S>, aliases: Collection<String>) {
 	for (alias in aliases) {

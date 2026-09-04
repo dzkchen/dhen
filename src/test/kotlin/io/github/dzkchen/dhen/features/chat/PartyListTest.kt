@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.features.chat
 
+import io.github.dzkchen.dhen.data.party.PartyChat
 import io.github.dzkchen.dhen.data.party.PartyRole
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
@@ -13,11 +14,11 @@ import org.junit.jupiter.api.Test
 class PartyListTest {
 	@Test
 	fun `each party line maps to the role it announces`() {
-		assertEquals(PartyRole.LEADER, partyListRole("Party Leader: [MVP+] Alice ● "))
-		assertEquals(PartyRole.MOD, partyListRole("Party Moderators: Bob ● "))
-		assertEquals(PartyRole.MEMBER, partyListRole("Party Members: Carol ● "))
-		assertNull(partyListRole("Party Members (3)"))
-		assertNull(partyListRole("You are not currently in a party."))
+		assertEquals(PartyRole.LEADER, PartyChat.listRole("Party Leader: [MVP+] Alice ● "))
+		assertEquals(PartyRole.MOD, PartyChat.listRole("Party Moderators: Bob ● "))
+		assertEquals(PartyRole.MEMBER, PartyChat.listRole("Party Members: Carol ● "))
+		assertNull(PartyChat.listRole("Party Members (3)"))
+		assertNull(PartyChat.listRole("You are not currently in a party."))
 	}
 
 	@Test

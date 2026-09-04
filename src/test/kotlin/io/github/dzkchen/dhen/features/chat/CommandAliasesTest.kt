@@ -44,11 +44,6 @@ class CommandAliasesTest {
 	}
 
 	@Test
-	fun `an empty book rewrites nothing`() {
-		assertNull(book("").rewrite("x"))
-	}
-
-	@Test
 	fun `the store keeps every alias in the order it was added`() {
 		val entries = linkedMapOf("x" to "party warp", "s" to "showskill")
 

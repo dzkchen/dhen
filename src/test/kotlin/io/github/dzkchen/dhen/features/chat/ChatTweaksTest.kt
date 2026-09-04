@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.features.chat
 
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
 import io.github.dzkchen.dhen.module.Category
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -107,12 +108,12 @@ class ChatTweaksTest {
 
 	@Test
 	fun `a stored list survives a round trip and drops an unparsable rule`() {
-		var stored = listOf("^one$", "^two$").joinToString(HIDER_SEPARATOR)
+		var stored = listOf("^one$", "^two$").joinToString(ROW_SEPARATOR)
 		val hider = ChatHider { stored }
 
 		assertEquals(listOf("^one$", "^two$"), hider.patterns())
 
-		stored = listOf("^one$", "*broken", "^three$").joinToString(HIDER_SEPARATOR)
+		stored = listOf("^one$", "*broken", "^three$").joinToString(ROW_SEPARATOR)
 
 		assertEquals(listOf("^one$", "^three$"), hider.patterns())
 	}

@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.features.visual
 
 import io.github.dzkchen.dhen.bootstrapMinecraft
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -17,14 +18,14 @@ class TextReplacerTest {
 	fun `a stored row survives the round trip even when its text holds spaces`() {
 		val rows = listOf("Dark Auction" to "Auction time", "hi" to "hello there")
 
-		assertEquals(rows, replacementRows(formatRows(rows)))
+		assertEquals(rows, storedReplacements(formatReplacements(rows)))
 	}
 
 	@Test
 	fun `a row with no separator or no replacement is dropped instead of half read`() {
-		val stored = formatRows(listOf("keep" to "kept")) + ROW_SEPARATOR + "broken" + ROW_SEPARATOR
+		val stored = formatReplacements(listOf("keep" to "kept")) + ROW_SEPARATOR + "broken" + ROW_SEPARATOR
 
-		assertEquals(listOf("keep" to "kept"), replacementRows(stored))
+		assertEquals(listOf("keep" to "kept"), storedReplacements(stored))
 	}
 
 	@Test

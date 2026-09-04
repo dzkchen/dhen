@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.features.visual
 
+import io.github.dzkchen.dhen.config.ROW_SEPARATOR
+import io.github.dzkchen.dhen.config.RowBook
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -89,25 +91,6 @@ internal fun span(dx: Double, dy: Double, dz: Double): Double = sqrt(dx * dx + d
 
 internal class SavedPoint(val name: String, val island: String, val x: Int, val y: Int, val z: Int)
 
-internal class WaypointBook(private val stored: () -> String) {
-	private var source: String? = null
-	private val entries = linkedMapOf<String, SavedPoint>()
-
-	fun all(): Map<String, SavedPoint> = current()
-
-	private fun current(): Map<String, SavedPoint> {
-		val text = stored()
-		if (text === source) return entries
-		source = text
-		entries.clear()
-		for (line in text.split(SAVED_SEPARATOR)) {
-			val point = readSaved(line) ?: continue
-			entries[point.name] = point
-		}
-		return entries
-	}
-}
-
 internal fun readSaved(line: String): SavedPoint? {
 	val parts = line.split(' ')
 	if (parts.size != SAVED_FIELDS) return null
@@ -122,8 +105,11 @@ internal fun readSaved(line: String): SavedPoint? {
 	)
 }
 
+internal fun savedBook(stored: () -> String): RowBook<String, SavedPoint> =
+	RowBook(stored) { line -> readSaved(line)?.let { it.name to it } }
+
 internal fun formatSaved(entries: Collection<SavedPoint>): String =
-	entries.joinToString(SAVED_SEPARATOR) { "${it.name} ${it.island} ${it.x} ${it.y} ${it.z}" }
+	entries.joinToString(ROW_SEPARATOR) { "${it.name} ${it.island} ${it.x} ${it.y} ${it.z}" }
 
 internal fun savedNameFault(name: String): String? = when {
 	name.isBlank() -> "A waypoint needs a name."
@@ -133,7 +119,6 @@ internal fun savedNameFault(name: String): String? = when {
 
 private const val COORDINATE_MARK = "x: "
 private const val NOTE_MARK = "|"
-private const val SAVED_SEPARATOR = "\n"
 private const val SAVED_FIELDS = 5
 private const val MIN_OPACITY = 0.2f
 private const val MAX_OPACITY = 1.0f

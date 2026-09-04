@@ -14,7 +14,6 @@ import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.mixin.AbstractSignEditScreenAccessor
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
-import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
 import net.minecraft.world.inventory.ContainerInput
@@ -103,17 +102,8 @@ object AuctionPriceInput : Module(
 		val stack = event.screen.menu.slots.getOrNull(slotIndex)?.item ?: return
 		if (stack.item !== greenTerracotta()) return
 		if (withoutCodes(stack.hoverName.string) !in expected) return
-		val client = Minecraft.getInstance()
-		val player = client.player ?: return
-		val gameMode = client.gameMode ?: return
 		event.cancelled = true
-		gameMode.handleContainerInput(
-			event.screen.menu.containerId,
-			slotIndex,
-			GLFW.GLFW_MOUSE_BUTTON_LEFT,
-			ContainerInput.PICKUP,
-			player
-		)
+		clickSlot(event.screen.menu, slotIndex, GLFW.GLFW_MOUSE_BUTTON_LEFT, ContainerInput.PICKUP)
 	}
 
 	private fun swap(event: GuiOpenEvent) {

@@ -8,6 +8,7 @@ import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.event.WorldRenderEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.render.BoxStyle
 import io.github.dzkchen.dhen.render.WorldDepth
 import io.github.dzkchen.dhen.render.WorldDraw
 import io.github.dzkchen.dhen.util.Color
@@ -23,8 +24,8 @@ object EtherwarpOverlay : Module(
 ) {
 	private val modeSetting = SelectorSetting(
 		"Mode",
-		OUTLINE,
-		listOf(OUTLINE, FILL, FILLED_OUTLINE),
+		BoxStyle.OUTLINE,
+		BoxStyle.options,
 		description = "Whether the box is drawn as edges, as a solid, or both."
 	)
 	private var mode by modeSetting
@@ -32,7 +33,7 @@ object EtherwarpOverlay : Module(
 	private var phase by BooleanSetting("Phase", description = "Draws the box through walls.")
 
 	private var lineWidth by NumberSetting("Line Width", 1.0, 1.0, 10.0, 0.1)
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 
 	private val showFailSetting = BooleanSetting(
 		"Show Fail",
@@ -46,22 +47,24 @@ object EtherwarpOverlay : Module(
 		description = "Draws a whole block instead of the target block's own shape."
 	)
 
-	private var previousTickOrigin by BooleanSetting(
+	internal val previousTickOriginSetting = BooleanSetting(
 		"Use Server Position",
 		description = "Aims from where you stood last tick instead of where you stand now."
 	)
 
+	private var previousTickOrigin by previousTickOriginSetting
+
 	private var fillColor by ColorSetting("Fill Color", Color.rgba(0, 134, 255, 50), allowAlpha = true)
-		.withDependency { modeSetting.value != OUTLINE }
+		.withDependency { BoxStyle.fills(modeSetting.value) }
 
 	private var outlineColor by ColorSetting("Outline Color", Color.rgba(0, 134, 255))
-		.withDependency { modeSetting.value != FILL }
+		.withDependency { BoxStyle.outlines(modeSetting.value) }
 
 	private var invalidFillColor by ColorSetting("Invalid Fill Color", Color.rgba(255, 0, 0, 50), allowAlpha = true)
-		.withDependency { modeSetting.value != OUTLINE && showFailSetting.on }
+		.withDependency { BoxStyle.fills(modeSetting.value) && showFailSetting.on }
 
 	private var invalidOutlineColor by ColorSetting("Invalid Outline Color", Color.rgba(255, 0, 0))
-		.withDependency { modeSetting.value != FILL && showFailSetting.on }
+		.withDependency { BoxStyle.outlines(modeSetting.value) && showFailSetting.on }
 
 	private val target = EtherwarpTarget()
 
@@ -93,8 +96,8 @@ object EtherwarpOverlay : Module(
 				target.z + 1.0 + FULL_BLOCK_INFLATION,
 				outlineArgb,
 				fillArgb,
-				mode != FILL,
-				mode != OUTLINE,
+				BoxStyle.outlines(mode),
+				BoxStyle.fills(mode),
 				lineWidth.toFloat(),
 				depth
 			)
@@ -111,15 +114,12 @@ object EtherwarpOverlay : Module(
 			target.z + shape.max(Direction.Axis.Z),
 			outlineArgb,
 			fillArgb,
-			mode != FILL,
-			mode != OUTLINE,
+			BoxStyle.outlines(mode),
+			BoxStyle.fills(mode),
 			lineWidth.toFloat(),
 			depth
 		)
 	}
 
-	private const val OUTLINE = "Outline"
-	private const val FILL = "Fill"
-	private const val FILLED_OUTLINE = "Filled Outline"
 	private const val FULL_BLOCK_INFLATION = 0.00005
 }

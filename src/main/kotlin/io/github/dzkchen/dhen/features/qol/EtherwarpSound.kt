@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.event.PacketReceiveEvent
 import io.github.dzkchen.dhen.event.PacketSendEvent
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.features.visual.EtherwarpOverlay
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.EtherwarpGuess
@@ -102,7 +103,7 @@ object EtherwarpSound : Module(
 
 	private fun landsOnTarget(player: LocalPlayer): Boolean {
 		val item = EtherwarpGuess.etherwarpItem(player.mainHandItem) ?: return false
-		EtherwarpGuess.aimedAtTarget(false, EtherwarpGuess.distanceOf(item), target)
+		EtherwarpGuess.aimedAtTarget(EtherwarpOverlay.previousTickOriginSetting.on, EtherwarpGuess.distanceOf(item), target)
 		return target.found && target.succeeded
 	}
 

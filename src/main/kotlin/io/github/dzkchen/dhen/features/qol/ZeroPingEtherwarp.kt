@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.Dhen
 import io.github.dzkchen.dhen.data.Island
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.event.PacketSendEvent
+import io.github.dzkchen.dhen.features.visual.EtherwarpOverlay
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.EtherwarpGuess
@@ -35,7 +36,7 @@ object ZeroPingEtherwarp : Module(
 		val player = client.player ?: return
 		val item = EtherwarpGuess.etherwarpItem(player.mainHandItem) ?: return
 		if (EtherwarpGuess.requiresSneak(item) && !client.options.keyShift.isDown) return
-		EtherwarpGuess.aimedAtTarget(false, EtherwarpGuess.distanceOf(item), target)
+		EtherwarpGuess.aimedAtTarget(EtherwarpOverlay.previousTickOriginSetting.on, EtherwarpGuess.distanceOf(item), target)
 		if (!target.found || !target.succeeded) return
 
 		val x = target.x + BLOCK_CENTER
