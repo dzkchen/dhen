@@ -70,7 +70,9 @@ object MayorService {
 
 	internal val polling: Boolean get() = pump.polling
 
-	val mayor: Mayor? get() = seated?.mayor
+	internal var simulated: () -> Mayor? = { null }
+
+	val mayor: Mayor? get() = simulated() ?: seated?.mayor
 
 	val minister: String? get() = seated?.minister
 
@@ -87,6 +89,7 @@ object MayorService {
 	val perkpocalypseUntil: Long get() = extraMayorUntil
 
 	fun isPerkActive(perk: String): Boolean {
+		simulated()?.let { return perk in it.perks }
 		val reply = seated
 		if (reply != null && (perk in reply.mayor.perks || perk == reply.ministerPerk)) return true
 		return perk == perkpocalypsePerk

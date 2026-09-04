@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.data.ScoreboardHooks
 import io.github.dzkchen.dhen.data.TabWidgetHooks
 import io.github.dzkchen.dhen.data.TablistHooks
 import io.github.dzkchen.dhen.data.cookie.CookieHooks
+import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.maxwell.MaxwellHooks
 import io.github.dzkchen.dhen.data.party.PartyHooks
@@ -80,6 +81,10 @@ import io.github.dzkchen.dhen.features.qol.ZeroPingEtherwarp
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
+import io.github.dzkchen.dhen.features.dev.CompTest
+import io.github.dzkchen.dhen.features.dev.RenderTest
+import io.github.dzkchen.dhen.features.dev.ScoreboardLogger
+import io.github.dzkchen.dhen.features.dev.Simulation
 import io.github.dzkchen.dhen.features.dungeon.ClassColors
 import io.github.dzkchen.dhen.features.visual.BlockOverlay
 import io.github.dzkchen.dhen.features.visual.Box3D
@@ -170,6 +175,7 @@ import net.minecraft.util.Util
 import net.minecraft.world.InteractionResult
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executor
 import kotlin.coroutines.EmptyCoroutineContext
@@ -342,8 +348,15 @@ object Dhen : ClientModInitializer {
 			SpoofAsVanilla,
 			ChannelSpoofing,
 			ModWhitelist,
-			ServerPackBypass
+			ServerPackBypass,
+			CompTest,
+			RenderTest,
+			ScoreboardLogger,
+			Simulation
 		)
+		SkyBlockLocation.simulated = { Simulation.onSkyBlock }
+		MayorService.simulated = { Simulation.seatedMayor }
+		ScoreboardLogger.openLogsSetting.value = { reveal(ScoreboardLogger.directory()) }
 		modules.enable(ChatTweaks)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
@@ -607,6 +620,18 @@ object Dhen : ClientModInitializer {
 				DhenAlert::endPreview
 			)
 		)
+	}
+
+	private fun reveal(path: Path) {
+		ioScope.launch {
+			val folder = try {
+				Files.createDirectories(path)
+			} catch (e: Exception) {
+				LOGGER.warn("Could not open {}", path, e)
+				return@launch
+			}
+			clientThread.dispatch(EmptyCoroutineContext) { Util.getPlatform().openPath(folder) }
+		}
 	}
 
 	private fun openArcPreview() = clientThread.dispatch(EmptyCoroutineContext) {

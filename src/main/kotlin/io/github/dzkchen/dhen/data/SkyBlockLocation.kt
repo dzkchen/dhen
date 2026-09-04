@@ -9,8 +9,12 @@ object SkyBlockLocation {
 	var onHypixel: Boolean = false
 		private set
 
-	var inSkyBlock: Boolean = false
-		private set
+	private var onIsland: Boolean = false
+
+	internal var simulated: () -> Boolean = { false }
+
+	val inSkyBlock: Boolean
+		get() = onIsland || simulated()
 
 	var island: Island = Island.NONE
 		private set
@@ -43,7 +47,7 @@ object SkyBlockLocation {
 		onHypixel = true
 		this.serverName = serverName
 		this.mode = mode
-		inSkyBlock = skyBlock
+		onIsland = skyBlock
 		isGuest = false
 		unconfirmedIsland = null
 		if (!skyBlock) {
@@ -72,7 +76,7 @@ object SkyBlockLocation {
 
 	internal fun reset() {
 		onHypixel = false
-		inSkyBlock = false
+		onIsland = false
 		island = Island.NONE
 		isGuest = false
 		unconfirmedIsland = null
