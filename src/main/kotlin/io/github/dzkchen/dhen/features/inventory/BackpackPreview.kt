@@ -3,8 +3,7 @@ package io.github.dzkchen.dhen.features.inventory
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
-import io.github.dzkchen.dhen.gui.SLOT_BOX
-import io.github.dzkchen.dhen.gui.SharpGui
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.textTop
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -13,7 +12,6 @@ import net.minecraft.world.item.ItemStack
 internal object BackpackPreview {
 	private const val CELL = 18
 	private const val COLUMNS = 9
-	private const val CELL_INSET = (CELL - SLOT_BOX) / 2
 	private const val SIDE_PAD = 8
 	private const val HEADER_HEIGHT = 18
 	private const val FOOT_PAD = 6
@@ -49,11 +47,7 @@ internal object BackpackPreview {
 		for (index in items.indices) {
 			val x = left + SIDE_PAD + index % COLUMNS * CELL
 			val y = top + HEADER_HEIGHT + index / COLUMNS * CELL
-			SharpGui.fill(graphics, x, y, x + CELL, y + CELL, DhenPalette.SURFACE)
-			val stack = items[index]
-			if (stack.isEmpty) continue
-			graphics.item(stack, x + CELL_INSET, y + CELL_INSET)
-			graphics.itemDecorations(font, stack, x + CELL_INSET, y + CELL_INSET)
+			ItemGui.slot(graphics, font, items[index], x, y, CELL, DhenPalette.SURFACE)
 		}
 	}
 }

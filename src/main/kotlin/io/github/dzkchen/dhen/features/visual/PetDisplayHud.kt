@@ -13,6 +13,7 @@ import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.ui.hud.HudElement
@@ -480,7 +481,7 @@ internal class PetDisplayHud : HudElement("Current Pet", offsetX = 12, offsetY =
 			pose.translate(centerX.toFloat(), centerY.toFloat())
 		pose.rotate(Math.toRadians(zRotation).toFloat())
 			pose.scale(scale * squash(yRotation), scale * squash(xRotation))
-			graphics.item(stack, -ITEM_SIZE / 2, -ITEM_SIZE / 2)
+			ItemGui.stack(graphics, stack, -ITEM_SIZE / 2, -ITEM_SIZE / 2)
 		} finally {
 			pose.popMatrix()
 		}
@@ -514,7 +515,7 @@ internal class PetDisplayHud : HudElement("Current Pet", offsetX = 12, offsetY =
 		try {
 			pose.translate((left + width / 2).toFloat(), (top + height / 2).toFloat())
 			pose.scale(scale.toFloat(), scale.toFloat())
-			graphics.item(stack, -ITEM_SIZE / 2, -ITEM_SIZE / 2)
+			ItemGui.stack(graphics, stack, -ITEM_SIZE / 2, -ITEM_SIZE / 2)
 		} finally {
 			pose.popMatrix()
 		}

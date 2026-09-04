@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.features.inventory
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.LiveWorldScreen
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SharpGui
@@ -64,7 +65,7 @@ internal class AuctionInputScreen(
 			GlassGui.canvas(),
 			DhenPalette.BORDER
 		)
-		graphics.item(stack, centerX - ITEM_HALF, centerY + ITEM_TOP)
+		ItemGui.stack(graphics, stack, centerX - ITEM_HALF, centerY + ITEM_TOP)
 		centeredText(graphics, font, headerMemo, if (undercut) UNDERCUT_HEADER else NORMAL_HEADER, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + HEADER_TOP, DhenPalette.accent, TEXT_PAD)
 		centeredText(graphics, font, marketMemo, marketText, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + MARKET_TOP, DhenPalette.TEXT_SECONDARY, TEXT_PAD)
 		centeredText(graphics, font, statusMemo, statusText, centerX - PANEL_HALF_WIDTH, centerX + PANEL_HALF_WIDTH, centerY + STATUS_TOP, statusColor(), TEXT_PAD)

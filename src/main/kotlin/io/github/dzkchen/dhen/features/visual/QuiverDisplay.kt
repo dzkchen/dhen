@@ -19,6 +19,7 @@ import io.github.dzkchen.dhen.event.IslandChangeEvent
 import io.github.dzkchen.dhen.event.QuiverUpdateEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
@@ -273,7 +274,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
 		val height = height(font)
-		if (iconShown) graphics.item(icon, 0, (height - ICON_SIZE) / 2)
+		if (iconShown) ItemGui.stack(graphics, icon, 0, (height - ICON_SIZE) / 2)
 		memo.shadowed(
 			graphics,
 			font,

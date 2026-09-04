@@ -3,10 +3,10 @@ package io.github.dzkchen.dhen.features.inventory
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.LiveWorldScreen
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SLOT_BOX
-import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.isPrintable
 import io.github.dzkchen.dhen.input.controlHeld
 import io.github.dzkchen.dhen.input.shiftHeld
@@ -365,11 +365,8 @@ internal class StorageOverlayScreen(
 			matching -> InventorySearch.highlightSetting.value.argb
 			else -> DhenPalette.SURFACE_RAISED
 		}
-		SharpGui.fill(graphics, x, y, x + SLOT_BOX, y + SLOT_BOX, backdrop)
-		if (stack.isEmpty) return
-		graphics.item(stack, x, y)
-		graphics.itemDecorations(font, stack, x, y)
-		if (hovered) hoveredStack = stack
+		ItemGui.slot(graphics, font, stack, x, y, SLOT_BOX, backdrop)
+		if (hovered && !stack.isEmpty) hoveredStack = stack
 	}
 
 	private fun drawScrollBar(graphics: GuiGraphicsExtractor) {
@@ -413,8 +410,7 @@ internal class StorageOverlayScreen(
 		hoveredStack = null
 		val carried = if (dragLimit == 0) held else held.copyWithCount(dragLeft)
 		if (carried.isEmpty) return
-		graphics.item(carried, mouseX - CARRIED_HALF, mouseY - CARRIED_HALF)
-		graphics.itemDecorations(font, carried, mouseX - CARRIED_HALF, mouseY - CARRIED_HALF)
+		ItemGui.decorated(graphics, font, carried, mouseX - CARRIED_HALF, mouseY - CARRIED_HALF)
 	}
 
 	private fun measureDrag() {

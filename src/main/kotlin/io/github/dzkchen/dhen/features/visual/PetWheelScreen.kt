@@ -18,6 +18,7 @@ import io.github.dzkchen.dhen.features.inventory.clickSlot
 import io.github.dzkchen.dhen.gui.ArcGui
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.gui.TextMemo
@@ -652,7 +653,7 @@ internal class PetWheelScreen {
 		try {
 			pose.translate(x, y)
 			pose.scale(scale, scale)
-			graphics.item(stack, -ITEM_HALF, -ITEM_HALF)
+			ItemGui.stack(graphics, stack, -ITEM_HALF, -ITEM_HALF)
 		} finally {
 			pose.popMatrix()
 		}

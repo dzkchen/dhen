@@ -10,9 +10,14 @@ class DhenShapeTest {
 	}
 
 	@Test
-	fun `the other two ways of putting a pixel on screen stay where the inventory says they are`() {
+	fun `the retained element and texture routes stay where the inventory says they are`() {
 		assertOnly(PRIMITIVE_SEAMS, RENDER_ELEMENT, "A new drawing tier belongs beside the ones already there")
 		assertOnly(setOf(SPLASH_SEAM), TEXTURE, "Only the boot overlay draws a texture, and only its baked mark")
+	}
+
+	@Test
+	fun `no dhen surface draws an item stack outside the item seam`() {
+		assertOnly(setOf(ITEM_SEAM), VANILLA_ITEM, "An item stack and its count belong to $ITEM_SEAM")
 	}
 
 	private fun assertOnly(seams: Set<String>, pattern: Regex, complaint: String) {
@@ -36,10 +41,12 @@ class DhenShapeTest {
 	private companion object {
 		const val SEAM = "SharpGui.kt"
 		const val SPLASH_SEAM = "LoadingSplash.kt"
+		const val ITEM_SEAM = "ItemGui.kt"
 		val PRIMITIVE_SEAMS = setOf("RoundedGui.kt", "GradientGui.kt", "ArcGui.kt")
 		val VANILLA_RECTANGLE =
 			Regex("""graphics\.(fill|fillGradient|outline|horizontalLine|verticalLine)\(""")
 		val RENDER_ELEMENT = Regex("""addGuiElement\(""")
 		val TEXTURE = Regex("""graphics\.blit\(""")
+		val VANILLA_ITEM = Regex("""graphics\.(item|fakeItem|itemDecorations)\(""")
 	}
 }
