@@ -51,6 +51,7 @@ import io.github.dzkchen.dhen.features.privacy.ServerPackBypass
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
+import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
@@ -79,6 +80,7 @@ import io.github.dzkchen.dhen.features.dungeon.ClassColors
 import io.github.dzkchen.dhen.features.visual.Box3D
 import io.github.dzkchen.dhen.features.visual.DamageSplash
 import io.github.dzkchen.dhen.features.visual.EntityHighlight
+import io.github.dzkchen.dhen.features.visual.GyroHelper
 import io.github.dzkchen.dhen.features.visual.HidePlayers
 import io.github.dzkchen.dhen.features.visual.MaskTimers
 import io.github.dzkchen.dhen.features.visual.MobHighlight
@@ -86,6 +88,7 @@ import io.github.dzkchen.dhen.features.visual.NametagTweaks
 import io.github.dzkchen.dhen.features.visual.RenderOptimizer
 import io.github.dzkchen.dhen.features.visual.MoveableVanillaHud
 import io.github.dzkchen.dhen.features.visual.PetDisplay
+import io.github.dzkchen.dhen.features.visual.PlayerSize
 import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.QuiverDisplay
 import io.github.dzkchen.dhen.features.visual.RevertAxes
@@ -271,6 +274,7 @@ object Dhen : ClientModInitializer {
 		modules.registerAll(
 			AutoSprint,
 			ArrowFix,
+			NoCursorReset,
 			NoItemPlace,
 			PickupLog,
 			ChatTweaks,
@@ -302,12 +306,14 @@ object Dhen : ClientModInitializer {
 			CustomScoreboard,
 			DamageSplash,
 			EntityHighlight,
+			GyroHelper,
 			HidePlayers,
 			MaskTimers,
 			MobHighlight,
 			NametagTweaks,
 			MoveableVanillaHud,
 			PetDisplay,
+			PlayerSize,
 			PlayerStatsHud,
 			QuiverDisplay,
 			RenderOptimizer,

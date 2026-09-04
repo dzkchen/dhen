@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.mixin;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.dzkchen.dhen.features.visual.NametagTweaks;
+import io.github.dzkchen.dhen.features.visual.PlayerSize;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.Avatar;
@@ -26,6 +28,18 @@ public abstract class AvatarRendererMixin {
 		if (entity instanceof Player && NametagTweaks.forcesNametags()) {
 			state.isDiscrete = false;
 		}
+	}
+
+	@Inject(
+		method = "scale(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V",
+		at = @At("HEAD")
+	)
+	private void dhen$scaleOwnAvatar(
+		final AvatarRenderState state,
+		final PoseStack pose,
+		final CallbackInfo callback
+	) {
+		PlayerSize.scaleOwnAvatar(state, pose);
 	}
 
 	@Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("HEAD"), cancellable = true)
