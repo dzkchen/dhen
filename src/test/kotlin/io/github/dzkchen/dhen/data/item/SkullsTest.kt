@@ -22,6 +22,7 @@ class SkullsTest {
 		assertEquals("2f24ed6875304fa4a1f0c785b2cb6a6a72563e9f3e24ea55e18178452119aa66", skinOf("DUNGEONS_SOUL_WEAVER"))
 		assertEquals("5ee4bb4821d0f5ed865c21090a80b5ee7d52268476ee25d389710f7cc9f110d6", skinOf("DUNGEONS_ABILITY_ORB"))
 		assertEquals("1578b4af3fdd9151b850b13c67c4580224c7f60052713f2d151f7c15dc0d7b34", skinOf("DUNGEONS_SUPPORT_ORB"))
+		assertEquals("db896580c7c34463298741b6607ad563332a1a4d0e89f7d75acdf79937a0e772", skinOf("LESSER_ORB"))
 	}
 
 	private fun skinOf(name: String): String {

@@ -17,6 +17,7 @@ import io.github.dzkchen.dhen.event.WorldChange
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.privacy.PackControls
 import io.github.dzkchen.dhen.privacy.PackOverrides
 import io.github.dzkchen.dhen.privacy.PrivacyLog
 import io.github.dzkchen.dhen.privacy.ServerPackCache
@@ -83,6 +84,32 @@ object ServerPackBypass : Module(
 			"both choices give you vanilla's."
 	)
 
+	private var unpinning by BooleanSetting(
+		"Unpin Resource Packs",
+		description = "Lets you move a server's pack in the Resource Packs screen, and keeps an optional one unselected " +
+			"once you drag it out instead of the game putting it straight back."
+	)
+
+	private var sinkingHypixelPack by BooleanSetting(
+		"Load Hypixel Pack First",
+		description = "Puts Hypixel's own pack at the bottom of the list, so your own packs draw over the top of it."
+	)
+
+	private var serverPacksFirst by BooleanSetting(
+		"Load Server Packs First",
+		description = "Loads every server-sent pack before your own, so your own packs win wherever the two overlap."
+	)
+
+	private var skippingMismatchScreen by BooleanSetting(
+		"Skip Pack Version Warning",
+		description = "Selects a pack built for another game version straight away, instead of asking you to confirm."
+	)
+
+	private var ignoringCompatibility by BooleanSetting(
+		"Ignore Pack Version Entirely",
+		description = "Treats every pack as built for this version, so nothing is marked out of date anywhere."
+	)
+
 	private var storedWhitelist by StringSetting("Model Whitelist").hide()
 
 	private var readWhitelist = ""
@@ -95,6 +122,7 @@ object ServerPackBypass : Module(
 	init {
 		on<GuiOpenEvent> { if (it.screen is ConnectScreen) TrackPackDetector.reset() }
 		on<ClientTickEvent.End> {
+			publish()
 			val client = Minecraft.getInstance()
 			ShaderStripTracker.flushPending(client.player != null)
 			ServerPackConsentScreen.tryShow(client)
@@ -103,7 +131,10 @@ object ServerPackBypass : Module(
 		on<WorldChangeEvent> {
 			when (it.phase) {
 				WorldChange.JOIN -> tableWait = 0
-				WorldChange.DISCONNECT -> ServerPacks.forgetAll()
+				WorldChange.DISCONNECT -> {
+					PackControls.forgetSelections()
+					ServerPacks.forgetAll()
+				}
 				else -> Unit
 			}
 		}
@@ -128,6 +159,7 @@ object ServerPackBypass : Module(
 		applyShaders(Minecraft.getInstance())
 		tableWait = 0
 		PackOverrides.forgetProfiles()
+		PackControls.forgetSelections()
 		ServerPacks.forgetAll()
 		TrackPackDetector.reset()
 	}
@@ -139,6 +171,11 @@ object ServerPackBypass : Module(
 	private fun publish() {
 		ServerPacks.mode = ServerPacks.effectiveMode(enabled, chosenMode)
 		PackOverrides.reverting = reverts()
+		PackControls.unpinning = enabled && unpinning
+		PackControls.sinkingHypixelPack = enabled && sinkingHypixelPack
+		PackControls.serverPacksFirst = enabled && serverPacksFirst
+		PackControls.skippingMismatchScreen = enabled && skippingMismatchScreen
+		PackControls.ignoringCompatibility = enabled && ignoringCompatibility
 	}
 
 	private fun republish(client: Minecraft) {
