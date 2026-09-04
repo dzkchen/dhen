@@ -35,6 +35,7 @@
 		"FontManagerMixin",
 		"FallbackResourceManagerMixin",
 		"FluidStateModelSetMixin",
+		"FontMixin",
 		"GuiMixin",
 		"GuiGraphicsExtractorMixin",
 		"GameRendererMixin",

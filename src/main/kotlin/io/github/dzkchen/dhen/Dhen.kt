@@ -99,6 +99,7 @@ import io.github.dzkchen.dhen.features.visual.PlayerStatsHud
 import io.github.dzkchen.dhen.features.visual.QuiverDisplay
 import io.github.dzkchen.dhen.features.visual.RevertAxes
 import io.github.dzkchen.dhen.features.visual.TabWidgetDisplay
+import io.github.dzkchen.dhen.features.visual.TextReplacer
 import io.github.dzkchen.dhen.features.visual.TimeChanger
 import io.github.dzkchen.dhen.features.visual.UtilityHuds
 import io.github.dzkchen.dhen.features.visual.VisualTweaks
@@ -125,6 +126,7 @@ import io.github.dzkchen.dhen.module.ModuleNotifier
 import io.github.dzkchen.dhen.render.EntityHighlights
 import io.github.dzkchen.dhen.render.WorldRenderTypes
 import io.github.dzkchen.dhen.sound.SoundManager
+import io.github.dzkchen.dhen.text.TextRewrite
 import io.github.dzkchen.dhen.theme.ThemeRuntime
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudEditorScreen
@@ -264,6 +266,7 @@ object Dhen : ClientModInitializer {
 			themes = themes,
 			chatHider = ChatTweaks,
 			commandAliases = ChatMacros,
+			textReplacer = TextReplacer,
 			utilities = Commands,
 			hud = hudCommands,
 			sounds = soundCommands,
@@ -331,6 +334,7 @@ object Dhen : ClientModInitializer {
 			RenderOptimizer,
 			RevertAxes,
 			TabWidgetDisplay,
+			TextReplacer,
 			TimeChanger,
 			UtilityHuds,
 			VisualTweaks,
@@ -511,6 +515,7 @@ object Dhen : ClientModInitializer {
 		contained("mayor feed", MayorService::uninstall)
 		contained("player profiles", PlayerProfiles::uninstall)
 		contained("sound manager", SoundManager::uninstall)
+		contained("text rewrite", TextRewrite::uninstall)
 	}
 
 	internal fun contained(label: String, teardown: () -> Unit) {

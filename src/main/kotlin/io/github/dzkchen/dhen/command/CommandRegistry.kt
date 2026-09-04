@@ -29,6 +29,7 @@ class CommandRegistry<S>(
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val chatHider: ChatHiderCommands = ChatHiderCommands.NONE,
 	private val commandAliases: CommandAliasCommands = CommandAliasCommands.NONE,
+	private val textReplacer: TextReplacerCommands = TextReplacerCommands.NONE,
 	private val utilities: CommandUtilities = CommandUtilities.NONE,
 	private val hud: HudCommands = HudCommands.NONE,
 	private val sounds: SoundCommands = SoundCommands.NONE,
@@ -113,6 +114,7 @@ class CommandRegistry<S>(
 			.then(themeCommand())
 			.then(chatHiderCommand())
 			.then(aliasCommand())
+			.then(replaceCommand())
 			.then(debugCommand())
 
 	private fun chatHiderCommand(): LiteralArgumentBuilder<S> =
@@ -130,6 +132,36 @@ class CommandRegistry<S>(
 					argument<S, String>("pattern", StringArgumentType.greedyString())
 						.suggests(suggesting(chatHider::patterns))
 						.executes { context -> stored(context.source, chatHider.remove(pattern(context))) }
+				)
+			)
+
+	private fun replaceCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("replace")
+			.executes { context -> reportAll(context.source, textReplacer.list()) }
+			.then(literal<S>("list").executes { context -> reportAll(context.source, textReplacer.list()) })
+			.then(
+				literal<S>("add").then(
+					argument<S, String>("find", StringArgumentType.string()).then(
+						argument<S, String>("replacement", StringArgumentType.greedyString())
+							.executes { context ->
+								stored(
+									context.source,
+									textReplacer.add(
+										StringArgumentType.getString(context, "find"),
+										StringArgumentType.getString(context, "replacement")
+									)
+								)
+							}
+					)
+				)
+			)
+			.then(
+				literal<S>("remove").then(
+					argument<S, String>("find", StringArgumentType.string())
+						.suggests(suggesting(textReplacer::finds))
+						.executes { context ->
+							stored(context.source, textReplacer.remove(StringArgumentType.getString(context, "find")))
+						}
 				)
 			)
 
@@ -377,6 +409,24 @@ class CommandRegistry<S>(
 					.then(deepMode("off", false))
 			)
 			.then(literal<S>("arc").executes { context -> report(context.source, previews.openArcPreview()) })
+			.then(
+				literal<S>("names")
+					.executes { context -> report(context.source, textReplacer.clearNames()) }
+					.then(
+						argument<S, String>("name", StringArgumentType.word()).then(
+							argument<S, String>("replacement", StringArgumentType.greedyString())
+								.executes { context ->
+									report(
+										context.source,
+										textReplacer.name(
+											StringArgumentType.getString(context, "name"),
+											StringArgumentType.getString(context, "replacement")
+										)
+									)
+								}
+						)
+					)
+			)
 			.then(literal<S>("alert").executes { context -> report(context.source, previews.showAlert()) })
 			.then(literal<S>("notify").executes { context -> report(context.source, previews.showNotice()) })
 			.then(literal<S>("worldrender").executes { context -> report(context.source, previews.toggleWorldRender()) })
