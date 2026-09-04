@@ -38,6 +38,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.BowItem
+import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
@@ -242,7 +243,8 @@ internal class QuiverEquipment {
 internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12, offsetY = 28) {
 	private val memo = DhenType.memo()
 	private var shown = DhenType.component("None").copy().withStyle(ChatFormatting.GRAY)
-	private var icon = ItemStack(Items.ARROW)
+	private var iconItem: Item = Items.ARROW
+	private var icon: ItemStack? = null
 	private var iconShown = true
 	private var arrow: QuiverArrow? = null
 	private var amount = 0
@@ -256,7 +258,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 		get() = shown.string
 
 	internal val shownIcon: ItemStack
-		get() = icon
+		get() = iconStack()
 
 	internal val shownNameColor: Int?
 		get() = shown.siblings.lastOrNull()?.getStyle()?.color?.value
@@ -274,7 +276,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
 		val height = height(font)
-		if (iconShown) ItemGui.stack(graphics, icon, 0, (height - ICON_SIZE) / 2)
+		if (iconShown) ItemGui.stack(graphics, iconStack(), 0, (height - ICON_SIZE) / 2)
 		memo.shadowed(
 			graphics,
 			font,
@@ -332,7 +334,8 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 			DhenType.component(name).copy()
 				.withStyle(ChatFormatting.getByCode(rarity.colorCode[1]) ?: ChatFormatting.GRAY)
 		)
-		icon = stack(repoItem)
+		iconItem = iconFor(repoItem)
+		icon = null
 		memo.invalidate()
 		rebuilds++
 	}
@@ -350,10 +353,11 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 
 	private fun textLeft(): Int = if (iconShown) ICON_SIZE + ICON_GAP else 0
 
-	private fun stack(item: RepoItem?): ItemStack {
+	private fun iconStack(): ItemStack = icon ?: ItemStack(iconItem).also { icon = it }
+
+	private fun iconFor(item: RepoItem?): Item {
 		val identifier = item?.itemId?.let(Identifier::tryParse)
-		val vanilla = identifier?.let { BuiltInRegistries.ITEM.getOptional(it).orElse(null) } ?: Items.ARROW
-		return ItemStack(vanilla)
+		return identifier?.let { BuiltInRegistries.ITEM.getOptional(it).orElse(null) } ?: Items.ARROW
 	}
 
 	private fun rarity(item: RepoItem?): ItemRarity {

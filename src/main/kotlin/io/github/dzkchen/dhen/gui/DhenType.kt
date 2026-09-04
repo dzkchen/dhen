@@ -95,6 +95,17 @@ internal inline fun wrapPoint(text: String, maxWidth: Int, measure: (String) -> 
 	return if (breakAfter > 0) breakAfter else cut
 }
 
+internal inline fun wrapFloor(text: String, measure: (String) -> Int): Int {
+	var narrowest = measure(text)
+	var space = text.indexOf(' ')
+	while (space > 0) {
+		val widest = maxOf(measure(text.substring(0, space)), measure(text.substring(space + 1)))
+		if (widest < narrowest) narrowest = widest
+		space = text.indexOf(' ', space + 1)
+	}
+	return narrowest
+}
+
 private fun measure(font: Font, component: Component): Int = font.width(component.visualOrderText)
 
 private fun measure(font: Font, text: String): Int = measure(font, DhenType.component(text))

@@ -166,6 +166,7 @@ import net.fabricmc.fabric.api.resource.v1.ResourceLoader
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
@@ -661,16 +662,18 @@ object Dhen : ClientModInitializer {
 		announcements.flush(player::sendSystemMessage)
 	}
 
+	private fun guiIfBuilt(): Gui? = Minecraft.getInstance().gui
+
 	private fun invalidateTextMeasurements() {
 		DhenType.invalidateMeasurements()
 		Notifications.invalidateMeasurements()
 		hudRuntime.invalidateMeasurements()
-		(Minecraft.getInstance().gui.screen() as? ClickGuiShellScreen)?.invalidateMeasurements()
+		(guiIfBuilt()?.screen() as? ClickGuiShellScreen)?.invalidateMeasurements()
 	}
 
 	private fun fontChanged() {
 		invalidateTextMeasurements()
-		Minecraft.getInstance().gui.hud.chat.rescaleChat()
+		guiIfBuilt()?.hud?.chat?.rescaleChat()
 	}
 
 	private fun resetHudLayout(): Int {

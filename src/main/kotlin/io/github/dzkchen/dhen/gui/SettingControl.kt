@@ -34,7 +34,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 	private val memos = mutableListOf<TextMemo>()
 
 	protected val valueText = memo()
-	private val labelFloorText = memo()
+	private val labelFloor = WrapFloor()
 	private val labelWrap = DhenType.wrap()
 	private var pillSpan = 0
 	private var valueSpan = 0
@@ -93,8 +93,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 		reserveSpan = caretReserve
 		trailingSpan = trailing
 		val fullValueWidth = maxOf(valueText.width(font, sizingValue), claimedValueWidth)
-		val labelFloor = labelFloorText.width(font, ELLIPSIS)
-		valueSpan = pillValueRoom(width, fullValueWidth, labelFloor, trailing, reserveSpan)
+		valueSpan = pillValueRoom(width, fullValueWidth, labelFloor.width(font, setting.name), trailing, reserveSpan)
 		pillSpan = pillWidth(valueSpan, trailing, reserveSpan, width)
 		return labelRoom(width, pillSpan)
 	}
@@ -169,6 +168,7 @@ internal sealed class SettingControl(private val setting: Setting<*>) {
 
 	fun invalidateMeasurement() {
 		for (i in memos.indices) memos[i].invalidate()
+		labelFloor.invalidate()
 		labelWrap.invalidate()
 		onInvalidateMeasurement()
 	}
@@ -236,14 +236,32 @@ internal fun textTop(font: Font, y: Int, height: Int): Int = y + (height - DhenT
 
 internal fun labelRoom(width: Int, occupied: Int): Int = width - CONTROL_TEXT_INSET - LABEL_GAP - occupied
 
-internal fun pillValueRoom(width: Int, valueWidth: Int, labelFloor: Int, trailing: Int, reserve: Int): Int =
-	minOf(
-		maxOf(valueWidth, 0),
-		maxOf(width - CONTROL_TEXT_INSET - LABEL_GAP - labelFloor - 2 * PILL_PAD - trailing - reserve, 0)
-	)
+internal fun pillValueRoom(width: Int, valueWidth: Int, labelFloor: Int, trailing: Int, reserve: Int): Int {
+	val shared = maxOf(width - CONTROL_TEXT_INSET - LABEL_GAP - 2 * PILL_PAD - trailing - reserve, 0)
+	return minOf(maxOf(valueWidth, 0), maxOf(shared - maxOf(labelFloor, 0), shared / 2))
+}
 
 internal fun pillWidth(valueRoom: Int, trailing: Int, reserve: Int, width: Int): Int =
 	minOf(maxOf(valueRoom, 0) + trailing + reserve + 2 * PILL_PAD, maxOf(width, 0))
+
+internal class WrapFloor {
+	private var source: String? = null
+	private var revision = Int.MIN_VALUE
+	private var floor = 0
+
+	fun width(font: Font, text: String): Int {
+		val current = DhenFont.revision
+		if (text == source && revision == current) return floor
+		source = text
+		revision = current
+		floor = wrapFloor(text) { DhenType.width(font, it) }
+		return floor
+	}
+
+	fun invalidate() {
+		source = null
+	}
+}
 
 internal class WidestText {
 	private val memo = DhenType.memo()
