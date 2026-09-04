@@ -107,6 +107,7 @@ class CommandRegistry<S>(
 			.then(sendPingCommand())
 			.then(waypointCommand())
 			.then(wikiCommand())
+			.then(calcCommand())
 			.then(literal<S>("wikithis").executes { context -> report(context.source, utilities.heldItemWiki()) })
 			.then(literal<S>("lastopened").executes { context -> report(context.source, utilities.openLastStorage()) })
 			.then(literal<S>("link").executes { context -> report(context.source, utilities.link()) })
@@ -320,6 +321,15 @@ class CommandRegistry<S>(
 		feedback(source, DhenType.overWorld(message))
 		return Command.SINGLE_SUCCESS
 	}
+
+	private fun calcCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("calc")
+			.executes { context -> report(context.source, utilities.calculate("")) }
+			.then(
+				argument<S, String>("expression", StringArgumentType.greedyString()).executes { context ->
+					report(context.source, utilities.calculate(StringArgumentType.getString(context, "expression")))
+				}
+			)
 
 	private fun wikiCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("wiki")

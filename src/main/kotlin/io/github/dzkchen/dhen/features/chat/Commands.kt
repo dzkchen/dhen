@@ -21,6 +21,8 @@ import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.util.Calculated
+import io.github.dzkchen.dhen.util.Calculator
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ConfirmLinkScreen
 import net.minecraft.client.player.RemotePlayer
@@ -239,6 +241,19 @@ object Commands : Module(
 		return "Opening $address."
 	}
 
+	override fun calculate(expression: String): String {
+		if (expression.isBlank()) return "Type a sum after the command, for example /dhen calc 3 * 1.5m."
+		return when (val outcome = Calculator.evaluate(expression)) {
+			is Calculated.Value -> {
+				Calculator.remember(outcome.amount)
+				"$expression = ${Calculator.display(outcome.amount, CALC_DECIMALS)}"
+			}
+
+			is Calculated.Incomplete -> "That sum is not finished."
+			is Calculated.Invalid -> outcome.message
+		}
+	}
+
 	private fun completing(event: TabCompletionEvent) {
 		if (!SkyBlockLocation.onHypixel) return
 		if (event.command.indexOf(' ') < 0) {
@@ -301,7 +316,10 @@ object Commands : Module(
 	}
 
 	private fun worldChanged(event: WorldChangeEvent) {
-		if (event.phase == WorldChange.DISCONNECT) SocialRosters.forget()
+		if (event.phase == WorldChange.DISCONNECT) {
+			SocialRosters.forget()
+			Calculator.forget()
+		}
 		if (event.phase != WorldChange.JOIN) return
 		repoHold.ensure()
 		worldChangedMillis = Util.getMillis()
@@ -442,6 +460,7 @@ object Commands : Module(
 	private const val ISLAND = "is"
 	private const val REOPEN_MARK = "-"
 	private const val FALLBACK_STORAGE = "ec"
+	private const val CALC_DECIMALS = 2
 	private const val FIRST_PAGE = 1
 	private const val JERRY_WARP = "jerry"
 	private const val BARN_WARP = "barn"

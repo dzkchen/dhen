@@ -11,6 +11,8 @@ interface CommandUtilities {
 
 	fun link(): String
 
+	fun calculate(expression: String): String
+
 	companion object {
 		const val UNAVAILABLE = "The command helpers are not available."
 
@@ -24,6 +26,8 @@ interface CommandUtilities {
 			override fun heldItemWiki(): String = UNAVAILABLE
 
 			override fun link(): String = UNAVAILABLE
+
+			override fun calculate(expression: String): String = UNAVAILABLE
 		}
 	}
 }

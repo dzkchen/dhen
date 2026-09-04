@@ -65,6 +65,8 @@ object ItemRepo {
 
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)
 
+	fun searchNames(): List<SearchName> = catalog.searchNames
+
 	fun stack(id: String): ItemStack? = catalog.stack(id)
 
 	fun ingredientStack(id: String): ItemStack = catalog.ingredientStack(id)

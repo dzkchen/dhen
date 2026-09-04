@@ -12,4 +12,7 @@ public interface AbstractSignEditScreenAccessor {
 
 	@Accessor("isFrontText")
 	boolean dhenFrontText();
+
+	@Accessor("messages")
+	String[] dhenMessages();
 }

@@ -16,6 +16,8 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.streams.asSequence
 
+class SearchName internal constructor(val label: String, val lowercase: String, val id: String)
+
 class RepoItem(
 	val id: String,
 	val itemId: String,
@@ -58,8 +60,16 @@ class ItemCatalog private constructor(
 
 	fun recipeCount(kind: RecipeKind): Int = byId.values.sumOf { item -> item.recipes.count { it.kind == kind } }
 
+	val searchNames: List<SearchName> by lazy {
+		byId.values.mapNotNull { item ->
+			val label = withoutCodes(item.displayName).removePrefix(PET_LEVEL_PREFIX).trim()
+			if (label.isEmpty()) null else SearchName(label, label.lowercase(Locale.ROOT), item.id)
+		}
+	}
+
 	internal companion object {
 		private const val JSON = ".json"
+		private const val PET_LEVEL_PREFIX = "[Lvl {LVL}] "
 		private const val ITEMS = "items"
 		private const val CONSTANTS = "constants"
 		private const val MAX_FAILURE_RATE = 0.05

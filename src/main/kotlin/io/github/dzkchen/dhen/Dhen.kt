@@ -63,6 +63,10 @@ import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
 import io.github.dzkchen.dhen.features.inventory.AuctionPriceInput
+import io.github.dzkchen.dhen.features.inventory.CompactorPreview
+import io.github.dzkchen.dhen.features.inventory.EquipmentSlots
+import io.github.dzkchen.dhen.features.inventory.SearchOverlay
+import io.github.dzkchen.dhen.features.inventory.SignCalculator
 import io.github.dzkchen.dhen.features.inventory.ChickenHeadTimer
 import io.github.dzkchen.dhen.features.inventory.CrownOfAvarice
 import io.github.dzkchen.dhen.features.inventory.FireFreeze
@@ -319,11 +323,15 @@ object Dhen : ClientModInitializer {
 			SlotBinding,
 			SlotText,
 			ValueBreakdown,
+			CompactorPreview,
+			EquipmentSlots,
 			WikiLookup,
 			WardrobeKeybinds,
 			PetKeybinds,
 			LoadoutKeybinds,
 			AuctionPriceInput,
+			SearchOverlay,
+			SignCalculator,
 			StorageOverlay,
 			Animations,
 			BlockOverlay,
