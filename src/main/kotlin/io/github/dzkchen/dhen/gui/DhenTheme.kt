@@ -56,6 +56,21 @@ internal data class DhenTheme(
 		val HYPIXEL_ULTIMATE = 0xFFD13228u.toInt()
 		val HYPIXEL_SPECIAL = 0xFFFF5555u.toInt()
 
+		val SLOT_CREAM = 0xFFFFDDC1u.toInt()
+		val SLOT_GOLD = 0xFFE5B80Bu.toInt()
+		val SLOT_BLUE = 0xFF74C7ECu.toInt()
+		val SLOT_RED = 0xFFFF7276u.toInt()
+		val SLOT_GREEN = 0xFF90EE90u.toInt()
+		val SLOT_ORANGE = 0xFFFAB387u.toInt()
+		val SLOT_YELLOW = 0xFFF9E2AFu.toInt()
+		val SLOT_PURPLE = 0xFFCBA6F7u.toInt()
+		val SLOT_CLAIM = 0xFFA6E3A1u.toInt()
+		val SLOT_CHIP_TEN = 0xFF1D8DE8u.toInt()
+		val SLOT_CHIP_FIFTEEN = 0xFFA40BE2u.toInt()
+		val SLOT_TOOLKIT = 0xFFFF5555u.toInt()
+		val SLOT_ENCHANT = 0xFF5555FFu.toInt()
+		val SLOT_ULTIMATE = 0xFFFF55FFu.toInt()
+
 		val DEFAULT = DhenTheme()
 
 		val LIGHT = DhenTheme(

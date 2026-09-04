@@ -7,7 +7,14 @@ import kotlin.math.roundToInt
 
 internal const val SLOT_BOX = 16
 
+internal const val SLOT_TOP_LEFT = 0
+internal const val SLOT_TOP_RIGHT = 1
+internal const val SLOT_BOTTOM_LEFT = 2
+internal const val SLOT_BOTTOM_RIGHT = 3
+internal const val SLOT_CORNERS = 4
+
 private const val SLOT_EDGE = 1
+private const val SLOT_BASELINE_LIFT = 2
 
 internal object SlotTint {
 	private var open = false
@@ -59,6 +66,29 @@ internal fun slotText(
 	val font = Minecraft.getInstance().font
 	val width = memo?.width(font, text) ?: DhenType.width(font, text)
 	slotMark(graphics, font, text, right - (width * scale).roundToInt(), top, scale, color, memo)
+}
+
+internal fun slotCornerText(
+	graphics: GuiGraphicsExtractor,
+	text: String,
+	x: Int,
+	y: Int,
+	corner: Int,
+	color: Int
+) {
+	val font = Minecraft.getInstance().font
+	val width = DhenType.width(font, text)
+	if (width <= 0) return
+	val scale = if (width > SLOT_BOX) SLOT_BOX.toFloat() / width else 1f
+	val right = corner == SLOT_TOP_RIGHT || corner == SLOT_BOTTOM_RIGHT
+	val bottom = corner == SLOT_BOTTOM_LEFT || corner == SLOT_BOTTOM_RIGHT
+	val left = if (right) x + SLOT_BOX - (width * scale).roundToInt() else x
+	val top = if (bottom) {
+		y + SLOT_BOX - ((DhenType.lineHeight(font) - SLOT_BASELINE_LIFT) * scale).roundToInt()
+	} else {
+		y
+	}
+	slotMark(graphics, font, text, left, top, scale, color)
 }
 
 internal fun slotCenteredText(

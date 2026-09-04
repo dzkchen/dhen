@@ -19,9 +19,21 @@ internal object PriceTables {
 
 	val PET_TIERS = arrayOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
 
-	fun lowestBins(body: String): Map<String, Double> = cheapest(body) { it.replace(':', '-') }
+	fun lowestBins(body: String): Map<String, Double> = cheapest(body) { key, file -> file(key.replace(':', '-')) }
 
-	fun neuLowestBins(body: String): Map<String, Double> = cheapest(body, ::neuMarketId)
+	fun neuLowestBins(body: String): Map<String, Double> = cheapest(body) { key, file ->
+		neuMarketId(key)?.let(file)
+		neuBookId(key)?.let(file)
+	}
+
+	fun neuBookId(key: String): String? {
+		val name = key.substringBefore(';')
+		if (name.isEmpty() || name.startsWith(POTION_NAME) || name.endsWith(RUNE_NAME) || name.startsWith(SHARD_NAME)) {
+			return null
+		}
+		val level = key.substringAfter(';', "").substringBefore('+').toIntOrNull() ?: return null
+		return if (level <= 0) null else "$BOOK-$name-$level"
+	}
 
 	fun npcPrices(body: String): Map<String, Double> {
 		val items = JsonParser.parseString(body).asJsonObject.array("items") ?: return emptyMap()
@@ -74,14 +86,15 @@ internal object PriceTables {
 		return if (attribute.isEmpty() || level <= 0) null else "$ATTRIBUTE_SHARD-$attribute-$level"
 	}
 
-	private inline fun cheapest(body: String, marketId: (String) -> String?): Map<String, Double> {
+	private inline fun cheapest(body: String, ids: (String, (String) -> Unit) -> Unit): Map<String, Double> {
 		val json = JsonParser.parseString(body).asJsonObject
 		val prices = HashMap<String, Double>(json.size())
 		for (key in json.keySet()) {
 			val price = json.number(key) ?: continue
-			val id = marketId(key) ?: continue
-			val held = prices[id]
-			if (held == null || price < held) prices[id] = price
+			ids(key) { id ->
+				val held = prices[id]
+				if (held == null || price < held) prices[id] = price
+			}
 		}
 		return prices
 	}

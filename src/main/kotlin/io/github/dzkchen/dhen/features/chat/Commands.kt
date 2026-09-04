@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.WikiLinks
 import io.github.dzkchen.dhen.data.social.SocialRosters
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.MessageSendEvent
@@ -25,8 +26,6 @@ import net.minecraft.client.gui.screens.ConfirmLinkScreen
 import net.minecraft.client.player.RemotePlayer
 import net.minecraft.util.Util
 import java.net.URI
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 import kotlin.math.ceil
 
@@ -215,9 +214,8 @@ object Commands : Module(
 
 	override fun wiki(search: String): String {
 		if (!enabled) return SWITCHED_OFF
-		if (search.isEmpty()) return offerLink("Open the SkyBlock wiki.", WIKI_ROOT)
-		val encoded = URLEncoder.encode(search, StandardCharsets.UTF_8)
-		return offerLink("Look up $search on the SkyBlock wiki.", "$WIKI_SEARCH$encoded$WIKI_SCOPE")
+		if (search.isEmpty()) return offerLink("Open the SkyBlock wiki.", WikiLinks.ROOT)
+		return offerLink("Look up $search on the SkyBlock wiki.", WikiLinks.search(search))
 	}
 
 	override fun heldItemWiki(): String {
@@ -371,7 +369,7 @@ object Commands : Module(
 
 	private fun offerLink(text: String, url: String): String {
 		if (openWikiLinks) {
-			Util.getPlatform().openUri(url)
+			launch { WikiLinks.open(url) }
 			return "Opening the wiki."
 		}
 		Minecraft.getInstance().player?.sendSystemMessage(DhenType.linkedOverWorld(text, URI.create(url)))
@@ -451,9 +449,6 @@ object Commands : Module(
 	private const val COOLDOWN_MARK = "only use this command"
 	private const val SWITCHED_OFF = "Switch the Commands module on to use this."
 	private const val NOT_IN_WORLD = "You are not in a world."
-	private const val WIKI_ROOT = "https://hypixelskyblock.minecraft.wiki"
-	private const val WIKI_SEARCH = "https://hypixelskyblock.minecraft.wiki/index.php?search="
-	private const val WIKI_SCOPE = "&scope=internal"
 	private const val REAL_PLAYER_UUID_VERSION = 4
 	private const val COOLDOWN_TICKS = 60
 	private const val MILLIS_PER_SECOND = 1000L

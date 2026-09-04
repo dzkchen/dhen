@@ -23,6 +23,7 @@ class Valuation internal constructor(val total: Double, val base: Double, val br
 }
 
 object ItemValue {
+	private const val CRAFT_FLOOR = "(craft cost)"
 	private const val ENCHANTED_BOOK = "ENCHANTED_BOOK"
 	private const val BOOK_BUNDLE = "ENCHANTED_BOOK_BUNDLE_"
 	private const val SKYBLOCK_COIN = "SKYBLOCK_COIN"
@@ -408,14 +409,17 @@ object ItemValue {
 		fun entry(marketId: String, count: Int = 1, label: String = displayName(marketId)): Double =
 			priced(if (count > 1) "$label x$count" else label, price(marketId) * count)
 
-		fun base(marketId: String, label: String): Double = priced(label, floored(marketId))
-
-		private fun floored(marketId: String): Double {
-			val npc = Prices.priceOr(item.id, PriceSource.NPC_SELL, Double.NaN)
+		fun base(marketId: String, label: String): Double {
 			val price = price(marketId)
-			if (npc.isNaN() || price != npc) return price
+			val craft = craftFloor(marketId, price)
+			return if (craft.isNaN()) priced(label, price) else coins("$label $CRAFT_FLOOR", craft)
+		}
+
+		private fun craftFloor(marketId: String, price: Double): Double {
+			val npc = Prices.priceOr(item.id, PriceSource.NPC_SELL, Double.NaN)
+			if (npc.isNaN() || price != npc) return Double.NaN
 			val craft = crafts.of(marketId)
-			return if (craft > npc) craft else price
+			return if (craft > npc) craft else Double.NaN
 		}
 
 		private fun priced(label: String, amount: Double): Double {

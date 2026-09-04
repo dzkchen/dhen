@@ -76,8 +76,23 @@ class PriceTablesTest {
 	fun `two spare keys that fold onto one market id keep the cheaper listing`() {
 		val prices = PriceTables.neuLowestBins("{\"AMMONITE;4\":1200000,\"AMMONITE;4+100\":9000000}")
 
-		assertEquals(1, prices.size)
 		assertEquals(1200000.0, prices["PET-AMMONITE-LEGENDARY"])
+	}
+
+	@Test
+	fun `a spare key shaped like both a pet and an enchanted book is filed under both`() {
+		val prices = PriceTables.neuLowestBins("{\"ULTIMATE_WISE;5\":300000}")
+
+		assertEquals(300000.0, prices["ENCHANTED_BOOK-ULTIMATE_WISE-5"])
+		assertEquals(300000.0, prices["PET-ULTIMATE_WISE-MYTHIC"])
+	}
+
+	@Test
+	fun `a spare key a suffix already disambiguates gets no enchanted book alias`() {
+		assertNull(PriceTables.neuBookId("POTION_HASTE;4"))
+		assertNull(PriceTables.neuBookId("DRAGON_RUNE;3"))
+		assertNull(PriceTables.neuBookId("ATTRIBUTE_SHARD_LIFE_REGENERATION;1"))
+		assertNull(PriceTables.neuBookId("HYPERION"))
 	}
 
 	@Test

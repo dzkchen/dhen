@@ -45,6 +45,21 @@ internal object DhenPalette {
 	val HYPIXEL_ULTIMATE: Int get() = DhenTheme.HYPIXEL_ULTIMATE
 	val HYPIXEL_SPECIAL: Int get() = DhenTheme.HYPIXEL_SPECIAL
 
+	val SLOT_CREAM: Int get() = DhenTheme.SLOT_CREAM
+	val SLOT_GOLD: Int get() = DhenTheme.SLOT_GOLD
+	val SLOT_BLUE: Int get() = DhenTheme.SLOT_BLUE
+	val SLOT_RED: Int get() = DhenTheme.SLOT_RED
+	val SLOT_GREEN: Int get() = DhenTheme.SLOT_GREEN
+	val SLOT_ORANGE: Int get() = DhenTheme.SLOT_ORANGE
+	val SLOT_YELLOW: Int get() = DhenTheme.SLOT_YELLOW
+	val SLOT_PURPLE: Int get() = DhenTheme.SLOT_PURPLE
+	val SLOT_CLAIM: Int get() = DhenTheme.SLOT_CLAIM
+	val SLOT_CHIP_TEN: Int get() = DhenTheme.SLOT_CHIP_TEN
+	val SLOT_CHIP_FIFTEEN: Int get() = DhenTheme.SLOT_CHIP_FIFTEEN
+	val SLOT_TOOLKIT: Int get() = DhenTheme.SLOT_TOOLKIT
+	val SLOT_ENCHANT: Int get() = DhenTheme.SLOT_ENCHANT
+	val SLOT_ULTIMATE: Int get() = DhenTheme.SLOT_ULTIMATE
+
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
 	fun mix(from: Int, to: Int, fraction: Float): Int {

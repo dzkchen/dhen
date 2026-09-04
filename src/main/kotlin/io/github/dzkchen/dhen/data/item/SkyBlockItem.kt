@@ -110,6 +110,12 @@ class SkyBlockItem internal constructor(
 
 	val baseStatBoost: Int get() = tag.getIntOr("baseStatBoostPercentage", 0)
 
+	val potionLevel: Int get() = tag.getIntOr("potion_level", 0)
+
+	val newYearCake: Int get() = tag.getIntOr("new_years_cake", 0)
+
+	val blocksWalked: Int get() = tag.getIntOr("blocks_walked", NOT_WALKED)
+
 	val dungeonSkillRequirement: String get() = tag.getStringOr("dungeon_skill_req", "")
 
 	val dungeonFloor: Int get() = tag.getIntOr("item_tier", 0)
@@ -152,6 +158,8 @@ class SkyBlockItem internal constructor(
 		private const val CAKE_HAT_2026 = "CAKE_HAT_2026"
 		private const val ABICASE = "ABICASE"
 		private const val ENHANCED = "-ENHANCED"
+
+		const val NOT_WALKED = -1
 
 		private val DRILL_PARTS = listOf("drill_part_upgrade_module", "drill_part_engine", "drill_part_fuel_tank")
 		private val ROD_PARTS = listOf("hook", "line", "sinker")

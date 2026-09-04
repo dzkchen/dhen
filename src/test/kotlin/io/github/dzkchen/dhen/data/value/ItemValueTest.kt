@@ -489,7 +489,7 @@ internal class ItemValueTest : RepoBackedTest() {
 		val valuation = value(item { putString("id", "NPC_ONLY") })
 
 		assertEquals(20.0, valuation.total)
-		assertEquals(listOf("Npc Only"), valuation.breakdown.map { it.label })
+		assertEquals(listOf("Npc Only (craft cost)"), valuation.breakdown.map { it.label })
 	}
 
 	@Test
@@ -497,7 +497,7 @@ internal class ItemValueTest : RepoBackedTest() {
 		val valuation = value(item { putString("id", "POTION"); putString("potion", "speed"); putInt("potion_level", 8) })
 
 		assertEquals(20.0, valuation.total)
-		assertEquals(listOf("Speed VIII Potion"), valuation.breakdown.map { it.label })
+		assertEquals(listOf("Speed VIII Potion (craft cost)"), valuation.breakdown.map { it.label })
 	}
 
 	@Test
@@ -505,7 +505,20 @@ internal class ItemValueTest : RepoBackedTest() {
 		val valuation = value(pet("JELLYFISH", 0.0))
 
 		assertEquals(45.0, valuation.total)
-		assertEquals("Jellyfish level 1", valuation.breakdown.single().label)
+		assertEquals("Jellyfish level 1 (craft cost)", valuation.breakdown.single().label)
+	}
+
+	@Test
+	fun `an item only the NPC buys is floored by its forge recipe too`() {
+		val valuation = value(item { putString("id", "FORGED") })
+
+		assertEquals(30.0, valuation.total)
+		assertEquals(listOf("Forged (craft cost)"), valuation.breakdown.map { it.label })
+	}
+
+	@Test
+	fun `a Kat upgrade is not a craft cost, because its coin half cannot be priced`() {
+		assertEquals(10.0, value(item { putString("id", "KATTED") }).total)
 	}
 
 	@Test
@@ -583,6 +596,10 @@ internal class ItemValueTest : RepoBackedTest() {
 				"{\"type\":\"crafting\",\"A1\":\"RING_A:1\"}," +
 				"{\"type\":\"crafting\",\"A1\":\"CRAFT_PART:3\"}]}",
 			"NO_RECIPE" to "{\"internalname\":\"NO_RECIPE\"}",
+			"FORGED" to "{\"internalname\":\"FORGED\",\"displayname\":\"§7Forged\"," +
+				"\"recipe\":{\"type\":\"forge\",\"inputs\":[\"CRAFT_PART:6\"],\"duration\":100}}",
+			"KATTED" to "{\"internalname\":\"KATTED\",\"displayname\":\"§7Katted\"," +
+				"\"recipe\":{\"type\":\"katgrade\",\"input\":\"HYPERION\",\"output\":\"KATTED\",\"coins\":100000}}",
 			"POTION_SPEED;8" to "{\"internalname\":\"POTION_SPEED;8\",\"displayname\":\"§9Speed VIII Potion\"," +
 				"\"recipe\":{\"A1\":\"CRAFT_PART:4\"}}",
 			"ULTIMATE_WISE;5" to "{\"internalname\":\"ULTIMATE_WISE;5\",\"displayname\":\"§dUltimate Wise V\"}",
@@ -667,7 +684,9 @@ internal class ItemValueTest : RepoBackedTest() {
 			    {"id": "NPC_RICH", "npc_sell_price": 100},
 			    {"id": "BULK", "npc_sell_price": 10},
 			    {"id": "LOOPY", "npc_sell_price": 1},
-			    {"id": "NO_RECIPE", "npc_sell_price": 7}
+			    {"id": "NO_RECIPE", "npc_sell_price": 7},
+			    {"id": "FORGED", "npc_sell_price": 10},
+			    {"id": "KATTED", "npc_sell_price": 10}
 			  ]
 			}
 		""".trimIndent()

@@ -23,7 +23,7 @@ internal class CraftCost(private val source: PriceSource) {
 		val cutsBefore = cuts
 		var cheapest = 0.0
 		for (recipe in ItemRepo.item(marketId)?.recipes.orEmpty()) {
-			if (recipe.kind != RecipeKind.CRAFTING) continue
+			if (recipe.kind !in MADE_BY_HAND) continue
 			val price = price(recipe, depth)
 			if (price > 0.0 && (cheapest == 0.0 || price < cheapest)) cheapest = price
 		}
@@ -44,5 +44,7 @@ internal class CraftCost(private val source: PriceSource) {
 
 	private companion object {
 		private const val MAX_INGREDIENT_DEPTH = 24
+
+		private val MADE_BY_HAND = setOf(RecipeKind.CRAFTING, RecipeKind.FORGE)
 	}
 }

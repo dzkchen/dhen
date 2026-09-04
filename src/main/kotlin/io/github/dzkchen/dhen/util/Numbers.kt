@@ -68,3 +68,29 @@ internal fun compactNumber(text: String): Long? {
 	val amount = cleaned.substring(0, cleaned.length - 1).toDoubleOrNull() ?: return null
 	return (amount * COMPACT_MULTIPLIERS[suffix]).toLong()
 }
+
+internal const val NOT_ROMAN = -1
+
+internal fun romanValue(text: String): Int {
+	if (text.isEmpty()) return NOT_ROMAN
+	var total = 0
+	var last = 0
+	for (index in text.length - 1 downTo 0) {
+		val value = romanDigit(text[index])
+		if (value == 0) return NOT_ROMAN
+		total += if (value >= last) value else -value
+		last = value
+	}
+	return total
+}
+
+private fun romanDigit(character: Char): Int = when (character) {
+	'I' -> 1
+	'V' -> 5
+	'X' -> 10
+	'L' -> 50
+	'C' -> 100
+	'D' -> 500
+	'M' -> 1000
+	else -> 0
+}
