@@ -1,7 +1,9 @@
 package io.github.dzkchen.dhen.text
 
 import io.github.dzkchen.dhen.Dhen
+import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.FormattedText
 import net.minecraft.util.FormattedCharSequence
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
@@ -75,6 +77,14 @@ internal object TextRewrite {
 			if (replaced !== text) components[visual] = replaced
 			replaced
 		}
+	}
+
+	@JvmStatic
+	fun wrapping(text: FormattedText): FormattedText {
+		if (Language.getInstance().isDefaultRightToLeft) return text
+		if (text is Component) return component(text)
+		val built = table ?: return text
+		return guarded(text) { built.replace(text) }
 	}
 
 	fun compileReplacements(entries: List<Rewrite>): Compiled {

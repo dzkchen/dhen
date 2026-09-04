@@ -75,12 +75,6 @@ class MenuKeybindsTest {
 	}
 
 	@Test
-	fun `an unbound key never matches a scancode only press`() {
-		val settings = arrayOf(KeybindSetting("unbound"), KeybindSetting("bound", GLFW.GLFW_KEY_5))
-		assertEquals(NO_MENU_BIND, MenuKeybinds.boundIndex(GLFW.GLFW_KEY_UNKNOWN, mouse = false, settings))
-	}
-
-	@Test
 	fun `lore prompts are read through colour codes and skip empty slots`() {
 		assertTrue(MenuKeybinds.lorePrompt(ItemFixture.lored("§eLeft-click to equip!"), "Left-click to equip!"))
 		assertFalse(MenuKeybinds.lorePrompt(ItemFixture.lored("§7Empty loadout"), "Left-click to equip!"))

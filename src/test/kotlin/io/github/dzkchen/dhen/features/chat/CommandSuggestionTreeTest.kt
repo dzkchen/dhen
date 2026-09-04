@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.features.chat
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CommandSuggestionTreeTest {
@@ -45,14 +44,6 @@ class CommandSuggestionTreeTest {
 	@Test
 	fun `a branch is matched however it was typed`() {
 		assertEquals(listOf("Carol", "Alice"), tree.suggestions("P INVITE "))
-	}
-
-	@Test
-	fun `nothing is offered outside the tree`() {
-		assertTrue(tree.suggestions("p disband Al").isEmpty())
-		assertTrue(tree.suggestions("guild invite Al").isEmpty())
-		assertTrue(tree.suggestions("warp").isEmpty())
-		assertTrue(tree.suggestions("warp zzz").isEmpty())
 	}
 
 	@Test

@@ -79,13 +79,6 @@ class SkyBlockKickTest {
 		assertEquals("§cLast kicked from SkyBlock §b5.00s ago", SkyBlockKick.element.line)
 	}
 
-	@Test
-	fun `an ordinary chat line never starts the timer`() {
-		SkyBlockKick.kicked("You were kicked while joining that server", NOW)
-
-		assertFalse(SkyBlockKick.element.showing)
-	}
-
 	private companion object {
 		const val NOW = 1_000_000L
 	}

@@ -6,7 +6,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 
 object NoCursorReset : Module(
 	name = "No Cursor Reset",
@@ -35,8 +35,8 @@ object NoCursorReset : Module(
 	fun keepsCursorPosition(): Boolean =
 		enabled &&
 			System.currentTimeMillis() - grabbedAt < unhookTimeout &&
-			isHypixelMenu(Minecraft.getInstance().gui.screen())
+			isContainerMenu(Minecraft.getInstance().gui.screen())
 
-	private fun isHypixelMenu(screen: Screen?): Boolean =
-		screen is ContainerScreen || screen is StorageOverlayScreen
+	private fun isContainerMenu(screen: Screen?): Boolean =
+		screen is AbstractContainerScreen<*> || screen is StorageOverlayScreen
 }

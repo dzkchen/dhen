@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.party.PartyState
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.social.SocialRosters
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.MessageSendEvent
 import io.github.dzkchen.dhen.event.TabCompletionEvent
@@ -44,6 +45,18 @@ object Commands : Module(
 		"Party Members",
 		default = true,
 		description = "Suggests the names of your party members."
+	)
+
+	private var friendNames by BooleanSetting(
+		"Friends",
+		default = true,
+		description = "Suggests the names on your friends list once you have run /f list."
+	)
+
+	private var guildNames by BooleanSetting(
+		"Guild Members",
+		default = true,
+		description = "Suggests your guild members once you have run /g list."
 	)
 
 	private var warpSuggestions by BooleanSetting(
@@ -135,8 +148,20 @@ object Commands : Module(
 
 	private val tree = SuggestionTree(
 		listOf(
-			SuggestionCommand(listOf("f", "friend"), branches = listOf(branch("accept", "add", "deny", offers = ::everyone))),
-			SuggestionCommand(listOf("g", "guild"), branches = listOf(branch("invite", offers = ::everyone))),
+			SuggestionCommand(
+				listOf("f", "friend"),
+				branches = listOf(
+					branch("accept", "add", "deny", offers = ::everyoneUnfriended),
+					branch("best", "remove", "nickname", offers = ::friends)
+				)
+			),
+			SuggestionCommand(
+				listOf("g", "guild"),
+				branches = listOf(
+					branch("invite", offers = ::everyoneUnguilded),
+					branch("kick", "promote", "demote", "transfer", "setrank", "member", "mute", "unmute", offers = ::guildMembers)
+				)
+			),
 			SuggestionCommand(
 				listOf("p", "party"),
 				branches = listOf(
@@ -169,6 +194,7 @@ object Commands : Module(
 
 	override fun onDisabled() {
 		repoHold.release()
+		SocialRosters.forget()
 		lastInviter = null
 		heldWarp = null
 		holdingWarps = false
@@ -261,6 +287,7 @@ object Commands : Module(
 	private fun chatted(event: ChatReceiveEvent) {
 		if (!SkyBlockLocation.onHypixel) return
 		val line = event.stripped
+		SocialRosters.read(line, event.text)
 		if (acceptLastInvite && line.contains(INVITE_MARK)) {
 			PARTY_INVITE.find(line)?.let {
 				lastInviter = it.groupValues[1]
@@ -276,6 +303,7 @@ object Commands : Module(
 	}
 
 	private fun worldChanged(event: WorldChangeEvent) {
+		if (event.phase == WorldChange.DISCONNECT) SocialRosters.forget()
 		if (event.phase != WorldChange.JOIN) return
 		repoHold.ensure()
 		worldChangedMillis = Util.getMillis()
@@ -368,7 +396,15 @@ object Commands : Module(
 
 	private fun partyMembers(): List<String> = if (partyMemberNames) PartyState.members else emptyList()
 
-	private fun everyone(): List<String> = islandPlayers() + partyMembers()
+	private fun friends(): List<String> = if (friendNames) SocialRosters.friends else emptyList()
+
+	private fun guildMembers(): List<String> = if (guildNames) SocialRosters.guild else emptyList()
+
+	private fun everyone(): List<String> = everyoneUnfriended() + friends()
+
+	private fun everyoneUnfriended(): List<String> = islandPlayers() + partyMembers() + guildMembers()
+
+	private fun everyoneUnguilded(): List<String> = islandPlayers() + partyMembers() + friends()
 
 	private fun everyoneAndSelf(): List<String> = everyone() + Minecraft.getInstance().user.name
 

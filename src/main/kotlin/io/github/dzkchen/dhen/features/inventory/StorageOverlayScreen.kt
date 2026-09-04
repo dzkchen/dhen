@@ -15,6 +15,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
@@ -46,6 +47,13 @@ internal class StorageOverlayScreen(
 	private var playerX = 0
 	private var playerY = 0
 	private var knobGrabbed = false
+	private val dragSlots = IntArray(MAX_DRAG_SLOTS)
+	private var dragCount = 0
+	private var dragButton = 0
+	private var dragStart: Slot? = null
+	private var dragLimit = 0
+	private var dragBase = 0
+	private var dragLeft = 0
 	private var hoveredStack: ItemStack? = null
 	private var hoveredSlot: Slot? = null
 	private var hoveredPage = StorageSnapshots.NO_PAGE
@@ -75,10 +83,12 @@ internal class StorageOverlayScreen(
 			hoveredPage = StorageSnapshots.NO_PAGE
 			val virtualX = (mouseX / scale).toInt()
 			val virtualY = (mouseY / scale).toInt()
+			measureDrag()
 			drawPages(graphics, virtualX, virtualY)
 			drawScrollBar(graphics)
 			drawPlayer(graphics, virtualX, virtualY)
 			drawCarried(graphics, virtualX, virtualY)
+			extendDrag()
 		} finally {
 			pose.popMatrix()
 		}
@@ -100,7 +110,15 @@ internal class StorageOverlayScreen(
 		}
 		val slot = hoveredSlot
 		if (slot != null) {
-			dispatch(slot, event.button(), if (doubleClick) ContainerInput.PICKUP_ALL else null, event.hasShiftDown())
+			val button = event.button()
+			if (!doubleClick && !menu.carried.isEmpty && button <= GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+				dragButton = button
+				dragStart = slot
+				dragSlots[0] = slot.index
+				dragCount = 1
+				return true
+			}
+			dispatch(slot, button, if (doubleClick) ContainerInput.PICKUP_ALL else null, event.hasShiftDown())
 			return true
 		}
 		if (hoveredPage != StorageSnapshots.NO_PAGE && event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
@@ -111,6 +129,7 @@ internal class StorageOverlayScreen(
 	}
 
 	override fun mouseDragged(event: MouseButtonEvent, dragX: Double, dragY: Double): Boolean {
+		if (dragStart != null) return true
 		if (!knobGrabbed) return super.mouseDragged(event, dragX, dragY)
 		scrollToKnob((event.y() / StorageOverlay.scaleSetting.amount.toFloat()).toInt())
 		return true
@@ -118,7 +137,11 @@ internal class StorageOverlayScreen(
 
 	override fun mouseReleased(event: MouseButtonEvent): Boolean {
 		knobGrabbed = false
-		return super.mouseReleased(event)
+		val start = dragStart ?: return super.mouseReleased(event)
+		if (dragCount >= MIN_DRAG_SLOTS) distribute() else dispatch(start, dragButton, null, event.hasShiftDown())
+		dragStart = null
+		dragCount = 0
+		return true
 	}
 
 	override fun mouseScrolled(mouseX: Double, mouseY: Double, scrollX: Double, scrollY: Double): Boolean {
@@ -317,7 +340,7 @@ internal class StorageOverlayScreen(
 			val stack = slot?.item ?: snapshot?.getOrNull(index) ?: ItemStack.EMPTY
 			val matching = if (slot == null) index < MAX_PAGE_SLOTS && slotMatches[page][index]
 			else InventorySearch.matches(slot.index, slot.item)
-			drawSlot(graphics, stack, slotX, slotY, matching, mouseX, mouseY)
+			drawSlot(graphics, shownIn(slot, stack), slotX, slotY, matching, mouseX, mouseY)
 			if (slot != null && hovering(mouseX, mouseY, slotX, slotY)) hoveredSlot = slot
 		}
 	}
@@ -379,17 +402,78 @@ internal class StorageOverlayScreen(
 			val row = index / StorageSnapshots.ROW_WIDTH
 			val x = playerX + PLAYER_INSET + index % StorageSnapshots.ROW_WIDTH * SLOT
 			val y = playerY + PLAYER_INSET + row * SLOT + if (row == HOTBAR_ROW) HOTBAR_GAP else 0
-			drawSlot(graphics, slot.item, x, y, InventorySearch.matches(slot.index, slot.item), mouseX, mouseY)
+			drawSlot(graphics, shownIn(slot, slot.item), x, y, InventorySearch.matches(slot.index, slot.item), mouseX, mouseY)
 			if (hovering(mouseX, mouseY, x, y)) hoveredSlot = slot
 		}
 	}
 
 	private fun drawCarried(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-		val carried = menu.carried
-		if (carried.isEmpty) return
+		val held = menu.carried
+		if (held.isEmpty) return
 		hoveredStack = null
+		val carried = if (dragLimit == 0) held else held.copyWithCount(dragLeft)
+		if (carried.isEmpty) return
 		graphics.item(carried, mouseX - CARRIED_HALF, mouseY - CARRIED_HALF)
 		graphics.itemDecorations(font, carried, mouseX - CARRIED_HALF, mouseY - CARRIED_HALF)
+	}
+
+	private fun measureDrag() {
+		dragLimit = 0
+		dragBase = 0
+		dragLeft = 0
+		if (dragStart == null || dragCount < MIN_DRAG_SLOTS) return
+		val carried = menu.carried
+		if (carried.isEmpty) return
+		var eligible = 0
+		var scanned = 0
+		while (scanned < dragCount && eligible < carried.count) {
+			if (draggable(slotAt(dragSlots[scanned]), carried)) eligible++
+			scanned++
+		}
+		if (eligible < MIN_DRAG_SLOTS) return
+		dragLimit = scanned
+		dragBase = AbstractContainerMenu.getQuickCraftPlaceCount(eligible, dragButton, carried)
+		var remaining = carried.count
+		for (index in 0 until dragLimit) {
+			val slot = slotAt(dragSlots[index]) ?: continue
+			if (!draggable(slot, carried)) continue
+			remaining -= shared(slot, carried) - slot.item.count
+		}
+		dragLeft = remaining.coerceAtLeast(0)
+	}
+
+	private fun extendDrag() {
+		val slot = hoveredSlot ?: return
+		if (dragStart == null || dragCount == MAX_DRAG_SLOTS) return
+		for (index in 0 until dragCount) if (dragSlots[index] == slot.index) return
+		dragSlots[dragCount++] = slot.index
+	}
+
+	private fun distribute() {
+		val header = AbstractContainerMenu.QUICKCRAFT_HEADER_START
+		clickSlot(menu, OUTSIDE_SLOT, AbstractContainerMenu.getQuickcraftMask(header, dragButton), ContainerInput.QUICK_CRAFT)
+		val step = AbstractContainerMenu.getQuickcraftMask(AbstractContainerMenu.QUICKCRAFT_HEADER_CONTINUE, dragButton)
+		for (index in 0 until dragCount) clickSlot(menu, dragSlots[index], step, ContainerInput.QUICK_CRAFT)
+		val end = AbstractContainerMenu.getQuickcraftMask(AbstractContainerMenu.QUICKCRAFT_HEADER_END, dragButton)
+		clickSlot(menu, OUTSIDE_SLOT, end, ContainerInput.QUICK_CRAFT)
+	}
+
+	private fun slotAt(index: Int): Slot? = menu.slots.getOrNull(index)
+
+	private fun draggable(slot: Slot?, carried: ItemStack): Boolean =
+		slot != null && slot.mayPlace(carried) && AbstractContainerMenu.canItemQuickReplace(slot, carried, true)
+
+	private fun shared(slot: Slot, carried: ItemStack): Int =
+		(slot.item.count + dragBase).coerceAtMost(minOf(carried.maxStackSize, slot.getMaxStackSize(carried)))
+
+	private fun shownIn(slot: Slot?, stack: ItemStack): ItemStack {
+		if (dragLimit == 0 || slot == null) return stack
+		var position = 0
+		while (position < dragLimit && dragSlots[position] != slot.index) position++
+		if (position == dragLimit) return stack
+		val carried = menu.carried
+		if (!draggable(slot, carried)) return stack
+		return carried.copyWithCount(shared(slot, carried))
 	}
 
 	private fun dispatch(slot: Slot, button: Int, forced: ContainerInput?, shift: Boolean) {
@@ -468,6 +552,9 @@ internal class StorageOverlayScreen(
 		const val CARRIED_HALF = 8
 		const val MAX_PAGE_SLOTS = 45
 		const val OFFHAND_BUTTON = 40
+		const val MAX_DRAG_SLOTS = 64
+		const val MIN_DRAG_SLOTS = 2
+		const val OUTSIDE_SLOT = AbstractContainerMenu.SLOT_CLICKED_OUTSIDE
 		const val OFF_PANEL = Int.MIN_VALUE
 
 		private var scroll = 0f

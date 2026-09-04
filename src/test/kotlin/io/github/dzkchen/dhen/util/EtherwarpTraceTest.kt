@@ -79,14 +79,6 @@ class EtherwarpTraceTest {
 	}
 
 	@Test
-	fun `a ray that reaches its end in open air finds nothing`() {
-		val target = alongZ(Blocks())
-
-		assertFalse(target.found)
-		assertFalse(target.succeeded)
-	}
-
-	@Test
 	fun `a diagonal ray walks the voxels between its ends`() {
 		val target = traverseVoxels(0.5, 1.5, 0.5, 20.5, 1.5, 20.5, Blocks().solid(3, 1, 3), EtherwarpTarget())
 

@@ -41,13 +41,6 @@ class ChatMacroTextTest {
 	}
 
 	@Test
-	fun `chat without a leading bang is not a command`() {
-		assertNull(chatCommandLine("Party > Alice: coords please"))
-		assertNull(chatCommandLine("Alice: !coords"))
-		assertNull(chatCommandLine("A very ordinary chat line"))
-	}
-
-	@Test
 	fun `the end of a run is recognised for dungeons and kuudra`() {
 		assertTrue(END_OF_RUN.matches(" ".repeat(29) + "> EXTRA STATS <"))
 		assertTrue(

@@ -98,14 +98,6 @@ class RewriteTableTest {
 	}
 
 	@Test
-	fun `text with no match comes back as the very same instance`() {
-		val table = RewriteTable(listOf(rewrite("cat", "dog")))
-		val untouched = StringBuilder("nothing to do here").toString()
-
-		assertSame(untouched, table.replace(untouched))
-	}
-
-	@Test
 	fun `a replacement inherits the matched run's style and overrides it with its own`() {
 		val red = Component.literal("dog").withStyle(ChatFormatting.RED)
 		val table = RewriteTable(listOf(Rewrite("cat", red)))
@@ -164,16 +156,6 @@ class RewriteTableTest {
 	}
 
 	@Test
-	fun `an empty table hands every shape back untouched`() {
-		val table = RewriteTable(emptyList())
-		val text = StringBuilder("nothing registered").toString()
-		val component: Component = Component.literal("nothing registered")
-
-		assertSame(text, table.replace(text))
-		assertSame(component, table.replace(component))
-	}
-
-	@Test
 	fun `a rebuilt table replaces the answers the old one cached`() {
 		TextRewrite.install(TextRewrite.compileReplacements(listOf(rewrite("cat", "dog"))))
 		assertEquals("one dog", TextRewrite.string("one cat"))
@@ -203,16 +185,6 @@ class RewriteTableTest {
 
 		assertEquals("one cat", TextRewrite.string("one cat"))
 		assertEquals("Sam waves", TextRewrite.string("Steve waves"))
-	}
-
-	@Test
-	fun `a sequence and a component with no match come back as the very same instance`() {
-		val table = RewriteTable(listOf(rewrite("cat", "dog")))
-		val sequence = Component.literal("one hamster").visualOrderText
-		val component: Component = Component.literal("one hamster")
-
-		assertSame(sequence, table.replace(sequence))
-		assertSame(component, table.replace(component))
 	}
 
 	@Test

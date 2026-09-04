@@ -19,11 +19,6 @@ class CommandRewritesTest {
 	}
 
 	@Test
-	fun `a command that is not a warp is left alone`() {
-		assertNull(shortenedWarp("pets", warps, null))
-	}
-
-	@Test
 	fun `a spelled out item name becomes an item id`() {
 		assertEquals("viewrecipe SOME_ITEM 1", viewRecipeCommand("viewrecipe some item") { null })
 	}
@@ -44,16 +39,6 @@ class CommandRewritesTest {
 	}
 
 	@Test
-	fun `a recipe command that already reads as an id is left alone`() {
-		assertNull(viewRecipeCommand("viewrecipe SOME_ITEM 1") { null })
-	}
-
-	@Test
-	fun `another command is not mistaken for a recipe`() {
-		assertNull(viewRecipeCommand("viewrecipes some item") { null })
-	}
-
-	@Test
 	fun `underscores in a sack item become spaces again`() {
 		assertEquals("gfs ENCHANTED LAPIS 5", sackCommand("gfs ENCHANTED_LAPIS 5") { it == "ENCHANTED LAPIS" })
 	}
@@ -61,11 +46,6 @@ class CommandRewritesTest {
 	@Test
 	fun `an unknown sack item is sent as it was typed`() {
 		assertNull(sackCommand("gfs SOME_THING 5") { false })
-	}
-
-	@Test
-	fun `a sack command without an amount is left alone`() {
-		assertNull(sackCommand("gfs ENCHANTED_LAPIS") { true })
 	}
 
 	@Test

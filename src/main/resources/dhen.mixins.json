@@ -67,6 +67,7 @@
 		"ScreenEffectRendererMixin",
 		"ScreenMixin",
 		"SoundManagerMixin",
+		"StringSplitterMixin",
 		"ServerboundChatCommandPacketAccessor",
 		"ServerboundChatPacketAccessor",
 		"SystemChatPacketAccessor",

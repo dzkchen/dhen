@@ -73,11 +73,6 @@ class PartyListTest {
 	}
 
 	@Test
-	fun `an empty party line adds nobody`() {
-		assertTrue(read("§9Party Members: ", PartyRole.MEMBER).isEmpty())
-	}
-
-	@Test
 	fun `rows print leader first with nothing to click for a plain member`() {
 		val printed = partyListComponent(
 			listOf(

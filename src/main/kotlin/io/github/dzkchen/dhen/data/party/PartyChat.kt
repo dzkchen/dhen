@@ -49,6 +49,8 @@ internal object PartyChat {
 		Regex("^$NOT_IN_PARTY.$")
 	)
 
+	fun rankedName(segment: String): String? = memberFormat.find(segment.trim())?.groupValues?.get(2)
+
 	fun listRole(stripped: String): PartyRole? = when {
 		stripped.startsWith(LEADER_LINE) -> PartyRole.LEADER
 		stripped.startsWith(MODERATOR_LINE) -> PartyRole.MOD
@@ -113,17 +115,17 @@ internal object PartyChat {
 
 		listRole(message)?.let { role ->
 			for (segment in message.substringAfter(": ").split(" ●")) {
-				val member = memberFormat.find(segment.trim()) ?: continue
-				roster.add(member.groupValues[2])
-				if (role == PartyRole.LEADER) roster.lead(member.groupValues[2])
+				val member = rankedName(segment) ?: continue
+				roster.add(member)
+				if (role == PartyRole.LEADER) roster.lead(member)
 			}
 			return
 		}
 
 		partyWith.find(message)?.let { match ->
 			for (segment in match.groupValues[1].split(", ")) {
-				val member = memberFormat.find(segment.trim()) ?: continue
-				roster.add(member.groupValues[2])
+				val member = rankedName(segment) ?: continue
+				roster.add(member)
 			}
 			return
 		}

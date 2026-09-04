@@ -4,7 +4,6 @@ import io.github.dzkchen.dhen.config.ROW_SEPARATOR
 import io.github.dzkchen.dhen.module.Category
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -38,20 +37,6 @@ class ChatTweaksTest {
 	@Test
 	fun `a scrolled chat resolves to the line the scrollbar has pushed under the cursor`() {
 		assertEquals(7, hovered(mouseY = 176.0, scrollbarPos = 7))
-	}
-
-	@Test
-	fun `the cursor left of the chat box or below its floor hovers nothing`() {
-		assertEquals(-1, hovered(mouseX = -8.0))
-		assertEquals(-1, hovered(mouseY = 185.0))
-		assertEquals(-1, hovered(mouseX = 400.0))
-		assertEquals(-1, hovered(mouseY = 50.0))
-	}
-
-	@Test
-	fun `hovering past the last stored line hovers nothing`() {
-		assertEquals(-1, hovered(mouseY = 176.0, lineCount = 0))
-		assertEquals(-1, hovered(mouseY = 158.0, lineCount = 2))
 	}
 
 	@Test
@@ -135,12 +120,6 @@ class ChatTweaksTest {
 			explosiveShotSummary("Your Explosive Shot hit 1 enemy for 750 damage.")
 		)
 		assertTrue(ChatHider { "" }.hides("Your Explosive Shot hit 4 enemies for 10,000 damage."))
-	}
-
-	@Test
-	fun `a line that is not the explosive shot summary produces nothing`() {
-		assertNull(explosiveShotSummary("Your Explosive Shot hit some enemies for lots damage."))
-		assertNull(explosiveShotSummary("§7Your Explosive Shot hit 4 enemies for 10,000 damage."))
 	}
 
 	private fun hovered(

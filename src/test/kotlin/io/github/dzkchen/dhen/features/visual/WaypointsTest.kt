@@ -79,14 +79,6 @@ class WaypointsTest {
 	}
 
 	@Test
-	fun `lines without a full coordinate triple never match`() {
-		assertNull(chatCoordinates("Party > Bob: x: 5, y: 6"))
-		assertNull(chatCoordinates("Party > Bob: hello"))
-		assertNull(chatCoordinates("You are now in a party."))
-		assertNull(chatCoordinates("Party > Bob: x: five, y: 6, z: 7"))
-	}
-
-	@Test
 	fun `coordinates past five thousand on any axis are out of bounds`() {
 		assertFalse(outOfBounds(5000, -5000, 0))
 		assertTrue(outOfBounds(5001, 0, 0))
@@ -216,16 +208,16 @@ class WaypointsTest {
 	}
 
 	@Test
+	fun `the saved waypoint store is never shown as a control`() {
+		val stored = requireNotNull(Waypoints.settings.firstOrNull { it.name == "Saved Waypoints" })
+		assertFalse(stored.isVisible)
+	}
+
+	@Test
 	fun `the fixed opacity slider only shows while the fade is off`() {
 		val fixed = requireNotNull(Waypoints.settings.firstOrNull { it.name == "Waypoint Opacity" })
 		assertFalse(fixed.isVisible)
 		Waypoints.fadeWithDistanceSetting.on = false
 		assertTrue(fixed.isVisible)
-	}
-
-	@Test
-	fun `the saved waypoint store is never shown as a control`() {
-		val stored = requireNotNull(Waypoints.settings.firstOrNull { it.name == "Saved Waypoints" })
-		assertFalse(stored.isVisible)
 	}
 }

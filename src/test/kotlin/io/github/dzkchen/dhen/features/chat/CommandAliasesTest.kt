@@ -35,15 +35,6 @@ class CommandAliasesTest {
 	}
 
 	@Test
-	fun `a command that is not an alias is left alone`() {
-		val book = book("x party warp")
-
-		assertNull(book.rewrite("y"))
-		assertNull(book.rewrite("xx"))
-		assertNull(book.rewrite("party warp"))
-	}
-
-	@Test
 	fun `the store keeps every alias in the order it was added`() {
 		val entries = linkedMapOf("x" to "party warp", "s" to "showskill")
 

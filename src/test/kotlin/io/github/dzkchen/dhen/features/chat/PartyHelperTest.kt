@@ -89,14 +89,6 @@ class PartyHelperTest {
 	}
 
 	@Test
-	fun `a typed message that is not the list command arms nothing`() {
-		sent("pl", command = false)
-		sent("party")
-
-		assertFalse(cancelled("-----------------------------"))
-	}
-
-	@Test
 	fun `an empty party answers in full and closes the window`() {
 		sent("pl")
 

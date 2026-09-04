@@ -1,7 +1,9 @@
 package io.github.dzkchen.dhen.text
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.FormattedText
 import net.minecraft.network.chat.Style
 import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.FormattedCharSink
@@ -75,6 +77,14 @@ internal class RewriteTable(rewrites: List<Rewrite>) {
 		if (!probe.finds(input)) return input
 		val rewritten = rewrite(flattened(input)) ?: return input
 		return Fixed(rewritten.points, rewritten.styles, rewritten.size)
+	}
+
+	fun replace(input: FormattedText): FormattedText {
+		if (input is Component) return replace(input)
+		val visual = Language.getInstance().getVisualOrder(input)
+		if (!probe.finds(visual)) return input
+		val rewritten = rewrite(flattened(visual)) ?: return input
+		return joined(rewritten)
 	}
 
 	fun replace(input: Component): Component {
