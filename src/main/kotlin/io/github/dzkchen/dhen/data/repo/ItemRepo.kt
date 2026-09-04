@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import net.minecraft.world.item.ItemStack
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -28,6 +29,7 @@ enum class RepoState {
 object ItemRepo {
 	private const val CONSTANTS = "constants"
 	private const val CATALOG = ".catalog"
+	private const val SHARDS = "shards"
 	private const val RETRY_LIMIT = 6
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
@@ -71,11 +73,28 @@ object ItemRepo {
 
 	fun ingredientStack(id: String): ItemStack = catalog.ingredientStack(id)
 
-	fun recipesFor(id: String): List<ItemRecipe> = catalog.recipesFor(id)
+	fun recipesFor(id: String): List<ItemRecipe> {
+		val held = published.get()
+		val made = held.catalog.recipesFor(id)
+		val fusions = held.fusions.fusionsFor(id.uppercase(Locale.ROOT))
+		return when {
+			fusions.isEmpty() -> made.ifEmpty { held.catalog.infoCard(id) }
+			made.isEmpty() -> fusions
+			else -> made + fusions
+		}
+	}
 
-	fun usages(id: String): List<ItemRecipe> = catalog.usages(id)
+	fun usages(id: String): List<ItemRecipe> {
+		val held = published.get()
+		val used = held.catalog.usages(id)
+		val fusions = held.fusions.fusionsWith(id.uppercase(Locale.ROOT))
+		return if (fusions.isEmpty()) used else used + fusions
+	}
 
-	fun recipeCount(kind: RecipeKind): Int = catalog.recipeCount(kind)
+	fun reforges(id: String): List<ItemRecipe> = catalog.reforges(id)
+
+	fun recipeCount(kind: RecipeKind): Int =
+		catalog.recipeCount(kind) + if (kind == RecipeKind.SHARD_FUSION) published.get().fusions.pairs else 0
 
 	fun require(): Handle {
 		val owner = host ?: return Handle {}
@@ -87,10 +106,11 @@ object ItemRepo {
 		root: Path,
 		sync: RepoSync = RepoSync(NEU, root),
 		clock: NanoClock = NanoClock.SYSTEM,
-		retryAfter: Duration = RETRY_AFTER
+		retryAfter: Duration = RETRY_AFTER,
+		shards: (Path, RepoConstants) -> ShardCatalogue = { _, _ -> ShardCatalogue.EMPTY }
 	) {
 		uninstall()
-		val owner = Host(scope, sync, clock, retryAfter)
+		val owner = Host(scope, sync, clock, retryAfter, root.resolveSibling(SHARDS), shards)
 		sync.changeInstallation {
 			published.set(Published(owner, RepoState.IDLE))
 			host = owner
@@ -157,9 +177,10 @@ object ItemRepo {
 				log.warn("Dhen could not refresh the item repo ({}), reading the last complete repo on disk", result)
 			}
 			owner.sync.readMarked { root, commit ->
+				val constants = RepoConstants.read(root.resolve(CONSTANTS))
 				Reading(
-					ItemCatalog.read(root, root.resolveSibling("${root.fileName}$CATALOG"), commit),
-					RepoConstants.read(root.resolve(CONSTANTS)),
+					ItemCatalog.read(root, root.resolveSibling("${root.fileName}$CATALOG"), commit, constants),
+					constants,
 					commit
 				)
 			}
@@ -167,12 +188,23 @@ object ItemRepo {
 			log.error("Dhen could not load the item repo", throwable)
 			null
 		}
+		val fusions = try {
+			read?.let { owner.shards(owner.shardCache, it.constants) } ?: ShardCatalogue.EMPTY
+		} catch (throwable: Throwable) {
+			log.error("Dhen could not load the shard fusion data", throwable)
+			ShardCatalogue.EMPTY
+		}
 		val retryDelay = retryAfter?.coerceIn(owner.retryAfter, maxOf(owner.retryAfter, MAX_RETRY_AFTER))
 			?: owner.retryAfter
 		val retryAt = owner.clock.nanoTime() + retryDelay.inWholeNanoseconds
 		val loaded = publish(owner) { held ->
 			if (read == null) held.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt) else {
-				val next = held.copy(catalog = read.catalog, constants = read.constants, commit = read.commit)
+				val next = held.copy(
+					catalog = read.catalog,
+					constants = read.constants,
+					fusions = fusions,
+					commit = read.commit
+				)
 				if (next.catalog.size > 0) next.copy(state = RepoState.READY, retryAt = 0L)
 				else next.copy(state = RepoState.UNAVAILABLE, retryAt = retryAt)
 			}
@@ -190,6 +222,7 @@ object ItemRepo {
 		val state: RepoState,
 		val catalog: ItemCatalog = ItemCatalog.EMPTY,
 		val constants: RepoConstants = RepoConstants.EMPTY,
+		val fusions: ShardCatalogue = ShardCatalogue.EMPTY,
 		val commit: String? = null,
 		val retryAt: Long = 0L
 	)
@@ -198,6 +231,8 @@ object ItemRepo {
 		val scope: CoroutineScope,
 		val sync: RepoSync,
 		val clock: NanoClock,
-		val retryAfter: Duration
+		val retryAfter: Duration,
+		val shardCache: Path,
+		val shards: (Path, RepoConstants) -> ShardCatalogue
 	)
 }

@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.WikiLinks
+import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -40,9 +41,9 @@ object WikiLookup : Module(
 
 	init {
 		registerSetting(openSetting)
-	}
 
-	override fun onEnabled() = repoHold.ensure()
+		on<ClientTickEvent.End> { repoHold.ensure() }
+	}
 
 	override fun onDisabled() = repoHold.release()
 

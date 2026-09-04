@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.data.repo
 
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.github.dzkchen.dhen.Dhen
@@ -14,12 +15,23 @@ import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import io.github.dzkchen.dhen.util.textOrNull
+import io.github.dzkchen.dhen.util.texts
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
 
-class ReforgeStone internal constructor(val stone: String, val reforge: String, val costs: Map<String, Long>)
+class Reforge internal constructor(
+	val stone: String,
+	val reforge: String,
+	val costs: Map<String, Long>,
+	val itemTypes: List<String>,
+	val rarities: List<String>,
+	val stats: Map<String, Map<String, Double>>,
+	val ability: Map<String, String>
+)
+
+class AttributeShard internal constructor(val id: String, val shardId: String, val bazaarName: String)
 
 class StarTier internal constructor(val essence: String, val essenceAmount: Int, val materials: Map<String, Int>)
 
@@ -75,7 +87,9 @@ private class Leveling(
 }
 
 class RepoConstants private constructor(
-	private val reforgeStones: Map<String, ReforgeStone>,
+	private val reforgeStones: Map<String, Reforge>,
+	val blacksmithReforges: List<Reforge>,
+	val attributeShards: List<AttributeShard>,
 	private val stars: Map<String, List<StarTier>>,
 	private val gemstoneSlots: Map<String, Map<String, Map<String, Int>>>,
 	private val petLevels: List<Int>,
@@ -87,9 +101,13 @@ class RepoConstants private constructor(
 ) {
 	val reforgeStoneCount: Int get() = reforgeStones.size
 
+	val stoneReforges: Collection<Reforge> get() = reforgeStones.values
+
 	val starredItemCount: Int get() = stars.size
 
-	fun reforgeStone(modifier: String): ReforgeStone? = reforgeStones[modifier]
+	val starredIds: Set<String> get() = stars.keys
+
+	fun reforgeStone(modifier: String): Reforge? = reforgeStones[modifier]
 
 	fun starTiers(id: String): List<StarTier> = stars[id].orEmpty()
 
@@ -134,6 +152,7 @@ class RepoConstants private constructor(
 		private const val DEFAULT_PET_MAX_LEVEL = 100
 		private const val DEFAULT_SKILL_CAP = 50
 		private const val JSON = ".json"
+		private const val ANY_RARITY = "ANY"
 
 		private val SKILLS_WITH_THEIR_OWN_LADDER = mapOf("runecrafting" to "runecrafting_xp", "social" to "social")
 		private val SKILL_TREES = listOf("HOTM", "HOTF")
@@ -148,7 +167,8 @@ class RepoConstants private constructor(
 		)
 
 		val EMPTY = RepoConstants(
-			emptyMap(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(), NO_LEVELLING, emptySet(), emptySet()
+			emptyMap(), emptyList(), emptyList(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(),
+			NO_LEVELLING, emptySet(), emptySet()
 		)
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
@@ -161,6 +181,8 @@ class RepoConstants private constructor(
 			val offsets = pets.obj("pet_rarity_offset")
 			return RepoConstants(
 				reforgeStones = reforgeStones(read(constants, "reforgestones")),
+				blacksmithReforges = blacksmithReforges(read(constants, "reforges")),
+				attributeShards = attributeShards(read(constants, "attribute_shards")),
 				stars = stars(read(constants, "essencecosts")),
 				gemstoneSlots = gemstoneSlots(read(constants, "gemstonecosts")),
 				petLevels = pets.array("pet_levels").ints(),
@@ -208,20 +230,76 @@ class RepoConstants private constructor(
 			return ids
 		}
 
-		private fun reforgeStones(json: JsonObject): Map<String, ReforgeStone> {
-			val stones = HashMap<String, ReforgeStone>(json.size())
+		private fun reforgeStones(json: JsonObject): Map<String, Reforge> {
+			val stones = HashMap<String, Reforge>(json.size())
 			for ((_, element) in json.entrySet()) {
 				val entry = element as? JsonObject ?: continue
 				val stone = entry.text("internalName") ?: continue
 				val reforge = entry.text("reforgeName") ?: continue
-				val costs = entry.obj("reforgeCosts")
-				stones[entry.text("nbtModifier") ?: nbtModifier(reforge)] = ReforgeStone(
-					stone = stone.uppercase(Locale.ROOT),
-					reforge = reforge,
-					costs = costs?.keySet()?.associate { it.uppercase(Locale.ROOT) to costs.long(it) }.orEmpty()
-				)
+				stones[entry.text("nbtModifier") ?: nbtModifier(reforge)] =
+					parsed(entry, stone.uppercase(Locale.ROOT), reforge)
 			}
 			return stones
+		}
+
+		private fun blacksmithReforges(json: JsonObject): List<Reforge> {
+			val reforges = ArrayList<Reforge>(json.size())
+			for ((key, element) in json.entrySet()) {
+				val entry = element as? JsonObject ?: continue
+				reforges += parsed(entry, "", entry.text("reforgeName") ?: key)
+			}
+			return reforges
+		}
+
+		private fun parsed(entry: JsonObject, stone: String, name: String): Reforge {
+			val costs = entry.obj("reforgeCosts")
+			return Reforge(
+				stone = stone,
+				reforge = name,
+				costs = costs?.keySet()?.associate { it.uppercase(Locale.ROOT) to costs.long(it) }.orEmpty(),
+				itemTypes = itemTypes(entry.get("itemTypes")),
+				rarities = entry.array("requiredRarities").texts().map { it.uppercase(Locale.ROOT) },
+				stats = stats(entry.obj("reforgeStats")),
+				ability = ability(entry.get("reforgeAbility"))
+			)
+		}
+
+		private fun itemTypes(element: JsonElement?): List<String> {
+			val listed = when (element) {
+				is JsonObject -> element.keys().flatMap { element.array(it).texts() }
+				else -> element.textOrNull()?.split(',', '/').orEmpty()
+			}
+			return listed.map { it.trim().uppercase(Locale.ROOT) }.filter { it.isNotEmpty() }
+		}
+
+		private fun stats(json: JsonObject?): Map<String, Map<String, Double>> {
+			if (json == null) return emptyMap()
+			return json.keySet().associate { rarity ->
+				val entry = json.obj(rarity)
+				rarity.uppercase(Locale.ROOT) to entry.keys().mapNotNull { stat ->
+					entry?.number(stat)?.let { stat to it }
+				}.toMap()
+			}
+		}
+
+		private fun ability(element: JsonElement?): Map<String, String> = when (element) {
+			is JsonObject -> element.keySet().mapNotNull { rarity ->
+				element.text(rarity)?.let { rarity.uppercase(Locale.ROOT) to it }
+			}.toMap()
+			else -> element.textOrNull()?.let { mapOf(ANY_RARITY to it) }.orEmpty()
+		}
+
+		private fun attributeShards(json: JsonObject): List<AttributeShard> {
+			val listed = json.array("attributes") ?: return emptyList()
+			return listed.mapNotNull { element ->
+				val entry = element as? JsonObject ?: return@mapNotNull null
+				val id = entry.text("internalName") ?: return@mapNotNull null
+				AttributeShard(
+					id.uppercase(Locale.ROOT),
+					entry.text("shardId").orEmpty(),
+					entry.text("bazaarName").orEmpty()
+				)
+			}
 		}
 
 		private fun nbtModifier(reforge: String): String =

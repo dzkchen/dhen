@@ -23,6 +23,9 @@ internal data class RepoSource(val owner: String, val repo: String, val branch: 
 	val commitUrl: String get() = "https://api.github.com/repos/$owner/$repo/commits/$branch"
 
 	fun archiveUrl(commit: String): String = "https://github.com/$owner/$repo/archive/$commit.zip"
+
+	fun rawUrl(commit: String, path: String): String =
+		"https://raw.githubusercontent.com/$owner/$repo/$commit/$path"
 }
 
 internal enum class SyncResult {

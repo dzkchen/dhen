@@ -651,7 +651,8 @@ class CommandRegistryTest {
 			listOf(
 				"Item repo: state=IDLE, items=0, needed by 0, retrying=no, commit=none",
 				"  constants: reforgeStones=0, starredItems=0",
-				"  recipes: CRAFTING=0, FORGE=0, NPC_SHOP=0, KAT_UPGRADE=0"
+				"  recipes: CRAFTING=0, FORGE=0, NPC_SHOP=0, KAT_UPGRADE=0, MOB_DROP=0, TRADE=0",
+				"  recipes: NPC_INFO=0, WIKI_INFO=0, ESSENCE_UPGRADE=0, REFORGE=0, GARDEN_MUTATION=0, SHARD_FUSION=0"
 			),
 			captured
 		)

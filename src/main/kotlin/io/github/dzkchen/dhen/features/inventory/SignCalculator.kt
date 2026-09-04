@@ -21,6 +21,10 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.regex.Pattern
 
+internal const val SIGN_LINE_LIMIT = 15
+
+internal const val CARETS = "^^^^^^^^^^^^^^^"
+
 object SignCalculator : Module(
 	name = "Sign Calculator",
 	category = Category.QOL,
@@ -172,13 +176,11 @@ object SignCalculator : Module(
 	private const val HINT_LINE = 2
 	private const val PREVIEW_TOP = 55
 	private const val TEXT_PAD = 6
-	private const val SIGN_LINE_LIMIT = 15
 	private const val PRICE_DECIMALS = 2
 	private const val DEFAULT_DECIMALS = 2.0
 	private const val MAX_DECIMALS = 10.0
 	private const val EQUALS = "="
 	private const val PRICE = "price"
-	private const val CARETS = "^^^^^^^^^^^^^^^"
 	private const val SHORT_CARETS = "^^^^^^"
 	private const val FLIP_CARETS = "^^Flipping^^"
 	private const val SEARCH_HINT = "your"

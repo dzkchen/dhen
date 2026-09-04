@@ -24,6 +24,7 @@ import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.PackModelRepo
+import io.github.dzkchen.dhen.data.repo.ShardFusions
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
@@ -506,7 +507,9 @@ object Dhen : ClientModInitializer {
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)
-		ItemRepo.install(ioScope, configRoot.resolve("repo"))
+		ItemRepo.install(ioScope, configRoot.resolve("repo")) { directory, constants ->
+			ShardFusions.read(directory, constants)
+		}
 		PackModelRepo.install(ioScope, configRoot.resolve("packmodels"))
 		Prices.install(ioScope, modules.eventBus, clientThread)
 		MayorService.install(ioScope, modules.eventBus, clientThread)

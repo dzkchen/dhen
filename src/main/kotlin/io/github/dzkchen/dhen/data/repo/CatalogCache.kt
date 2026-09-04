@@ -12,7 +12,7 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
 internal object CatalogCache {
-	private const val SCHEMA_VERSION = 1
+	private const val SCHEMA_VERSION = 2
 	private const val STAGING = ".compiling"
 	private const val MAX_ENTRIES = 1 shl 22
 
@@ -66,7 +66,14 @@ internal object CatalogCache {
 			lore = list { text() },
 			nbttag = text(),
 			info = list { text() },
-			recipes = list { recipe() }
+			recipes = list { recipe() },
+			infoType = text(),
+			craftText = text(),
+			slayerRequirement = text(),
+			island = text(),
+			x = readInt(),
+			y = readInt(),
+			z = readInt()
 		)
 	}
 
@@ -79,15 +86,26 @@ internal object CatalogCache {
 		text(item.nbttag)
 		list(item.info) { text(it) }
 		list(item.recipes) { recipe(it) }
+		text(item.infoType)
+		text(item.craftText)
+		text(item.slayerRequirement)
+		text(item.island)
+		writeInt(item.x)
+		writeInt(item.y)
+		writeInt(item.z)
 	}
 
-	private fun DataInputStream.recipe(): ItemRecipe = ItemRecipe(
-		kind = RecipeKind.entries[readInt()],
-		owner = text(),
-		ingredients = list { ingredient() },
-		output = ingredient(),
-		seconds = readInt()
-	)
+	private fun DataInputStream.recipe(): ItemRecipe {
+		val kind = RecipeKind.entries[readInt()]
+		return ItemRecipe(
+			kind = kind,
+			owner = text(),
+			ingredients = list { ingredient() },
+			output = ingredient(),
+			seconds = readInt(),
+			detail = detail(kind)
+		)
+	}
 
 	private fun DataOutputStream.recipe(recipe: ItemRecipe) {
 		writeInt(recipe.kind.ordinal)
@@ -95,6 +113,32 @@ internal object CatalogCache {
 		list(recipe.ingredients) { ingredient(it) }
 		ingredient(recipe.output)
 		writeInt(recipe.seconds)
+		detail(recipe)
+	}
+
+	private fun DataInputStream.detail(kind: RecipeKind): RecipeDetail = when (kind) {
+		RecipeKind.MOB_DROP -> MobDrop(text(), text(), text())
+		RecipeKind.TRADE -> TradeRange(readInt(), readInt())
+		else -> PlainRecipe
+	}
+
+	private fun DataOutputStream.detail(recipe: ItemRecipe) {
+		when (recipe.kind) {
+			RecipeKind.MOB_DROP -> {
+				val drop = recipe.detail as? MobDrop
+				text(drop?.mob.orEmpty())
+				text(drop?.render.orEmpty())
+				text(drop?.chance.orEmpty())
+			}
+
+			RecipeKind.TRADE -> {
+				val range = recipe.detail as? TradeRange
+				writeInt(range?.minimum ?: 0)
+				writeInt(range?.maximum ?: 0)
+			}
+
+			else -> Unit
+		}
 	}
 
 	private fun DataInputStream.ingredient(): ItemIngredient = ItemIngredient(text(), readInt())

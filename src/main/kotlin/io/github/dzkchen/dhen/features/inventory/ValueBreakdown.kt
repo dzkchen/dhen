@@ -10,6 +10,7 @@ import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.value.ItemValue
 import io.github.dzkchen.dhen.data.value.ValueLine
+import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
 import io.github.dzkchen.dhen.event.ContainerKeyEvent
 import io.github.dzkchen.dhen.event.ContainerScrollEvent
@@ -17,6 +18,7 @@ import io.github.dzkchen.dhen.event.GuiCloseEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.gui.ClickGuiScroll
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
@@ -74,11 +76,10 @@ object ValueBreakdown : Module(
 		on<ContainerScrollEvent> { scrolled(it) }
 		on<TooltipEvent> { if (showing) it.cancelled = true }
 		on<GuiCloseEvent> { close() }
-	}
-
-	override fun onEnabled() {
-		priceHold.ensure()
-		repoHold.ensure()
+		on<ClientTickEvent.End> {
+			priceHold.ensure()
+			repoHold.ensure()
+		}
 	}
 
 	override fun onDisabled() {
@@ -228,9 +229,9 @@ object ValueBreakdown : Module(
 	private fun drawScrollBar(graphics: GuiGraphicsExtractor, left: Int, top: Int, shown: Int) {
 		val trackTop = top + HEADER_HEIGHT
 		val trackHeight = shown * ROW_HEIGHT
-		val knobHeight = maxOf(MIN_KNOB, trackHeight * shown / rows.size)
-		val travel = trackHeight - knobHeight
-		val knobTop = trackTop + travel * scroll / maxOf(1, rows.size - shown)
+		val maxScroll = rows.size - shown
+		val knobHeight = ClickGuiScroll.thumbHeight(trackHeight, shown, maxScroll, MIN_KNOB)
+		val knobTop = ClickGuiScroll.thumbTop(trackTop, trackHeight, knobHeight, scroll, maxScroll)
 		val barLeft = left + PANEL_WIDTH - BAR_INSET
 		RoundedGui.pill(graphics, barLeft, trackTop, barLeft + BAR_WIDTH, trackTop + trackHeight, GlassGui.surface())
 		RoundedGui.pill(graphics, barLeft, knobTop, barLeft + BAR_WIDTH, knobTop + knobHeight, DhenPalette.accentMuted)

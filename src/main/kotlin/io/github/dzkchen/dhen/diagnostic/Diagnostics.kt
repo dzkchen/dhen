@@ -27,7 +27,16 @@ import io.github.dzkchen.dhen.data.profile.ProfileStatus
 import io.github.dzkchen.dhen.data.repo.ItemIngredient
 import io.github.dzkchen.dhen.data.repo.ItemRecipe
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.EssenceStar
+import io.github.dzkchen.dhen.data.repo.MobDrop
+import io.github.dzkchen.dhen.data.repo.MutationPlot
+import io.github.dzkchen.dhen.data.repo.NpcPlace
+import io.github.dzkchen.dhen.data.repo.PlainRecipe
+import io.github.dzkchen.dhen.data.repo.RecipeDetail
 import io.github.dzkchen.dhen.data.repo.RecipeKind
+import io.github.dzkchen.dhen.data.repo.ReforgeCard
+import io.github.dzkchen.dhen.data.repo.TradeRange
+import io.github.dzkchen.dhen.data.repo.WikiCard
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
@@ -125,7 +134,9 @@ class Diagnostics(
 			"retrying=${yesNo(ItemRepo.retrying)}, commit=${ItemRepo.commit ?: "none"}")
 		add("  constants: reforgeStones=${ItemRepo.constants.reforgeStoneCount}, " +
 			"starredItems=${ItemRepo.constants.starredItemCount}")
-		add("  recipes: " + RecipeKind.entries.joinToString { "$it=${ItemRepo.recipeCount(it)}" })
+		for (kinds in RecipeKind.entries.chunked(KINDS_PER_LINE)) {
+			add("  recipes: " + kinds.joinToString { "$it=${ItemRepo.recipeCount(it)}" })
+		}
 	}
 
 	private fun toggleRequirement(): String {
@@ -307,14 +318,32 @@ class Diagnostics(
 		add("  stack=${ItemRepo.stack(item.id)?.hoverName?.string ?: "none"}, info=${item.info.firstOrNull() ?: "none"}")
 		val made = ItemRepo.recipesFor(item.id)
 		add("  made by ${made.size} recipe(s), used in ${ItemRepo.usages(item.id).size} recipe(s)")
-		for (recipe in made) add("  ${recipe.kind} from ${recipe.owner}: " + describe(recipe))
+		for (recipe in made.take(TOP_RECIPES)) add("  ${recipe.kind} from ${recipe.owner}: " + describe(recipe))
+		val reforges = ItemRepo.reforges(item.id)
+		if (reforges.isNotEmpty()) {
+			val named = reforges.mapNotNull { (it.detail as? ReforgeCard)?.reforge }
+			add("  ${reforges.size} reforge(s): " + named.take(TOP_RECIPES).joinToString())
+		}
 		for (line in item.lore) add("  $line")
 	}
 
 	private fun describe(recipe: ItemRecipe): String {
 		val inputs = recipe.ingredients.filter(ItemIngredient::present).joinToString { "${it.id} x${it.count}" }
 		val seconds = if (recipe.seconds > 0) " in ${recipe.seconds}s" else ""
-		return "$inputs -> ${recipe.output.id} x${recipe.output.count}$seconds"
+		return "$inputs -> ${recipe.output.id} x${recipe.output.count}$seconds" + describe(recipe.detail)
+	}
+
+	private fun describe(detail: RecipeDetail): String = when (detail) {
+		is MobDrop -> " dropped by ${withoutCodes(detail.mob)} ${detail.chance}"
+		is TradeRange -> if (detail.variable) " costing ${detail.minimum}-${detail.maximum}" else ""
+		is NpcPlace -> detail.where.let { if (it.isEmpty()) "" else " on $it" } +
+			if (detail.located) " at ${detail.x}, ${detail.y}, ${detail.z}" else ""
+
+		is WikiCard -> " wiki ${detail.links.firstOrNull().orEmpty()}"
+		is EssenceStar -> " star ${detail.star} of ${detail.essence} essence"
+		is ReforgeCard -> " reforge ${detail.reforge}"
+		is MutationPlot -> " ${detail.name} on ${detail.size}x${detail.size} ${detail.surface}"
+		PlainRecipe -> ""
 	}
 
 	fun heldItemLines(): List<String> = buildList {
@@ -440,6 +469,8 @@ class Diagnostics(
 
 	private companion object {
 		private const val TOP_ORDERS = 3
+		private const val TOP_RECIPES = 8
+		private const val KINDS_PER_LINE = 6
 		private const val NO_PROFILE = "none"
 
 		private val VALUE_SOURCE = PriceSource.BAZAAR_INSTANT_SELL

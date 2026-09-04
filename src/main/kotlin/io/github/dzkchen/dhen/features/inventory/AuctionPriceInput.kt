@@ -112,8 +112,7 @@ object AuctionPriceInput : Module(
 		val accessor = screen as AbstractSignEditScreenAccessor
 		val sign = accessor.dhenSign() ?: return
 		val frontText = accessor.dhenFrontText()
-		val text = sign.getText(frontText)
-		val lines = Array(SIGN_LINES) { withoutCodes(text.getMessage(it, false).string) }
+		val lines = Array(SIGN_LINES) { withoutCodes(accessor.dhenMessages()[it]) }
 		if (lines[1] != CARETS || lines[2] != AUCTION_LINE || lines[3] != BID_LINE) return
 		captured = null
 		event.screen = AuctionInputScreen(sign.blockPos, frontText, lines, stack)
@@ -130,7 +129,6 @@ object AuctionPriceInput : Module(
 	private const val CREATE_BUTTON_SLOT = 29
 	private const val CONFIRM_BUTTON_SLOT = 11
 	private const val SIGN_LINES = 4
-	private const val CARETS = "^^^^^^^^^^^^^^^"
 	private const val AUCTION_LINE = "Your auction"
 	private const val BID_LINE = "starting bid"
 

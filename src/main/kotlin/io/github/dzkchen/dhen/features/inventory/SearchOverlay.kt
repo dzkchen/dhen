@@ -188,7 +188,6 @@ object SearchOverlay : Module(
 	private const val BAZAAR_TITLE = "Bazaar"
 	private const val MUSEUM_TITLE = "Museum"
 	private const val NULL_WORD = "null"
-	private const val SIGN_LINE_LIMIT = 15
 	private const val DEFAULT_SUGGESTIONS = 5.0
 	private const val MAX_SUGGESTIONS = 10.0
 	private const val DEFAULT_HISTORY = 3.0
