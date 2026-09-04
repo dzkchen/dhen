@@ -13,14 +13,19 @@ import io.github.dzkchen.dhen.event.AFTER_PRODUCERS
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.InputAction
 import io.github.dzkchen.dhen.event.MouseInputEvent
+import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.Notifications
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.input.InputQuirks
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.contents.TranslatableContents
+import org.apache.commons.lang3.StringUtils
 import org.lwjgl.glfw.GLFW
 
 object ChatTweaks : Module(
@@ -52,7 +57,7 @@ object ChatTweaks : Module(
 		"Copy Notification",
 		default = true,
 		description = "Shows a notification confirming what was copied."
-	).withDependency { ctrlClickToCopy }
+	).withDependency { ctrlClickToCopy || rightClickMenu }
 
 	private var removeUselessMessages by BooleanSetting(
 		"Remove Useless Messages",
@@ -70,7 +75,55 @@ object ChatTweaks : Module(
 		description = "Hides the Implosion damage line."
 	)
 
+	private var adminOutput by SelectorSetting(
+		"Admin Output",
+		ADMIN_SHOWN,
+		listOf(ADMIN_SHOWN, ADMIN_PLAYERS_ONLY, ADMIN_HIDDEN),
+		description = "Filters operator and command block output out of chat."
+	)
+
+	private var hideSigningWarning by BooleanSetting(
+		"Hide Signing Warning",
+		default = true,
+		description = "Suppresses the insecure chat warning shown when joining a server."
+	)
+
+	private var hideMessageIndicators by BooleanSetting(
+		"Hide Message Indicators",
+		default = true,
+		description = "Removes the coloured bar and icon vanilla marks chat lines with."
+	)
+
+	private var longCommands by BooleanSetting(
+		"Long Commands",
+		default = true,
+		description = "Lifts the 256 character limit while the chat box holds a command."
+	)
+
+	private var rightClickMenu by BooleanSetting(
+		"Right Click Menu",
+		default = true,
+		description = "Right click a chat line for copy and delete actions."
+	)
+
+	private var rightClickCopy by BooleanSetting(
+		"Right Click Copies",
+		description = "Skips the menu and copies the line straight to the clipboard."
+	).withDependency { rightClickMenu }
+
+	private var commandTooltip by BooleanSetting(
+		"Command Tooltip",
+		default = true,
+		description = "Adds the command a clickable chat line would run to its hover tooltip."
+	)
+
 	private var storedHiders by StringSetting("Hidden Lines").hide()
+
+	private var tooltipSource: Component? = null
+
+	private var tooltipCommand = ""
+
+	private var tooltipShown: Component? = null
 
 	private val hider = ChatHider { storedHiders }
 
@@ -81,6 +134,7 @@ object ChatTweaks : Module(
 
 	override fun onDisabled() {
 		hider.forget()
+		ChatContextMenu.closed()
 	}
 
 	override fun add(pattern: String): String {
@@ -115,7 +169,7 @@ object ChatTweaks : Module(
 		val text = hoveredChatText(client, wholeEntry = (copyMode == ENTIRE_MESSAGE) != shifted)
 		if (text.isBlank()) return
 		client.keyboardHandler.setClipboard(text)
-		if (copyNotification) Notifications.push(COPY_ICON, COPY_TITLE, text)
+		announceCopy(text)
 		event.cancelled = true
 	}
 
@@ -125,7 +179,62 @@ object ChatTweaks : Module(
 		else -> GLFW.GLFW_MOUSE_BUTTON_LEFT
 	}
 
+	internal val menuOnRightClick: Boolean
+		get() = enabled && rightClickMenu
+
+	internal val copyOnRightClick: Boolean
+		get() = menuOnRightClick && rightClickCopy
+
+	internal fun announceCopy(text: String) {
+		if (copyNotification) Notifications.push(COPY_ICON, COPY_TITLE, text)
+	}
+
+	@JvmStatic
+	fun hidesSigningWarning(): Boolean = enabled && hideSigningWarning
+
+	@JvmStatic
+	fun hidesMessageTag(): Boolean = enabled && hideMessageIndicators
+
+	@JvmStatic
+	fun chatInputLimit(typed: String): Int =
+		if (liftsLimit(typed)) Int.MAX_VALUE else VANILLA_CHAT_LIMIT
+
+	@JvmStatic
+	fun untrimmedCommand(message: String): String? =
+		if (liftsLimit(message) && message.startsWith(SLASH)) StringUtils.normalizeSpace(message.trim()) else null
+
+	@JvmStatic
+	fun withCommandTooltip(hover: Component, style: Style): Component {
+		if (!enabled || !commandTooltip) return hover
+		val command = (style.clickEvent as? ClickEvent.RunCommand)?.command ?: return hover
+		val shown = tooltipShown
+		if (shown != null && tooltipSource === hover && tooltipCommand == command) return shown
+		val built = hover.copy()
+			.append(TOOLTIP_GAP)
+			.append(DhenType.overWorld(TOOLTIP_PREFIX + command, ChatFormatting.GRAY))
+		tooltipSource = hover
+		tooltipCommand = command
+		tooltipShown = built
+		return built
+	}
+
+	private fun liftsLimit(typed: String): Boolean =
+		enabled && longCommands && (typed.isEmpty() || typed.startsWith(SLASH))
+
+	internal fun hidesAdminOutput(text: Component): Boolean {
+		if (adminOutput == ADMIN_SHOWN) return false
+		val contents = text.contents as? TranslatableContents ?: return false
+		if (contents.key != ADMIN_KEY) return false
+		if (adminOutput == ADMIN_HIDDEN) return true
+		val sender = contents.args.firstOrNull() ?: return false
+		return sender == COMMAND_BLOCK_SENDER || sender == Component.literal(COMMAND_BLOCK_SENDER)
+	}
+
 	private fun chatted(event: ChatReceiveEvent) {
+		if (hidesAdminOutput(event.text)) {
+			event.cancelled = true
+			return
+		}
 		val stripped = event.stripped
 		if (removeUselessMessages && hider.hides(stripped)) {
 			explosiveShotSummary(stripped)?.let(Dhen::announce)
@@ -162,6 +271,14 @@ object ChatTweaks : Module(
 	private const val DIALOGUE_PREFIX = "Select an option: "
 	private const val SLASH = "/"
 	private const val DIALOGUE_TICKS = 14
+	private const val ADMIN_SHOWN = "Shown"
+	private const val ADMIN_PLAYERS_ONLY = "Only Players"
+	private const val ADMIN_HIDDEN = "Hidden"
+	private const val ADMIN_KEY = "chat.type.admin"
+	private const val COMMAND_BLOCK_SENDER = "@"
+	private const val VANILLA_CHAT_LIMIT = 256
+	private const val TOOLTIP_GAP = "\n\n"
+	private const val TOOLTIP_PREFIX = "Command: "
 
 	private val COPY_MODIFIERS = GLFW.GLFW_MOD_CONTROL or InputQuirks.EDIT_SHORTCUT_KEY_MODIFIER
 

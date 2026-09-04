@@ -24,17 +24,25 @@ class TweaksTest {
 	}
 
 	@Test
-	fun `declares one five-setting QOL module with dependent close visibility`() {
+	fun `declares one QOL module with dependent close visibility`() {
 		assertEquals("Tweaks", Tweaks.name)
 		assertEquals(Category.QOL, Tweaks.category)
-		assertEquals(1, Tweaks.subscriptionCount)
+		assertEquals(2, Tweaks.subscriptionCount)
 		assertEquals(
 			listOf(
 				"Hide Recipe Book",
 				"Close Recipe Book",
 				"Hide Item Cooldowns",
 				"Hide Hotbar Tooltips",
-				"Cake Numbers"
+				"Cake Numbers",
+				"Hide Advancement Toasts",
+				"Hide Recipe Toasts",
+				"Hide System Toasts",
+				"Skip Reconfigure Screen",
+				"Skip Multiplayer Warning",
+				"Fit Title Text",
+				"Steady Night Vision",
+				"Hide Item Frames"
 			),
 			Tweaks.settings.map { it.name }
 		)
@@ -46,7 +54,7 @@ class TweaksTest {
 	}
 
 	@Test
-	fun `all five settings round trip through the setting codec`() {
+	fun `the recipe book and slot settings round trip through the setting codec`() {
 		Tweaks.hideRecipeBook = true
 		Tweaks.closeRecipeBook = true
 		Tweaks.hideItemCooldowns = true

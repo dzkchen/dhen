@@ -1,14 +1,19 @@
 package io.github.dzkchen.dhen.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.sugar.Local;
+import io.github.dzkchen.dhen.features.chat.ChatTweaks;
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -57,5 +62,16 @@ public abstract class GuiGraphicsExtractorMixin {
 		} finally {
 			graphics.pose().popMatrix();
 		}
+	}
+
+	@ModifyExpressionValue(
+		method = "componentHoverEffect",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/network/chat/HoverEvent$ShowText;value()Lnet/minecraft/network/chat/Component;"
+		)
+	)
+	private Component dhen$revealCommand(final Component original, @Local(argsOnly = true) final Style hovered) {
+		return ChatTweaks.withCommandTooltip(original, hovered);
 	}
 }

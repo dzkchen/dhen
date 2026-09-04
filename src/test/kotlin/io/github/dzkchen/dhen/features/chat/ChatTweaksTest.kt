@@ -1,9 +1,13 @@
 package io.github.dzkchen.dhen.features.chat
 
 import io.github.dzkchen.dhen.config.ROW_SEPARATOR
+import io.github.dzkchen.dhen.config.SelectorSetting
 import io.github.dzkchen.dhen.module.Category
+import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -20,6 +24,13 @@ class ChatTweaksTest {
 				"Remove Useless Messages",
 				"Auto Dialogue",
 				"Hide Implosion Messages",
+				"Admin Output",
+				"Hide Signing Warning",
+				"Hide Message Indicators",
+				"Long Commands",
+				"Right Click Menu",
+				"Right Click Copies",
+				"Command Tooltip",
 				"Hidden Lines"
 			),
 			ChatTweaks.settings.map { it.name }
@@ -120,6 +131,52 @@ class ChatTweaksTest {
 			explosiveShotSummary("Your Explosive Shot hit 1 enemy for 750 damage.")
 		)
 		assertTrue(ChatHider { "" }.hides("Your Explosive Shot hit 4 enemies for 10,000 damage."))
+	}
+
+	@Test
+	fun `the chat length limit lifts for commands and comes back for ordinary messages`() {
+		val manager = ModuleManager()
+		manager.register(ChatTweaks)
+		try {
+			manager.enable(ChatTweaks)
+
+			assertEquals(Int.MAX_VALUE, ChatTweaks.chatInputLimit(""))
+			assertEquals(Int.MAX_VALUE, ChatTweaks.chatInputLimit("/party invite Someone"))
+			assertEquals(256, ChatTweaks.chatInputLimit("hello there"))
+			assertEquals(256, ChatTweaks.chatInputLimit(" /party invite Someone"))
+			assertEquals("/party invite Someone", ChatTweaks.untrimmedCommand("/party  invite   Someone "))
+			assertNull(ChatTweaks.untrimmedCommand("hello there"))
+		} finally {
+			manager.unregister(ChatTweaks)
+		}
+	}
+
+	@Test
+	fun `the admin filter reads the translation key and the command block sender argument`() {
+		val fromCommandBlock = Component.translatable("chat.type.admin", "@", "say hi")
+		val fromOperator = Component.translatable("chat.type.admin", "Someone", "say hi")
+		val literal = Component.literal("[Someone: say hi]")
+		try {
+			adminOutput("Shown")
+
+			assertFalse(ChatTweaks.hidesAdminOutput(fromCommandBlock))
+
+			adminOutput("Only Players")
+
+			assertTrue(ChatTweaks.hidesAdminOutput(fromCommandBlock))
+			assertFalse(ChatTweaks.hidesAdminOutput(fromOperator))
+
+			adminOutput("Hidden")
+
+			assertTrue(ChatTweaks.hidesAdminOutput(fromOperator))
+			assertFalse(ChatTweaks.hidesAdminOutput(literal))
+		} finally {
+			adminOutput("Shown")
+		}
+	}
+
+	private fun adminOutput(mode: String) {
+		(ChatTweaks.settings.first { it.name == "Admin Output" } as SelectorSetting).value = mode
 	}
 
 	private fun hovered(

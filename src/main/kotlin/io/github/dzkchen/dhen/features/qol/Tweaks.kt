@@ -3,19 +3,38 @@ package io.github.dzkchen.dhen.features.qol
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.event.GuiOpenEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
+import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.gui.slotCenteredText
+import io.github.dzkchen.dhen.mixin.ServerReconfigScreenAccessor
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.components.toasts.AdvancementToast
+import net.minecraft.client.gui.components.toasts.RecipeToast
+import net.minecraft.client.gui.components.toasts.SystemToast
+import net.minecraft.client.gui.components.toasts.Toast
+import net.minecraft.client.gui.screens.ConnectScreen
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.TitleScreen
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen
+import net.minecraft.client.gui.screens.multiplayer.SafetyScreen
+import net.minecraft.client.gui.screens.multiplayer.ServerReconfigScreen
+import net.minecraft.network.Connection
+import net.minecraft.network.chat.CommonComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.world.entity.decoration.ItemFrame
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
 object Tweaks : Module(
 	name = "Tweaks",
 	category = Category.QOL,
-	description = "Small quality of life improvements for inventories and the hotbar."
+	description = "Small quality of life fixes for inventories, screens, toasts and the world."
 ) {
 	internal val hideRecipeBookSetting = BooleanSetting(
 		"Hide Recipe Book",
@@ -47,15 +66,106 @@ object Tweaks : Module(
 	)
 	internal var cakeNumbers by cakeNumbersSetting
 
+	private var hideAdvancementToasts by BooleanSetting(
+		"Hide Advancement Toasts",
+		description = "Stops advancement pop-ups appearing in the corner."
+	)
+
+	private var hideRecipeToasts by BooleanSetting(
+		"Hide Recipe Toasts",
+		default = true,
+		description = "Stops new recipe pop-ups appearing in the corner."
+	)
+
+	private var hideSystemToasts by BooleanSetting(
+		"Hide System Toasts",
+		description = "Stops client warning and status pop-ups appearing in the corner."
+	)
+
+	private var skipReconfigure by BooleanSetting(
+		"Skip Reconfigure Screen",
+		default = true,
+		description = "Hides the reconfiguring screen shown while a server moves you."
+	)
+
+	private var skipMultiplayerWarning by BooleanSetting(
+		"Skip Multiplayer Warning",
+		default = true,
+		description = "Opens the server list straight from the title screen."
+	)
+
+	private var fitTitles by BooleanSetting(
+		"Fit Title Text",
+		default = true,
+		description = "Shrinks oversized titles and subtitles so they stay on screen."
+	)
+
+	private var steadyNightVision by BooleanSetting(
+		"Steady Night Vision",
+		default = true,
+		description = "Stops the screen flickering as night vision runs out."
+	)
+
+	private var hideItemFrames by BooleanSetting(
+		"Hide Item Frames",
+		description = "Hides the frame around an item frame that is displaying something."
+	)
+
 	private val cakeYears = CakeYearCache()
 
+	private val titleMemo = DhenType.memo()
+
+	private val subtitleMemo = DhenType.memo()
+
 	init {
+		on<GuiOpenEvent> { opened(it) }
 		on<SlotRenderEvent.Post> { event ->
 			if (!cakeNumbers || !SkyBlockLocation.inSkyBlock) return@on
 			val stack = event.slot.item
 			if (!stack.`is`(Items.CAKE)) return@on
 			val year = cakeYears.year(stack) ?: return@on
 			slotCenteredText(event.graphics, year, event.slot.x + SLOT_CENTER, event.slot.y + SLOT_CENTER, CAKE_SCALE, DhenPalette.accent)
+		}
+	}
+
+	@JvmStatic
+	fun hidesToast(toast: Toast): Boolean = enabled && when (toast) {
+		is AdvancementToast -> hideAdvancementToasts
+		is RecipeToast -> hideRecipeToasts
+		is SystemToast -> hideSystemToasts
+		else -> false
+	}
+
+	@JvmStatic
+	fun steadiesNightVision(): Boolean = enabled && steadyNightVision
+
+	@JvmStatic
+	fun hidesItemFrame(frame: ItemFrame): Boolean = enabled && hideItemFrames && !frame.item.isEmpty
+
+	@JvmStatic
+	fun titleScale(font: Font, title: Component?, magnification: Float): Float =
+		fitted(font, titleMemo, title, magnification)
+
+	@JvmStatic
+	fun subtitleScale(font: Font, subtitle: Component?, magnification: Float): Float =
+		fitted(font, subtitleMemo, subtitle, magnification)
+
+	private fun fitted(font: Font, memo: TextMemo, text: Component?, magnification: Float): Float {
+		if (!enabled || !fitTitles || text == null) return magnification
+		val width = memo.width(font, text)
+		val room = Minecraft.getInstance().window.guiScaledWidth - TITLE_MARGIN
+		if (width <= 0 || width * magnification <= room) return magnification
+		return room.toFloat() / width
+	}
+
+	private fun opened(event: GuiOpenEvent) {
+		val screen = event.screen
+		if (skipMultiplayerWarning && screen is SafetyScreen) {
+			event.screen = JoinMultiplayerScreen(Minecraft.getInstance().gui.screen() ?: TitleScreen())
+			return
+		}
+		if (skipReconfigure && screen is ServerReconfigScreen) {
+			event.screen = QuietReconfigure((screen as ServerReconfigScreenAccessor).reconfigureConnection())
 		}
 	}
 
@@ -76,7 +186,25 @@ object Tweaks : Module(
 
 	private const val SLOT_CENTER = 8
 	private const val CAKE_SCALE = 0.8f
+	private const val TITLE_MARGIN = 16
 }
+
+private class QuietReconfigure(private val connection: Connection) : Screen(CommonComponents.EMPTY) {
+	private var ticksWaited = 0
+
+	override fun tick() {
+		ticksWaited++
+		if (connection.isConnected) connection.tick() else connection.handleDisconnection()
+	}
+
+	override fun shouldCloseOnEsc(): Boolean = ticksWaited >= STALLED_RECONFIGURE_TICKS
+
+	override fun onClose() {
+		connection.disconnect(ConnectScreen.ABORT_CONNECTION)
+	}
+}
+
+private const val STALLED_RECONFIGURE_TICKS = 600
 
 internal class CakeYearCache {
 	private val stacks = arrayOfNulls<ItemStack>(CAPACITY)

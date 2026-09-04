@@ -3,6 +3,7 @@ package io.github.dzkchen.dhen.features.chat
 import io.github.dzkchen.dhen.mixin.ChatComponentAccessor
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.ChatComponent
+import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.util.FormattedCharSequence
 import kotlin.math.floor
 
@@ -40,16 +41,15 @@ internal inline fun chatEntrySpan(hovered: Int, lineCount: Int, endOfEntry: (Int
 	return newest..oldest
 }
 
-internal fun hoveredChatText(client: Minecraft, wholeEntry: Boolean): String {
+internal fun hoveredChatIndex(client: Minecraft, mouseX: Double, mouseY: Double): Int {
 	val chat = client.gui.hud.chat
-	if (!chat.isChatFocused) return ""
+	if (!chat.isChatFocused) return -1
 	val lines = (chat as ChatComponentAccessor).chatTrimmedMessages()
-	val window = client.window
 	val options = client.options
-	val hovered = hoveredChatLine(
-		client.mouseHandler.getScaledXPos(window),
-		client.mouseHandler.getScaledYPos(window),
-		window.guiScaledHeight,
+	return hoveredChatLine(
+		mouseX,
+		mouseY,
+		client.window.guiScaledHeight,
 		options.chatScale().get(),
 		chatLineHeight(options.chatLineSpacing().get()),
 		ChatComponent.getWidth(options.chatWidth().get()),
@@ -57,7 +57,23 @@ internal fun hoveredChatText(client: Minecraft, wholeEntry: Boolean): String {
 		chat.chatScrollbarPos(),
 		lines.size
 	)
+}
+
+internal fun hoveredChatMessage(client: Minecraft, mouseX: Double, mouseY: Double): GuiMessage? {
+	val index = hoveredChatIndex(client, mouseX, mouseY)
+	if (index < 0) return null
+	return (client.gui.hud.chat as ChatComponentAccessor).chatTrimmedMessages()[index].parent()
+}
+
+internal fun hoveredChatText(client: Minecraft, wholeEntry: Boolean): String {
+	val window = client.window
+	val hovered = hoveredChatIndex(
+		client,
+		client.mouseHandler.getScaledXPos(window),
+		client.mouseHandler.getScaledYPos(window)
+	)
 	if (hovered < 0) return ""
+	val lines = (client.gui.hud.chat as ChatComponentAccessor).chatTrimmedMessages()
 	val span = if (wholeEntry) chatEntrySpan(hovered, lines.size) { lines[it].endOfEntry() } else hovered..hovered
 	val composed = StringBuilder()
 	for (index in span.last downTo span.first) appendCodePoints(lines[index].content(), composed)
