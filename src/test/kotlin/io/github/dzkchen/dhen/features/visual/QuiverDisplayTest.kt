@@ -123,14 +123,19 @@ class QuiverDisplayTest {
 	@Test
 	fun `display cache groups amounts pluralizes and rebuilds only for changed inputs`() {
 		val element = QuiverDisplayElement()
-		val item = RepoItem(
-			id = "ARROW",
-			itemId = "minecraft:flint",
-			displayName = "Flint Arrow",
-			damage = 0,
-			lore = listOf("§9§lRARE"),
-			recipes = emptyList()
-		)
+		val arrowItem = {
+			RepoItem(
+				id = "ARROW",
+				itemId = "minecraft:flint",
+				displayName = "Flint Arrow",
+				damage = 0,
+				lore = listOf("§9§lRARE"),
+				nbttag = "",
+				info = emptyList(),
+				recipes = emptyList()
+			)
+		}
+		val item = arrowItem()
 
 		element.refresh(QuiverArrow.FLINT, 2880, false, true, RepoState.READY, "first", item)
 
@@ -139,7 +144,7 @@ class QuiverDisplayTest {
 		assertEquals(TextColor.fromLegacyFormat(ChatFormatting.BLUE)?.value, element.shownNameColor)
 		assertEquals(1, element.rebuilds)
 
-		element.refresh(QuiverArrow.FLINT, 2880, false, true, RepoState.READY, "first", item.copy())
+		element.refresh(QuiverArrow.FLINT, 2880, false, true, RepoState.READY, "first", arrowItem())
 		assertEquals(1, element.rebuilds)
 
 		element.refresh(QuiverArrow.FLINT, 1, false, true, RepoState.READY, "first", item)

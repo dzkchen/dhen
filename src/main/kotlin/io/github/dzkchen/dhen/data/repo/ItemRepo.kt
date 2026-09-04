@@ -10,6 +10,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import net.minecraft.world.item.ItemStack
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicReference
@@ -25,8 +26,8 @@ enum class RepoState {
 }
 
 object ItemRepo {
-	private const val ITEMS = "items"
 	private const val CONSTANTS = "constants"
+	private const val CATALOG = ".catalog"
 	private const val RETRY_LIMIT = 6
 
 	private val NEU = RepoSource("NotEnoughUpdates", "NotEnoughUpdates-REPO", "master")
@@ -63,6 +64,16 @@ object ItemRepo {
 	fun item(id: String): RepoItem? = catalog.item(id) ?: PriceTables.neuId(id)?.let(catalog::item)
 
 	fun idFor(displayName: String): String? = catalog.idFor(displayName)
+
+	fun stack(id: String): ItemStack? = catalog.stack(id)
+
+	fun ingredientStack(id: String): ItemStack = catalog.ingredientStack(id)
+
+	fun recipesFor(id: String): List<ItemRecipe> = catalog.recipesFor(id)
+
+	fun usages(id: String): List<ItemRecipe> = catalog.usages(id)
+
+	fun recipeCount(kind: RecipeKind): Int = catalog.recipeCount(kind)
 
 	fun require(): Handle {
 		val owner = host ?: return Handle {}
@@ -145,7 +156,7 @@ object ItemRepo {
 			}
 			owner.sync.readMarked { root, commit ->
 				Reading(
-					ItemCatalog.read(root.resolve(ITEMS)),
+					ItemCatalog.read(root, root.resolveSibling("${root.fileName}$CATALOG"), commit),
 					RepoConstants.read(root.resolve(CONSTANTS)),
 					commit
 				)

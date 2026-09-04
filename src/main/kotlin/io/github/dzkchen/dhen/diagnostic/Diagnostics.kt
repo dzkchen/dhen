@@ -24,7 +24,10 @@ import io.github.dzkchen.dhen.data.profile.OnlineReading
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.profile.ProfileSlice
 import io.github.dzkchen.dhen.data.profile.ProfileStatus
+import io.github.dzkchen.dhen.data.repo.ItemIngredient
+import io.github.dzkchen.dhen.data.repo.ItemRecipe
 import io.github.dzkchen.dhen.data.repo.ItemRepo
+import io.github.dzkchen.dhen.data.repo.RecipeKind
 import io.github.dzkchen.dhen.data.stats.ActionBarSegment
 import io.github.dzkchen.dhen.data.stats.PlayerStats
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
@@ -122,6 +125,7 @@ class Diagnostics(
 			"retrying=${yesNo(ItemRepo.retrying)}, commit=${ItemRepo.commit ?: "none"}")
 		add("  constants: reforgeStones=${ItemRepo.constants.reforgeStoneCount}, " +
 			"starredItems=${ItemRepo.constants.starredItemCount}")
+		add("  recipes: " + RecipeKind.entries.joinToString { "$it=${ItemRepo.recipeCount(it)}" })
 	}
 
 	private fun toggleRequirement(): String {
@@ -300,7 +304,17 @@ class Diagnostics(
 		}
 		add("${item.id}: '${item.displayName}'")
 		add("  vanilla=${item.itemId}, damage=${item.damage}, loreLines=${item.lore.size}")
+		add("  stack=${ItemRepo.stack(item.id)?.hoverName?.string ?: "none"}, info=${item.info.firstOrNull() ?: "none"}")
+		val made = ItemRepo.recipesFor(item.id)
+		add("  made by ${made.size} recipe(s), used in ${ItemRepo.usages(item.id).size} recipe(s)")
+		for (recipe in made) add("  ${recipe.kind} from ${recipe.owner}: " + describe(recipe))
 		for (line in item.lore) add("  $line")
+	}
+
+	private fun describe(recipe: ItemRecipe): String {
+		val inputs = recipe.ingredients.filter(ItemIngredient::present).joinToString { "${it.id} x${it.count}" }
+		val seconds = if (recipe.seconds > 0) " in ${recipe.seconds}s" else ""
+		return "$inputs -> ${recipe.output.id} x${recipe.output.count}$seconds"
 	}
 
 	fun heldItemLines(): List<String> = buildList {
