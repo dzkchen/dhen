@@ -51,6 +51,9 @@ import io.github.dzkchen.dhen.features.privacy.ServerPackBypass
 import io.github.dzkchen.dhen.features.privacy.SpoofAsVanilla
 import io.github.dzkchen.dhen.features.qol.ArrowFix
 import io.github.dzkchen.dhen.features.qol.AutoSprint
+import io.github.dzkchen.dhen.features.qol.EtherwarpAutoSneak
+import io.github.dzkchen.dhen.features.qol.EtherwarpSound
+import io.github.dzkchen.dhen.features.qol.LCEtherwarp
 import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
@@ -73,13 +76,16 @@ import io.github.dzkchen.dhen.features.inventory.PetKeybinds
 import io.github.dzkchen.dhen.features.inventory.LoadoutKeybinds
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip
 import io.github.dzkchen.dhen.features.qol.Tweaks
+import io.github.dzkchen.dhen.features.qol.ZeroPingEtherwarp
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
 import io.github.dzkchen.dhen.features.dungeon.ClassColors
+import io.github.dzkchen.dhen.features.visual.BlockOverlay
 import io.github.dzkchen.dhen.features.visual.Box3D
 import io.github.dzkchen.dhen.features.visual.DamageSplash
 import io.github.dzkchen.dhen.features.visual.EntityHighlight
+import io.github.dzkchen.dhen.features.visual.EtherwarpOverlay
 import io.github.dzkchen.dhen.features.visual.GyroHelper
 import io.github.dzkchen.dhen.features.visual.HidePlayers
 import io.github.dzkchen.dhen.features.visual.MaskTimers
@@ -274,6 +280,10 @@ object Dhen : ClientModInitializer {
 		modules.registerAll(
 			AutoSprint,
 			ArrowFix,
+			EtherwarpSound,
+			LCEtherwarp,
+			EtherwarpAutoSneak,
+			ZeroPingEtherwarp,
 			NoCursorReset,
 			NoItemPlace,
 			PickupLog,
@@ -300,12 +310,14 @@ object Dhen : ClientModInitializer {
 			AuctionPriceInput,
 			StorageOverlay,
 			Animations,
+			BlockOverlay,
 			Box3D,
 			Camera,
 			ClassColors,
 			CustomScoreboard,
 			DamageSplash,
 			EntityHighlight,
+			EtherwarpOverlay,
 			GyroHelper,
 			HidePlayers,
 			MaskTimers,
@@ -405,6 +417,9 @@ object Dhen : ClientModInitializer {
 		}
 		LevelRenderEvents.COLLECT_SUBMITS.register { context ->
 			failsafe.guard("world render") { WorldRenderHooks.render(context) }
+		}
+		LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register { context, outline ->
+			failsafe.guard("block outline") { WorldRenderHooks.blockOutline(context, outline) } ?: true
 		}
 		LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register { context ->
 			failsafe.guard("world render probe after translucent terrain") { WorldRenderProbe.afterTranslucentTerrain(context) }

@@ -207,6 +207,25 @@ internal object WorldDraw {
 		if (outline) drawWireBox(event, pos, outlineColor, width, depth)
 	}
 
+	fun drawBox(
+		event: WorldRenderEvent,
+		minX: Double,
+		minY: Double,
+		minZ: Double,
+		maxX: Double,
+		maxY: Double,
+		maxZ: Double,
+		outlineColor: Int,
+		fillColor: Int,
+		outline: Boolean,
+		fill: Boolean,
+		width: Float,
+		depth: WorldDepth
+	) {
+		if (fill) drawFilledBox(event, minX, minY, minZ, maxX, maxY, maxZ, fillColor, depth)
+		if (outline) drawWireBox(event, minX, minY, minZ, maxX, maxY, maxZ, outlineColor, width, depth)
+	}
+
 	fun drawWireBox(
 		event: WorldRenderEvent,
 		bounds: AABB,
