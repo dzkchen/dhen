@@ -36,6 +36,7 @@ class CommandRegistry<S>(
 	private val sounds: SoundCommands = SoundCommands.NONE,
 	private val previews: PreviewCommands = PreviewCommands.NONE,
 	private val waypoints: WaypointCommands = WaypointCommands.NONE,
+	private val reminders: ReminderCommands = ReminderCommands.NONE,
 	private val diagnostics: Diagnostics = Diagnostics(manager),
 	private val available: () -> Boolean = { true },
 	private val persistModules: () -> Unit = {},
@@ -64,7 +65,8 @@ class CommandRegistry<S>(
 	}
 
 	fun install(dispatcher: CommandDispatcher<S>) {
-		for (name in RESERVED) dispatcher.register(core(name).requires { available() })
+		for (name in CORE_NAMES) dispatcher.register(core(name).requires { available() })
+		dispatcher.register(remindMeCommand().requires { available() })
 		for (registration in registrations.values) {
 			for (lit in registration.literals) {
 				dispatcher.register(literal<S>(lit).apply(registration.build).requires { available() })
@@ -437,7 +439,7 @@ class CommandRegistry<S>(
 
 	private fun commandPaths(root: CommandNode<S>): List<String> {
 		val paths = ArrayList<String>()
-		for (name in listOf(CORE_COMMAND) + registrations.values.map { it.literals.first() }) {
+		for (name in listOf(CORE_COMMAND, REMIND_COMMAND) + registrations.values.map { it.literals.first() }) {
 			val node = root.getChild(name) ?: continue
 			collectPaths(node, "/$name", paths)
 		}
@@ -452,7 +454,7 @@ class CommandRegistry<S>(
 	private fun debugCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("debug")
 			.executes { context ->
-				reportAll(context.source, diagnostics.lines() + registrations.values.map(::ownerLine))
+				reportAll(context.source, diagnostics.lines() + REMIND_OWNER + registrations.values.map(::ownerLine))
 			}
 			.then(
 				literal<S>("deep")
@@ -570,6 +572,154 @@ class CommandRegistry<S>(
 					)
 			)
 
+	private fun remindMeCommand(): LiteralArgumentBuilder<S> =
+		literal<S>(REMIND_COMMAND)
+			.executes { context -> reportComponents(context.source, reminders.list()) }
+			.then(literal<S>("list").executes { context -> reportComponents(context.source, reminders.list()) })
+			.then(literal<S>("gui").executes { context -> report(context.source, reminders.openManager()) })
+			.then(literal<S>("help").executes { context -> reportAll(context.source, reminderHelp()) })
+			.then(createReminderCommand())
+			.then(
+				literal<S>("todo").then(
+					argument<S, String>("text", StringArgumentType.greedyString())
+						.executes { context -> stored(context.source, reminders.addTodo(text(context))) }
+				)
+			)
+			.then(reminderTarget("done", reminders::complete))
+			.then(reminderTarget("toggle", reminders::toggle))
+			.then(
+				literal<S>("remove")
+					.then(literal<S>("all").executes { context -> reportComponents(context.source, reminders.removeAll(false)) })
+					.then(
+						literal<S>("all_confirmed").executes { context ->
+							reportComponents(context.source, reminders.removeAll(true))
+						}
+					)
+					.then(
+						argument<S, Int>("id", IntegerArgumentType.integer(1))
+							.suggests(suggesting(reminders::ids))
+							.executes { context -> stored(context.source, reminders.remove(target(context))) }
+					)
+			)
+			.then(
+				literal<S>("rename").then(
+					argument<S, Int>("id", IntegerArgumentType.integer(1))
+						.suggests(suggesting(reminders::ids))
+						.then(
+							argument<S, String>("name", StringArgumentType.greedyString()).executes { context ->
+								stored(context.source, reminders.rename(target(context), StringArgumentType.getString(context, "name")))
+							}
+						)
+				)
+			)
+			.then(
+				literal<S>("snooze").then(
+					argument<S, Int>("id", IntegerArgumentType.integer(1))
+						.suggests(suggesting(reminders::ids))
+						.then(
+							argument<S, Int>("amount", IntegerArgumentType.integer(1)).then(
+								argument<S, String>("unit", StringArgumentType.word())
+									.suggests(suggesting(::reminderUnits))
+									.executes { context ->
+										stored(
+											context.source,
+											reminders.snooze(
+												target(context),
+												IntegerArgumentType.getInteger(context, "amount"),
+												StringArgumentType.getString(context, "unit")
+											)
+										)
+									}
+							)
+						)
+				)
+			)
+			.then(literal<S>("export").executes { context -> report(context.source, reminders.exportTodos()) })
+			.then(literal<S>("import").executes { context -> stored(context.source, reminders.importTodos()) })
+
+	private fun createReminderCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("create").then(
+			argument<S, Int>("amount", IntegerArgumentType.integer(1)).then(
+				argument<S, String>("unit", StringArgumentType.word())
+					.suggests(suggesting(::reminderUnits))
+					.then(
+						argument<S, String>("trigger", StringArgumentType.word())
+							.suggests(suggesting(::reminderTriggers))
+							.then(
+								argument<S, String>("output", StringArgumentType.word())
+									.suggests(suggesting(::reminderOutputs))
+									.then(
+										literal<S>("message").then(
+											argument<S, String>("message", StringArgumentType.greedyString())
+												.executes { context -> created(context, null, null) }
+										)
+									)
+									.then(
+										literal<S>("repeat").then(
+											argument<S, String>("times", StringArgumentType.word())
+												.suggests(suggesting(::reminderRepeats))
+												.then(
+													argument<S, String>("message", StringArgumentType.greedyString())
+														.executes { context ->
+															created(context, StringArgumentType.getString(context, "times"), null)
+														}
+												)
+										)
+									)
+									.then(
+										literal<S>("name").then(
+											argument<S, String>("label", StringArgumentType.word()).then(
+												argument<S, String>("message", StringArgumentType.greedyString())
+													.executes { context ->
+														created(context, null, StringArgumentType.getString(context, "label"))
+													}
+											)
+										)
+									)
+							)
+					)
+			)
+		)
+
+	private fun reminderTarget(name: String, action: (Int) -> String): LiteralArgumentBuilder<S> =
+		literal<S>(name).then(
+			argument<S, Int>("id", IntegerArgumentType.integer(1))
+				.suggests(suggesting(reminders::ids))
+				.executes { context -> stored(context.source, action(target(context))) }
+		)
+
+	private fun created(context: CommandContext<S>, repeat: String?, label: String?): Int = stored(
+		context.source,
+		reminders.create(
+			IntegerArgumentType.getInteger(context, "amount"),
+			StringArgumentType.getString(context, "unit"),
+			StringArgumentType.getString(context, "trigger"),
+			StringArgumentType.getString(context, "output"),
+			repeat,
+			label,
+			StringArgumentType.getString(context, "message")
+		)
+	)
+
+	private fun target(context: CommandContext<S>): Int = IntegerArgumentType.getInteger(context, "id")
+
+	private fun text(context: CommandContext<S>): String = StringArgumentType.getString(context, "text")
+
+	private fun reportComponents(source: S, lines: List<Component>): Int {
+		for (line in lines) feedback(source, line)
+		return Command.SINGLE_SUCCESS
+	}
+
+	private fun reminderUnits(): List<String> = REMINDER_UNITS
+
+	private fun reminderTriggers(): List<String> = REMINDER_TRIGGERS
+
+	private fun reminderOutputs(): List<String> = REMINDER_OUTPUTS
+
+	private fun reminderRepeats(): List<String> = REMINDER_REPEATS
+
+	private fun reminderHelp(): List<String> = REMINDER_HELP
+
 	private fun soundCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("sound").then(
 			argument<S, Identifier>("identifier", IdentifierArgument.id()).then(
@@ -602,8 +752,11 @@ class CommandRegistry<S>(
 
 	internal companion object {
 		internal const val CORE_COMMAND = "dhen"
+		internal const val REMIND_COMMAND = "remindme"
 
-		internal val RESERVED = listOf(CORE_COMMAND, "dh")
+		internal val CORE_NAMES = listOf(CORE_COMMAND, "dh")
+
+		internal val RESERVED = CORE_NAMES + REMIND_COMMAND
 
 		private const val PAGE_SIZE = 15
 		private const val FIRST_PAGE = 1
@@ -613,6 +766,31 @@ class CommandRegistry<S>(
 			"Give the keys and then the command, like /dhen hotkey add G,H /warp crypts."
 		private const val WHERE_USAGE =
 			"Give the number from /dhen hotkey list and then the scope, like /dhen hotkey where 1 island:hub."
+
+		private val REMIND_OWNER = listOf("/$REMIND_COMMAND — dhen")
+
+		private val REMINDER_UNITS = listOf("seconds", "minutes", "hours", "days", "sec", "min", "hour", "day")
+		private val REMINDER_TRIGGERS = listOf("while_playing", "real_time")
+		private val REMINDER_OUTPUTS = listOf("chat", "title_box", "chat_and_title", "sound_only")
+		private val REMINDER_REPEATS = listOf("until_removed", "2", "3", "5", "10")
+		private val REMINDER_HELP = listOf(
+			"§6§lRemindMe",
+			"§e/remindme create <amount> <unit> <trigger> <output> message <message>",
+			"  §7Units: seconds, minutes, hours, days",
+			"  §7Triggers: while_playing (pauses when you log out) or real_time",
+			"  §7Output: chat, title_box, chat_and_title, sound_only",
+			"§e/remindme create ... repeat <times> <message> §7— times is until_removed, or 2 and up",
+			"§e/remindme create ... name <label> <message> §7— gives the reminder a display name",
+			"§e/remindme todo <text> §7— a reminder with no time, listed on the HUD",
+			"§e/remindme done <id> §7— ticks a todo off",
+			"§e/remindme gui §7— opens the reminder manager",
+			"§e/remindme rename <id> <name>",
+			"§e/remindme toggle <id>",
+			"§e/remindme snooze <id> <amount> <unit>",
+			"§e/remindme remove <id> §7or §e/remindme remove all",
+			"§e/remindme list",
+			"§e/remindme export §7and §e/remindme import §7— todos through the clipboard"
+		)
 	}
 }
 

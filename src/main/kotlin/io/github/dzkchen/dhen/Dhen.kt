@@ -64,6 +64,7 @@ import io.github.dzkchen.dhen.features.qol.NetworkResilience
 import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
+import io.github.dzkchen.dhen.features.qol.Reminders
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
 import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
@@ -294,6 +295,7 @@ object Dhen : ClientModInitializer {
 			sounds = soundCommands,
 			previews = previewCommands,
 			waypoints = Waypoints,
+			reminders = Reminders,
 			available = { !failsafe.failed },
 			persistModules = ::persistModules
 		) { source, line ->
@@ -311,6 +313,7 @@ object Dhen : ClientModInitializer {
 			ZeroPingEtherwarp,
 			NetworkResilience,
 			Hotkeys,
+			Reminders,
 			NoCursorReset,
 			NoItemPlace,
 			PickupLog,

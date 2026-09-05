@@ -348,3 +348,117 @@ internal class PetNametags {
 		private const val SKIN = "skin"
 	}
 }
+
+internal class MaxedPet(val displayName: String, val level: Int)
+
+internal object PetMaxLevel {
+	fun maxed(styled: String): MaxedPet? {
+		if (!levelUpLine.reset(styled).matches()) return null
+		val displayName = levelUpLine.group(NAME_GROUP)
+		if (displayName.isBlank()) return null
+		val level = withoutCodes(levelUpLine.group(LEVEL_GROUP)).toIntOrNull() ?: return null
+		if (level != MAX_LEVEL && level != DRAGON_MAX_LEVEL) return null
+		return MaxedPet(displayName, level)
+	}
+
+	fun baseMarketId(displayName: String): String? {
+		val tier = TIERS[displayName.take(CODE_LENGTH)] ?: return null
+		val name = withoutCodes(displayName).trim().uppercase(Locale.ROOT).replace(' ', '_')
+		if (name.isEmpty()) return null
+		return "$PET_PREFIX$name-$tier"
+	}
+
+	fun maxedMarketId(displayName: String, level: Int): String? =
+		baseMarketId(displayName)?.let { "$it-$level" }
+
+	private const val NAME_GROUP = 1
+	private const val LEVEL_GROUP = 2
+	private const val CODE_LENGTH = 2
+	private const val MAX_LEVEL = 100
+	private const val DRAGON_MAX_LEVEL = 200
+	private const val PET_PREFIX = "PET-"
+
+	private val levelUpLine: Matcher = Pattern.compile("^§aYour (.*?) §aleveled up to level (.*?)§a!$").matcher("")
+
+	private val TIERS = mapOf(
+		"§f" to "COMMON",
+		"§a" to "UNCOMMON",
+		"§9" to "RARE",
+		"§5" to "EPIC",
+		"§6" to "LEGENDARY",
+		"§d" to "MYTHIC"
+	)
+}
+
+internal object PetCandyLore {
+	const val ABSENT = -1
+
+	fun insertion(lines: List<Component>): Int {
+		var maxLevelAt = ABSENT
+		for (index in lines.indices) {
+			val text = lines[index].string
+			if (text.endsWith(CANDY_SUFFIX)) return ABSENT
+			if (maxLevelAt == ABSENT && text.contains(MAX_LEVEL)) maxLevelAt = index
+		}
+		return maxLevelAt
+	}
+
+	fun lines(candyUsed: Int): List<Component> =
+		if (candyUsed in CACHED.indices) CACHED[candyUsed] else listOf(line(candyUsed), BLANK)
+
+	private fun line(candyUsed: Int): Component =
+		Component.literal("($candyUsed/$MAX_CANDY) Pet Candy Used").withStyle(ChatFormatting.GREEN)
+
+	private const val MAX_LEVEL = "MAX LEVEL"
+	private const val CANDY_SUFFIX = ") Pet Candy Used"
+	private const val MAX_CANDY = 10
+
+	private val BLANK: Component = Component.literal(" ")
+	private val CACHED: Array<List<Component>> = Array(MAX_CANDY + 1) { listOf(line(it), BLANK) }
+}
+
+internal class KatWrongPets {
+	private var petSlot = false
+	private var confirmSlot = false
+
+	fun ready(event: ContainerReadyEvent) = observe(event.title.string, event.stacks)
+
+	fun updated(event: ContainerUpdatedEvent) = observe(event.title.string, event.stacks)
+
+	fun closed(event: ContainerClosedEvent) {
+		if (!event.reopening) reset()
+	}
+
+	fun wrong(slotIndex: Int): Boolean = when (slotIndex) {
+		PET_SLOT -> petSlot
+		CONFIRM_SLOT -> confirmSlot
+		else -> false
+	}
+
+	fun reset() {
+		petSlot = false
+		confirmSlot = false
+	}
+
+	internal fun observe(title: String, stacks: List<ItemStack>) {
+		if (withoutCodes(title).trim() != SITTER) {
+			reset()
+			return
+		}
+		petSlot = named(stacks.getOrNull(PET_SLOT))
+		confirmSlot = described(stacks.getOrNull(CONFIRM_SLOT))
+	}
+
+	private fun named(stack: ItemStack?): Boolean =
+		stack != null && !stack.isEmpty && legacyCodes(stack.hoverName).contains(WRONG_PET)
+
+	private fun described(stack: ItemStack?): Boolean =
+		stack != null && !stack.isEmpty && SkyBlockItems.lore(stack).any { legacyCodes(it).contains(WRONG_PET) }
+
+	private companion object {
+		const val SITTER = "Pet Sitter"
+		const val PET_SLOT = 13
+		const val CONFIRM_SLOT = 22
+		const val WRONG_PET = "§5Megalodon"
+	}
+}

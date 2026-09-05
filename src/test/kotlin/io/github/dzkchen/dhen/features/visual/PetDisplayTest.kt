@@ -33,10 +33,16 @@ class PetDisplayTest {
 				"Hide Autopet Messages",
 				"Highlight Active Pet",
 				"Highlight Color",
+				"Kat Reminder",
+				"Kat Wrong Pet",
+				"Kat Wrong Pet Color",
+				"Max Level Alert",
+				"Max Level Price",
 				"Hide Pet Level",
 				"Hide Max Pet Level",
 				"Pet Candy Used",
 				"Hide On Maxed",
+				"Hidden Pet Candy",
 				"Show Exp Share",
 				"Show Tier Boost",
 				"Pet Item Scale",
@@ -62,7 +68,7 @@ class PetDisplayTest {
 				"Pet Slot 8",
 				"Pet Slot 9"
 			),
-			PetDisplay.settings.take(33).map { it.name }
+			PetDisplay.settings.take(39).map { it.name }
 		)
 		assertEquals(PetDisplay.settings.size, PetDisplay.settings.map { it.name }.distinct().size)
 		assertTrue(PetDisplay.settings.map { it.name }.containsAll(CURRENT_PET_SETTINGS))

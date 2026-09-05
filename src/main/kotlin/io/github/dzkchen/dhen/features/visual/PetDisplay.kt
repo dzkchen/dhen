@@ -16,6 +16,7 @@ import io.github.dzkchen.dhen.data.item.PetInfo
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.mayor.MayorService
 import io.github.dzkchen.dhen.data.pet.CurrentPet
+import io.github.dzkchen.dhen.data.pet.KatDialog
 import io.github.dzkchen.dhen.data.pet.PetLines
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -32,7 +33,9 @@ import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
+import io.github.dzkchen.dhen.features.qol.Reminders
 import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.SLOT_BOX
 import io.github.dzkchen.dhen.gui.SlotTint
 import io.github.dzkchen.dhen.gui.slotText
@@ -41,6 +44,10 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
+import io.github.dzkchen.dhen.util.shortNumber
+import net.minecraft.client.Minecraft
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
@@ -87,6 +94,41 @@ object PetDisplay : Module(
 	).withDependency { highlightSetting.on }
 	private var highlightColor by highlightColorSetting
 
+	internal val katReminderSetting = BooleanSetting(
+		"Kat Reminder",
+		default = true,
+		description = "Sets a reminder when Kat starts upgrading a pet, so you know when to collect it."
+	)
+	private var katReminder by katReminderSetting
+
+	internal val katWrongPetSetting = BooleanSetting(
+		"Kat Wrong Pet",
+		default = true,
+		description = "Tints Kat's slot red when the pet on offer is one people often hand over by mistake."
+	)
+	private var katWrongPet by katWrongPetSetting
+
+	internal val katWrongPetColorSetting = ColorSetting(
+		"Kat Wrong Pet Color",
+		Color.rgba(255, 0, 0, 128),
+		allowAlpha = true,
+		description = "The colour a mistaken Kat pet is tinted."
+	).withDependency { katWrongPetSetting.on }
+	private var katWrongPetColor by katWrongPetColorSetting
+
+	internal val maxLevelAlertSetting = BooleanSetting(
+		"Max Level Alert",
+		default = true,
+		description = "Shows a title and plays a sound when one of your pets reaches its top level."
+	)
+	private var maxLevelAlert by maxLevelAlertSetting
+
+	internal val maxLevelPriceSetting = BooleanSetting(
+		"Max Level Price",
+		description = "Adds a chat line with what the maxed pet is worth and what the levelling gained."
+	)
+	private var maxLevelPrice by maxLevelPriceSetting
+
 	internal val hidePetLevelSetting = BooleanSetting(
 		"Hide Pet Level",
 		description = "Hides the level in front of a summoned pet's name above its head."
@@ -111,6 +153,13 @@ object PetDisplay : Module(
 		description = "Leaves the candy count off pets that are already max level."
 	).withDependency { petCandySetting.on }
 	private var hideOnMaxed by hideOnMaxedSetting
+
+	internal val hiddenPetCandySetting = BooleanSetting(
+		"Hidden Pet Candy",
+		default = true,
+		description = "Puts the Pet Candy line back on a maxed pet's tooltip, where Hypixel hides it."
+	)
+	private var hiddenPetCandy by hiddenPetCandySetting
 
 	internal val expShareSetting = BooleanSetting(
 		"Show Exp Share",
@@ -653,6 +702,8 @@ object PetDisplay : Module(
 	private var expShareHorizontalAlignment by expShareHorizontalAlignmentSetting
 
 	private val nametags = PetNametags()
+	private val tooltipItems = SkyBlockItems.memo(1)
+	private val katWrongPets = KatWrongPets()
 	private val petItems = SkyBlockItems.memo(TRACKED_SLOTS)
 	private val leveledNames = arrayOfNulls<Component>(TRACKED_SLOTS)
 	private val petLevels = IntArray(TRACKED_SLOTS)
@@ -669,18 +720,25 @@ object PetDisplay : Module(
 	private val priceHold = RequirementHold(Prices::active, Prices::require)
 
 	init {
-		on<ChatReceiveEvent> { autopetted(it) }
+		on<ChatReceiveEvent> {
+			autopetted(it)
+			katSpoke(it)
+			maxedOut(it)
+		}
 		on<ContainerReadyEvent> {
 			petWheel.ready(it)
 			georgeHelper.ready(it)
+			katWrongPets.ready(it)
 		}
 		on<ContainerUpdatedEvent> {
 			petWheel.updated(it)
 			georgeHelper.updated(it)
+			katWrongPets.updated(it)
 		}
 		on<ContainerClosedEvent> {
 			petWheel.closed(it)
 			georgeHelper.closed(it)
+			katWrongPets.closed(it)
 		}
 		on<ScreenRenderEvent.Pre> { petWheel.render(it) }
 		on<ContainerClickEvent> { petWheel.clicked(it) }
@@ -691,6 +749,7 @@ object PetDisplay : Module(
 		on<EntityNameTagEvent> { renamed(it) }
 		on<TooltipEvent> {
 			if (petExpTooltipEnabled) petExpTooltip.add(it, showPetExpAlways, dragonEgg, shiftHeld())
+			candied(it)
 		}
 		on<ClientTickEvent.End> { tickHud() }
 		on<WorldChangeEvent> { georgeHelper.reset() }
@@ -708,6 +767,7 @@ object PetDisplay : Module(
 		petWheel.reset()
 		petExpTooltip.reset()
 		georgeHelper.reset()
+		katWrongPets.reset()
 		hudElement.refresh()
 	}
 
@@ -722,7 +782,7 @@ object PetDisplay : Module(
 	private fun ensureRequirements() {
 		repoHold.ensure()
 		mayorHold.ensure()
-		priceHold.ensure(georgeHelperEnabled)
+		priceHold.ensure(georgeHelperEnabled || maxLevelPrice)
 	}
 
 	internal fun titled(pet: String, dungeon: Boolean): Boolean =
@@ -736,9 +796,51 @@ object PetDisplay : Module(
 	}
 
 	private fun highlighted(event: SlotRenderEvent.Pre) {
-		if (!highlight || !SkyBlockLocation.inSkyBlock) return
+		if (!SkyBlockLocation.inSkyBlock) return
+		if (katWrongPet && katWrongPets.wrong(event.slot.index)) {
+			SlotTint.claim(katWrongPetColor.argb, KAT_TINT_PRIORITY)
+			return
+		}
+		if (!highlight) return
 		if (event.slot.index != CurrentPet.menuSlot) return
 		SlotTint.claim(highlightColorSetting.value.argb, TINT_PRIORITY)
+	}
+
+	private fun katSpoke(event: ChatReceiveEvent) {
+		if (!katReminder || !SkyBlockLocation.inSkyBlock) return
+		val dialog = KatDialog.spokenByKat(event.stripped) ?: return
+		Reminders.katUpgradeSpoken(dialog)
+	}
+
+	private fun maxedOut(event: ChatReceiveEvent) {
+		if (!maxLevelAlert && !maxLevelPrice) return
+		if (!SkyBlockLocation.inSkyBlock) return
+		val pet = PetMaxLevel.maxed(event.styled) ?: return
+		if (maxLevelAlert) {
+			DhenAlert.show("${pet.displayName}§f is maxed", "§fLevel ${pet.level}", MAXED_TICKS, sound = null)
+			Minecraft.getInstance().soundManager.play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f))
+		}
+		if (maxLevelPrice) pricedMaxLevel(pet)
+	}
+
+	private fun pricedMaxLevel(pet: MaxedPet) {
+		val maxedId = PetMaxLevel.maxedMarketId(pet.displayName, pet.level) ?: return
+		val maxed = Prices.lowestBin(maxedId)?.takeIf { it > 0.0 } ?: return
+		val base = PetMaxLevel.baseMarketId(pet.displayName)?.let(Prices::lowestBin)?.takeIf { it > 0.0 }
+		val worth = "§6${shortNumber(maxed.toLong())}"
+		val line =
+			if (base == null) "§7A maxed one sells for about $worth§7."
+			else "§7A maxed one sells for about $worth§7, about §6${shortNumber((maxed - base).toLong())}§7 more than an unlevelled one."
+		Minecraft.getInstance().player?.sendSystemMessage(DhenType.overWorld(line))
+	}
+
+	private fun candied(event: TooltipEvent) {
+		if (!hiddenPetCandy || !SkyBlockLocation.inSkyBlock) return
+		val pet = tooltipItems.of(0, event.stack).pet ?: return
+		if (pet.candyUsed <= NO_CANDY) return
+		val at = PetCandyLore.insertion(event.lines)
+		if (at == PetCandyLore.ABSENT) return
+		event.edit().addAll(at, PetCandyLore.lines(pet.candyUsed))
 	}
 
 	private fun renamed(event: EntityNameTagEvent) {
@@ -796,6 +898,8 @@ object PetDisplay : Module(
 
 	private const val TITLE_TICKS = 40
 	private const val TINT_PRIORITY = 10
+	private const val KAT_TINT_PRIORITY = 20
+	private const val MAXED_TICKS = 60
 	private const val TRACKED_SLOTS = 128
 	private const val LONE_STACK = 1
 	private const val NO_CANDY = 0

@@ -23,7 +23,14 @@ internal object PriceTables {
 
 	fun neuLowestBins(body: String): Map<String, Double> = cheapest(body) { key, file ->
 		neuMarketId(key)?.let(file)
+		neuMaxedPetId(key)?.let(file)
 		neuBookId(key)?.let(file)
+	}
+
+	fun neuMaxedPetId(key: String): String? {
+		val level = key.substringAfterLast('+', "").toIntOrNull() ?: return null
+		val marketId = neuMarketId(key) ?: return null
+		return if (marketId.startsWith("$PET-")) "$marketId-$level" else null
 	}
 
 	fun neuBookId(key: String): String? {
