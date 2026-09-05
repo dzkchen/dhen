@@ -24,6 +24,36 @@ class ContainerStateTest {
 	}
 
 	@Test
+	fun `a blocked menu slot toggles on and off and forgets an emptied menu`() {
+		assertTrue(ContainerState.toggleBlockedSlot("Fast Travel", 13))
+		assertTrue(ContainerState.blocksAnySlot("fast travel"))
+		assertTrue(ContainerState.blocksSlot("FAST TRAVEL", 13))
+		assertFalse(ContainerState.blocksSlot("Fast Travel", 14))
+		assertFalse(ContainerState.toggleBlockedSlot("Fast Travel", 13))
+		assertFalse(ContainerState.blocksAnySlot("Fast Travel"))
+	}
+
+	@Test
+	fun `blocked menu slots are written whole, so removing one removes it from disk`() {
+		ContainerState.toggleBlockedSlot("Fast Travel", 13)
+		ContainerState.toggleBlockedSlot("Fast Travel", 13)
+		assertTrue(ContainerState.authoritative.contains("blockedSlots"))
+		assertFalse(ContainerState.snapshot().getAsJsonObject("blockedSlots").has("fast travel"))
+	}
+
+	@Test
+	fun `blocked menu slots survive a save and reload`() {
+		ContainerState.toggleBlockedSlot("Fast Travel", 13)
+		ContainerState.toggleBlockedSlot("Fast Travel", 22)
+		ContainerState.toggleBlockedSlot("SkyBlock Menu", 4)
+		ContainerState.read(ContainerState.snapshot())
+		assertTrue(ContainerState.blocksSlot("Fast Travel", 13))
+		assertTrue(ContainerState.blocksSlot("Fast Travel", 22))
+		assertTrue(ContainerState.blocksSlot("skyblock menu", 4))
+		assertFalse(ContainerState.blocksSlot("Fast Travel", 4))
+	}
+
+	@Test
 	fun `a bind is readable from both of its slots and unbinding clears both`() {
 		ContainerState.bind(15, 38)
 		assertEquals(38, ContainerState.partner(15))

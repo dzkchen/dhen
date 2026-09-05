@@ -28,6 +28,8 @@ object SkyBlockItems {
 
 	fun lore(stack: ItemStack): List<Component> = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).styledLines()
 
+	fun rawLore(stack: ItemStack): List<Component> = stack.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines()
+
 	fun skullTexture(stack: ItemStack): String? = profile(stack)?.properties?.get(TEXTURES)?.firstOrNull()?.value
 
 	fun skullId(stack: ItemStack): String? = profile(stack)?.id?.toString()

@@ -77,6 +77,8 @@ object SidebarValues {
 
 	fun text(field: SidebarField): String? = values[field.ordinal]
 
+	fun noTradeProfile(): Boolean = text(SidebarField.PROFILE_TYPE) != null
+
 	fun number(field: SidebarField): Long = numbers[field.ordinal]
 
 	fun powder(kind: PowderKind): String? = powderText[kind.ordinal]

@@ -70,6 +70,7 @@ internal data class DhenTheme(
 		val SLOT_TOOLKIT = 0xFFFF5555u.toInt()
 		val SLOT_ENCHANT = 0xFF5555FFu.toInt()
 		val SLOT_ULTIMATE = 0xFFFF55FFu.toInt()
+		val SLOT_SHADE = 0xFF555555u.toInt()
 
 		val SLOT_STAR_DUNGEON = intArrayOf(
 			0xFFFFFFE0u.toInt(),

@@ -4,10 +4,12 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import io.github.dzkchen.dhen.config.ConfigStore
 import io.github.dzkchen.dhen.util.array
+import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.numberOrNull
 import io.github.dzkchen.dhen.util.numericInts
 import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.texts
+import java.util.Locale
 
 internal object ContainerState {
 	const val NO_SLOT = -1
@@ -16,12 +18,14 @@ internal object ContainerState {
 	const val HOTBAR_FIRST = 36
 	const val HOTBAR_LAST = 44
 
-	val authoritative = setOf(BINDS)
+	val authoritative = setOf(BINDS, BLOCKED_SLOTS)
 
 	val protectedUuids = HashSet<String>()
 	val protectedIds = HashSet<String>()
 
 	private val partners = IntArray(MENU_SLOTS) { NO_SLOT }
+
+	private val blockedSlots = HashMap<String, MutableSet<Int>>()
 
 	private var locked = 0L
 
@@ -40,6 +44,29 @@ internal object ContainerState {
 		locked = locked xor (1L shl containerSlot)
 		save()
 		return isLocked(containerSlot)
+	}
+
+	fun blocksAnySlot(title: String): Boolean = blockedSlots.containsKey(title.lowercase(Locale.ROOT))
+
+	fun blocksSlot(title: String, menuSlot: Int): Boolean =
+		blockedSlots[title.lowercase(Locale.ROOT)]?.contains(menuSlot) == true
+
+	fun toggleBlockedSlot(title: String, menuSlot: Int): Boolean {
+		if (title.isEmpty()) return false
+		val key = title.lowercase(Locale.ROOT)
+		val slots = blockedSlots[key]
+		val added = if (slots == null) {
+			blockedSlots[key] = linkedSetOf(menuSlot)
+			true
+		} else if (slots.remove(menuSlot)) {
+			if (slots.isEmpty()) blockedSlots.remove(key)
+			false
+		} else {
+			slots.add(menuSlot)
+			true
+		}
+		save()
+		return added
 	}
 
 	fun partner(menuSlot: Int): Int =
@@ -85,12 +112,20 @@ internal object ContainerState {
 			if (held in HOTBAR_FIRST..HOTBAR_LAST) binds.addProperty(slot.toString(), held)
 		}
 		document.add(BINDS, binds)
+		val blocked = JsonObject()
+		for ((menu, slots) in blockedSlots) {
+			val indices = JsonArray()
+			for (slot in slots.sorted()) indices.add(slot)
+			blocked.add(menu, indices)
+		}
+		document.add(BLOCKED_SLOTS, blocked)
 		return document
 	}
 
 	internal fun read(document: JsonObject) {
 		protectedUuids.clear()
 		protectedIds.clear()
+		blockedSlots.clear()
 		partners.fill(NO_SLOT)
 		locked = 0L
 		protectedUuids += document.array(PROTECTED_UUIDS).texts()
@@ -106,6 +141,13 @@ internal object ContainerState {
 			if (partners[inventorySlot] != NO_SLOT || partners[hotbarSlot] != NO_SLOT) continue
 			partners[inventorySlot] = hotbarSlot
 			partners[hotbarSlot] = inventorySlot
+		}
+		val blocked = document.obj(BLOCKED_SLOTS)
+		for (menu in blocked.keys()) {
+			val indices = blocked?.array(menu) ?: continue
+			val slots = LinkedHashSet<Int>()
+			for (element in indices) element.numberOrNull()?.toInt()?.let { slots.add(it) }
+			if (slots.isNotEmpty()) blockedSlots[menu.lowercase(Locale.ROOT)] = slots
 		}
 	}
 
@@ -127,3 +169,4 @@ private const val PROTECTED_UUIDS = "protectedUuids"
 private const val PROTECTED_IDS = "protectedIds"
 private const val LOCKED_SLOTS = "lockedSlots"
 private const val BINDS = "binds"
+private const val BLOCKED_SLOTS = "blockedSlots"

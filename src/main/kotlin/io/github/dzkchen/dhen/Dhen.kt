@@ -70,6 +70,10 @@ import io.github.dzkchen.dhen.features.inventory.InventorySearch
 import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
+import io.github.dzkchen.dhen.features.inventory.ContainerClicks
+import io.github.dzkchen.dhen.features.inventory.FocusMode
+import io.github.dzkchen.dhen.features.inventory.HideNotClickable
+import io.github.dzkchen.dhen.features.inventory.PageScrolling
 import io.github.dzkchen.dhen.features.inventory.AuctionPriceInput
 import io.github.dzkchen.dhen.features.inventory.CompactorPreview
 import io.github.dzkchen.dhen.features.inventory.EquipmentSlots
@@ -343,6 +347,10 @@ object Dhen : ClientModInitializer {
 			SlotText,
 			ValueBreakdown,
 			CompactorPreview,
+			ContainerClicks,
+			HideNotClickable,
+			FocusMode,
+			PageScrolling,
 			EquipmentSlots,
 			WikiLookup,
 			WardrobeKeybinds,

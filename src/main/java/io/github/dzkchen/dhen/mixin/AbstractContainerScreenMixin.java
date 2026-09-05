@@ -1,10 +1,12 @@
 package io.github.dzkchen.dhen.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.dzkchen.dhen.event.ScreenHooks;
 import io.github.dzkchen.dhen.event.TooltipEvent;
+import io.github.dzkchen.dhen.features.inventory.ContainerClicks;
 import io.github.dzkchen.dhen.features.inventory.ContainerOrigin;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -80,6 +82,17 @@ public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 		if (ScreenHooks.beforeContainerClick((AbstractContainerScreen<?>)(Object)this, click, this.hoveredSlot)) {
 			callback.setReturnValue(true);
 		}
+	}
+
+	@ModifyExpressionValue(
+		method = "mouseClicked",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/client/player/LocalPlayer;hasInfiniteMaterials()Z"
+		)
+	)
+	private boolean dhen$allowMiddleClick(final boolean original) {
+		return original || ContainerClicks.fixesMiddleClick();
 	}
 
 	@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)

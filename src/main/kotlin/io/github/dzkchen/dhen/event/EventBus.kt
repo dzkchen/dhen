@@ -6,6 +6,10 @@ internal const val BEFORE_FEATURES = 100
 
 internal const val AFTER_PRODUCERS = -100
 
+internal const val LAST_WORD = -200
+
+internal const val FINAL_WORD = -300
+
 class EventBus {
 	private val lock = Any()
 	private val types = ConcurrentHashMap<Class<out Event>, EventType<out Event>>()
