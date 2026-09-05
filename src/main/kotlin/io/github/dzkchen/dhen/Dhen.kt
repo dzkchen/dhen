@@ -20,6 +20,9 @@ import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.pickup.PickupHooks
 import io.github.dzkchen.dhen.data.price.Prices
+import io.github.dzkchen.dhen.data.npc.NpcSales
+import io.github.dzkchen.dhen.data.sack.SackHooks
+import io.github.dzkchen.dhen.data.sack.SackState
 import io.github.dzkchen.dhen.data.profile.PlayerProfiles
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
 import io.github.dzkchen.dhen.data.repo.ItemRepo
@@ -62,6 +65,8 @@ import io.github.dzkchen.dhen.features.qol.LCEtherwarp
 import io.github.dzkchen.dhen.features.qol.Hotkeys
 import io.github.dzkchen.dhen.features.qol.NetworkResilience
 import io.github.dzkchen.dhen.features.qol.NoCursorReset
+import io.github.dzkchen.dhen.features.qol.NpcDayLimit
+import io.github.dzkchen.dhen.features.qol.ServerRestartTitle
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.qol.Reminders
@@ -71,6 +76,14 @@ import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
 import io.github.dzkchen.dhen.features.inventory.ContainerClicks
+import io.github.dzkchen.dhen.features.inventory.BetterContainers
+import io.github.dzkchen.dhen.features.inventory.ChestValue
+import io.github.dzkchen.dhen.features.inventory.FullSackHighlight
+import io.github.dzkchen.dhen.features.inventory.OutsideSackValue
+import io.github.dzkchen.dhen.features.inventory.SackDisplay
+import io.github.dzkchen.dhen.features.inventory.CopyPlaytime
+import io.github.dzkchen.dhen.features.inventory.MagicalPower
+import io.github.dzkchen.dhen.features.inventory.XpInInventories
 import io.github.dzkchen.dhen.features.inventory.FocusMode
 import io.github.dzkchen.dhen.features.inventory.HideNotClickable
 import io.github.dzkchen.dhen.features.inventory.PageScrolling
@@ -110,6 +123,9 @@ import io.github.dzkchen.dhen.features.visual.BlockOverlay
 import io.github.dzkchen.dhen.features.visual.Box3D
 import io.github.dzkchen.dhen.features.visual.DamageSplash
 import io.github.dzkchen.dhen.features.visual.EntityHighlight
+import io.github.dzkchen.dhen.features.visual.MarkedPlayers
+import io.github.dzkchen.dhen.features.visual.SkyBlockXpBar
+import io.github.dzkchen.dhen.features.visual.TeleportPads
 import io.github.dzkchen.dhen.features.visual.EtherwarpOverlay
 import io.github.dzkchen.dhen.features.visual.GyroHelper
 import io.github.dzkchen.dhen.features.visual.HidePlayers
@@ -243,6 +259,7 @@ object Dhen : ClientModInitializer {
 			QuiverHooks,
 			MaxwellHooks,
 			CookieHooks,
+			SackHooks,
 			ProfileHooks,
 			firstRunExperience,
 			HypixelModApi
@@ -321,6 +338,8 @@ object Dhen : ClientModInitializer {
 			Hotkeys,
 			Reminders,
 			NoCursorReset,
+			NpcDayLimit,
+			ServerRestartTitle,
 			NoItemPlace,
 			PickupLog,
 			ChatTweaks,
@@ -349,6 +368,14 @@ object Dhen : ClientModInitializer {
 			CompactorPreview,
 			ContainerClicks,
 			HideNotClickable,
+			BetterContainers,
+			CopyPlaytime,
+			MagicalPower,
+			XpInInventories,
+			ChestValue,
+			SackDisplay,
+			FullSackHighlight,
+			OutsideSackValue,
 			FocusMode,
 			PageScrolling,
 			EquipmentSlots,
@@ -369,6 +396,9 @@ object Dhen : ClientModInitializer {
 			CustomTextBox,
 			DamageSplash,
 			EntityHighlight,
+			MarkedPlayers,
+			SkyBlockXpBar,
+			TeleportPads,
 			EtherwarpOverlay,
 			GyroHelper,
 			HidePlayers,
@@ -402,6 +432,9 @@ object Dhen : ClientModInitializer {
 		MayorService.simulated = { Simulation.seatedMayor }
 		ScoreboardLogger.openLogsSetting.value = { reveal(ScoreboardLogger.directory()) }
 		modules.enable(ChatTweaks)
+		modules.enable(FullSackHighlight)
+		modules.enable(XpInInventories)
+		modules.enable(ServerRestartTitle)
 		ModulePersistence.apply(modules, moduleStore.load())
 		modules.stateListener = { Minecraft.getInstance().execute(::persistModules) }
 		HudElementRegistry.replaceElement(
@@ -416,6 +449,8 @@ object Dhen : ClientModInitializer {
 			VanillaHudElements.EXPERIENCE_LEVEL,
 			MoveableVanillaHud.replacement(VanillaHudLayer.EXPERIENCE_LEVEL, failsafe)
 		)
+		HudElementRegistry.replaceElement(VanillaHudElements.INFO_BAR, SkyBlockXpBar.barReplacement(failsafe))
+		HudElementRegistry.replaceElement(VanillaHudElements.EXPERIENCE_LEVEL, SkyBlockXpBar.levelReplacement(failsafe))
 		HudElementRegistry.replaceElement(
 			VanillaHudElements.HELD_ITEM_TOOLTIP,
 			MoveableVanillaHud.replacement(VanillaHudLayer.HELD_ITEM, failsafe)
@@ -521,10 +556,13 @@ object Dhen : ClientModInitializer {
 		QuiverHooks.install(modules.eventBus)
 		MaxwellHooks.install(modules.eventBus)
 		CookieHooks.install(modules.eventBus)
+		SackHooks.install(modules.eventBus)
 		ProfileHooks.install(
 			modules.eventBus,
 			flushedOnStop(configRoot.resolve("profiles.json"), emptyList(), ProfileHooks.authoritative)
 		)
+		NpcSales.install(flushedOnStop(configRoot.resolve("npcsales.json"), emptyList(), NpcSales.authoritative))
+		SackState.install(flushedOnStop(configRoot.resolve("sacks.json"), emptyList(), SackState.authoritative))
 		ContainerState.install(
 			flushedOnStop(configRoot.resolve("containers.json"), emptyList(), ContainerState.authoritative)
 		)
@@ -575,6 +613,8 @@ object Dhen : ClientModInitializer {
 		contained("item repository", ItemRepo::uninstall)
 		contained("pack model table", PackModelRepo::uninstall)
 		contained("price feed", Prices::uninstall)
+		contained("npc sales", NpcSales::uninstall)
+		contained("sack contents", SackState::uninstall)
 		contained("mayor feed", MayorService::uninstall)
 		contained("player profiles", PlayerProfiles::uninstall)
 		contained("sound manager", SoundManager::uninstall)

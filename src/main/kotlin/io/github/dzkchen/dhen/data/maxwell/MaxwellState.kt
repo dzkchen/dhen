@@ -20,6 +20,9 @@ object MaxwellState {
 	var tunings: List<PowerTuning>? = null
 		private set
 
+	var abiphoneContacts: Int = 0
+		private set
+
 	internal fun select(power: String): Boolean {
 		if (this.power == power) return false
 		this.power = power
@@ -29,6 +32,12 @@ object MaxwellState {
 	internal fun empower(magicalPower: Int): Boolean {
 		if (this.magicalPower == magicalPower) return false
 		this.magicalPower = magicalPower
+		return true
+	}
+
+	internal fun contact(contacts: Int): Boolean {
+		if (abiphoneContacts == contacts) return false
+		abiphoneContacts = contacts
 		return true
 	}
 
@@ -42,6 +51,7 @@ object MaxwellState {
 		power = null
 		magicalPower = ABSENT
 		tunings = null
+		abiphoneContacts = 0
 	}
 
 	private fun sameTunings(replacement: List<PowerTuning>): Boolean {

@@ -61,6 +61,8 @@ internal object MaxwellHooks : GuardedHooks<MaxwellHooks.Channels> {
 		private val tuningLine = matcher("(?:§.)*§(?<color>.)\\+(?<amount>[^ ]+)(?<icon>.) (?<name>.+)")
 		private val statsTuningLine = matcher("(?:§.)*You have: .+ §7\\+ §(?<color>.)(?<amount>[^ ]+) (?<icon>.)")
 		private val tuningStackName = matcher("(?<icon>.) (?<name>.+)")
+		private val abiphoneTitle = matcher("Abiphone .*")
+		private val contactLine = matcher("Your contacts: (?<contacts>\\d+)/\\d+")
 		private val chosePower = matcher("You selected the (?<power>.*?) (?:power )?for your Accessory Bag!")
 		private val setPower = matcher("Your selected power was set to (?<power>.*)!")
 		private val collected = ArrayList<PowerTuning>()
@@ -72,6 +74,7 @@ internal object MaxwellHooks : GuardedHooks<MaxwellHooks.Channels> {
 				thaumaturgyTitle.reset(title).matches() ->
 					selectedPower(event.stacks) or magicalPower(event.stacks) or roundedTunings(event.stacks)
 
+				abiphoneTitle.reset(title).matches() -> abiphoneContacts(event.stacks)
 				title == BAGS_TITLE -> accessoryBag(event.stacks)
 				title == TUNING_TITLE -> exactTunings(event.stacks)
 				else -> false
@@ -87,6 +90,16 @@ internal object MaxwellHooks : GuardedHooks<MaxwellHooks.Channels> {
 				else -> return
 			}
 			if (MaxwellState.select(power)) updates.dispatch(MaxwellUpdateEvent())
+		}
+
+		private fun abiphoneContacts(stacks: List<ItemStack>): Boolean {
+			val book = stacks.getOrNull(CONTACT_BOOK_SLOT) ?: return false
+			for (line in SkyBlockItems.lore(book)) {
+				if (contactLine.reset(withoutCodes(line.string)).matches()) {
+					return MaxwellState.contact(digits(contactLine.group("contacts")).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt())
+				}
+			}
+			return false
 		}
 
 		private fun selectedPower(stacks: List<ItemStack>): Boolean {
@@ -178,6 +191,7 @@ internal object MaxwellHooks : GuardedHooks<MaxwellHooks.Channels> {
 		private fun matcher(pattern: String) = Pattern.compile(pattern).matcher("")
 	}
 
+	private const val CONTACT_BOOK_SLOT = 51
 	private const val BAGS_TITLE = "Your Bags"
 	private const val TUNING_TITLE = "Stats Tuning"
 	private const val BAG_STACK = "Accessory Bag"

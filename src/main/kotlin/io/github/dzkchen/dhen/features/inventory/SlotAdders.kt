@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.features.inventory
 
+import io.github.dzkchen.dhen.data.Island
+import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.SLOT_BOTTOM_LEFT
@@ -48,7 +50,8 @@ internal val SLOT_ADDERS = arrayOf(
 	SlotAdder("Bottle Charge", "How charged a Thunder, Storm or Hurricane Bottle is.", write = ::bottleCharge),
 	SlotAdder("Moby-Duck Progress", "How close a Moby-Duck is to evolving.", write = ::mobyDuckProgress),
 	SlotAdder("Auto-Recombobulated", "An R on a fishing drop that dropped already recombobulated.", write = ::autoRecombFlag),
-	SlotAdder("Item Stars", "The star count of an upgraded item, where its stack size would be.", write = ::itemStars)
+	SlotAdder("Item Stars", "The star count of an upgraded item, where its stack size would be.", write = ::itemStars),
+	SlotAdder("Teleport Pad Number", "The pad number in the Set Destination menu.", SET_DESTINATION, ::teleportPadNumber)
 )
 
 private fun essenceShop(scribe: SlotScribe) {
@@ -391,6 +394,13 @@ private fun itemStars(scribe: SlotScribe) {
 	scribe.write(SLOT_BOTTOM_RIGHT, stars.toString(), DhenPalette.slotStar(stars, scribe.loreHas(DUNGEON_CATEGORY)))
 }
 
+private fun teleportPadNumber(scribe: SlotScribe) {
+	if (SkyBlockLocation.island != Island.PRIVATE_ISLAND) return
+	if (!PAD_NAME.reset(scribe.name.lowercase()).matches()) return
+	val number = SPELLED_NUMBERS[PAD_NAME.group(1)] ?: return
+	scribe.write(SLOT_BOTTOM_RIGHT, number.toString(), DhenPalette.SLOT_CREAM)
+}
+
 private fun percentOf(amount: Long, capacity: Long): String =
 	"${(amount * FULL_PERCENT / capacity).coerceIn(0L, FULL_PERCENT)}%"
 
@@ -565,6 +575,24 @@ private const val SKYBLOCK_LEVEL_PART = 2
 private const val DUNGEONEERING_SLOT = 12
 private const val GUIDE_FIRST_SLOT = 18
 private const val ESSENCE_GUIDE_OFFSET = 3
+private const val SET_DESTINATION = "Set Destination"
+
+private val PAD_NAME = Pattern.compile("(?<number>.*) teleport pad").matcher("")
+
+private val SPELLED_NUMBERS: Map<String, Int> = buildMap {
+	val units = listOf(
+		"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"
+	)
+	val tens = listOf("twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+	for (index in units.indices) put(units[index], index + 1)
+	for (index in tens.indices) {
+		val base = (index + 2) * 10
+		put(tens[index], base)
+		for (unit in 0 until 9) put(tens[index] + units[unit], base + unit + 1)
+	}
+}
+
 private const val OPAQUE = 0xFF shl 24
 private const val MOBY_DUCK = "MOBY_DUCK"
 private const val MOBY_DUCK_SECONDS = 300L * 60 * 60

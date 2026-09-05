@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.dzkchen.dhen.event.ScreenHooks;
 import io.github.dzkchen.dhen.event.TooltipEvent;
+import io.github.dzkchen.dhen.features.inventory.BetterContainers;
 import io.github.dzkchen.dhen.features.inventory.ContainerClicks;
 import io.github.dzkchen.dhen.features.inventory.ContainerOrigin;
 import net.minecraft.client.gui.Font;
@@ -23,6 +24,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -121,6 +123,39 @@ public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 		if (swallowed) {
 			callback.setReturnValue(true);
 		}
+	}
+
+	@Inject(method = "extractLabels", at = @At("HEAD"))
+	private void dhen$paintContainerPanel(
+		final GuiGraphicsExtractor graphics,
+		final int mouseX,
+		final int mouseY,
+		final CallbackInfo callback
+	) {
+		BetterContainers.paintPanel((AbstractContainerScreen<?>)(Object)this, graphics);
+	}
+
+	@ModifyArg(
+		method = "extractLabels",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)V"
+		),
+		index = 4
+	)
+	private int dhen$containerLabelInk(final int original) {
+		return BetterContainers.labelInk(original);
+	}
+
+	@ModifyExpressionValue(
+		method = {"extractSlotHighlightBack", "extractSlotHighlightFront"},
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/inventory/Slot;isHighlightable()Z"
+		)
+	)
+	private boolean dhen$highlightsRestyledSlot(final boolean original) {
+		return BetterContainers.highlights(this.hoveredSlot, original);
 	}
 
 	@Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true)

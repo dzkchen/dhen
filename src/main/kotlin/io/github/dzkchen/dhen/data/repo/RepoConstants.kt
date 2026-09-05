@@ -97,8 +97,17 @@ class RepoConstants private constructor(
 	private val customPets: Map<String, PetLeveling>,
 	private val leveling: Leveling,
 	val warps: Set<String>,
-	val sackItemIds: Set<String>
+	private val sacks: Map<String, List<String>>,
+	private val trophyFillets: Map<String, IntArray>
 ) {
+	val sackItemIds: Set<String> = sacks.values.flatMapTo(LinkedHashSet()) { it }
+
+	fun trophyFillet(marketId: String): Int {
+		val fillets = trophyFillets[marketId.substringBeforeLast('_')] ?: return 0
+		val tier = TROPHY_TIERS.indexOf(marketId.substringAfterLast('_'))
+		return if (tier < 0 || tier >= fillets.size) 0 else fillets[tier]
+	}
+
 	val reforgeStoneCount: Int get() = reforgeStones.size
 
 	val stoneReforges: Collection<Reforge> get() = reforgeStones.values
@@ -168,12 +177,14 @@ class RepoConstants private constructor(
 
 		val EMPTY = RepoConstants(
 			emptyMap(), emptyList(), emptyList(), emptyMap(), emptyMap(), emptyList(), emptyMap(), emptyMap(),
-			NO_LEVELLING, emptySet(), emptySet()
+			NO_LEVELLING, emptySet(), emptyMap(), emptyMap()
 		)
 
 		private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 		private val UNSPEAKABLE = Regex("[^a-z0-9\\s_-]")
 		private val SEPARATOR = Regex("[\\s-]")
+
+		private val TROPHY_TIERS = listOf("BRONZE", "SILVER", "GOLD", "DIAMOND")
 
 		fun read(constants: Path): RepoConstants {
 			if (!Files.isDirectory(constants)) return EMPTY
@@ -190,7 +201,8 @@ class RepoConstants private constructor(
 				customPets = customPets(pets.obj("custom_pet_leveling")),
 				leveling = leveling(read(constants, "leveling"), read(constants, "garden")),
 				warps = warps(read(constants, "islands")),
-				sackItemIds = sackItemIds(read(constants, "sacks"))
+				sacks = sacks(read(constants, "sacks")),
+				trophyFillets = trophyFillets(read(constants, "trophyfish"))
 			)
 		}
 
@@ -218,16 +230,27 @@ class RepoConstants private constructor(
 			return warps
 		}
 
-		private fun sackItemIds(json: JsonObject): Set<String> {
-			val sacks = json.obj("sacks") ?: return emptySet()
-			val ids = LinkedHashSet<String>()
-			for ((_, element) in sacks.entrySet()) {
+		private fun sacks(json: JsonObject): Map<String, List<String>> {
+			val sacks = json.obj("sacks") ?: return emptyMap()
+			val grouped = LinkedHashMap<String, List<String>>(sacks.size())
+			for ((name, element) in sacks.entrySet()) {
 				val sack = element as? JsonObject ?: continue
+				val contents = ArrayList<String>()
 				sack.array("contents")?.forEach { id ->
-					id.textOrNull()?.let { ids += it.uppercase(Locale.ROOT) }
+					id.textOrNull()?.let { contents += it.uppercase(Locale.ROOT) }
 				}
+				if (contents.isNotEmpty()) grouped[name] = contents
 			}
-			return ids
+			return grouped
+		}
+
+		private fun trophyFillets(json: JsonObject): Map<String, IntArray> {
+			val fillets = HashMap<String, IntArray>(json.size())
+			for ((id, element) in json.entrySet()) {
+				val tiers = (element as? JsonArray)?.ints() ?: continue
+				if (tiers.isNotEmpty()) fillets[id.uppercase(Locale.ROOT)] = tiers.toIntArray()
+			}
+			return fillets
 		}
 
 		private fun reforgeStones(json: JsonObject): Map<String, Reforge> {

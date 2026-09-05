@@ -11,6 +11,7 @@ import io.github.dzkchen.dhen.data.party.PartyHooks
 import io.github.dzkchen.dhen.data.pet.PetHooks
 import io.github.dzkchen.dhen.data.pickup.PickupHooks
 import io.github.dzkchen.dhen.data.quiver.QuiverHooks
+import io.github.dzkchen.dhen.data.sack.SackHooks
 import io.github.dzkchen.dhen.data.stats.PlayerStatsHooks
 import io.github.dzkchen.dhen.diagnostic.WorldRenderProbe
 import io.github.dzkchen.dhen.event.ContainerHooks
@@ -67,6 +68,7 @@ class LatchOffTest {
 		QuiverHooks.install(bus)
 		MaxwellHooks.install(bus)
 		CookieHooks.install(bus)
+		SackHooks.install(bus)
 		ProfileHooks.install(bus, ConfigStore(dir.resolve("profiles.json"), CoroutineScope(Dispatchers.Unconfined)))
 		Dhen.firstRunExperience.install(bus, alreadyShown = true)
 		HypixelModApi.install()
@@ -113,7 +115,7 @@ class LatchOffTest {
 			NetworkHooks, ScreenHooks, ContainerHooks, InputHooks, WorldHooks, RenderHooks,
 			InteractionHooks, WorldRenderHooks, TickHooks, TabCompleteHooks, HypixelLocationHooks, ScoreboardHooks,
 			TablistHooks, TabWidgetHooks, PartyHooks, PickupHooks, PlayerStatsHooks, PetHooks, QuiverHooks, MaxwellHooks,
-			CookieHooks, ProfileHooks, Dhen.firstRunExperience, HypixelModApi
+			CookieHooks, SackHooks, ProfileHooks, Dhen.firstRunExperience, HypixelModApi
 		)
 		assertEquals(installed, Dhen.hooks.toSet())
 		assertEquals(Dhen.hooks.size, Dhen.hooks.mapTo(mutableSetOf(), Hooks::feed).size)

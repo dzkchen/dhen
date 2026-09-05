@@ -72,6 +72,69 @@ internal data class DhenTheme(
 		val SLOT_ULTIMATE = 0xFFFF55FFu.toInt()
 		val SLOT_SHADE = 0xFF555555u.toInt()
 
+		val CONTAINER_PANEL = intArrayOf(
+			0xFF141418u.toInt(),
+			0xFF0A0A0Cu.toInt(),
+			0x00000000,
+			0xFFC6C6CEu.toInt(),
+			0xFFDEDACEu.toInt(),
+			0xFFF2F2F5u.toInt()
+		)
+
+		val CONTAINER_PANEL_BORDER = intArrayOf(
+			0xFF2B2B33u.toInt(),
+			0xFF1E1E24u.toInt(),
+			0x66FFFFFFu.toInt(),
+			0xFF9A9AA4u.toInt(),
+			0xFFB0AC9Eu.toInt(),
+			0xFFCFCFD6u.toInt()
+		)
+
+		val CONTAINER_TILE = intArrayOf(
+			0xFF26262Cu.toInt(),
+			0xFF1C1C22u.toInt(),
+			0x33000000,
+			0xFFAEAEB8u.toInt(),
+			0xFFC7C2B4u.toInt(),
+			0xFFE2E2E8u.toInt()
+		)
+
+		val CONTAINER_BUTTON = intArrayOf(
+			0xFF34343Cu.toInt(),
+			0xFF2A2A32u.toInt(),
+			0x59FFFFFFu.toInt(),
+			0xFFDCDCE4u.toInt(),
+			0xFFEDE7D8u.toInt(),
+			0xFFFFFFFFu.toInt()
+		)
+
+		val CONTAINER_BUTTON_BORDER = intArrayOf(
+			0xFF56566Cu.toInt(),
+			0xFF454556u.toInt(),
+			0x99FFFFFFu.toInt(),
+			0xFF6E6E86u.toInt(),
+			0xFF80795Fu.toInt(),
+			0xFF9A9AB4u.toInt()
+		)
+
+		val CONTAINER_TILE_BORDER = intArrayOf(
+			0xFF3A3A44u.toInt(),
+			0xFF2A2A32u.toInt(),
+			0x4DFFFFFFu.toInt(),
+			0xFF8B8B95u.toInt(),
+			0xFFA09B8Cu.toInt(),
+			0xFFBEBEC6u.toInt()
+		)
+
+		val CONTAINER_INK = intArrayOf(
+			0xFFE8E6EAu.toInt(),
+			0xFFE8E6EAu.toInt(),
+			0xFFF6F4F6u.toInt(),
+			0xFF2A2A30u.toInt(),
+			0xFF33302Au.toInt(),
+			0xFF3A3A42u.toInt()
+		)
+
 		val SLOT_STAR_DUNGEON = intArrayOf(
 			0xFFFFFFE0u.toInt(),
 			0xFFFFFFE0u.toInt(),

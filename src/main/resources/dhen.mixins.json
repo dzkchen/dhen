@@ -33,6 +33,7 @@
 		"ComponentSerializationMixin",
 		"CompositePackResourcesMixin",
 		"ConnectionMixin",
+		"ContainerScreenMixin",
 		"DownloadedPackSourceMixin",
 		"EntityMixin",
 		"EntityRenderDispatcherMixin",

@@ -114,6 +114,7 @@ internal object ProfileHooks : GuardedHooks<ProfileHooks.Channels> {
 			MaxwellState.reset()
 			stored?.text(POWER)?.let(MaxwellState::select)
 			MaxwellState.empower(stored.int(MAGICAL_POWER, MaxwellState.ABSENT))
+			MaxwellState.contact(stored.int(ABIPHONE_CONTACTS, 0))
 			stored?.array(TUNINGS)?.let { MaxwellState.tune(restoredTunings(it)) }
 		}
 
@@ -122,6 +123,7 @@ internal object ProfileHooks : GuardedHooks<ProfileHooks.Channels> {
 			MaxwellState.power?.let { stored.addProperty(POWER, it) }
 			val magical = MaxwellState.magicalPower
 			if (magical != MaxwellState.ABSENT) stored.addProperty(MAGICAL_POWER, magical)
+			if (MaxwellState.abiphoneContacts > 0) stored.addProperty(ABIPHONE_CONTACTS, MaxwellState.abiphoneContacts)
 			MaxwellState.tunings?.let { stored.add(TUNINGS, storedTunings(it)) }
 		}
 
@@ -158,6 +160,7 @@ internal object ProfileHooks : GuardedHooks<ProfileHooks.Channels> {
 	private const val COOKIE = "cookie"
 	private const val POWER = "power"
 	private const val MAGICAL_POWER = "magicalPower"
+	private const val ABIPHONE_CONTACTS = "abiphoneContacts"
 	private const val TUNINGS = "tunings"
 	private const val NAME = "name"
 	private const val AMOUNT = "amount"

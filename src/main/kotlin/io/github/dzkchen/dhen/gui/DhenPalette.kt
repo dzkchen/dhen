@@ -61,6 +61,22 @@ internal object DhenPalette {
 	val SLOT_ULTIMATE: Int get() = DhenTheme.SLOT_ULTIMATE
 	val SLOT_SHADE: Int get() = DhenTheme.SLOT_SHADE
 
+	val CONTAINER_STYLES: Int get() = DhenTheme.CONTAINER_PANEL.size
+
+	fun containerPanel(style: Int): Int = DhenTheme.CONTAINER_PANEL[style]
+
+	fun containerPanelBorder(style: Int): Int = DhenTheme.CONTAINER_PANEL_BORDER[style]
+
+	fun containerTile(style: Int): Int = DhenTheme.CONTAINER_TILE[style]
+
+	fun containerTileBorder(style: Int): Int = DhenTheme.CONTAINER_TILE_BORDER[style]
+
+	fun containerButton(style: Int): Int = DhenTheme.CONTAINER_BUTTON[style]
+
+	fun containerButtonBorder(style: Int): Int = DhenTheme.CONTAINER_BUTTON_BORDER[style]
+
+	fun containerInk(style: Int): Int = DhenTheme.CONTAINER_INK[style]
+
 	fun slotStar(stars: Int, dungeon: Boolean): Int {
 		val ramp = if (dungeon) DhenTheme.SLOT_STAR_DUNGEON else DhenTheme.SLOT_STAR_NORMAL
 		return ramp[stars.coerceIn(1, ramp.size) - 1]
