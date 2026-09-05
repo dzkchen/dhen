@@ -54,6 +54,7 @@ class HudPersistenceTest {
 		before.status.offsetX = -12
 		before.status.offsetY = -20
 		before.status.scale = 1.5f
+		before.status.inMenus = true
 		before.hidden.visible = false
 
 		ConfigStore(path, CoroutineScope(Dispatchers.IO), migrations = ModulePersistence.migrations, debounce = {})
@@ -75,6 +76,7 @@ class HudPersistenceTest {
 		assertEquals(-20, after.status.offsetY)
 		assertEquals(1.5f, after.status.scale)
 		assertTrue(after.status.visible)
+		assertTrue(after.status.inMenus)
 		assertFalse(after.hidden.visible)
 	}
 

@@ -65,6 +65,7 @@ import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
 import io.github.dzkchen.dhen.features.qol.PickupLog
 import io.github.dzkchen.dhen.features.qol.Reminders
+import io.github.dzkchen.dhen.features.inventory.InventoryButtons
 import io.github.dzkchen.dhen.features.inventory.InventorySearch
 import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
@@ -95,6 +96,7 @@ import io.github.dzkchen.dhen.features.qol.ZeroPingEtherwarp
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
+import io.github.dzkchen.dhen.features.visual.CustomTextBox
 import io.github.dzkchen.dhen.features.dev.CompTest
 import io.github.dzkchen.dhen.features.dev.RenderTest
 import io.github.dzkchen.dhen.features.dev.ScoreboardLogger
@@ -333,6 +335,7 @@ object Dhen : ClientModInitializer {
 			CrownOfAvarice,
 			FireVeilWand,
 			FireFreeze,
+			InventoryButtons,
 			InventorySearch,
 			ItemTooltip,
 			ProtectItem,
@@ -355,6 +358,7 @@ object Dhen : ClientModInitializer {
 			Camera,
 			ClassColors,
 			CustomScoreboard,
+			CustomTextBox,
 			DamageSplash,
 			EntityHighlight,
 			EtherwarpOverlay,
@@ -535,6 +539,7 @@ object Dhen : ClientModInitializer {
 		HypixelModApi.install(onHello = automationNotice::hypixelConnected)
 		WorldRenderProbe.install(modules.eventBus)
 		Notifications.install(modules.eventBus)
+		hudRuntime.install(modules.eventBus, ::persistHudLayouts)
 		PrivacyLog.install(modules.eventBus, clientExecutor, ::announceComponent)
 		LocalUrls.install(modules.eventBus, clientThread)
 		LanguageKeys.install(modules.eventBus)
@@ -553,6 +558,7 @@ object Dhen : ClientModInitializer {
 		contained("local url guard", LocalUrls::uninstall)
 		contained("privacy log", PrivacyLog::uninstall)
 		contained("notifications", Notifications::uninstall)
+		contained("HUD runtime", hudRuntime::uninstall)
 		if (DhenFont.latchOff()) contained("font caches", ::fontChanged)
 		contained("client thread", clientThread::shutdown)
 		contained("tick clock", TickClock::cancelWaits)
@@ -604,8 +610,9 @@ object Dhen : ClientModInitializer {
 
 	private val hudCommands = object : HudCommands {
 		override fun openEditor(): String {
+			if (hudRuntime.canvas == null) return "The HUD editor is not available right now."
 			openHudEditor()
-			return "Opening the HUD editor."
+			return "Opening the HUD editor. Press F8 with a menu open to place elements over that menu."
 		}
 
 		override fun resetLayout(): String = HudCommands.resetSummary(resetHudLayout())
@@ -647,15 +654,8 @@ object Dhen : ClientModInitializer {
 	}
 
 	private fun openHudEditor() = clientThread.dispatch(EmptyCoroutineContext) {
-		Minecraft.getInstance().gui.setScreen(
-			HudEditorScreen(
-				modules,
-				::persistHudLayouts,
-				hudRuntime.coreElements,
-				DhenAlert::beginPreview,
-				DhenAlert::endPreview
-			)
-		)
+		val canvas = hudRuntime.canvas ?: return@dispatch
+		Minecraft.getInstance().gui.setScreen(HudEditorScreen(canvas, DhenAlert::beginPreview, DhenAlert::endPreview))
 	}
 
 	private fun reveal(path: Path) {

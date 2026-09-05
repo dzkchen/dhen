@@ -1,5 +1,7 @@
 package io.github.dzkchen.dhen.util
 
+import io.github.dzkchen.dhen.gui.ClientPrefs
+
 private const val GROUP_SIZE = 3
 
 internal const val NO_DIGITS = -1L
@@ -47,6 +49,9 @@ internal fun shortNumber(value: Long): String {
 	if (tenth == 0L || truncated >= SHORT_DECIMAL_LIMITS[index]) return whole.toString() + SHORT_SUFFIXES[index]
 	return whole.toString() + '.' + tenth + SHORT_SUFFIXES[index]
 }
+
+internal fun formatted(value: Long): String =
+	if (ClientPrefs.shortNumbers.on) shortNumber(value) else grouped(value)
 
 private const val COMPACT_SUFFIXES = "kmbtpe"
 

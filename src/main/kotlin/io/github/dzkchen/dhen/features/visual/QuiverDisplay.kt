@@ -26,7 +26,7 @@ import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
 import io.github.dzkchen.dhen.util.NanoClock
-import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.formatted
 import kotlinx.coroutines.delay
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
@@ -77,9 +77,6 @@ object QuiverDisplay : Module(
 	)
 	private var showIcon by showIconSetting
 	private var showWhen by showWhenSetting
-	private var lowQuiver by lowQuiverSetting
-	private var reminderAfterRun by reminderAfterRunSetting
-	private var lowQuiverAmount by lowQuiverAmountSetting
 	internal val equipment = QuiverEquipment()
 	internal val element = hud(QuiverDisplayElement())
 	internal val warning = QuiverWarning(NanoClock.SYSTEM, QuiverState::amount)
@@ -87,6 +84,10 @@ object QuiverDisplay : Module(
 	private var ticks = 0
 
 	init {
+		registerSetting(lowQuiverSetting)
+		registerSetting(reminderAfterRunSetting)
+		registerSetting(lowQuiverAmountSetting)
+
 		on<QuiverUpdateEvent> {
 			if (
 				warning.updated(
@@ -329,7 +330,7 @@ internal class QuiverDisplayElement : HudElement("Quiver Display", offsetX = 12,
 		val hideAmount = infinite || shownArrow == QuiverArrow.NONE
 		val name = if (!hideAmount && amount != 1) shownArrow.displayName + "s" else shownArrow.displayName
 		val rarity = rarity(repoItem)
-		val prefix = if (hideAmount) "" else grouped(amount.coerceAtLeast(0).toLong()) + "x "
+		val prefix = if (hideAmount) "" else formatted(amount.coerceAtLeast(0).toLong()) + "x "
 		shown = DhenType.component(prefix).copy().append(
 			DhenType.component(name).copy()
 				.withStyle(ChatFormatting.getByCode(rarity.colorCode[1]) ?: ChatFormatting.GRAY)

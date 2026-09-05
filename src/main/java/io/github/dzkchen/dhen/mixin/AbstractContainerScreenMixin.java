@@ -16,6 +16,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -37,6 +38,14 @@ public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 	@Shadow
 	protected int topPos;
 
+	@Shadow
+	@Final
+	protected int imageWidth;
+
+	@Shadow
+	@Final
+	protected int imageHeight;
+
 	@Override
 	public int dhenContainerLeft() {
 		return this.leftPos;
@@ -45,6 +54,16 @@ public abstract class AbstractContainerScreenMixin implements ContainerOrigin {
 	@Override
 	public int dhenContainerTop() {
 		return this.topPos;
+	}
+
+	@Override
+	public int dhenContainerWidth() {
+		return this.imageWidth;
+	}
+
+	@Override
+	public int dhenContainerHeight() {
+		return this.imageHeight;
 	}
 
 	@Override

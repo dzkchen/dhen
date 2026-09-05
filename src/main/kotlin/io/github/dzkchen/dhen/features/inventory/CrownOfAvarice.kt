@@ -20,7 +20,7 @@ import io.github.dzkchen.dhen.ui.hud.HudLayout
 import io.github.dzkchen.dhen.ui.hud.drawHudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
 import io.github.dzkchen.dhen.util.countdown
-import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.formatted
 import io.github.dzkchen.dhen.util.shortNumber
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
@@ -170,7 +170,7 @@ object CrownOfAvarice : Module(
 					element.add(line(MAX_LABEL, if (calculating) CALCULATING else untilMax(hours), tail(paused)))
 
 				LAST_GAIN -> element.add(line(GAIN_LABEL, if (hasDifference) coinsDifference.toString() else NEVER, ""))
-				SESSION_COINS -> element.add(line(SESSION_LABEL, grouped(coinsEarned), ""))
+				SESSION_COINS -> element.add(line(SESSION_LABEL, formatted(coinsEarned), ""))
 				SESSION_TIME -> element.add(line(TIME_LABEL, span(sessionMillis), ""))
 			}
 		}
@@ -187,7 +187,7 @@ object CrownOfAvarice : Module(
 
 	private fun ticked() {
 		mayorHold.ensure()
-		val open = Minecraft.getInstance()?.gui?.screen() is InventoryScreen
+		val open = Minecraft.getInstance().gui.screen() is InventoryScreen
 		if (element.buttonsShown != open) {
 			element.buttonsShown = open
 			if (!open) hovered = NO_BUTTON
@@ -206,7 +206,7 @@ object CrownOfAvarice : Module(
 
 	private fun wornCrown(): SkyBlockItem? {
 		if (!gateOpen()) return null
-		val stack = Minecraft.getInstance()?.player?.getItemBySlot(EquipmentSlot.HEAD) ?: return null
+		val stack = Minecraft.getInstance().player?.getItemBySlot(EquipmentSlot.HEAD) ?: return null
 		val crown = SkyBlockItems.of(stack)
 		return if (crown.id == CROWN_OF_AVARICE) crown else null
 	}
@@ -249,7 +249,7 @@ object CrownOfAvarice : Module(
 		return composer.toString()
 	}
 
-	private fun amount(value: Long, short: Boolean): String = if (short) shortNumber(value) else grouped(value)
+	private fun amount(value: Long, short: Boolean): String = if (short) shortNumber(value) else formatted(value)
 
 	private fun tail(paused: Boolean): String = if (paused) PAUSED else ""
 

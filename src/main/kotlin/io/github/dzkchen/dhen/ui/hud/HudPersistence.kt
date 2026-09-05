@@ -15,6 +15,7 @@ object HudPersistence {
 	private const val SCALE = "scale"
 	private const val VISIBLE = "visible"
 	private const val BACKGROUND = "background"
+	private const val IN_MENUS = "menus"
 
 	private val log = LoggerFactory.getLogger(HudPersistence::class.java)
 
@@ -29,6 +30,7 @@ object HudPersistence {
 				addProperty(SCALE, element.scale)
 				addProperty(VISIBLE, element.visible)
 				addProperty(BACKGROUND, element.background)
+				addProperty(IN_MENUS, element.inMenus)
 			})
 		}
 		return hud
@@ -43,6 +45,7 @@ object HudPersistence {
 			read(entry, SCALE, element.name, { it.numberOrNull()?.toFloat() }) { element.scale = it }
 			read(entry, VISIBLE, element.name, { it.flagOrNull() }) { element.visible = it }
 			read(entry, BACKGROUND, element.name, { it.flagOrNull() }) { element.background = it }
+			read(entry, IN_MENUS, element.name, { it.flagOrNull() }) { element.inMenus = it }
 		}
 	}
 

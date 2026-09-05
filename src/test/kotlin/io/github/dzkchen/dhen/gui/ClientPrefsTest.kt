@@ -207,7 +207,7 @@ class ClientPrefsTest {
 		assertFalse(names.contains("Layout"))
 		assertFalse(names.contains("Arrow keys"))
 		assertEquals(
-			listOf(ClientPrefs.splash),
+			listOf(ClientPrefs.shortNumbers, ClientPrefs.splash),
 			ClientPrefs.sections.single { it.title == "Client" }.settings.filter { it.isVisible }
 		)
 	}

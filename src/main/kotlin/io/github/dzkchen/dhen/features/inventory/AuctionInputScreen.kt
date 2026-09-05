@@ -13,7 +13,7 @@ import io.github.dzkchen.dhen.gui.pillButton
 import io.github.dzkchen.dhen.gui.textTop
 import io.github.dzkchen.dhen.input.TextInputTarget
 import io.github.dzkchen.dhen.util.compactNumber
-import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.formatted
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
@@ -163,14 +163,14 @@ internal class AuctionInputScreen(
 		}
 		val price = parsed
 		statusText = when {
-			price != null -> "$VALUE_LABEL ${grouped(price)}"
+			price != null -> "$VALUE_LABEL ${formatted(price)}"
 			input.isEmpty() -> HINT
 			else -> INVALID
 		}
 	}
 
 	private fun marketLine(price: Long?): String =
-		if (price == null) "$MARKET_LABEL $UNKNOWN_PRICE" else "$MARKET_LABEL ${grouped(price)}"
+		if (price == null) "$MARKET_LABEL $UNKNOWN_PRICE" else "$MARKET_LABEL ${formatted(price)}"
 
 	private fun drawInput(graphics: GuiGraphicsExtractor, centerX: Int, centerY: Int) {
 		val left = centerX - BOX_HALF_WIDTH

@@ -27,7 +27,7 @@ import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.gui.SLOT_BOX
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
-import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.formatted
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -120,12 +120,12 @@ object ValueBreakdown : Module(
 		icon = stack
 		showing = true
 		title = withoutCodes(stack.hoverName.string)
-		totalText = grouped(valuation.total.toLong())
+		totalText = formatted(valuation.total.toLong())
 		scroll = 0
 	}
 
 	private fun amountText(amount: Double, priced: Boolean): String =
-		if (!priced) NO_PRICE else grouped(amount.toLong())
+		if (!priced) NO_PRICE else formatted(amount.toLong())
 
 	private fun shareText(line: ValueLine, total: Double): String {
 		if (!line.priced || total <= 0.0 || line.amount <= 0.0) return ""

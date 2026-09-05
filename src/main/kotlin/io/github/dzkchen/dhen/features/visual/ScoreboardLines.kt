@@ -21,7 +21,7 @@ import io.github.dzkchen.dhen.util.NO_DIGITS
 import io.github.dzkchen.dhen.util.NanoClock
 import io.github.dzkchen.dhen.util.countdown
 import io.github.dzkchen.dhen.util.digits
-import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.formatted
 
 internal enum class ScoreboardLine(val label: String) {
 	LOBBY_CODE("Lobby Code"),
@@ -303,7 +303,7 @@ internal class ScoreboardComposer(
 		if (inRift()) return
 		val arrow = QuiverState.currentArrow ?: return
 		if (arrow == QuiverArrow.NONE) return
-		val amount = if (QuiverState.infiniteArrows) INFINITE else grouped(QuiverState.currentAmount.toLong())
+		val amount = if (QuiverState.infiniteArrows) INFINITE else formatted(QuiverState.currentAmount.toLong())
 		composed += "$LABEL_COLOR${arrow.displayName}: $LABEL_COLOR$amount"
 	}
 
@@ -316,7 +316,7 @@ internal class ScoreboardComposer(
 		}
 		val magical = MaxwellState.magicalPower
 		val total = if (magical == MaxwellState.ABSENT) ""
-		else " $DIM_COLOR($PURSE_COLOR${grouped(magical.toLong())}$DIM_COLOR)"
+		else " $DIM_COLOR($PURSE_COLOR${formatted(magical.toLong())}$DIM_COLOR)"
 		composed += "${LABEL_COLOR}Power: $POWER_COLOR$power$total"
 	}
 
@@ -459,7 +459,7 @@ internal class ScoreboardComposer(
 			val change = if (previous == NO_DIGITS) 0L else value - previous
 			previous = value
 			if (change == 0L) return
-			suffix = " $DIM_COLOR($color${if (change > 0) "+" else ""}${grouped(change)}$DIM_COLOR)"
+			suffix = " $DIM_COLOR($color${if (change > 0) "+" else ""}${formatted(change)}$DIM_COLOR)"
 			until = now + DIFF_NANOS
 		}
 

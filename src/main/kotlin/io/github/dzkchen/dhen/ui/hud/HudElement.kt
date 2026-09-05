@@ -11,7 +11,8 @@ abstract class HudElement(
 	var offsetY: Int = 0,
 	scale: Float = DEFAULT_SCALE,
 	var visible: Boolean = true,
-	var background: Boolean = false
+	var background: Boolean = false,
+	var inMenus: Boolean = false
 ) {
 	var scale: Float = clampScale(scale)
 		set(value) {
@@ -24,6 +25,7 @@ abstract class HudElement(
 	private val declaredScale = this.scale
 	private val declaredVisible = this.visible
 	private val declaredBackground = this.background
+	private val declaredInMenus = this.inMenus
 
 	var failed: Boolean = false
 		private set
@@ -46,7 +48,8 @@ abstract class HudElement(
 			offsetY == declaredOffsetY &&
 			scale == declaredScale &&
 			visible == declaredVisible &&
-			background == declaredBackground
+			background == declaredBackground &&
+			inMenus == declaredInMenus
 
 	fun resetToDeclared(): Boolean {
 		if (atDeclared && !failed) return false
@@ -56,6 +59,7 @@ abstract class HudElement(
 		scale = declaredScale
 		visible = declaredVisible
 		background = declaredBackground
+		inMenus = declaredInMenus
 		clearFailure()
 		return true
 	}

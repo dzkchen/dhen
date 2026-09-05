@@ -22,6 +22,7 @@ import io.github.dzkchen.dhen.input.shiftHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.util.countdown
+import io.github.dzkchen.dhen.util.formatted
 import io.github.dzkchen.dhen.util.grouped
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -272,10 +273,10 @@ object ItemTooltip : Module(
 	}
 
 	internal fun coins(value: Double): String = when {
-		!roundPricesSetting.on -> grouped(value.toLong())
+		!roundPricesSetting.on -> formatted(value.toLong())
 		value >= BILLION -> String.format(Locale.US, "%.1fB", value / BILLION)
 		value >= MILLION -> String.format(Locale.US, "%.1fM", value / MILLION)
-		else -> grouped(value.toLong())
+		else -> formatted(value.toLong())
 	}
 
 	internal fun ageLine(stamp: Long, now: Long): String =

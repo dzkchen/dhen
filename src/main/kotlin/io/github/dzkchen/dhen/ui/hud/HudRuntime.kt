@@ -1,12 +1,15 @@
 package io.github.dzkchen.dhen.ui.hud
 
 import io.github.dzkchen.dhen.Dhen
+import io.github.dzkchen.dhen.event.EventBus
 import io.github.dzkchen.dhen.gui.GlassGui
 import io.github.dzkchen.dhen.gui.RoundedGui
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.module.ModuleManager
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import org.joml.Matrix3x2f
 import org.slf4j.LoggerFactory
 
@@ -16,15 +19,48 @@ class HudRuntime(
 ) {
 	private val log = LoggerFactory.getLogger(Dhen.MOD_ID)
 
+	internal var canvas: HudCanvas? = null
+		private set
+
+	internal fun install(bus: EventBus, persist: () -> Unit) {
+		uninstall()
+		val built = HudCanvas(manager, coreElements, persist)
+		canvas = built
+		MenuHudEditor.install(bus, built, this)
+	}
+
+	internal fun uninstall() {
+		MenuHudEditor.uninstall()
+		canvas = null
+	}
+
 	fun render(graphics: GuiGraphicsExtractor, font: Font) {
 		val screenWidth = graphics.guiWidth()
 		val screenHeight = graphics.guiHeight()
+		val overMenu = Minecraft.getInstance().gui.screen() is AbstractContainerScreen<*>
+		if (overMenu && MenuHudEditor.editing) return
 		manager.forEachActiveHudElement { module, element ->
+			if (overMenu && element.inMenus) return@forEachActiveHudElement
 			renderElement(graphics, font, screenWidth, screenHeight, module, element)
 		}
 		for (index in coreElements.indices) {
 			val element = coreElements[index]
-			if (element.isActive) renderElement(graphics, font, screenWidth, screenHeight, null, element)
+			if (!element.isActive || overMenu && element.inMenus) continue
+			renderElement(graphics, font, screenWidth, screenHeight, null, element)
+		}
+	}
+
+	internal fun renderOverMenu(graphics: GuiGraphicsExtractor, font: Font, everything: Boolean) {
+		val screenWidth = graphics.guiWidth()
+		val screenHeight = graphics.guiHeight()
+		manager.forEachActiveHudElement { module, element ->
+			if (!everything && !element.inMenus) return@forEachActiveHudElement
+			renderElement(graphics, font, screenWidth, screenHeight, module, element)
+		}
+		for (index in coreElements.indices) {
+			val element = coreElements[index]
+			if (!element.isActive || !everything && !element.inMenus) continue
+			renderElement(graphics, font, screenWidth, screenHeight, null, element)
 		}
 	}
 

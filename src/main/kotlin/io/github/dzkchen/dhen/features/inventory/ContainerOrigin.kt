@@ -7,5 +7,9 @@ internal interface ContainerOrigin {
 
 	fun dhenContainerTop(): Int
 
+	fun dhenContainerWidth(): Int
+
+	fun dhenContainerHeight(): Int
+
 	fun dhenHoveredSlot(): Slot?
 }

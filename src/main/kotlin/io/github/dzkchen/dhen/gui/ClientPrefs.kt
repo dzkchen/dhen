@@ -81,6 +81,12 @@ internal object ClientPrefs {
 		description = "Browse every game sound and adjust its volume."
 	)
 
+	val shortNumbers = BooleanSetting(
+		"Short Numbers",
+		false,
+		description = "Writes big numbers as 1.2k and 3.4M instead of 1,200 and 3,400,000."
+	)
+
 	val splash = BooleanSetting(
 		"Splash screen",
 		true,
@@ -155,7 +161,7 @@ internal object ClientPrefs {
 				alertHintShown
 			)
 		),
-		PrefSection("Client", listOf(splash, profileProxy))
+		PrefSection("Client", listOf(shortNumbers, splash, profileProxy))
 	)
 
 	private val stored: List<Setting<*>> = sections.flatMap { it.settings }
