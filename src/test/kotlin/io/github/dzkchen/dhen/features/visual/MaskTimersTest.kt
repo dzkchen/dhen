@@ -48,6 +48,7 @@ class MaskTimersTest {
 				"Invulnerability Timers",
 				"Proc Notification",
 				"Ready Notification",
+				"Alert Sound",
 				"Bonzo Color",
 				"Spirit Color",
 				"Phoenix Color"

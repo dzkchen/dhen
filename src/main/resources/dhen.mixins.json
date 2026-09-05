@@ -20,6 +20,7 @@
 		"ChatComponentMixin",
 		"ChatScreenMixin",
 		"ClientBrandRetrieverMixin",
+		"ClientTextTooltipAccessor",
 		"ClientClockManagerAccessor",
 		"ClientCommonPacketListenerImplMixin",
 		"ClientLanguageAccessor",

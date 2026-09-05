@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.dzkchen.dhen.features.chat.ChatTweaks;
 import io.github.dzkchen.dhen.features.inventory.ItemTooltip;
+import io.github.dzkchen.dhen.features.inventory.TooltipShape;
 import io.github.dzkchen.dhen.features.qol.Tweaks;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -41,7 +42,7 @@ public abstract class GuiGraphicsExtractorMixin {
 	}
 
 	@WrapMethod(method = "tooltip")
-	private void dhen$scrollTooltip(
+	private void dhen$shapeTooltip(
 		final Font font,
 		final List<ClientTooltipComponent> lines,
 		final int x,
@@ -50,15 +51,17 @@ public abstract class GuiGraphicsExtractorMixin {
 		final @Nullable Identifier style,
 		final Operation<Void> original
 	) {
+		final GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object)this;
+		final List<ClientTooltipComponent> shaped = TooltipShape.shaped(font, lines, graphics.guiWidth());
+		final ClientTooltipPositioner placed = TooltipShape.placed(positioner);
 		if (!ItemTooltip.scrolling()) {
-			original.call(font, lines, x, y, positioner, style);
+			original.call(font, shaped, x, y, placed, style);
 			return;
 		}
-		final GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object)this;
 		graphics.pose().pushMatrix();
 		try {
 			ItemTooltip.transformTooltip(graphics, x, y);
-			original.call(font, lines, x, y, positioner, style);
+			original.call(font, shaped, x, y, placed, style);
 		} finally {
 			graphics.pose().popMatrix();
 		}

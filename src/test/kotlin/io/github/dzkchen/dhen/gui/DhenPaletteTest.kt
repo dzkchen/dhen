@@ -14,6 +14,17 @@ class DhenPaletteTest {
 	}
 
 	@Test
+	fun `the star ramp answers every star count without running off either end`() {
+		assertEquals(DhenTheme.SLOT_STAR_DUNGEON.first(), DhenPalette.slotStar(0, dungeon = true))
+		assertEquals(DhenTheme.SLOT_STAR_DUNGEON.first(), DhenPalette.slotStar(1, dungeon = true))
+		assertEquals(DhenTheme.SLOT_STAR_DUNGEON.last(), DhenPalette.slotStar(10, dungeon = true))
+		assertEquals(DhenTheme.SLOT_STAR_DUNGEON.last(), DhenPalette.slotStar(99, dungeon = true))
+		assertEquals(DhenTheme.SLOT_STAR_NORMAL[9], DhenPalette.slotStar(10, dungeon = false))
+		assertEquals(DhenTheme.SLOT_STAR_NORMAL.last(), DhenPalette.slotStar(15, dungeon = false))
+		assertEquals(DhenTheme.SLOT_STAR_NORMAL.last(), DhenPalette.slotStar(99, dungeon = false))
+	}
+
+	@Test
 	fun `the palette is opaque, distinct, and ordered from canvas to text`() {
 		val colors = intArrayOf(
 			DhenPalette.CANVAS,

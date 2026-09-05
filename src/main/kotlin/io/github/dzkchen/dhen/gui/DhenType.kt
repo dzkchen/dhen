@@ -10,10 +10,13 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
 import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.FormattedText
 import net.minecraft.network.chat.MutableComponent
+import net.minecraft.network.chat.Style
 import net.minecraft.util.ARGB
 import net.minecraft.util.FormattedCharSequence
 import java.net.URI
+import java.util.Optional
 
 internal const val ELLIPSIS = "…"
 
@@ -464,6 +467,9 @@ internal object DhenType {
 
 	fun lineHeight(font: Font): Int = font.lineHeight
 
+	fun rewrap(font: Font, text: FormattedCharSequence, maxWidth: Int): List<FormattedCharSequence> =
+		font.split(SequencedText(text), maxWidth)
+
 	fun fontOptionsChanged(forceUnicode: Boolean, japaneseGlyphVariants: Boolean): Boolean {
 		if (forceUnicode == unicodeForced && japaneseGlyphVariants == japaneseVariants) return false
 		unicodeForced = forceUnicode
@@ -493,5 +499,29 @@ internal object DhenType {
 
 	private class Styled(val component: Component) {
 		var width = UNMEASURED
+	}
+}
+
+private class SequencedText(private val source: FormattedCharSequence) : FormattedText {
+	override fun <T : Any> visit(visitor: FormattedText.ContentConsumer<T>): Optional<T> =
+		visit({ _, run -> visitor.accept(run) }, Style.EMPTY)
+
+	override fun <T : Any> visit(visitor: FormattedText.StyledContentConsumer<T>, parent: Style): Optional<T> {
+		val run = StringBuilder()
+		var runStyle: Style? = null
+		var answer: Optional<T> = Optional.empty()
+		source.accept { _, style, codePoint ->
+			val open = runStyle
+			if (open != null && style !== open) {
+				answer = visitor.accept(open.applyTo(parent), run.toString())
+				run.setLength(0)
+			}
+			runStyle = style
+			run.appendCodePoint(codePoint)
+			answer.isEmpty
+		}
+		val open = runStyle
+		if (answer.isEmpty && open != null) answer = visitor.accept(open.applyTo(parent), run.toString())
+		return answer
 	}
 }

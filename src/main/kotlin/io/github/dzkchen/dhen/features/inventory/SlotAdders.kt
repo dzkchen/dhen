@@ -44,7 +44,11 @@ internal val SLOT_ADDERS = arrayOf(
 	SlotAdder("Hunting Toolkit", "A mark on every item that belongs to a toolkit.", write = ::huntingToolkit),
 	SlotAdder("Chip Level", "The level of each chip in Manage Chips.", "Manage Chips", ::chipLevel),
 	SlotAdder("Crop Milestone", "The milestone of each crop.", "Crop Milestones", ::cropMilestone),
-	SlotAdder("Garden Upgrade", "The tier of each garden upgrade.", GARDEN_TITLE, ::gardenUpgrade)
+	SlotAdder("Garden Upgrade", "The tier of each garden upgrade.", GARDEN_TITLE, ::gardenUpgrade),
+	SlotAdder("Bottle Charge", "How charged a Thunder, Storm or Hurricane Bottle is.", write = ::bottleCharge),
+	SlotAdder("Moby-Duck Progress", "How close a Moby-Duck is to evolving.", write = ::mobyDuckProgress),
+	SlotAdder("Auto-Recombobulated", "An R on a fishing drop that dropped already recombobulated.", write = ::autoRecombFlag),
+	SlotAdder("Item Stars", "The star count of an upgraded item, where its stack size would be.", write = ::itemStars)
 )
 
 private fun essenceShop(scribe: SlotScribe) {
@@ -366,6 +370,30 @@ private fun gardenUpgrade(scribe: SlotScribe) {
 	)
 }
 
+private fun bottleCharge(scribe: SlotScribe) {
+	val capacity = BOTTLE_CAPACITY[scribe.item.id] ?: return
+	scribe.write(SLOT_BOTTOM_LEFT, percentOf(scribe.item.thunderCharge.toLong(), capacity), DhenPalette.SLOT_BLUE)
+}
+
+private fun mobyDuckProgress(scribe: SlotScribe) {
+	if (scribe.item.id != MOBY_DUCK) return
+	scribe.write(SLOT_BOTTOM_RIGHT, percentOf(scribe.item.secondsHeld.toLong(), MOBY_DUCK_SECONDS), DhenPalette.SLOT_BLUE)
+}
+
+private fun autoRecombFlag(scribe: SlotScribe) {
+	if (!scribe.item.isRecombobulated || scribe.item.id !in AUTO_RECOMB_DROPS) return
+	scribe.write(SLOT_BOTTOM_LEFT, RECOMB_MARK, DhenPalette.SLOT_BLUE)
+}
+
+private fun itemStars(scribe: SlotScribe) {
+	val stars = scribe.item.upgradeLevel
+	if (stars <= 0) return
+	scribe.write(SLOT_BOTTOM_RIGHT, stars.toString(), DhenPalette.slotStar(stars, scribe.loreHas(DUNGEON_CATEGORY)))
+}
+
+private fun percentOf(amount: Long, capacity: Long): String =
+	"${(amount * FULL_PERCENT / capacity).coerceIn(0L, FULL_PERCENT)}%"
+
 private fun writeMark(scribe: SlotScribe, symbol: String, corner: Int) {
 	if (symbol == CROSS_SOURCE) {
 		scribe.write(corner, CROSS_MARK, DhenPalette.SLOT_RED)
@@ -400,6 +428,19 @@ private val EVOLVING_BONUS = Pattern.compile("\\+?([\\d.]+)").matcher("")
 private val GUIDE_NAME = Pattern.compile("([✖✔])\\s*.+").matcher("")
 private val BESTIARY_NAME = Pattern.compile("[\\w '-]+ ([IVXLCDM]+)").matcher("")
 private val GARDEN_TIER = Pattern.compile("Current Tier: (\\d+)/(\\d+)").matcher("")
+
+private val BOTTLE_CAPACITY = mapOf(
+	"THUNDER_IN_A_BOTTLE_EMPTY" to 50_000L,
+	"STORM_IN_A_BOTTLE_EMPTY" to 500_000L,
+	"HURRICANE_IN_A_BOTTLE_EMPTY" to 5_000_000L
+)
+
+private val AUTO_RECOMB_DROPS = setOf(
+	"SLUG_BOOTS", "MOOGMA_LEGGINGS", "FLAMING_CHESTPLATE", "TAURUS_HELMET",
+	"BLADE_OF_THE_VOLCANO", "STAFF_OF_THE_VOLCANO", "FAIRY_CHESTPLATE", "FAIRY_HELMET",
+	"FAIRY_LEGGINGS", "FAIRY_BOOTS", "SQUID_BOOTS", "RABBIT_HAT", "WATER_HYDRA_HEAD",
+	"FISH_AFFINITY_TALISMAN", "LUCKY_HOOF", "TIKI_MASK"
+)
 
 private val EVOLVING_LABELS = mapOf(
 	"NEW_BOTTLE_OF_JYRRE" to "Current Bonus: ",
@@ -525,3 +566,8 @@ private const val DUNGEONEERING_SLOT = 12
 private const val GUIDE_FIRST_SLOT = 18
 private const val ESSENCE_GUIDE_OFFSET = 3
 private const val OPAQUE = 0xFF shl 24
+private const val MOBY_DUCK = "MOBY_DUCK"
+private const val MOBY_DUCK_SECONDS = 300L * 60 * 60
+private const val RECOMB_MARK = "R"
+private const val DUNGEON_CATEGORY = " DUNGEON "
+private const val FULL_PERCENT = 100L

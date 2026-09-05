@@ -23,6 +23,8 @@ import io.github.dzkchen.dhen.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.sounds.SoundEvent
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.player.Player
 import java.util.regex.Matcher
@@ -39,6 +41,11 @@ object MaskTimers : Module(
 	internal val invulnerabilitySetting = BooleanSetting("Invulnerability Timers", true)
 	internal val procNotificationSetting = BooleanSetting("Proc Notification", true)
 	internal val readyNotificationSetting = BooleanSetting("Ready Notification", true)
+	internal val alertSoundSetting = BooleanSetting(
+		"Alert Sound",
+		true,
+		"Plays a sound alongside the proc and ready titles."
+	)
 	internal val bonzoColorSetting = ColorSetting("Bonzo Color", Color.rgba(85, 85, 255))
 	internal val spiritColorSetting = ColorSetting("Spirit Color", Color.rgba(255, 255, 255))
 	internal val phoenixColorSetting = ColorSetting("Phoenix Color", Color.rgba(255, 85, 85))
@@ -48,6 +55,7 @@ object MaskTimers : Module(
 	private var invulnerabilityShown by invulnerabilitySetting
 	private var procAnnounced by procNotificationSetting
 	private var readyAnnounced by readyNotificationSetting
+	private var alertSound by alertSoundSetting
 	private var bonzoColor by bonzoColorSetting
 	private var spiritColor by spiritColorSetting
 	private var phoenixColor by phoenixColorSetting
@@ -88,7 +96,7 @@ object MaskTimers : Module(
 			val mask = masks[index]
 			if (!mask.matches(line)) continue
 			mask.proc(invulnerabilityShown)
-			if (procAnnounced) DhenAlert.show("${mask.displayName} Procced!", sound = null)
+			if (procAnnounced) DhenAlert.show("${mask.displayName} Procced!", sound = alertTone())
 		}
 	}
 
@@ -105,7 +113,9 @@ object MaskTimers : Module(
 				mask.notifiedReady = false
 			} else if (!mask.notifiedReady) {
 				mask.notifiedReady = true
-				if (readyAnnounced && dungeonGateOpen) DhenAlert.show("${mask.displayName} is Ready!", sound = null)
+				if (readyAnnounced && dungeonGateOpen) {
+					DhenAlert.show("${mask.displayName} is Ready!", sound = alertTone())
+				}
 			}
 		}
 	}
@@ -114,6 +124,8 @@ object MaskTimers : Module(
 		timersElement.update(zyryonStyle, example)
 		invulnerabilityElement.update(invulnerabilityShown, example)
 	}
+
+	private fun alertTone(): SoundEvent? = if (alertSound) SoundEvents.EXPERIENCE_ORB_PICKUP else null
 
 	private const val NOAMM_ADDONS_STYLE = "NoammAddons"
 	private const val ZYRYON_STYLE = "Zyryon"

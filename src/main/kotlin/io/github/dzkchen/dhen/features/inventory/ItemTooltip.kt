@@ -14,11 +14,14 @@ import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.GuiCloseEvent
 import io.github.dzkchen.dhen.event.TooltipEvent
+import io.github.dzkchen.dhen.event.legacyCodes
+import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.input.controlHeld
 import io.github.dzkchen.dhen.input.keyHeld
 import io.github.dzkchen.dhen.input.shiftHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.util.countdown
 import io.github.dzkchen.dhen.util.grouped
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -26,6 +29,9 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import org.lwjgl.glfw.GLFW
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object ItemTooltip : Module(
@@ -70,6 +76,27 @@ object ItemTooltip : Module(
 		description = "Adds a dungeon item's stat bonus and the floor it came from."
 	)
 
+	internal val itemAgeSetting = BooleanSetting(
+		"Item Age",
+		description = "Adds how long ago you got the item, and the date you got it."
+	)
+
+	internal val hideGearScoreSetting = BooleanSetting(
+		"Hide Gear Score",
+		description = "Removes Hypixel's Gear Score line."
+	)
+
+	internal val hideVanillaEnchantsSetting = BooleanSetting(
+		"Hide Vanilla Enchants",
+		description = "Removes the leftover Aqua Affinity and Depth Strider lines Hypixel leaves on SkyBlock items."
+	)
+
+	internal val clampSetting = BooleanSetting(
+		"Keep Tooltips On Screen",
+		description = "Wraps long tooltip lines and nudges a tooltip back inside the screen edge, " +
+			"unless Scrollable Tooltips is on and you are placing it yourself."
+	)
+
 	internal val scrollableSetting = BooleanSetting(
 		"Scrollable Tooltips",
 		description = "Scroll to move a tooltip, hold shift to move it sideways, hold control to resize it."
@@ -111,6 +138,9 @@ object ItemTooltip : Module(
 	private var cachedStack: ItemStack? = null
 	private var cachedFingerprint = 0
 	private var cachedLines: List<Component> = emptyList()
+	private var agedStamp = 0L
+	private var agedSecond = 0L
+	private var agedLine: Component? = null
 
 	init {
 		for (
@@ -122,6 +152,10 @@ object ItemTooltip : Module(
 				stackPriceSetting,
 				fullStackPriceSetting,
 				showQualitySetting,
+				itemAgeSetting,
+				hideGearScoreSetting,
+				hideVanillaEnchantsSetting,
+				clampSetting,
 				scrollableSetting,
 				scaleSetting,
 				scrollSpeedSetting,
@@ -132,6 +166,7 @@ object ItemTooltip : Module(
 		on<TooltipEvent> { event ->
 			slotChanged(event.hoveredSlot.index)
 			if (!SkyBlockLocation.inSkyBlock) return@on
+			if (shaping()) shape(event.edit(), event.stack)
 			val lines = lines(event.stack)
 			if (lines.isNotEmpty()) event.edit().addAll(lines)
 		}
@@ -151,6 +186,9 @@ object ItemTooltip : Module(
 
 	@JvmStatic
 	fun scrolling(): Boolean = enabled && scrollableSetting.on
+
+	@JvmStatic
+	fun clamping(): Boolean = enabled && clampSetting.on
 
 	@JvmStatic
 	fun transformTooltip(graphics: GuiGraphicsExtractor, x: Int, y: Int) {
@@ -240,19 +278,67 @@ object ItemTooltip : Module(
 		else -> grouped(value.toLong())
 	}
 
+	internal fun ageLine(stamp: Long, now: Long): String =
+		"§7Age: §c${countdown(now - stamp)} §8(${AGE_DATE.format(Instant.ofEpochMilli(stamp))})"
+
+	internal fun vanillaEnchant(plain: String): Boolean =
+		plain.startsWith(AQUA_AFFINITY) || plain.startsWith(DEPTH_STRIDER)
+
+	internal fun stripped(plain: String, gearScore: Boolean, greyEnchant: Boolean): Boolean =
+		greyEnchant || gearScore && plain.startsWith(GEAR_SCORE)
+
+	internal fun shaping(): Boolean =
+		itemAgeSetting.on || hideGearScoreSetting.on || hideVanillaEnchantsSetting.on
+
+	internal fun shape(lines: MutableList<Component>, stack: ItemStack) {
+		strip(lines)
+		age(lines, stack)
+	}
+
+	private fun strip(lines: MutableList<Component>) {
+		val gearScore = hideGearScoreSetting.on
+		val enchants = hideVanillaEnchantsSetting.on
+		if (!gearScore && !enchants) return
+		for (index in lines.indices.reversed()) {
+			val line = lines[index]
+			val plain = withoutCodes(line.string)
+			val greyEnchant = enchants && vanillaEnchant(plain) && legacyCodes(line).contains(GREY_CODE)
+			if (stripped(plain, gearScore, greyEnchant)) lines.removeAt(index)
+		}
+	}
+
+	private fun age(lines: MutableList<Component>, stack: ItemStack) {
+		if (!itemAgeSetting.on) return
+		val stamp = SkyBlockItems.of(stack).timestamp
+		if (stamp <= 0L) return
+		val now = System.currentTimeMillis()
+		if (now <= stamp) return
+		val second = now / MILLIS_PER_SECOND
+		if (stamp != agedStamp || second != agedSecond) {
+			agedStamp = stamp
+			agedSecond = second
+			agedLine = Component.literal(ageLine(stamp, now))
+		}
+		lines.add(minOf(AGE_INDEX, lines.size), agedLine ?: return)
+	}
+
 	override fun onDisabled() {
 		resetScroll()
 		hoveredSlot = NO_SLOT
 		cachedStack = null
 		cachedLines = emptyList()
+		agedLine = null
+		TooltipShape.forget()
 		priceHold.release()
 	}
 
 	internal fun decorated(stack: ItemStack): List<Component> {
 		val vanilla = Screen.getTooltipFromItem(Minecraft.getInstance(), stack)
 		if (!enabled || !SkyBlockLocation.inSkyBlock) return vanilla
-		val written = lines(stack)
-		return if (written.isEmpty()) vanilla else vanilla + written
+		val shaped = ArrayList(vanilla)
+		if (shaping()) shape(shaped, stack)
+		shaped += lines(stack)
+		return shaped
 	}
 
 	private fun lines(stack: ItemStack): List<Component> {
@@ -303,6 +389,15 @@ object ItemTooltip : Module(
 
 	private fun ensurePrices() = priceHold.ensure(showPricesSetting.on)
 
+	private val AGE_DATE: DateTimeFormatter =
+		DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm", Locale.US).withZone(ZoneId.systemDefault())
+
+	private const val AQUA_AFFINITY = "Aqua Affinity"
+	private const val DEPTH_STRIDER = "Depth Strider"
+	private const val GEAR_SCORE = "Gear Score: "
+	private const val GREY_CODE = "§7"
+	private const val AGE_INDEX = 1
+	private const val MILLIS_PER_SECOND = 1000L
 	private const val CATACOMBS = "CATACOMBS"
 	private const val NO_SLOT = -1
 	private const val MASTER_GAP = 19

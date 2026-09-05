@@ -60,6 +60,11 @@ internal object DhenPalette {
 	val SLOT_ENCHANT: Int get() = DhenTheme.SLOT_ENCHANT
 	val SLOT_ULTIMATE: Int get() = DhenTheme.SLOT_ULTIMATE
 
+	fun slotStar(stars: Int, dungeon: Boolean): Int {
+		val ramp = if (dungeon) DhenTheme.SLOT_STAR_DUNGEON else DhenTheme.SLOT_STAR_NORMAL
+		return ramp[stars.coerceIn(1, ramp.size) - 1]
+	}
+
 	fun label(highlighted: Boolean): Int = if (highlighted) TEXT_PRIMARY else TEXT_SECONDARY
 
 	fun mix(from: Int, to: Int, fraction: Float): Int {

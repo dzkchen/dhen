@@ -4,9 +4,13 @@ import io.github.dzkchen.dhen.data.item.ItemFixture
 import io.github.dzkchen.dhen.data.item.SkyBlockItem
 import io.github.dzkchen.dhen.module.Category
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.Component
+import net.minecraft.world.item.ItemStack
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -34,6 +38,10 @@ class ItemTooltipTest {
 				"Current Amount Price",
 				"Full Stack Price",
 				"Item Quality",
+				"Item Age",
+				"Hide Gear Score",
+				"Hide Vanilla Enchants",
+				"Keep Tooltips On Screen",
 				"Scrollable Tooltips",
 				"Tooltip Scale",
 				"Scroll Speed",
@@ -46,6 +54,67 @@ class ItemTooltipTest {
 		assertEquals(100.0, ItemTooltip.scaleSetting.default)
 		assertEquals(3.0, ItemTooltip.scrollSpeedSetting.default)
 		assertEquals(3.0, ItemTooltip.scaleSpeedSetting.default)
+	}
+
+	private fun shaped(stack: ItemStack): List<Component> {
+		val lines = mutableListOf<Component>(Component.literal("§6Item"))
+		ItemTooltip.shape(lines, stack)
+		return lines
+	}
+
+	@Test
+	fun `only a grey vanilla enchant line and the gear score line are stripped`() {
+		assertTrue(ItemTooltip.stripped("Gear Score: 1284", gearScore = true, greyEnchant = false))
+		assertFalse(ItemTooltip.stripped("Gear Score: 1284", gearScore = false, greyEnchant = false))
+		assertTrue(ItemTooltip.vanillaEnchant("Aqua Affinity I"))
+		assertTrue(ItemTooltip.vanillaEnchant("Depth Strider III"))
+		assertFalse(ItemTooltip.vanillaEnchant("Sharpness VII"))
+		assertFalse(ItemTooltip.vanillaEnchant("Ultimate Wise V"))
+		assertTrue(ItemTooltip.stripped("Aqua Affinity I", gearScore = false, greyEnchant = true))
+		assertFalse(ItemTooltip.stripped("Aqua Affinity I", gearScore = false, greyEnchant = false))
+	}
+
+	@Test
+	fun `the age line pairs how long ago with the moment it was obtained`() {
+		val stamp = 1_700_000_000_000L
+
+		assertTrue(ItemTooltip.ageLine(stamp, stamp + 3_600_000L).startsWith("§7Age: §c1h §8("))
+		assertTrue(ItemTooltip.ageLine(stamp, stamp + 1_000L).startsWith("§7Age: §c1s §8("))
+	}
+
+	@Test
+	fun `an item stamped before Hypixel moved to epoch millis still reports an age`() {
+		ItemTooltip.itemAgeSetting.on = true
+		val legacy = ItemFixture.stack { putString("timestamp", "12/24/20 11:08 PM") }
+		val modern = ItemFixture.stack { putLong("timestamp", 1_700_000_000_000L) }
+		val unreadable = ItemFixture.stack { putString("timestamp", "25/04/20 16:38") }
+
+		assertTrue(shaped(legacy)[1].string.startsWith("§7Age: §c"))
+		assertTrue(shaped(modern)[1].string.startsWith("§7Age: §c"))
+		assertEquals(1, shaped(unreadable).size)
+	}
+
+	@Test
+	fun `shaping drops the flagged lines and puts the age line second`() {
+		ItemTooltip.itemAgeSetting.on = true
+		ItemTooltip.hideGearScoreSetting.on = true
+		ItemTooltip.hideVanillaEnchantsSetting.on = true
+		val stack = ItemFixture.stack { putLong("timestamp", System.currentTimeMillis() - 3_600_000L) }
+		val lines = mutableListOf<Component>(
+			Component.literal("§6Hyperion"),
+			Component.literal("§7Damage: §c+300"),
+			Component.literal("§7Gear Score: §d1284"),
+			Component.literal("§7Aqua Affinity I"),
+			Component.literal("§9Ultimate Wise V")
+		)
+
+		ItemTooltip.shape(lines, stack)
+
+		assertEquals(
+			listOf("§6Hyperion", null, "§7Damage: §c+300", "§9Ultimate Wise V"),
+			lines.mapIndexed { index, line -> if (index == 1) null else line.string }
+		)
+		assertTrue(lines[1].string.startsWith("§7Age: §c1h §8("))
 	}
 
 	@Test

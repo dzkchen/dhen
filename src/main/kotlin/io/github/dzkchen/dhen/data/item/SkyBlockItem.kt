@@ -11,6 +11,10 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.CustomData
 import org.slf4j.LoggerFactory
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Locale
 
 class PetInfo internal constructor(
@@ -116,6 +120,10 @@ class SkyBlockItem internal constructor(
 
 	val blocksWalked: Int get() = tag.getIntOr("blocks_walked", NOT_WALKED)
 
+	val thunderCharge: Int get() = tag.getIntOr("thunder_charge", 0)
+
+	val secondsHeld: Int get() = tag.getIntOr("seconds_held", 0)
+
 	val dungeonSkillRequirement: String get() = tag.getStringOr("dungeon_skill_req", "")
 
 	val dungeonFloor: Int get() = tag.getIntOr("item_tier", 0)
@@ -161,6 +169,9 @@ class SkyBlockItem internal constructor(
 
 		const val NOT_WALKED = -1
 
+		private val LEGACY_OBTAINED: DateTimeFormatter =
+			DateTimeFormatter.ofPattern("M/d/yy h:m a", Locale.US).withZone(ZoneId.of("UTC"))
+
 		private val DRILL_PARTS = listOf("drill_part_upgrade_module", "drill_part_engine", "drill_part_fuel_tank")
 		private val ROD_PARTS = listOf("hook", "line", "sinker")
 
@@ -191,9 +202,21 @@ class SkyBlockItem internal constructor(
 				gems = tag.getCompound("gems").orElse(null),
 				ethermerge = tag.getBooleanOr("ethermerge", false),
 				donatedMuseum = tag.getBooleanOr("donated_museum", false),
-				timestamp = tag.getLongOr("timestamp", 0L),
+				timestamp = obtained(tag),
 				tag = tag
 			)
+		}
+
+		private fun obtained(tag: CompoundTag): Long {
+			val millis = tag.getLongOr("timestamp", 0L)
+			if (millis > 0L) return millis
+			val written = tag.getStringOr("timestamp", "")
+			if (written.isEmpty()) return 0L
+			return try {
+				Instant.from(LEGACY_OBTAINED.parse(written)).toEpochMilli()
+			} catch (unreadable: DateTimeParseException) {
+				0L
+			}
 		}
 
 		private fun hypixelId(tag: CompoundTag): String {

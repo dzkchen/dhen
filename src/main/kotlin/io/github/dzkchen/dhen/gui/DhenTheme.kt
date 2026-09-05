@@ -71,6 +71,37 @@ internal data class DhenTheme(
 		val SLOT_ENCHANT = 0xFF5555FFu.toInt()
 		val SLOT_ULTIMATE = 0xFFFF55FFu.toInt()
 
+		val SLOT_STAR_DUNGEON = intArrayOf(
+			0xFFFFFFE0u.toInt(),
+			0xFFFFFFE0u.toInt(),
+			0xFFFFFF00u.toInt(),
+			0xFFFFA500u.toInt(),
+			0xFFFF8C00u.toInt(),
+			0xFFFF4500u.toInt(),
+			0xFFFF4500u.toInt(),
+			0xFFFF0000u.toInt(),
+			0xFFCD5C5Cu.toInt(),
+			0xFF8B0000u.toInt()
+		)
+
+		val SLOT_STAR_NORMAL = intArrayOf(
+			0xFFFFFFE0u.toInt(),
+			0xFFFFFFE0u.toInt(),
+			0xFFFFFF00u.toInt(),
+			0xFFFFA500u.toInt(),
+			0xFFFF8C00u.toInt(),
+			0xFFFFB6C1u.toInt(),
+			0xFFFFB6C1u.toInt(),
+			0xFFFF69B4u.toInt(),
+			0xFFFF1493u.toInt(),
+			0xFFFFC0CBu.toInt(),
+			0xFFE0FFFFu.toInt(),
+			0xFF00FFFFu.toInt(),
+			0xFF87CEFAu.toInt(),
+			0xFF6495EDu.toInt(),
+			0xFF4682B4u.toInt()
+		)
+
 		val DEFAULT = DhenTheme()
 
 		val LIGHT = DhenTheme(
