@@ -1,6 +1,8 @@
 package io.github.dzkchen.dhen.module
 
 import io.github.dzkchen.dhen.event.EventBus
+import io.github.dzkchen.dhen.event.Handle
+import io.github.dzkchen.dhen.input.ChordBinding
 import io.github.dzkchen.dhen.input.KeybindRuntime
 import io.github.dzkchen.dhen.util.ClientThreadDispatcher
 import io.github.dzkchen.dhen.util.NanoClock
@@ -32,6 +34,14 @@ class ModuleManager(
 
 	val categories: Map<Category, List<Module>>
 		get() = modulesByCategory.mapValues { (_, modules) -> modules.toList() }
+
+	internal fun chord(binding: ChordBinding): Handle = keybindRuntime.chord(binding)
+
+	internal var chordDelayMillis: () -> Long
+		get() = keybindRuntime.chordDelayMillis
+		set(value) {
+			keybindRuntime.chordDelayMillis = value
+		}
 
 	fun register(module: Module): Module {
 		val key = key(module.name)

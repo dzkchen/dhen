@@ -94,6 +94,11 @@ object Tweaks : Module(
 		description = "Opens the server list straight from the title screen."
 	)
 
+	private var duplicateKeybinds by BooleanSetting(
+		"Duplicate Keybinds",
+		description = "Lets two controls share one key without the Controls screen calling it a conflict."
+	)
+
 	private var fitTitles by BooleanSetting(
 		"Fit Title Text",
 		default = true,
@@ -168,6 +173,9 @@ object Tweaks : Module(
 			event.screen = QuietReconfigure((screen as ServerReconfigScreenAccessor).reconfigureConnection())
 		}
 	}
+
+	@JvmStatic
+	fun allowsDuplicateKeybinds(): Boolean = enabled && duplicateKeybinds
 
 	@JvmStatic
 	fun shouldHideRecipeBook(): Boolean = enabled && hideRecipeBook

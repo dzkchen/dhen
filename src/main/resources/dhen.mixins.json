@@ -52,6 +52,7 @@
 		"ItemModelResolverMixin",
 		"ItemStackMixin",
 		"KeyboardHandlerMixin",
+		"KeyBindsListEntryMixin",
 		"KeybindContentsMixin",
 		"LavaFogEnvironmentMixin",
 		"LevelChunkMixin",

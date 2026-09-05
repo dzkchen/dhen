@@ -29,6 +29,7 @@ class CommandRegistry<S>(
 	private val themes: ThemeCommands = ThemeCommands.NONE,
 	private val chatHider: ChatHiderCommands = ChatHiderCommands.NONE,
 	private val commandAliases: CommandAliasCommands = CommandAliasCommands.NONE,
+	private val hotkeys: HotkeyCommands = HotkeyCommands.NONE,
 	private val textReplacer: TextReplacerCommands = TextReplacerCommands.NONE,
 	private val utilities: CommandUtilities = CommandUtilities.NONE,
 	private val hud: HudCommands = HudCommands.NONE,
@@ -115,6 +116,7 @@ class CommandRegistry<S>(
 			.then(themeCommand())
 			.then(chatHiderCommand())
 			.then(aliasCommand())
+			.then(hotkeyCommand())
 			.then(replaceCommand())
 			.then(debugCommand())
 
@@ -196,6 +198,33 @@ class CommandRegistry<S>(
 				)
 			)
 
+	private fun hotkeyCommand(): LiteralArgumentBuilder<S> =
+		literal<S>("hotkey")
+			.executes { context -> reportAll(context.source, hotkeys.list()) }
+			.then(literal<S>("list").executes { context -> reportAll(context.source, hotkeys.list()) })
+			.then(
+				literal<S>("add").then(
+					argument<S, String>("keys and command", StringArgumentType.greedyString())
+						.executes { context -> stored(context.source, split(context, "keys and command", ADD_USAGE, hotkeys::add)) }
+				)
+			)
+			.then(
+				literal<S>("where").then(
+					argument<S, String>("number and scope", StringArgumentType.greedyString())
+						.suggests(suggesting(hotkeys::targets))
+						.executes { context -> stored(context.source, split(context, "number and scope", WHERE_USAGE, hotkeys::scope)) }
+				)
+			)
+			.then(
+				literal<S>("remove").then(
+					argument<S, String>("number", StringArgumentType.greedyString())
+						.suggests(suggesting(hotkeys::targets))
+						.executes { context ->
+							stored(context.source, hotkeys.remove(StringArgumentType.getString(context, "number")))
+						}
+				)
+			)
+
 	private fun sendPingCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("sendping")
 			.executes { context -> report(context.source, waypoints.sendPing("")) }
@@ -255,6 +284,18 @@ class CommandRegistry<S>(
 			IntegerArgumentType.getInteger(context, "z"),
 			label
 		)
+
+	private fun split(
+		context: CommandContext<S>,
+		name: String,
+		usage: String,
+		action: (String, String) -> String
+	): String {
+		val raw = StringArgumentType.getString(context, name).trim()
+		val space = raw.indexOf(' ')
+		if (space <= 0) return usage
+		return action(raw.substring(0, space), raw.substring(space + 1).trim())
+	}
 
 	private fun pattern(context: CommandContext<S>): String = StringArgumentType.getString(context, "pattern")
 
@@ -568,6 +609,10 @@ class CommandRegistry<S>(
 		private const val FIRST_PAGE = 1
 		private const val CLICK_HINT = "Click to put this in the chat box."
 		private const val ARGUMENT_MARK = " <"
+		private const val ADD_USAGE =
+			"Give the keys and then the command, like /dhen hotkey add G,H /warp crypts."
+		private const val WHERE_USAGE =
+			"Give the number from /dhen hotkey list and then the scope, like /dhen hotkey where 1 island:hub."
 	}
 }
 

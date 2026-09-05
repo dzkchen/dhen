@@ -40,6 +40,7 @@ class TweaksTest {
 				"Hide System Toasts",
 				"Skip Reconfigure Screen",
 				"Skip Multiplayer Warning",
+				"Duplicate Keybinds",
 				"Fit Title Text",
 				"Steady Night Vision",
 				"Hide Item Frames"

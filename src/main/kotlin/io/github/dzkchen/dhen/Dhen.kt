@@ -59,6 +59,7 @@ import io.github.dzkchen.dhen.features.qol.AutoSprint
 import io.github.dzkchen.dhen.features.qol.EtherwarpAutoSneak
 import io.github.dzkchen.dhen.features.qol.EtherwarpSound
 import io.github.dzkchen.dhen.features.qol.LCEtherwarp
+import io.github.dzkchen.dhen.features.qol.Hotkeys
 import io.github.dzkchen.dhen.features.qol.NetworkResilience
 import io.github.dzkchen.dhen.features.qol.NoCursorReset
 import io.github.dzkchen.dhen.features.qol.NoItemPlace
@@ -105,6 +106,7 @@ import io.github.dzkchen.dhen.features.visual.EntityHighlight
 import io.github.dzkchen.dhen.features.visual.EtherwarpOverlay
 import io.github.dzkchen.dhen.features.visual.GyroHelper
 import io.github.dzkchen.dhen.features.visual.HidePlayers
+import io.github.dzkchen.dhen.features.visual.ItemGlow
 import io.github.dzkchen.dhen.features.visual.MaskTimers
 import io.github.dzkchen.dhen.features.visual.MobHighlight
 import io.github.dzkchen.dhen.features.visual.NametagTweaks
@@ -285,6 +287,7 @@ object Dhen : ClientModInitializer {
 			themes = themes,
 			chatHider = ChatTweaks,
 			commandAliases = ChatMacros,
+			hotkeys = Hotkeys,
 			textReplacer = TextReplacer,
 			utilities = Commands,
 			hud = hudCommands,
@@ -307,6 +310,7 @@ object Dhen : ClientModInitializer {
 			EtherwarpAutoSneak,
 			ZeroPingEtherwarp,
 			NetworkResilience,
+			Hotkeys,
 			NoCursorReset,
 			NoItemPlace,
 			PickupLog,
@@ -353,6 +357,7 @@ object Dhen : ClientModInitializer {
 			EtherwarpOverlay,
 			GyroHelper,
 			HidePlayers,
+			ItemGlow,
 			MaskTimers,
 			MobHighlight,
 			NametagTweaks,
@@ -512,6 +517,8 @@ object Dhen : ClientModInitializer {
 			flushedOnStop(configRoot.resolve("storage.json"), emptyList(), StorageSnapshots.authoritative),
 			ioScope
 		)
+		modules.chordDelayMillis = Hotkeys::chordDelayMillis
+		Hotkeys.install(modules::chord)
 		WorldRenderTypes.initialize()
 		firstRunExperience.install(modules.eventBus, coreState.welcomeShown)
 		automationNotice.install(coreState.hypixelNoticeShown)

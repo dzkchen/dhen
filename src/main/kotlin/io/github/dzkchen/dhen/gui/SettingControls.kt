@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.config.ActionSetting
 import io.github.dzkchen.dhen.config.BooleanSetting
 import io.github.dzkchen.dhen.config.KeybindSetting
+import io.github.dzkchen.dhen.input.keyDisplayName
 import io.github.dzkchen.dhen.config.NumberSetting
 import io.github.dzkchen.dhen.config.OrderedSelectionSetting
 import io.github.dzkchen.dhen.config.SelectorSetting
@@ -534,11 +535,8 @@ internal class KeybindControl(private val keybind: KeybindSetting) : SettingCont
 		return cachedLabel
 	}
 
-	private fun displayName(code: Int): String = when {
-		code == GLFW.GLFW_KEY_UNKNOWN -> UNBOUND_LABEL
-		code <= GLFW.GLFW_MOUSE_BUTTON_LAST -> InputConstants.Type.MOUSE.getOrCreate(code).displayName.string
-		else -> InputConstants.Type.KEYSYM.getOrCreate(code).displayName.string
-	}
+	private fun displayName(code: Int): String =
+		if (code == GLFW.GLFW_KEY_UNKNOWN) UNBOUND_LABEL else keyDisplayName(code)
 }
 
 internal class ActionControl(private val action: ActionSetting) : SettingControl(action) {
