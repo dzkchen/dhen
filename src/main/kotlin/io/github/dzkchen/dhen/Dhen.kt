@@ -75,6 +75,7 @@ import io.github.dzkchen.dhen.features.inventory.InventorySearch
 import io.github.dzkchen.dhen.features.inventory.StorageOverlay
 import io.github.dzkchen.dhen.features.inventory.StorageSnapshots
 import io.github.dzkchen.dhen.features.inventory.AnvilHelper
+import io.github.dzkchen.dhen.features.inventory.AuctionHelpers
 import io.github.dzkchen.dhen.features.inventory.ContainerClicks
 import io.github.dzkchen.dhen.features.inventory.BetterContainers
 import io.github.dzkchen.dhen.features.inventory.ChestValue
@@ -100,6 +101,7 @@ import io.github.dzkchen.dhen.features.inventory.ItemAbilities
 import io.github.dzkchen.dhen.features.inventory.ContainerState
 import io.github.dzkchen.dhen.features.inventory.ItemRarityOverlay
 import io.github.dzkchen.dhen.features.inventory.ProtectItem
+import io.github.dzkchen.dhen.features.inventory.ReforgeHelper
 import io.github.dzkchen.dhen.features.inventory.SlotBinding
 import io.github.dzkchen.dhen.features.inventory.SlotText
 import io.github.dzkchen.dhen.features.inventory.ValueBreakdown
@@ -354,6 +356,7 @@ object Dhen : ClientModInitializer {
 			ItemRarityOverlay,
 			ItemAbilities,
 			AnvilHelper,
+			ReforgeHelper,
 			ChickenHeadTimer,
 			CrownOfAvarice,
 			FireVeilWand,
@@ -384,6 +387,7 @@ object Dhen : ClientModInitializer {
 			PetKeybinds,
 			LoadoutKeybinds,
 			AuctionPriceInput,
+			AuctionHelpers,
 			SearchOverlay,
 			SignCalculator,
 			StorageOverlay,

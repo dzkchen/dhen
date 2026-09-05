@@ -106,6 +106,11 @@ object ItemValue {
 	fun of(item: SkyBlockItem, rarity: ItemRarity, source: PriceSource): Valuation =
 		of(item, rarity, source, CraftCost(source))
 
+	fun marketId(item: SkyBlockItem, source: PriceSource): String {
+		val pet = item.pet ?: return item.marketId
+		return listedPet(item.marketId, petLevel(pet), source)
+	}
+
 	internal fun of(pet: PetInfo, source: PriceSource, crafts: CraftCost): Valuation =
 		valuation(Fold(SkyBlockItem.ofPet(pet), null, source, crafts))
 

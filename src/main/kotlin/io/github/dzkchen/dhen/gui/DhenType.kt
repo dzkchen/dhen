@@ -294,6 +294,8 @@ internal class WrappedText {
 		}
 	}
 
+	fun line(index: Int): String = shown.getOrElse(index) { "" }
+
 	fun height(font: Font, base: Int): Int = base + (lines - 1) * DhenType.lineHeight(font)
 
 	fun blockTop(font: Font, y: Int, height: Int): Int = y + (height - lines * DhenType.lineHeight(font)) / 2

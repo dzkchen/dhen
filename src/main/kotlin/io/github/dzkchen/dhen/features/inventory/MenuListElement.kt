@@ -15,6 +15,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.world.item.ItemStack
 
 internal const val NO_LINE = -1
+internal const val DEFAULT_INK = 0
 
 internal const val ALIGN_LEFT = 0
 internal const val ALIGN_CENTER = 1
@@ -25,12 +26,14 @@ internal class MenuLine {
 	var icon: ItemStack = ItemStack.EMPTY
 	var slot: Int = NO_LINE
 	var action: Int = NO_LINE
+	var ink: Int = DEFAULT_INK
 
 	fun reset(): MenuLine {
 		text = ""
 		icon = ItemStack.EMPTY
 		slot = NO_LINE
 		action = NO_LINE
+		ink = DEFAULT_INK
 		return this
 	}
 }
@@ -60,9 +63,9 @@ internal abstract class MenuListElement(
 		return line
 	}
 
-	protected fun clearLines() {
+	protected fun clearLines(retainHover: Boolean = false) {
 		lines.clear()
-		hoveredLine = NO_LINE
+		if (!retainHover) hoveredLine = NO_LINE
 	}
 
 	fun pointer(x: Int, y: Int) {
@@ -105,7 +108,8 @@ internal abstract class MenuListElement(
 				ALIGN_RIGHT -> slack
 				else -> 0
 			}
-			memo(index).text(graphics, font, line.text, left + shift.coerceAtLeast(0), top, DhenPalette.TEXT_PRIMARY)
+			val ink = if (line.ink == DEFAULT_INK) DhenPalette.TEXT_PRIMARY else line.ink
+			memo(index).text(graphics, font, line.text, left + shift.coerceAtLeast(0), top, ink)
 		}
 	}
 

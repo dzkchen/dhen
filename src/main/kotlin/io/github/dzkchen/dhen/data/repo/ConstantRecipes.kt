@@ -15,8 +15,9 @@ private val REFORGE_TYPES: Map<String, List<String>> = mapOf(
 	"SWORD" to listOf("SWORD"),
 	"LONGSWORD" to listOf("SWORD"),
 	"WAND" to listOf("SWORD"),
+	"GAUNTLET" to listOf("SWORD", "PICKAXE"),
 	"BOW" to listOf("BOW"),
-	"SHORTBOW" to listOf("BOW"),
+	"SHORT BOW" to listOf("BOW"),
 	"HELMET" to listOf("ARMOR", "HELMET"),
 	"CHESTPLATE" to listOf("ARMOR", "CHESTPLATE"),
 	"LEGGINGS" to listOf("ARMOR"),
@@ -35,7 +36,7 @@ private val REFORGE_TYPES: Map<String, List<String>> = mapOf(
 	"FISHING NET" to listOf("ROD", "FISHING_ROD"),
 	"ACCESSORY" to listOf("ACCESSORY"),
 	"HATCESSORY" to listOf("ACCESSORY"),
-	"CARNIVAL MASK" to listOf("ACCESSORY"),
+	"CARNIVAL MASK" to listOf("ACCESSORY", "ARMOR"),
 	"BELT" to listOf("EQUIPMENT", "BELT"),
 	"CLOAK" to listOf("EQUIPMENT", "CLOAK"),
 	"NECKLACE" to listOf("EQUIPMENT"),
@@ -107,6 +108,9 @@ internal class ReforgeIndex private constructor(private val byType: Map<String, 
 		}
 	}
 }
+
+internal fun reforgeTypes(category: String): List<String> =
+	REFORGE_TYPES[category.replace('_', ' ')].orEmpty()
 
 internal fun loreType(lore: List<String>): String {
 	val last = withoutCodes(lore.lastOrNull() ?: return "").uppercase(Locale.ROOT).trim().removePrefix(SHINY)

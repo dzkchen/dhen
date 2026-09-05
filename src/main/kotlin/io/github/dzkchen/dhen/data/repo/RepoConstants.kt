@@ -22,6 +22,7 @@ import java.nio.file.Path
 import java.util.Locale
 
 class Reforge internal constructor(
+	val modifier: String,
 	val stone: String,
 	val reforge: String,
 	val costs: Map<String, Long>,
@@ -118,6 +119,9 @@ class RepoConstants private constructor(
 
 	fun reforgeStone(modifier: String): Reforge? = reforgeStones[modifier]
 
+	fun reforge(modifier: String): Reforge? =
+		reforgeStones[modifier] ?: blacksmithReforges.firstOrNull { it.modifier == modifier }
+
 	fun starTiers(id: String): List<StarTier> = stars[id].orEmpty()
 
 	fun gemstoneSlotCost(id: String, slot: String): Map<String, Int> = gemstoneSlots[id]?.get(slot).orEmpty()
@@ -161,7 +165,7 @@ class RepoConstants private constructor(
 		private const val DEFAULT_PET_MAX_LEVEL = 100
 		private const val DEFAULT_SKILL_CAP = 50
 		private const val JSON = ".json"
-		private const val ANY_RARITY = "ANY"
+		internal const val ANY_RARITY = "ANY"
 
 		private val SKILLS_WITH_THEIR_OWN_LADDER = mapOf("runecrafting" to "runecrafting_xp", "social" to "social")
 		private val SKILL_TREES = listOf("HOTM", "HOTF")
@@ -259,8 +263,8 @@ class RepoConstants private constructor(
 				val entry = element as? JsonObject ?: continue
 				val stone = entry.text("internalName") ?: continue
 				val reforge = entry.text("reforgeName") ?: continue
-				stones[entry.text("nbtModifier") ?: nbtModifier(reforge)] =
-					parsed(entry, stone.uppercase(Locale.ROOT), reforge)
+				val modifier = entry.text("nbtModifier") ?: nbtModifier(reforge)
+				stones[modifier] = parsed(entry, modifier, stone.uppercase(Locale.ROOT), reforge)
 			}
 			return stones
 		}
@@ -269,14 +273,16 @@ class RepoConstants private constructor(
 			val reforges = ArrayList<Reforge>(json.size())
 			for ((key, element) in json.entrySet()) {
 				val entry = element as? JsonObject ?: continue
-				reforges += parsed(entry, "", entry.text("reforgeName") ?: key)
+				val reforge = entry.text("reforgeName") ?: key
+				reforges += parsed(entry, entry.text("nbtModifier") ?: nbtModifier(reforge), "", reforge)
 			}
 			return reforges
 		}
 
-		private fun parsed(entry: JsonObject, stone: String, name: String): Reforge {
+		private fun parsed(entry: JsonObject, modifier: String, stone: String, name: String): Reforge {
 			val costs = entry.obj("reforgeCosts")
 			return Reforge(
+				modifier = modifier,
 				stone = stone,
 				reforge = name,
 				costs = costs?.keySet()?.associate { it.uppercase(Locale.ROOT) to costs.long(it) }.orEmpty(),

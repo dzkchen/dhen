@@ -22,6 +22,14 @@ internal object ConstantsFixture {
 		}
 	"""
 
+	const val BLACKSMITH_REFORGES = """
+		{
+		  "Light": {"reforgeName": "Light", "itemTypes": "sword/rod", "requiredRarities": ["COMMON"]},
+		  "Beady Eyes!": {"reforgeName": "Beady Eyes!", "itemTypes": "helmet", "requiredRarities": ["EPIC"]},
+		  "Nice": {"reforgeName": "Nice", "nbtModifier": "very_nice", "itemTypes": "rod", "requiredRarities": ["RARE"]}
+		}
+	"""
+
 	const val REFORGE_STONES = """
 		{
 		  "SPIRIT_STONE": {
