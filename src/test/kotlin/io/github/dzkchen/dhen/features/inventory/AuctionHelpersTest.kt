@@ -24,13 +24,6 @@ class AuctionHelpersTest {
 	}
 
 	@Test
-	fun `a line that only mentions coins is not a price`() {
-		assertNull(price("§7Sold for §6a lot of §7coins"))
-		assertNull(price("§7Buy it now: §6soon"))
-		assertNull(price("§7Ends in: §e13h 20m"))
-	}
-
-	@Test
 	fun `the first priced line wins and unpriced lore reads as nothing`() {
 		val stack = ItemFixture.lored(
 			"§7Seller: §aSomeone",

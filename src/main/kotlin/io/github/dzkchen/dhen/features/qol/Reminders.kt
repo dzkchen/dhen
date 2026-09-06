@@ -11,7 +11,9 @@ import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.data.SkyBlockLocation
 import io.github.dzkchen.dhen.data.pet.KatDialog
 import io.github.dzkchen.dhen.data.pet.KatSpecial
+import io.github.dzkchen.dhen.data.pet.KatUpgrade
 import io.github.dzkchen.dhen.event.ClientTickEvent
+import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
@@ -22,7 +24,6 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvents
 
-@Suppress("unused")
 object Reminders : Module(
 	name = "Reminders",
 	category = Category.QOL,
@@ -73,7 +74,7 @@ object Reminders : Module(
 	private val rows = ArrayList<Reminder>()
 	private var source: String? = null
 	private var nextId = FIRST_ID
-	private var pendingKat: KatUpgradeState? = null
+	private var pendingKat: KatUpgrade? = null
 
 	@Volatile
 	internal var revision = 0
@@ -81,13 +82,12 @@ object Reminders : Module(
 
 	private var lastSaveMs = 0L
 
-	internal val todosElement = hud(TodosHudElement())
-
-	private class KatUpgradeState(val pet: String, val rarity: String)
 
 	init {
+		hud(TodosHudElement())
 		registerSetting(todosSetting)
 		on<ClientTickEvent.End> { tick() }
+		on<WorldChangeEvent> { clock.restart(now()) }
 	}
 
 	override fun onEnabled() {
@@ -236,12 +236,12 @@ object Reminders : Module(
 		}
 		val upgrade = KatDialog.upgradeStart(dialog)
 		if (upgrade != null) {
-			pendingKat = KatUpgradeState(upgrade.pet, upgrade.rarity)
+			pendingKat = upgrade
 			return
 		}
 		val remind = KatDialog.reminderStart(dialog)
 		if (remind != null) {
-			pendingKat = KatUpgradeState(remind, COMMON_RARITY)
+			pendingKat = KatUpgrade(remind, COMMON_RARITY)
 			return
 		}
 		val pending = pendingKat ?: return

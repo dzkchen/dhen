@@ -37,8 +37,6 @@ class SackMenuTest {
 		val full = stack("CLOWNFISH", "§7Stored: §a60,500§7/60.5k")
 
 		assertTrue(read("Fishing Sack", full)[0].full)
-		assertTrue(SackMenu.isFull(full))
-		assertFalse(SackMenu.isFull(stack("CLOWNFISH", "§7Stored: §80§7/60.5k")))
 	}
 
 	@Test

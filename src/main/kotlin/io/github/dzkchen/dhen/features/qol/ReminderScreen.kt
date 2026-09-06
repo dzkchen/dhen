@@ -183,7 +183,7 @@ internal class ReminderScreen : LiveWorldScreen(DhenType.component(TITLE)), Text
 		for (entry in ReminderTab.entries) {
 			val tabLeft = left + TEXT_PAD + entry.ordinal * (TAB_WIDTH + TAB_GAP)
 			if (x !in tabLeft until tabLeft + TAB_WIDTH) continue
-			if (entry == ReminderTab.LIST) leaveForm() else startCreating()
+			if (entry == ReminderTab.LIST) leaveForm() else if (editing == null) startCreating()
 			return true
 		}
 		return false

@@ -91,10 +91,17 @@ class MenuKeybindsTest {
 
 	@Test
 	fun `a held key is swallowed until the guard expires and a different key is not`() {
-		assertFalse(MenuKeybinds.heldDown(GLFW.GLFW_KEY_1, mouse = false, 1_000L))
-		assertTrue(MenuKeybinds.heldDown(GLFW.GLFW_KEY_1, mouse = false, 1_100L))
-		assertFalse(MenuKeybinds.heldDown(GLFW.GLFW_KEY_RIGHT, mouse = false, 1_150L))
-		assertFalse(MenuKeybinds.heldDown(GLFW.GLFW_KEY_1, mouse = false, 1_600L))
+		assertFalse(MenuKeybinds.heldDown(this, GLFW.GLFW_KEY_1, mouse = false, 1_000L))
+		assertTrue(MenuKeybinds.heldDown(this, GLFW.GLFW_KEY_1, mouse = false, 1_100L))
+		assertFalse(MenuKeybinds.heldDown(this, GLFW.GLFW_KEY_RIGHT, mouse = false, 1_150L))
+		assertFalse(MenuKeybinds.heldDown(this, GLFW.GLFW_KEY_1, mouse = false, 1_600L))
+	}
+
+	@Test
+	fun `two owners bound to one key never swallow each other`() {
+		val other = Any()
+		assertFalse(MenuKeybinds.heldDown(this, GLFW.GLFW_KEY_2, mouse = false, 2_000L))
+		assertFalse(MenuKeybinds.heldDown(other, GLFW.GLFW_KEY_2, mouse = false, 2_010L))
 	}
 
 	companion object {

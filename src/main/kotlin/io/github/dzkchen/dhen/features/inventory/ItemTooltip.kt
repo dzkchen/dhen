@@ -336,9 +336,11 @@ object ItemTooltip : Module(
 	internal fun decorated(stack: ItemStack): List<Component> {
 		val vanilla = Screen.getTooltipFromItem(Minecraft.getInstance(), stack)
 		if (!enabled || !SkyBlockLocation.inSkyBlock) return vanilla
+		val extra = lines(stack)
+		if (!shaping() && extra.isEmpty()) return vanilla
 		val shaped = ArrayList(vanilla)
 		if (shaping()) shape(shaped, stack)
-		shaped += lines(stack)
+		shaped += extra
 		return shaped
 	}
 

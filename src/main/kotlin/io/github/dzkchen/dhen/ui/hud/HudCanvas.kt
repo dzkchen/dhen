@@ -80,15 +80,14 @@ internal class HudCanvas(
 			GLFW.GLFW_KEY_RIGHT -> editor.nudge(NUDGE, 0)
 			GLFW.GLFW_KEY_UP -> editor.nudge(0, -NUDGE)
 			GLFW.GLFW_KEY_DOWN -> editor.nudge(0, NUDGE)
-			GLFW.GLFW_KEY_M -> flip { it.inMenus = !it.inMenus }
+			GLFW.GLFW_KEY_M -> {
+				val element = editor.selected?.element ?: return false
+				element.inMenus = !element.inMenus
+				true
+			}
 			else -> return false
 		}
 		if (changed) persist()
-		return true
-	}
-
-	private fun flip(change: (HudElement) -> Unit): Boolean {
-		change(editor.selected?.element ?: return false)
 		return true
 	}
 

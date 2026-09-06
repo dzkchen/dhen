@@ -42,7 +42,6 @@ internal object SackMenu {
 	private val gemstoneFilter = Pattern.compile("(?:§.)+▶ (?<quality>.*)").matcher("")
 
 	private const val FILTER_SLOT = 41
-	private const val FULL_MARKER = "§7Stored: §a"
 
 	fun isSack(title: String): Boolean = sackTitle.reset(title).matches()
 
@@ -50,8 +49,6 @@ internal object SackMenu {
 
 	fun isTrophySack(title: String): Boolean = title.contains("Trophy Fishing Sack")
 
-	fun isFull(stack: ItemStack): Boolean =
-		SkyBlockItems.rawLore(stack).any { legacyCodes(it).startsWith(FULL_MARKER) }
 
 	fun gemstoneFilter(stacks: List<ItemStack>): String? {
 		val filter = stacks.getOrNull(FILTER_SLOT) ?: return null

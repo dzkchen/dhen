@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.features.chat
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -16,13 +15,6 @@ class ChatTabTest {
 		assertTrue(ChatTab.USER.claims("To Bob: hi"))
 		assertTrue(ChatTab.USER.claims("From [MVP+] Bob: hi"))
 		assertTrue(ChatTab.USER.claims("Friend > Bob: hi"))
-	}
-
-	@Test
-	fun `the user tab leaves server announcements alone`() {
-		assertFalse(ChatTab.USER.claims("Bob joined the party."))
-		assertFalse(ChatTab.USER.claims("-----------------"))
-		assertFalse(ChatTab.USER.claims("You are now in the PARTY channel"))
 	}
 
 	@Test

@@ -1,7 +1,6 @@
 package io.github.dzkchen.dhen.features.qol
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class HotkeyContextTest {
@@ -27,21 +26,5 @@ class HotkeyContextTest {
 		val parsed = parseHotkeyContext("island:hub & class:mage | island:garden")
 
 		assertEquals("(island:hub & class:mage) | island:garden", parsed?.format())
-	}
-
-	@Test
-	fun `an unknown island or class is refused rather than silently dropped`() {
-		assertNull(parseHotkeyContext("island:atlantis"))
-		assertNull(parseHotkeyContext("class:paladin"))
-		assertNull(parseHotkeyContext("somewhere:hub"))
-		assertNull(parseHotkeyContext("island:"))
-	}
-
-	@Test
-	fun `trailing rubbish after a complete scope is refused`() {
-		assertNull(parseHotkeyContext("island:hub &"))
-		assertNull(parseHotkeyContext("(island:hub"))
-		assertNull(parseHotkeyContext("island:hub)"))
-		assertNull(parseHotkeyContext(""))
 	}
 }

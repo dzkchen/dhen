@@ -11,7 +11,7 @@ import net.minecraft.world.item.ItemStack
 
 internal object MagicalPower {
 	private const val HEGEMONY = "HEGEMONY_ARTIFACT"
-	private const val ABIPHONE = "ABICASE"
+	private const val ABIPHONE = "ABICASE_"
 	private const val HAT_FAMILY = "PARTY_HAT"
 	private const val PRISM_POWER = 11
 	private const val POWER_PER_TUNING = 10
@@ -40,9 +40,9 @@ internal object MagicalPower {
 
 	private fun powerOf(item: SkyBlockItem, stack: ItemStack, abiphoneContacts: Int): Int {
 		val rarity = item.rarity(stack).magicalPower
-		return when (item.id) {
-			HEGEMONY -> rarity * 2
-			ABIPHONE -> rarity + abiphoneContacts / 2
+		return when {
+			item.id == HEGEMONY -> rarity * 2
+			item.id.startsWith(ABIPHONE) -> rarity + abiphoneContacts / 2
 			else -> rarity
 		}
 	}

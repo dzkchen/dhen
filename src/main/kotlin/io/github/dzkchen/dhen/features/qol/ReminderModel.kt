@@ -78,11 +78,7 @@ internal class Reminder(
 	val display: String
 		get() = label.ifBlank { message }
 
-	fun remaining(now: Long): Long = when {
-		off -> maxOf(0L, remainingMs)
-		realTime -> maxOf(0L, dueAtMs - now)
-		else -> maxOf(0L, remainingMs)
-	}
+	fun remaining(now: Long): Long = if (!off && realTime) maxOf(0L, dueAtMs - now) else maxOf(0L, remainingMs)
 
 	fun lateBy(now: Long): Long = if (realTime) maxOf(0L, now - dueAtMs) else 0L
 

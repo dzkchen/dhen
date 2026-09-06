@@ -26,7 +26,7 @@ class ProfileMagicalPowerTest {
 	@Test
 	fun `hegemony counts double and an abicase adds half the contact list`() {
 		assertEquals(44, power(member(bag(slot("HEGEMONY_ARTIFACT", lore = listOf("§d§lMYTHIC"))))))
-		assertEquals(7, power(member(bag(slot("ABICASE", lore = listOf("§a§lUNCOMMON"))), contacts = 5)))
+		assertEquals(7, power(member(bag(slot("ABICASE_SUMSUNG_1", lore = listOf("§a§lUNCOMMON"))), contacts = 5)))
 	}
 
 	@Test

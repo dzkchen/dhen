@@ -209,12 +209,12 @@ object MarkedPlayers : Module(
 		if (marked.isEmpty()) return
 		val color = chatColorNamed(chatColorSetting.value).toString()
 		if (highlightNames(event.stripped, marked, color) === event.stripped) return
-		event.text = recoloured(event.text, color)
+		event.text = recoloured(event.text, marked, color)
 	}
 
-	private fun recoloured(text: Component, color: String): Component {
-		val rebuilt = Component.literal(highlightNames(text.string, marked, color)).setStyle(text.style)
-		for (sibling in text.siblings) rebuilt.append(recoloured(sibling, color))
+	internal fun recoloured(text: Component, names: Set<String>, color: String): Component {
+		val rebuilt = Component.literal(highlightNames(text.plainCopy().string, names, color)).setStyle(text.style)
+		for (sibling in text.siblings) rebuilt.append(recoloured(sibling, names, color))
 		return rebuilt
 	}
 
@@ -280,6 +280,5 @@ object MarkedPlayers : Module(
 	private const val YELLOW = "Yellow"
 	private const val COLOR_ESCAPE = "&&"
 	private const val NAME_TOKEN = "%s"
-	private const val FIELD_BREAK = " "
 	private const val TAB_NAME = "\\[(?<level>[^]]*)] (?<name>[A-Za-z0-9_]+).*"
 }

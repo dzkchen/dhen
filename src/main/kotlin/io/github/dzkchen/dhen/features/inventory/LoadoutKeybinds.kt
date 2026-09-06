@@ -102,7 +102,7 @@ object LoadoutKeybinds : Module(
 		if (!nextPage && !previousPage && index == NO_MENU_BIND) return false
 		if (!pages.matches(screen.title)) return false
 		val now = Util.getMillis()
-		if (MenuKeybinds.heldDown(code, mouse, now)) return true
+		if (MenuKeybinds.heldDown(this, code, mouse, now)) return true
 		if (nextPage) {
 			if (pages.current < pages.total) MenuKeybinds.click(screen, NEXT_PAGE_SLOT)
 			return true

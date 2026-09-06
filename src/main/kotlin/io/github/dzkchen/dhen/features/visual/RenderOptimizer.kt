@@ -178,17 +178,13 @@ object RenderOptimizer : Module(
 	private var hideFire by hideFireSetting
 	private var hideNewArmorStands by hideNewArmorStandsSetting
 	private var hideDistant by hideDistantSetting
-	private var distantRange by distantRangeSetting
 	private var hideWeather by hideWeatherSetting
 	private var freezeTextures by freezeTexturesSetting
 	private var hideClouds by hideCloudsSetting
 	private var fixParticleColors by fixParticleColorsSetting
 	private var particleOverrides by particleOverridesSetting
-	private var unfocusedFrameLimit by unfocusedFrameLimitSetting
 	private var unfocusedMute by unfocusedMuteSetting
 	private var unfocusedNoWorld by unfocusedNoWorldSetting
-	private var renderPriority by renderPrioritySetting
-	private var ioPriority by ioPrioritySetting
 
 	private val tentacle = Skulls.texture("TENTACLE")
 	private val soulWeaver = Skulls.texture("DUNGEONS_SOUL_WEAVER")
@@ -251,7 +247,7 @@ object RenderOptimizer : Module(
 	fun skipsUnfocusedWorld(): Boolean = enabled && unfocusedNoWorld && unfocused()
 
 	@JvmStatic
-	fun unfocusedFrameCap(): Int = if (enabled && unfocused()) unfocusedFrameLimit.toInt() else 0
+	fun unfocusedFrameCap(): Int = if (enabled && unfocused()) unfocusedFrameLimitSetting.amount.toInt() else 0
 
 	@JvmStatic
 	fun recolouredParticle(
@@ -278,8 +274,8 @@ object RenderOptimizer : Module(
 			readOverrides = particleOverrides
 			ParticleOverrides.rules = ParticleOverrides.read(particleOverrides)
 		}
-		ThreadTuning.publishIo(ioPriority.toInt())
-		applyRenderPriority(renderPriority.toInt())
+		ThreadTuning.publishIo(ioPrioritySetting.amount.toInt())
+		applyRenderPriority(renderPrioritySetting.amount.toInt())
 	}
 
 	private fun applyRenderPriority(priority: Int) {
@@ -340,7 +336,7 @@ object RenderOptimizer : Module(
 	}
 
 	private fun trackLesserOrb(packet: ClientboundSetEquipmentPacket) {
-		if (!hideLesserOrbs || lesserOrb == null) return
+		if (lesserOrb == null) return
 		for (worn in packet.slots) {
 			if (worn.first != EquipmentSlot.MAINHAND) continue
 			if (SkyBlockItems.skullTexture(worn.second) != lesserOrb) continue
@@ -368,6 +364,7 @@ object RenderOptimizer : Module(
 	}
 
 	private fun rendering(event: EntityRenderEvent) {
+		if (!SkyBlockLocation.inSkyBlock) return
 		val entity = event.entity
 		if (hideDeadMobs && (!entity.isAlive || (entity as? LivingEntity)?.health?.let { it <= 0f } == true)) {
 			event.cancelled = true
@@ -428,7 +425,7 @@ object RenderOptimizer : Module(
 		val dx = entity.x - player.x
 		val dy = entity.y - player.y
 		val dz = entity.z - player.z
-		val range = distantRange
+		val range = distantRangeSetting.amount
 		return dx * dx + dy * dy + dz * dz > range * range
 	}
 

@@ -326,6 +326,6 @@ internal class Expression {
 	private companion object {
 		const val SUFFIXES = "kmbt"
 		const val THOUSAND = 1000.0
-		const val END = ' '
+		const val END = '\u0000'
 	}
 }

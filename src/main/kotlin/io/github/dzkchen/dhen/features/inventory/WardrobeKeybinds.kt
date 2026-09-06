@@ -62,7 +62,7 @@ object WardrobeKeybinds : Module(
 		val setIndex = MenuKeybinds.boundIndex(code, mouse, slotSettings)
 		if (!nextPage && !previousPage && !unequip && setIndex == NO_MENU_BIND) return false
 		if (!pages.matches(screen.title)) return false
-		if (MenuKeybinds.heldDown(code, mouse, Util.getMillis())) return true
+		if (MenuKeybinds.heldDown(this, code, mouse, Util.getMillis())) return true
 		val slot = when {
 			nextPage -> if (pages.current < pages.total) NEXT_PAGE_SLOT else return true
 			previousPage -> if (pages.current > 1) PREVIOUS_PAGE_SLOT else return true

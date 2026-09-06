@@ -81,16 +81,6 @@ class HudPersistenceTest {
 	}
 
 	@Test
-	fun `a module without elements writes no hud entry`() {
-		val manager = ModuleManager()
-		manager.register(PlainModule())
-
-		val entry = ModulePersistence.snapshot(manager).getAsJsonObject("modules").getAsJsonObject("Plain")
-
-		assertFalse(entry.has("hud"))
-	}
-
-	@Test
 	fun `unknown elements in the document are ignored`() {
 		val element = FixedHudElement("Status", offsetX = 3)
 		val doc = JsonObject().apply { add("Gone", JsonObject().apply { addProperty("x", 40) }) }

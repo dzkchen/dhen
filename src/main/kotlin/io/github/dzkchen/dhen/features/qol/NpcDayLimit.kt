@@ -36,9 +36,8 @@ object NpcDayLimit : Module(
 	private var readout = ""
 	private var readoutKey = -1L
 
-	internal val element = hud(NpcDayLimitElement())
-
 	init {
+		hud(NpcDayLimitElement())
 		registerSetting(numberFormatSetting)
 
 		on<ChatReceiveEvent> { sold(it.stripped) }

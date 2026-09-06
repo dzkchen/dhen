@@ -36,6 +36,7 @@ object ChatSearch : Module(
 	private var owed = false
 
 	private var countedFor = ""
+	private var countedTab = ChatTab.ALL
 	private var countedTotal = -1
 	private var countedNewest: GuiMessage? = null
 	private var countLabel = ""
@@ -66,7 +67,7 @@ object ChatSearch : Module(
 		countedTotal = -1
 		countedNewest = null
 		searchables.clear()
-		rebuild()
+		rescaleChat()
 	}
 
 	internal fun ask(typed: String) {
@@ -79,19 +80,25 @@ object ChatSearch : Module(
 	}
 
 	internal fun countLabel(): String {
-		val history = history()
+		val chat = Minecraft.getInstance().gui.hud.chat
+		val history = (chat as ChatComponentAccessor).chatAllMessages()
 		val newest = history.firstOrNull()
-		if (countedTotal == history.size && countedFor == query && countedNewest === newest) return countLabel
+		val tab = ChatTabs.active
+		if (countedTotal == history.size && countedFor == query && countedNewest === newest && countedTab == tab) return countLabel
 		var matched = 0
-		for (message in history) if (holds(searchableOf(message))) matched++
+		var shown = 0
+		for (message in history) {
+			if (ChatTabs.hides(chat, message)) continue
+			shown++
+			if (holds(searchableOf(message))) matched++
+		}
 		countedTotal = history.size
 		countedNewest = newest
 		countedFor = query
-		countLabel = "$matched/${history.size}"
+		countedTab = tab
+		countLabel = "$matched/$shown"
 		return countLabel
 	}
-
-	internal fun matches(content: Component): Boolean = !filtering || holds(searchable(content))
 
 	@JvmStatic
 	fun hides(message: GuiMessage): Boolean = filtering && !holds(searchableOf(message))
@@ -115,12 +122,9 @@ object ChatSearch : Module(
 	private fun settle() {
 		if (!owed || System.currentTimeMillis() - typedAt < SETTLE_MS) return
 		owed = false
-		rebuild()
+		rescaleChat()
 	}
 
-	private fun rebuild() {
-		Minecraft.getInstance()?.gui?.hud?.chat?.rescaleChat()
-	}
 
 	private fun searchable(content: Component): String =
 		stripRepeatSuffix(withoutCodes(content.string)).lowercase(Locale.ROOT)

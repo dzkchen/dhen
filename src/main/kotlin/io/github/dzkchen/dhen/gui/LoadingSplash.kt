@@ -88,7 +88,7 @@ internal object LoadingSplash {
 			0,
 			width,
 			height,
-			SplashLayout.withAlpha(DhenPalette.SPLASH_CANVAS, SplashLayout.canvasAlpha(fadeOut, fadeIn, fadesIn, reduced))
+			DhenPalette.withAlpha(DhenPalette.SPLASH_CANVAS, SplashLayout.canvasAlpha(fadeOut, fadeIn, fadesIn, reduced))
 		)
 
 		val scale = SplashLayout.markScale(width)

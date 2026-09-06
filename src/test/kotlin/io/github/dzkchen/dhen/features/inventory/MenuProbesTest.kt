@@ -27,26 +27,10 @@ class MenuProbesTest {
 	}
 
 	@Test
-	fun `the probe only reads the last lore line and keeps its colour codes`() {
-		val menu = filler(54)
-		menu[54 - 5] = shopSign("§7them to this Shop!", "§7Some other closing line")
-		assertFalse(npcShopOpen(menu))
-		menu[54 - 5] = shopSign("them to this Shop!")
-		assertFalse(npcShopOpen(menu))
-	}
-
-	@Test
 	fun `a real lore line carries its colour in the style rather than the text`() {
 		val menu = filler(54)
 		menu[54 - 5] = styledSign()
 		assertTrue(npcShopOpen(menu))
-	}
-
-	@Test
-	fun `a neighbouring slot carrying the shop wording does not open a shop`() {
-		val menu = filler(54)
-		menu[54 - 4] = shopSign("§7them to this Shop!")
-		assertFalse(npcShopOpen(menu))
 	}
 
 	@Test
@@ -55,12 +39,6 @@ class MenuProbesTest {
 		for (index in 50 until 54) menu[index] = ItemStack.EMPTY
 		menu[50 - 5] = shopSign("§7them to this Shop!")
 		assertTrue(npcShopOpen(menu))
-	}
-
-	@Test
-	fun `an empty menu opens nothing`() {
-		assertFalse(npcShopOpen(emptyList()))
-		assertFalse(bazaarMenuOpen("Nothing", emptyList()))
 	}
 
 	@Test

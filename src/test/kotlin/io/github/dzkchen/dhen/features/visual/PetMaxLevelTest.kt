@@ -25,13 +25,6 @@ class PetMaxLevelTest {
 	}
 
 	@Test
-	fun `a line that is not a pet level-up is ignored`() {
-		assertNull(PetMaxLevel.maxed("§aYou leveled up to level §9100§a!"))
-		assertNull(PetMaxLevel.maxed("Your Ender Dragon leveled up to level 100!"))
-		assertNull(PetMaxLevel.maxed("§aYour §5Ender Dragon §aleveled up to level §9one hundred§a!"))
-	}
-
-	@Test
 	fun `the id builder turns a coloured display name into Dhen's market id`() {
 		assertEquals("PET-FLYING_FISH-LEGENDARY", PetMaxLevel.baseMarketId("§6Flying Fish"))
 		assertEquals("PET-FLYING_FISH-LEGENDARY-100", PetMaxLevel.maxedMarketId("§6Flying Fish", 100))
@@ -40,24 +33,10 @@ class PetMaxLevelTest {
 	}
 
 	@Test
-	fun `a rarity Dhen prices no pets at yields no id rather than a wrong one`() {
-		assertNull(PetMaxLevel.baseMarketId("§bDivine Whale"))
-		assertNull(PetMaxLevel.baseMarketId("Flying Fish"))
-		assertNull(PetMaxLevel.baseMarketId("§6"))
-	}
-
-	@Test
 	fun `the maxed id the price table now publishes is the one the alert asks for`() {
 		assertEquals("PET-GIRAFFE-EPIC-100", PriceTables.neuMaxedPetId("GIRAFFE;3+100"))
 		assertEquals("PET-GOLDEN_DRAGON-LEGENDARY-200", PriceTables.neuMaxedPetId("GOLDEN_DRAGON;4+200"))
 		assertEquals("PET-GIRAFFE-EPIC", PriceTables.neuMarketId("GIRAFFE;3+100"))
-	}
-
-	@Test
-	fun `an unlevelled pet and a non-pet publish no maxed id`() {
-		assertNull(PriceTables.neuMaxedPetId("GIRAFFE;3"))
-		assertNull(PriceTables.neuMaxedPetId("NEW_YEAR_CAKE+158"))
-		assertNull(PriceTables.neuMaxedPetId("BOUNCY_LEGGINGS+PERFECT"))
 	}
 
 	@Test

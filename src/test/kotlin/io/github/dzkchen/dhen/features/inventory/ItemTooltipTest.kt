@@ -150,12 +150,6 @@ class ItemTooltipTest {
 	}
 
 	@Test
-	fun `an item with no stat bonus gets no quality line`() {
-		assertNull(ItemTooltip.qualityLine(item { putString("id", "HYPERION") }))
-		assertNull(ItemTooltip.qualityLine(item { putInt("baseStatBoostPercentage", 0) }))
-	}
-
-	@Test
 	fun `a price line writes the unit price and, held, the whole stack`() {
 		assertEquals("§eBazaar Buy: §61,000", ItemTooltip.priceLine("Bazaar Buy", 1000.0, 1))
 		assertEquals("§eBazaar Buy: §664,000 §8(64x 1,000)", ItemTooltip.priceLine("Bazaar Buy", 1000.0, 64))

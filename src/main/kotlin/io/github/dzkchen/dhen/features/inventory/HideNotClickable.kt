@@ -102,7 +102,7 @@ object HideNotClickable : Module(
 	private var inBazaar = false
 	private var inExcavator = false
 	private var reason = ""
-	private var greenLine = false
+	internal var greenLine = false
 
 	init {
 		registerSetting(protectRarelySoldSetting)
@@ -170,7 +170,7 @@ object HideNotClickable : Module(
 	private fun configures(slot: Slot?, code: Int, mouse: Boolean): Boolean {
 		if (!MenuKeybinds.bound(configureKeySetting, code, mouse)) return false
 		if (title.isEmpty() || slot == null || slot.container is Inventory) return false
-		if (MenuKeybinds.heldDown(code, mouse, Util.getMillis())) return true
+		if (MenuKeybinds.heldDown(this, code, mouse, Util.getMillis())) return true
 		ContainerState.toggleBlockedSlot(title, slot.index)
 		rememberBlocked(title)
 		return true
@@ -298,7 +298,6 @@ object HideNotClickable : Module(
 		return reason.ifEmpty { UNKNOWN_REASON }
 	}
 
-	internal fun marksClickable(): Boolean = greenLine
 
 	private fun hide(item: SkyBlockItem, stack: ItemStack): Boolean = when {
 		hideNpcSell(item, stack) -> true

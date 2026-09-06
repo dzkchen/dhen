@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.features.chat
 
 import io.github.dzkchen.dhen.event.withoutCodes
+import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 
 private const val REPEAT_OPEN = " (×"
@@ -41,3 +42,7 @@ private fun isCenteredRule(trimmed: String): Boolean {
 
 private fun isRuleCharacter(character: Char): Boolean =
 	character == '-' || character == '—' || character == '=' || character == '▬'
+
+internal fun rescaleChat() {
+	Minecraft.getInstance()?.gui?.hud?.chat?.rescaleChat()
+}

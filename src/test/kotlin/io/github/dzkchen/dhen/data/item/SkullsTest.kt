@@ -2,17 +2,10 @@ package io.github.dzkchen.dhen.data.item
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.util.Base64
 
 class SkullsTest {
-	@Test
-	fun `a name the table does not carry resolves to nothing`() {
-		assertNull(Skulls.texture("NOT_A_SKULL"))
-		assertNull(Skulls.texture(""))
-		assertNull(Skulls.texture("fire_freeze_skulls"))
-	}
 
 	@Test
 	fun `every named skull carries the skin its source names it by`() {

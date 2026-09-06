@@ -62,8 +62,6 @@ internal object SplashLayout {
 	fun filledWidth(barWidth: Int, progress: Float): Int =
 		(barWidth * progress.coerceIn(0f, 1f)).toInt().coerceIn(0, barWidth)
 
-	fun withAlpha(color: Int, alpha: Int): Int =
-		(alpha.coerceIn(0, OPAQUE) shl 24) or (color and 0xFFFFFF)
 
 	private fun fadeOutOpacity(fadeOut: Float): Float = 1f - (fadeOut - 1f).coerceIn(0f, 1f)
 }

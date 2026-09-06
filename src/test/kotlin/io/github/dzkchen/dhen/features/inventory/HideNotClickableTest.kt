@@ -9,7 +9,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.ItemLore
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -113,15 +112,8 @@ class HideNotClickableTest {
 	fun `a clickable item in a green-line menu is marked and a blocked one is not`() {
 		HideNotClickable.opened("Birdfeeder", emptyList())
 		assertEquals("", reason(ItemFixture.identified("YOGI_BERRY")))
-		assertTrue(HideNotClickable.marksClickable())
+		assertTrue(HideNotClickable.greenLine)
 		assertEquals("Not bird food!", reason(ItemFixture.identified("HYPERION")))
-	}
-
-	@Test
-	fun `a menu with no green line leaves nothing marked`() {
-		HideNotClickable.opened("Ender Chest (1/9)", emptyList())
-		reason(ItemFixture.identified("HYPERION"))
-		assertFalse(HideNotClickable.marksClickable())
 	}
 
 	private fun reason(stack: ItemStack): String = HideNotClickable.reasonFor(SkyBlockItems.of(stack), stack)

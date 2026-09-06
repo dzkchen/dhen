@@ -10,12 +10,12 @@ import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.input.keyHeld
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.util.matcher
 import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.inventory.ContainerInput
 import org.lwjgl.glfw.GLFW
-import java.util.regex.Pattern
 
 object PageScrolling : Module(
 	name = "Page Scrolling",
@@ -109,10 +109,9 @@ internal fun pageStep(name: String): Int = when {
 	else -> NO_STEP
 }
 
-private val PLAIN_CHEST = pageMatcher("Large Chest|Chest")
+private val PLAIN_CHEST = matcher("Large Chest|Chest")
 
-private val FORWARD = pageMatcher("§aNext Page|§aScroll Up|§aLevels 26 - 50|§aNext Page →|§aScroll Right")
+private val FORWARD = matcher("§aNext Page|§aScroll Up|§aLevels 26 - 50|§aNext Page →|§aScroll Right")
 
-private val BACKWARD = pageMatcher("§aPrevious Page|§aScroll Down|§aLevels 1 - 25|§a← Previous Page|§aScroll Left")
+private val BACKWARD = matcher("§aPrevious Page|§aScroll Down|§aLevels 1 - 25|§a← Previous Page|§aScroll Left")
 
-private fun pageMatcher(pattern: String) = ThreadLocal.withInitial { Pattern.compile(pattern).matcher("") }

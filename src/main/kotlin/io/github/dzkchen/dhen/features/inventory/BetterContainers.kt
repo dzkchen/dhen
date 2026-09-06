@@ -127,7 +127,8 @@ object BetterContainers : Module(
 
 	private fun paintPlayerRows(graphics: GuiGraphicsExtractor, slots: List<Slot>, fill: Int, border: Int) {
 		rowCount = 0
-		for (slot in slots) {
+		for (index in slots.indices) {
+			val slot = slots[index]
 			if (slot.container !is Inventory) continue
 			remember(slot.y, slot.x)
 		}

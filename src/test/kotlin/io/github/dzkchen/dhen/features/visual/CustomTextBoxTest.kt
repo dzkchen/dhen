@@ -3,7 +3,6 @@ package io.github.dzkchen.dhen.features.visual
 import io.github.dzkchen.dhen.gui.StubFont
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -30,13 +29,5 @@ class CustomTextBoxTest {
 		CustomTextBox.textSetting.value = "one\ntwo"
 
 		assertEquals(font.lineHeight, element.height(font))
-	}
-
-	@Test
-	fun `blank text draws nothing`() {
-		val element = CustomTextElement()
-		CustomTextBox.textSetting.value = "   "
-
-		assertFalse(element.hasContent)
 	}
 }

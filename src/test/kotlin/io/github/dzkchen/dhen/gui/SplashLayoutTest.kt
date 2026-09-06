@@ -179,8 +179,8 @@ class SplashLayoutTest {
 
 	@Test
 	fun `an explicit alpha replaces whatever the palette carried`() {
-		assertEquals(0x20336699, SplashLayout.withAlpha(0xFF336699u.toInt(), 0x20))
-		assertEquals(0xFF336699u.toInt(), SplashLayout.withAlpha(0x00336699, 0x1FF))
-		assertEquals(0x00336699, SplashLayout.withAlpha(0xFF336699u.toInt(), -5))
+		assertEquals(0x20336699, DhenPalette.withAlpha(0xFF336699u.toInt(), 0x20))
+		assertEquals(0xFF336699u.toInt(), DhenPalette.withAlpha(0x00336699, 0x1FF))
+		assertEquals(0x00336699, DhenPalette.withAlpha(0xFF336699u.toInt(), -5))
 	}
 }

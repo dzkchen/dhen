@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.config.Setting.Companion.withDependency
 import io.github.dzkchen.dhen.config.StringSetting
 import io.github.dzkchen.dhen.data.RequirementHold
 import io.github.dzkchen.dhen.data.SkyBlockLocation
+import io.github.dzkchen.dhen.data.item.ItemFacts
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
@@ -36,6 +37,7 @@ import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
 import io.github.dzkchen.dhen.util.digits
 import io.github.dzkchen.dhen.util.grouped
+import io.github.dzkchen.dhen.util.matcher
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.chat.Component
@@ -45,7 +47,6 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.util.regex.Pattern
 
 object AuctionHelpers : Module(
 	name = "Auction Helpers",
@@ -232,19 +233,18 @@ object AuctionHelpers : Module(
 			if (index >= MENU_SLOTS) break
 			val stack = stacks[index]
 			if (stack.isEmpty) continue
-			val lore = SkyBlockItems.rawLore(stack)
 			if (highlightSetting.on) {
-				if (hasLine(lore, SOLD_STATUS)) {
+				if (ItemFacts.hasLoreLine(stack, SOLD_STATUS)) {
 					tints[index] = soldColorSetting.value.argb
 					continue
 				}
-				if (hasLine(lore, EXPIRED_STATUS)) {
+				if (ItemFacts.hasLoreLine(stack, EXPIRED_STATUS)) {
 					tints[index] = expiredColorSetting.value.argb
 					continue
 				}
 			}
 			if (!underbidSetting.on) continue
-			val listed = listedPrice(lore, binOnly = true) ?: continue
+			val listed = listedPrice(SkyBlockItems.rawLore(stack), binOnly = true) ?: continue
 			if (listed > ItemValue.of(stack, VALUE_SOURCE).total) tints[index] = underbidColorSetting.value.argb
 		}
 	}
@@ -407,13 +407,6 @@ object AuctionHelpers : Module(
 			fraction.coerceIn(0f, 1f)
 		)
 	}
-
-	private fun hasLine(lore: List<Component>, text: String): Boolean {
-		for (index in lore.indices) if (withoutCodes(lore[index].string) == text) return true
-		return false
-	}
-
-	private fun matcher(pattern: String) = ThreadLocal.withInitial { Pattern.compile(pattern).matcher("") }
 
 	private val VALUE_SOURCE = PriceSource.BAZAAR_INSTANT_SELL
 

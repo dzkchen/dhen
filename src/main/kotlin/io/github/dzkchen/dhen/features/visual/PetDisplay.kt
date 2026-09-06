@@ -46,7 +46,6 @@ import io.github.dzkchen.dhen.ui.hud.DhenAlert
 import io.github.dzkchen.dhen.util.Color
 import io.github.dzkchen.dhen.util.shortNumber
 import net.minecraft.client.Minecraft
-import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -817,8 +816,7 @@ object PetDisplay : Module(
 		if (!SkyBlockLocation.inSkyBlock) return
 		val pet = PetMaxLevel.maxed(event.styled) ?: return
 		if (maxLevelAlert) {
-			DhenAlert.show("${pet.displayName}§f is maxed", "§fLevel ${pet.level}", MAXED_TICKS, sound = null)
-			Minecraft.getInstance().soundManager.play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f))
+			DhenAlert.show("${pet.displayName}§f is maxed", "§fLevel ${pet.level}", MAXED_TICKS, sound = SoundEvents.EXPERIENCE_ORB_PICKUP)
 		}
 		if (maxLevelPrice) pricedMaxLevel(pet)
 	}

@@ -41,6 +41,7 @@ class ParticleOverridesTest {
 
 	@Test
 	fun `entries that cannot be read are dropped rather than half applied`() {
+		assertEquals(setOf(ParticleTypes.FLAME), ParticleOverrides.read("flame=off crit=abc").keys)
 		assertTrue(ParticleOverrides.read("crit=abc").isEmpty())
 		assertTrue(ParticleOverrides.read("crit=1,abc").isEmpty())
 		assertTrue(ParticleOverrides.read("crit=1,0.5,3").isEmpty())

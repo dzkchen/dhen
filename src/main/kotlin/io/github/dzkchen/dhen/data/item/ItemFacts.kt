@@ -2,8 +2,8 @@ package io.github.dzkchen.dhen.data.item
 
 import io.github.dzkchen.dhen.event.legacyCodes
 import io.github.dzkchen.dhen.event.withoutCodes
+import io.github.dzkchen.dhen.util.matcher
 import net.minecraft.world.item.ItemStack
-import java.util.regex.Pattern
 
 object ItemFacts {
 	const val SKYBLOCK_MENU = "SKYBLOCK_MENU"
@@ -53,7 +53,7 @@ object ItemFacts {
 
 	fun hasLoreLine(stack: ItemStack, text: String): Boolean {
 		val lore = SkyBlockItems.rawLore(stack)
-		for (index in lore.indices) if (lore[index].string == text) return true
+		for (index in lore.indices) if (withoutCodes(lore[index].string) == text) return true
 		return false
 	}
 
@@ -92,6 +92,4 @@ object ItemFacts {
 	private val riftTransferable = matcher("X Rift-Transferable X")
 
 	private val riftExportable = matcher("X Rift-Export(?:able|ed) X")
-
-	private fun matcher(pattern: String) = ThreadLocal.withInitial { Pattern.compile(pattern).matcher("") }
 }

@@ -11,6 +11,9 @@ internal fun keyHeld(code: Int): Boolean =
 internal fun shiftHeld(): Boolean =
 	keyHeld(GLFW.GLFW_KEY_LEFT_SHIFT) || keyHeld(GLFW.GLFW_KEY_RIGHT_SHIFT)
 
+internal fun altHeld(): Boolean =
+	keyHeld(GLFW.GLFW_KEY_LEFT_ALT) || keyHeld(GLFW.GLFW_KEY_RIGHT_ALT)
+
 internal fun controlHeld(): Boolean =
 	keyHeld(GLFW.GLFW_KEY_LEFT_CONTROL) || keyHeld(GLFW.GLFW_KEY_RIGHT_CONTROL)
 

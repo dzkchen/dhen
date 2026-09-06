@@ -3,8 +3,8 @@ package io.github.dzkchen.dhen.features.inventory
 import io.github.dzkchen.dhen.data.item.ItemFacts
 import io.github.dzkchen.dhen.data.item.SkyBlockItems
 import io.github.dzkchen.dhen.event.legacyCodes
+import io.github.dzkchen.dhen.util.matcher
 import net.minecraft.world.item.ItemStack
-import java.util.regex.Pattern
 
 internal fun npcShopOpen(stacks: List<ItemStack>): Boolean {
 	val probe = stacks.getOrNull(stacks.indexOfLast { !it.isEmpty } - SELL_SLOT_BACK) ?: return false
@@ -53,5 +53,3 @@ private val BAZAAR_MENU = matcher(
 	"Bazaar ➜ .*|How many do you want\\?|How much do you want to pay\\?|Confirm Buy Order|" +
 		"Confirm Instant Buy|At what price are you selling\\?|Confirm Sell Offer|Order options"
 )
-
-private fun matcher(pattern: String) = ThreadLocal.withInitial { Pattern.compile(pattern).matcher("") }

@@ -437,6 +437,8 @@ object Dhen : ClientModInitializer {
 		ScoreboardLogger.openLogsSetting.value = { reveal(ScoreboardLogger.directory()) }
 		modules.enable(ChatTweaks)
 		modules.enable(FullSackHighlight)
+		modules.enable(ReforgeHelper)
+		modules.enable(Reminders)
 		modules.enable(XpInInventories)
 		modules.enable(ServerRestartTitle)
 		ModulePersistence.apply(modules, moduleStore.load())

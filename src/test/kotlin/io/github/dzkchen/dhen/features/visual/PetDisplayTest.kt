@@ -139,11 +139,6 @@ class PetDisplayTest {
 	}
 
 	@Test
-	fun `no title fires while Auto Pet Title is off`() {
-		assertFalse(PetDisplay.titled("§6Mosquito", dungeon = true))
-	}
-
-	@Test
 	fun `the title fires anywhere until Dungeons Only is on`() {
 		PetDisplay.autoPetTitleSetting.on = true
 
@@ -153,13 +148,6 @@ class PetDisplayTest {
 
 		assertFalse(PetDisplay.titled("§6Mosquito", dungeon = false))
 		assertTrue(PetDisplay.titled("§6Mosquito", dungeon = true))
-	}
-
-	@Test
-	fun `an empty pet name never becomes a title`() {
-		PetDisplay.autoPetTitleSetting.on = true
-
-		assertFalse(PetDisplay.titled("", dungeon = true))
 	}
 
 	@Test

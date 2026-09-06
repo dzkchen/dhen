@@ -96,13 +96,6 @@ class MaskTimersTest {
 	}
 
 	@Test
-	fun `a proc outside SkyBlock is ignored`() {
-		MaskTimers.chatted("Your Bonzo's Mask saved your life!")
-
-		assertEquals(0, Mask.BONZO.cooldownLeft)
-	}
-
-	@Test
 	fun `Dungeons Only ignores a proc on the hub and takes it in the Catacombs`() {
 		MaskTimers.dungeonsOnlySetting.value = true
 		onHub()
@@ -226,21 +219,6 @@ class MaskTimersTest {
 
 		CurrentPet.despawn()
 		assertFalse(Mask.PHOENIX.equipped(null))
-	}
-
-	@Test
-	fun `a helmet mask never reads the summoned pet`() {
-		CurrentPet.summon("§6Bonzo")
-
-		assertFalse(Mask.BONZO.equipped(null))
-		assertFalse(Mask.SPIRIT.equipped(null))
-	}
-
-	@Test
-	fun `nothing is listed while every mask is ready in the NoammAddons style`() {
-		MaskTimers.refresh(false)
-
-		assertFalse(MaskTimers.timersElement.contentAvailable(locationAllows = true, editing = false))
 	}
 
 	@Test

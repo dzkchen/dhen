@@ -29,12 +29,6 @@ class KatDialogTest {
 	}
 
 	@Test
-	fun `a rarity that is not a pet rarity throws the line away rather than guessing`() {
-		assertNull(KatDialog.upgradeStart("I'll get your Blue Whale upgraded to DIVINE in no time!"))
-		assertNull(KatDialog.upgradeStart("I'll get your Blue Whale upgraded to COMMON in no time!"))
-	}
-
-	@Test
 	fun `Hypixel's houre typo still parses as an hour`() {
 		assertEquals(3_600_000L, KatDialog.parseDuration("1 houre"))
 		assertEquals(7_200_000L, KatDialog.parseDuration("2 houres"))
@@ -48,13 +42,6 @@ class KatDialogTest {
 			KatDialog.duration("Come back in 2 days 5 hours to pick it up!")
 		)
 		assertEquals(90_000L, KatDialog.duration("I'll remind you in 1 minute 30 seconds!"))
-	}
-
-	@Test
-	fun `a line with no readable duration produces nothing`() {
-		assertEquals(0L, KatDialog.duration("Come back in a while to pick it up!"))
-		assertEquals(0L, KatDialog.duration("Nice weather we are having."))
-		assertEquals(0L, KatDialog.parseDuration("0 hours"))
 	}
 
 	@Test

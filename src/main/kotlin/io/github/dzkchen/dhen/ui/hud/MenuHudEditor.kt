@@ -1,16 +1,16 @@
 package io.github.dzkchen.dhen.ui.hud
 
-import com.mojang.blaze3d.platform.InputConstants
 import io.github.dzkchen.dhen.event.ContainerClickEvent
+import io.github.dzkchen.dhen.event.ContainerClosedEvent
 import io.github.dzkchen.dhen.event.ContainerKeyEvent
 import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.EventBus
-import io.github.dzkchen.dhen.event.GuiCloseEvent
 import io.github.dzkchen.dhen.event.Handle
 import io.github.dzkchen.dhen.event.InputAction
 import io.github.dzkchen.dhen.event.KeyInputEvent
 import io.github.dzkchen.dhen.event.MouseInputEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
+import io.github.dzkchen.dhen.input.altHeld
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import org.lwjgl.glfw.GLFW
@@ -35,7 +35,7 @@ internal object MenuHudEditor {
 			bus.subscribe<ContainerClickEvent> { clicked(it) },
 			bus.subscribe<ContainerScrollEvent> { scrolled(it) },
 			bus.subscribe<MouseInputEvent> { released(it) },
-			bus.subscribe<GuiCloseEvent> { if (it.screen is AbstractContainerScreen<*>) stop() }
+			bus.subscribe<ContainerClosedEvent> { if (!it.reopening) stop() }
 		)
 	}
 
@@ -62,7 +62,7 @@ internal object MenuHudEditor {
 			return
 		}
 		val canvas = this.canvas ?: return
-		if (canvas.dragging) canvas.drag(event.mouseX, event.mouseY, snap = !altDown())
+		if (canvas.dragging) canvas.drag(event.mouseX, event.mouseY, snap = !altHeld())
 		runtime.renderOverMenu(event.graphics, font, everything = true)
 		canvas.paint(
 			event.graphics,
@@ -116,11 +116,6 @@ internal object MenuHudEditor {
 		canvas?.release()
 	}
 
-	private fun altDown(): Boolean {
-		val window = Minecraft.getInstance().window
-		return InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_ALT) ||
-			InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_ALT)
-	}
 
 	private const val TOGGLE_KEY = GLFW.GLFW_KEY_F8
 }

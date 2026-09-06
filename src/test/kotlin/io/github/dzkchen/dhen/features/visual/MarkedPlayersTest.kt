@@ -1,6 +1,7 @@
 package io.github.dzkchen.dhen.features.visual
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.Test
 
 class MarkedPlayersTest {
@@ -53,5 +54,11 @@ class MarkedPlayersTest {
 
 	private companion object {
 		const val YELLOW = "§e"
+	}
+
+	@Test
+	fun `a recoloured component keeps each node's own text once`() {
+		val line = Component.literal("§7Party > ").append(Component.literal("Bob")).append(Component.literal(": hi"))
+		assertEquals("§7Party > §eBob§r: hi", MarkedPlayers.recoloured(line, setOf("bob"), YELLOW).string)
 	}
 }

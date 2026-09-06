@@ -30,6 +30,7 @@ class NpcSalesTest {
 	fun `the count rolls to zero the first time it is read on a new day`(@TempDir dir: Path) {
 		install(dir)
 		NpcSales.record(1_000L)
+		assertEquals(1_000L, NpcSales.soldToday)
 
 		day = 101L
 
@@ -55,10 +56,11 @@ class NpcSalesTest {
 	fun `a zero or negative sale is ignored`(@TempDir dir: Path) {
 		install(dir)
 
+		NpcSales.record(10L)
 		NpcSales.record(0L)
 		NpcSales.record(-5L)
 
-		assertEquals(0L, NpcSales.soldToday)
+		assertEquals(10L, NpcSales.soldToday)
 	}
 
 	private fun install(dir: Path) = NpcSales.install(

@@ -42,7 +42,7 @@ object ChatTabs : Module(
 	internal fun select(tab: ChatTab) {
 		val repeat = active == tab
 		active = tab
-		rebuild()
+		rescaleChat()
 		if (repeat || !switchChannel || tab.command.isEmpty()) return
 		Minecraft.getInstance().connection?.sendCommand(tab.command.removePrefix(SLASH))
 	}
@@ -50,12 +50,9 @@ object ChatTabs : Module(
 	private fun reset() {
 		if (active == ChatTab.ALL) return
 		active = ChatTab.ALL
-		rebuild()
+		rescaleChat()
 	}
 
-	private fun rebuild() {
-		Minecraft.getInstance()?.gui?.hud?.chat?.rescaleChat()
-	}
 
 	@JvmStatic
 	fun hides(chat: ChatComponent, message: GuiMessage): Boolean {

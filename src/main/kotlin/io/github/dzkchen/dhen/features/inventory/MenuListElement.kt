@@ -63,6 +63,14 @@ internal abstract class MenuListElement(
 		return line
 	}
 
+	fun clear() = clearLines()
+
+	protected fun button(text: String, action: Int) {
+		val line = line()
+		line.text = text
+		line.action = action
+	}
+
 	protected fun clearLines(retainHover: Boolean = false) {
 		lines.clear()
 		if (!retainHover) hoveredLine = NO_LINE

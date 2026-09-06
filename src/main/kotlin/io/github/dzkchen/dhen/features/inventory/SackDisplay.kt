@@ -105,7 +105,7 @@ object SackDisplay : Module(
 		INSTANT_BUY,
 		listOf(INSTANT_BUY, INSTANT_SELL, NPC_SELL),
 		description = "Which market price each row is valued at."
-	).withDependency { showPriceSetting.on }
+	)
 
 	private val sackOfSacksSetting = BooleanSetting(
 		"Sack of Sacks",
@@ -247,9 +247,13 @@ object SackDisplay : Module(
 		val parts = row.parts
 		val ids = row.partIds
 		if (row.magmafish > 0L) return (Prices.priceOr(MAGMA_FISH, source, 0.0) * row.magmafish).toLong()
+		if (parts != null && ids == null) return 0L
 		if (parts != null && ids != null) {
 			var total = 0.0
-			for (index in ids.indices) total += Prices.priceOr(ids[index], source, 0.0) * parts[index]
+			for (index in ids.indices) {
+				if (parts[index] == UNREPORTED) continue
+				total += Prices.priceOr(ids[index], source, 0.0) * parts[index]
+			}
 			return total.toLong()
 		}
 		return (Prices.priceOr(row.marketId, source, 0.0) * row.stored).toLong()
@@ -331,8 +335,6 @@ object SackDisplay : Module(
 }
 
 internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TOP_RIGHT, -MARGIN, MARGIN) {
-	fun clear() = clearLines()
-
 	override fun alignment(): Int = SackDisplay.alignment()
 
 	override fun rowHeight(font: net.minecraft.client.gui.Font): Int =
@@ -390,12 +392,6 @@ internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TO
 				.append(SackDisplay.amountText(parts[index]))
 		}
 		return text.toString()
-	}
-
-	private fun button(text: String, action: Int) {
-		val line = line()
-		line.text = text
-		line.action = action
 	}
 
 	private companion object {

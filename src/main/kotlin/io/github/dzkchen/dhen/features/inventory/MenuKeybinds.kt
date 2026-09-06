@@ -48,6 +48,7 @@ internal class MenuPages(pattern: String, private val pageless: Boolean = false)
 }
 
 internal object MenuKeybinds {
+	private var lastOwner: Any? = null
 	private var lastCode = GLFW.GLFW_KEY_UNKNOWN
 	private var lastWasMouse = false
 	private var lastInputAt = 0L
@@ -55,8 +56,9 @@ internal object MenuKeybinds {
 	fun menuKey(name: String, default: Int, description: String): KeybindSetting =
 		KeybindSetting(name, default, description, KeybindScreenPolicy.NON_TEXT_SCREEN)
 
-	fun heldDown(code: Int, mouse: Boolean, now: Long): Boolean {
-		val held = code == lastCode && mouse == lastWasMouse && now - lastInputAt < REPEAT_GUARD_MS
+	fun heldDown(owner: Any, code: Int, mouse: Boolean, now: Long): Boolean {
+		val held = owner === lastOwner && code == lastCode && mouse == lastWasMouse && now - lastInputAt < REPEAT_GUARD_MS
+		lastOwner = owner
 		lastCode = code
 		lastWasMouse = mouse
 		lastInputAt = now

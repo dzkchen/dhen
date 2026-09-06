@@ -271,7 +271,7 @@ object ChestValue : Module(
 		if (screen is InventoryScreen) return ownInventorySetting.on
 		if (screen !is ContainerScreen) return false
 		val title = withoutCodes(screen.title.string)
-		if (title.contains(MINION_TITLE)) return SkyBlockLocation.island == Island.PRIVATE_ISLAND
+		if (title.contains(MINION_TITLE)) return !title.contains(RECIPE_TITLE) && SkyBlockLocation.island == Island.PRIVATE_ISLAND
 		return title == CHEST || title == LARGE_CHEST || title in NAMED_CONTAINERS ||
 			title.startsWith(ENDER_CHEST) || (title.contains(BACKPACK) && title.contains(SLOT_NUMBER))
 	}
@@ -320,6 +320,7 @@ object ChestValue : Module(
 	private const val BACKPACK = "Backpack"
 	private const val SLOT_NUMBER = "Slot #"
 	private const val MINION_TITLE = " Minion "
+	private const val RECIPE_TITLE = "Recipe"
 	private const val MINION_ROW = 9
 	private const val MINION_FUEL = 1
 	private const val LEFT_BUTTON = 0
@@ -338,8 +339,6 @@ internal class ChestEntry(val label: String, val stack: ItemStack) {
 
 internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_RIGHT, -MARGIN, MARGIN) {
 	private val nameMemo = DhenType.memo()
-
-	fun clear() = clearLines()
 
 	fun rebuild(source: Collection<ChestEntry>, ownInventory: Boolean) {
 		clearLines()
@@ -385,12 +384,6 @@ internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_
 		val space = DhenType.width(font, " ").coerceAtLeast(1)
 		val missing = (room - DhenType.width(font, fitted)) / space
 		return if (missing <= 0) fitted else fitted + " ".repeat(missing)
-	}
-
-	private fun button(text: String, action: Int) {
-		val line = line()
-		line.text = text
-		line.action = action
 	}
 
 	override fun invalidateMeasurement() {

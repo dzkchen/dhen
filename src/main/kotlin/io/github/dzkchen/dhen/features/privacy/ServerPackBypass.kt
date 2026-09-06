@@ -48,7 +48,7 @@ object ServerPackBypass : Module(
 		listed = true,
 		description = "Manual keeps Minecraft's prompt and the full pack. Ask starts stripped and lets you load it fully once per session. " +
 			"Always On silently accepts the pack but keeps only its language files."
-	).also { it.changed = ::publish }
+	)
 	private var chosenMode by modeSetting
 
 	private var reverting by BooleanSetting(

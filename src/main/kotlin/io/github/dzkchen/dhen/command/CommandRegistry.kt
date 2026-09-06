@@ -577,7 +577,7 @@ class CommandRegistry<S>(
 			.executes { context -> reportComponents(context.source, reminders.list()) }
 			.then(literal<S>("list").executes { context -> reportComponents(context.source, reminders.list()) })
 			.then(literal<S>("gui").executes { context -> report(context.source, reminders.openManager()) })
-			.then(literal<S>("help").executes { context -> reportAll(context.source, reminderHelp()) })
+			.then(literal<S>("help").executes { context -> reportAll(context.source, REMINDER_HELP) })
 			.then(createReminderCommand())
 			.then(
 				literal<S>("todo").then(
@@ -619,7 +619,7 @@ class CommandRegistry<S>(
 						.then(
 							argument<S, Int>("amount", IntegerArgumentType.integer(1)).then(
 								argument<S, String>("unit", StringArgumentType.word())
-									.suggests(suggesting(::reminderUnits))
+									.suggests(suggesting { REMINDER_UNITS })
 									.executes { context ->
 										stored(
 											context.source,
@@ -641,13 +641,13 @@ class CommandRegistry<S>(
 		literal<S>("create").then(
 			argument<S, Int>("amount", IntegerArgumentType.integer(1)).then(
 				argument<S, String>("unit", StringArgumentType.word())
-					.suggests(suggesting(::reminderUnits))
+					.suggests(suggesting { REMINDER_UNITS })
 					.then(
 						argument<S, String>("trigger", StringArgumentType.word())
-							.suggests(suggesting(::reminderTriggers))
+							.suggests(suggesting { REMINDER_TRIGGERS })
 							.then(
 								argument<S, String>("output", StringArgumentType.word())
-									.suggests(suggesting(::reminderOutputs))
+									.suggests(suggesting { REMINDER_OUTPUTS })
 									.then(
 										literal<S>("message").then(
 											argument<S, String>("message", StringArgumentType.greedyString())
@@ -657,7 +657,7 @@ class CommandRegistry<S>(
 									.then(
 										literal<S>("repeat").then(
 											argument<S, String>("times", StringArgumentType.word())
-												.suggests(suggesting(::reminderRepeats))
+												.suggests(suggesting { REMINDER_REPEATS })
 												.then(
 													argument<S, String>("message", StringArgumentType.greedyString())
 														.executes { context ->
@@ -709,16 +709,6 @@ class CommandRegistry<S>(
 		for (line in lines) feedback(source, line)
 		return Command.SINGLE_SUCCESS
 	}
-
-	private fun reminderUnits(): List<String> = REMINDER_UNITS
-
-	private fun reminderTriggers(): List<String> = REMINDER_TRIGGERS
-
-	private fun reminderOutputs(): List<String> = REMINDER_OUTPUTS
-
-	private fun reminderRepeats(): List<String> = REMINDER_REPEATS
-
-	private fun reminderHelp(): List<String> = REMINDER_HELP
 
 	private fun soundCommand(): LiteralArgumentBuilder<S> =
 		literal<S>("sound").then(

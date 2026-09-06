@@ -64,7 +64,7 @@ object PetKeybinds : Module(
 		val petIndex = MenuKeybinds.boundIndex(code, mouse, slotSettings)
 		if (!nextPage && !previousPage && !unequipping && petIndex == NO_MENU_BIND) return false
 		if (!pages.matches(screen.title)) return false
-		if (MenuKeybinds.heldDown(code, mouse, Util.getMillis())) return true
+		if (MenuKeybinds.heldDown(this, code, mouse, Util.getMillis())) return true
 		var slot = when {
 			nextPage -> if (pages.current < pages.total) NEXT_PAGE_SLOT else return announce(LAST_PAGE)
 			previousPage -> if (pages.current > 1) PREVIOUS_PAGE_SLOT else return announce(FIRST_PAGE)

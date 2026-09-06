@@ -31,6 +31,7 @@ import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.MenuHudEditor
+import io.github.dzkchen.dhen.util.matcher
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.sounds.SoundEvent
@@ -40,7 +41,6 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import java.util.Locale
-import java.util.regex.Pattern
 
 internal const val REFORGE_SORT = 0
 internal const val REFORGE_ROW = 1
@@ -475,8 +475,6 @@ object ReforgeHelper : Module(
 		Minecraft.getInstance().soundManager.play(SimpleSoundInstance.forUI(sound, 1.0f, 1.0f))
 	}
 
-	private fun matcher(pattern: String) = ThreadLocal.withInitial { Pattern.compile(pattern).matcher("") }
-
 	internal const val DEFAULT_SORT = "Default"
 
 	private const val HEX_MENU = "The Hex ➜ Reforges"
@@ -507,8 +505,6 @@ object ReforgeHelper : Module(
 }
 
 internal class ReforgeHelperElement : MenuListElement("Reforge Helper", HudAnchor.TOP_LEFT, MARGIN, MARGIN) {
-	fun clear() = clearLines()
-
 	fun rebuild() {
 		clearLines(retainHover = true)
 		line().text = HEADER
