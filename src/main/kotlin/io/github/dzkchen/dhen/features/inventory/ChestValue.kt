@@ -10,18 +10,18 @@ import io.github.dzkchen.dhen.data.item.ItemFacts
 import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.value.ItemValue
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
+import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.GuiCloseEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.event.withoutCodes
-import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
-import io.github.dzkchen.dhen.gui.SLOT_BOX
-import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.HUD_MARGIN
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.MenuHudEditor
 import io.github.dzkchen.dhen.util.grouped
@@ -33,6 +33,7 @@ import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.ItemStack
+import org.lwjgl.glfw.GLFW
 
 internal const val VALUE_SORTING = 0
 internal const val VALUE_FORMAT = 1
@@ -58,13 +59,13 @@ object ChestValue : Module(
 		description = "Keeps the readout up while the value breakdown panel is open."
 	)
 
-	private val showStacksSetting = BooleanSetting(
+	internal val showStacksSetting = BooleanSetting(
 		"Show Stacks",
 		default = true,
 		description = "Draws each item's icon next to its row."
 	)
 
-	private val alignedSetting = BooleanSetting(
+	internal val alignedSetting = BooleanSetting(
 		"Aligned Display",
 		default = true,
 		description = "Pads the names so the prices line up in a column."
@@ -84,14 +85,14 @@ object ChestValue : Module(
 		description = "Lights up the slot the row you point at came from."
 	)
 
-	private val sortingSetting = SelectorSetting(
+	internal val sortingSetting = SelectorSetting(
 		"Chest Sorting",
 		DESCENDING,
 		listOf(DESCENDING, ASCENDING),
 		description = "Whether the most or the least valuable item comes first."
 	)
 
-	private val numberFormatSetting = SelectorSetting(
+	internal val numberFormatSetting = SelectorSetting(
 		"Chest Number Format",
 		SHORT,
 		listOf(SHORT, LONG),
@@ -106,7 +107,7 @@ object ChestValue : Module(
 		description = "How many rows the readout lists. Hidden rows still count towards the total."
 	)
 
-	private val hideBelowSetting = NumberSetting(
+	internal val hideBelowSetting = NumberSetting(
 		"Hide Below",
 		default = 100_000.0,
 		min = 50_000.0,
@@ -115,7 +116,7 @@ object ChestValue : Module(
 		description = "Rows worth less than this are not listed. They still count towards the total."
 	)
 
-	private val ignoreSoulboundSetting = BooleanSetting(
+	internal val ignoreSoulboundSetting = BooleanSetting(
 		"Ignore Soulbound",
 		description = "Leaves soulbound items out of the total."
 	)
@@ -123,8 +124,8 @@ object ChestValue : Module(
 	private val priceHold = RequirementHold(Prices::active, Prices::require)
 	private val entries = LinkedHashMap<String, ChestEntry>()
 	private val ordered = ArrayList<ChestEntry>()
-	private val seen = arrayOfNulls<ItemStack>(MENU_SLOTS)
-	private val seenCounts = IntArray(MENU_SLOTS)
+	private val seen = arrayOfNulls<ItemStack>(MAX_SCREEN_SLOTS)
+	private val seenCounts = IntArray(MAX_SCREEN_SLOTS)
 
 	internal val element = hud(ChestValueElement())
 
@@ -149,8 +150,9 @@ object ChestValue : Module(
 
 		on<ClientTickEvent.End> { ticked() }
 		on<ScreenRenderEvent.Post> { element.pointer(it.mouseX, it.mouseY) }
-		on<SlotRenderEvent.Post> { highlighted(it) }
+		on<SlotRenderEvent.Post> { if (highlightSetting.on) element.highlightHovered(it) }
 		on<ContainerClickEvent> { clicked(it) }
+		on<ContainerScrollEvent>(BEFORE_FEATURES) { scrolled(it) }
 		on<GuiCloseEvent> { element.clear() }
 	}
 
@@ -172,24 +174,25 @@ object ChestValue : Module(
 	}
 
 	private fun clicked(event: ContainerClickEvent) {
-		if (MenuHudEditor.editing || event.click.button() != LEFT_BUTTON) return
-		when (element.hoveredAction()) {
-			VALUE_SORTING -> sortingSetting.index++
-			VALUE_FORMAT -> numberFormatSetting.index++
-			VALUE_LAYOUT -> alignedSetting.on = !alignedSetting.on
-			else -> return
-		}
-		persist()
-		event.cancelled = true
-		refresh()
+		if (MenuHudEditor.editing || event.click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
+		if (cycled(CYCLE_FORWARD)) event.cancelled = true
 	}
 
-	private fun highlighted(event: SlotRenderEvent.Post) {
-		if (!highlightSetting.on) return
-		val slot = event.slot
-		if (slot.index != element.hoveredSlot()) return
-		val shade = DhenPalette.withAlpha(DhenPalette.SLOT_GREEN, HIGHLIGHT_ALPHA)
-		SharpGui.fill(event.graphics, slot.x, slot.y, slot.x + SLOT_BOX, slot.y + SLOT_BOX, shade)
+	private fun scrolled(event: ContainerScrollEvent) {
+		if (MenuHudEditor.editing || event.scrollY == 0.0) return
+		if (cycled(if (event.scrollY > 0.0) CYCLE_FORWARD else CYCLE_BACKWARD)) event.cancelled = true
+	}
+
+	private fun cycled(step: Int): Boolean {
+		when (element.hoveredAction()) {
+			VALUE_SORTING -> sortingSetting.index += step
+			VALUE_FORMAT -> numberFormatSetting.index += step
+			VALUE_LAYOUT -> alignedSetting.on = !alignedSetting.on
+			else -> return false
+		}
+		persist()
+		refresh()
+		return true
 	}
 
 	private fun rebuild() {
@@ -227,7 +230,7 @@ object ChestValue : Module(
 		var moved = false
 		val slots = screen.menu.slots
 		for (index in slots.indices) {
-			if (index >= MENU_SLOTS) break
+			if (index >= MAX_SCREEN_SLOTS) break
 			val stack = slots[index].item
 			if (seen[index] === stack && seenCounts[index] == stack.count) continue
 			seen[index] = stack
@@ -288,19 +291,7 @@ object ChestValue : Module(
 
 	internal fun rowsShown(): Int = itemsToShowSetting.amount.toInt()
 
-	internal fun hideBelow(): Double = hideBelowSetting.amount
-
-	internal fun ignoresSoulbound(): Boolean = ignoreSoulboundSetting.on
-
-	internal fun showsStacks(): Boolean = showStacksSetting.on
-
-	internal fun aligned(): Boolean = alignedSetting.on
-
 	internal fun nameRoom(): Int = nameLengthSetting.amount.toInt()
-
-	internal fun sortingLabel(): String = sortingSetting.value
-
-	internal fun formatLabel(): String = numberFormatSetting.value
 
 	internal fun layoutLabel(): String = if (alignedSetting.on) ALIGNED else PLAIN
 
@@ -323,11 +314,8 @@ object ChestValue : Module(
 	private const val RECIPE_TITLE = "Recipe"
 	private const val MINION_ROW = 9
 	private const val MINION_FUEL = 1
-	private const val LEFT_BUTTON = 0
 	private const val PRIME = 31
-	private const val MENU_SLOTS = 128
 	private const val REFRESH_TICKS = 5
-	private const val HIGHLIGHT_ALPHA = 90
 }
 
 internal class ChestEntry(val label: String, val stack: ItemStack) {
@@ -337,7 +325,7 @@ internal class ChestEntry(val label: String, val stack: ItemStack) {
 	var slot = NO_LINE
 }
 
-internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_RIGHT, -MARGIN, MARGIN) {
+internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_RIGHT, -HUD_MARGIN, HUD_MARGIN) {
 	private val nameMemo = DhenType.memo()
 
 	fun rebuild(source: Collection<ChestEntry>, ownInventory: Boolean) {
@@ -345,24 +333,24 @@ internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_
 		if (source.isEmpty()) return
 		val sorted = ChestValue.sortedEntries(source)
 		val room = ChestValue.rowsShown()
-		val floor = ChestValue.hideBelow()
+		val floor = ChestValue.hideBelowSetting.amount
 		var total = 0.0
 		var shown = 0
 		for (entry in sorted) {
-			if (ChestValue.ignoresSoulbound() && entry.soulbound) continue
+			if (ChestValue.ignoreSoulboundSetting.on && entry.soulbound) continue
 			total += entry.total
 			if (shown < room && entry.total >= floor) shown++
 		}
 		line().text = "${if (ownInventory) INVENTORY_TITLE else CHEST_TITLE}: ($shown of ${sorted.size})"
 		var drawn = 0
 		for (entry in sorted) {
-			if (ChestValue.ignoresSoulbound() && entry.soulbound) continue
+			if (ChestValue.ignoreSoulboundSetting.on && entry.soulbound) continue
 			if (drawn >= room || entry.total < floor) continue
 			drawn++
 			row(entry)
 		}
-		button(SORTING_LABEL + ChestValue.sortingLabel(), VALUE_SORTING)
-		button(FORMAT_LABEL + ChestValue.formatLabel(), VALUE_FORMAT)
+		button(SORTING_LABEL + ChestValue.sortingSetting.value, VALUE_SORTING)
+		button(FORMAT_LABEL + ChestValue.numberFormatSetting.value, VALUE_FORMAT)
 		button(LAYOUT_LABEL + ChestValue.layoutLabel(), VALUE_LAYOUT)
 		line().text = TOTAL_LABEL + ChestValue.formatted(total)
 	}
@@ -370,10 +358,10 @@ internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_
 	private fun row(entry: ChestEntry) {
 		val line = line()
 		line.slot = entry.slot
-		if (ChestValue.showsStacks()) line.icon = entry.stack
+		if (ChestValue.showStacksSetting.on) line.icon = entry.stack
 		val amount = " x${grouped(entry.count.toLong())}:"
 		val price = ChestValue.formatted(entry.total)
-		val name = if (ChestValue.aligned()) padded(entry.label, amount) else entry.label
+		val name = if (ChestValue.alignedSetting.on) padded(entry.label, amount) else entry.label
 		line.text = "$name$amount $price"
 	}
 
@@ -400,5 +388,3 @@ internal class ChestValueElement : MenuListElement("Chest Value", HudAnchor.TOP_
 		const val TOTAL_LABEL = "Total: "
 	}
 }
-
-private const val MARGIN = 8

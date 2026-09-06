@@ -28,6 +28,7 @@ import io.github.dzkchen.dhen.event.TooltipEvent
 import io.github.dzkchen.dhen.event.WorldChangeEvent
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.gui.DhenPalette
+import io.github.dzkchen.dhen.gui.DhenFont
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.ItemGui
 import io.github.dzkchen.dhen.gui.SlotTint
@@ -139,8 +140,11 @@ object AuctionHelpers : Module(
 
 	private val priceHold = RequirementHold(Prices::active, Prices::require)
 
-	private val tints = IntArray(MENU_SLOTS)
-	private val diffs = LongArray(MENU_SLOTS) { NO_DIFF }
+	private val comparisonLines = ArrayList<Component>(COMPARISON_LINES)
+	private var comparedDiff = NO_DIFF
+	private var comparedFont = NO_FONT
+	private val tints = IntArray(MENU_CELLS)
+	private val diffs = LongArray(MENU_CELLS) { NO_DIFF }
 	private val websiteLines = ArrayList<Component>(WEBSITE_LINES)
 
 	private val anyPrice = matcher("(?:Buy it now|Starting bid|Top bid): ([0-9,]+) coins")
@@ -230,7 +234,7 @@ object AuctionHelpers : Module(
 		if (title != MANAGE_AUCTIONS) return
 		if (!highlightSetting.on && !underbidSetting.on) return
 		for (index in stacks.indices) {
-			if (index >= MENU_SLOTS) break
+			if (index >= MENU_CELLS) break
 			val stack = stacks[index]
 			if (stack.isEmpty) continue
 			if (highlightSetting.on) {
@@ -256,7 +260,7 @@ object AuctionHelpers : Module(
 		if (!comparisonSetting.on) return
 		if (!title.startsWith(AUCTIONS_PREFIX) && !title.startsWith(COSMETICS_PREFIX)) return
 		for (index in stacks.indices) {
-			if (index >= MENU_SLOTS) break
+			if (index >= MENU_CELLS) break
 			val stack = stacks[index]
 			if (stack.isEmpty) continue
 			val listed = listedPrice(SkyBlockItems.rawLore(stack), binOnly = false) ?: continue
@@ -327,7 +331,7 @@ object AuctionHelpers : Module(
 	private fun painted(event: SlotRenderEvent.Pre) {
 		if (!SkyBlockLocation.inSkyBlock) return
 		val slot = event.slot
-		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_SLOTS) return
+		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_CELLS) return
 		if (searchTerm.isNotEmpty() && slot.index == WEBSITE_SLOT) {
 			ItemGui.stack(event.graphics, websiteIcon, slot.x, slot.y)
 			event.cancelled = true
@@ -344,22 +348,30 @@ object AuctionHelpers : Module(
 
 	private fun annotated(event: TooltipEvent) {
 		val slot = event.hoveredSlot
-		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_SLOTS) return
+		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_CELLS) return
 		if (searchTerm.isNotEmpty() && slot.index == WEBSITE_SLOT) {
 			event.cancelled = true
 			return
 		}
 		val diff = diffs[slot.index]
 		if (diff == NO_DIFF) return
-		val lines = event.edit()
-		lines.add(Component.empty())
+		event.edit().addAll(comparison(diff))
+	}
+
+	private fun comparison(diff: Long): List<Component> {
+		if (diff == comparedDiff && DhenFont.revision == comparedFont) return comparisonLines
+		comparedDiff = diff
+		comparedFont = DhenFont.revision
+		comparisonLines.clear()
+		comparisonLines += Component.empty()
 		if (diff >= 0L) {
-			lines.add(DhenType.component("§aThis item is §6${grouped(diff)} coins §acheaper"))
-			lines.add(DhenType.component("§athan the estimated item value!"))
+			comparisonLines += DhenType.component("§aThis item is §6${grouped(diff)} coins §acheaper")
+			comparisonLines += DhenType.component("§athan the estimated item value!")
 		} else {
-			lines.add(DhenType.component("§cThis item is §6${grouped(-diff)} coins §cmore"))
-			lines.add(DhenType.component("§cexpensive than the estimated item value!"))
+			comparisonLines += DhenType.component("§cThis item is §6${grouped(-diff)} coins §cmore")
+			comparisonLines += DhenType.component("§cexpensive than the estimated item value!")
 		}
+		return comparisonLines
 	}
 
 	private fun websiteTooltip(event: ScreenRenderEvent.Pre) {
@@ -423,8 +435,9 @@ object AuctionHelpers : Module(
 	private const val CREATE_ITEM_SLOT = 13
 	private const val WEBSITE_SLOT = 8
 	private const val WEBSITE_LINES = 4
-	private const val MENU_SLOTS = 54
 	private const val NO_DIFF = Long.MIN_VALUE
+	private const val NO_FONT = -1
+	private const val COMPARISON_LINES = 3
 	private const val OPEN_GAP_MS = 300L
 	private const val TINT_PRIORITY = 20
 	private const val COMPARISON_PRIORITY = 10

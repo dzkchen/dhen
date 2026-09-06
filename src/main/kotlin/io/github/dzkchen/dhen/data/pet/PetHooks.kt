@@ -22,6 +22,7 @@ import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.util.Failsafe
 import net.minecraft.util.Util
 import net.minecraft.world.item.ItemStack
+import org.lwjgl.glfw.GLFW
 
 internal object PetHooks : GuardedHooks<PetHooks.Channels> {
 	override val feed = "Pets"
@@ -138,7 +139,7 @@ internal object PetHooks : GuardedHooks<PetHooks.Channels> {
 
 		fun clicked(event: ContainerClickEvent) {
 			val click = event.click
-			if (click.button() != LEFT_BUTTON || click.hasShiftDown()) return
+			if (click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT || click.hasShiftDown()) return
 			val slot = event.hoveredSlot ?: return
 			loadout(withoutCodes(event.screen.title.string), slot.index, slot.item)
 		}
@@ -176,7 +177,6 @@ internal object PetHooks : GuardedHooks<PetHooks.Channels> {
 		}
 	}
 
-	private const val LEFT_BUTTON = 0
 	private const val DESPAWN_LINE_DEPTH = 3
 	private const val DESPAWN_LINE = "Click to despawn!"
 	private const val LOADOUTS_TITLE_SUFFIX = ") Loadouts"

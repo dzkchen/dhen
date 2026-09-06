@@ -10,11 +10,13 @@ import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.repo.Reforge
 import io.github.dzkchen.dhen.data.repo.RepoConstants
 import io.github.dzkchen.dhen.data.repo.reforgeTypes
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ChatReceiveEvent
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
 import io.github.dzkchen.dhen.event.ContainerClosedEvent
 import io.github.dzkchen.dhen.event.ContainerReadyEvent
+import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.SlotRenderEvent
@@ -29,6 +31,7 @@ import io.github.dzkchen.dhen.input.platformModifierHeld
 import io.github.dzkchen.dhen.input.platformModifierName
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.HUD_MARGIN
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.MenuHudEditor
 import io.github.dzkchen.dhen.util.matcher
@@ -41,6 +44,7 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import java.util.Locale
+import org.lwjgl.glfw.GLFW
 
 internal const val REFORGE_SORT = 0
 internal const val REFORGE_ROW = 1
@@ -79,7 +83,7 @@ object ReforgeHelper : Module(
 	private val detailLines = ArrayList<String>()
 	private val statKeys = LinkedHashSet<String>()
 	private val ability = DhenType.wrap()
-	private val tints = IntArray(MENU_SLOTS)
+	private val tints = IntArray(MENU_CELLS)
 	private val nameMemo: TextMemo = DhenType.memo()
 	private val warningMemo: TextMemo = DhenType.memo()
 
@@ -117,6 +121,7 @@ object ReforgeHelper : Module(
 		on<WorldChangeEvent> { forget() }
 		on<ChatReceiveEvent> { chatted(it) }
 		on<ContainerClickEvent> { clicked(it) }
+		on<ContainerScrollEvent>(BEFORE_FEATURES) { scrolled(it) }
 		on<ScreenRenderEvent.Post> { pointed(it) }
 		on<SlotRenderEvent.Pre> { tinted(it) }
 		on<SlotRenderEvent.Post> { marked(it) }
@@ -320,7 +325,7 @@ object ReforgeHelper : Module(
 	private fun clicked(event: ContainerClickEvent) {
 		if (!inMenu || !SkyBlockLocation.inSkyBlock) return
 		rareBlocked = false
-		if (!MenuHudEditor.editing && event.click.button() == LEFT_BUTTON && overlayClick(event)) return
+		if (!MenuHudEditor.editing && event.click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT && overlayClick(event)) return
 		val slot = event.hoveredSlot ?: return
 		if (slot.index != buttonSlot() || slot.container is Inventory) return
 		val lore = SkyBlockItems.rawLore(slot.item)
@@ -332,7 +337,7 @@ object ReforgeHelper : Module(
 	private fun overlayClick(event: ContainerClickEvent): Boolean {
 		val action = element.hoveredAction()
 		if (action == REFORGE_SORT) {
-			cycleSort()
+			cycleSort(CYCLE_FORWARD)
 		} else if (action >= REFORGE_ROW) {
 			target = eligible.getOrNull(action - REFORGE_ROW) ?: return false
 			play(SoundEvents.UI_BUTTON_CLICK.value())
@@ -344,9 +349,18 @@ object ReforgeHelper : Module(
 		return true
 	}
 
-	private fun cycleSort() {
-		val next = statNames.indexOf(sortStat) + 1
-		sortStat = if (next >= statNames.size) "" else statNames[next]
+	private fun scrolled(event: ContainerScrollEvent) {
+		if (MenuHudEditor.editing || !inMenu || event.scrollY == 0.0) return
+		if (element.hoveredAction() != REFORGE_SORT) return
+		cycleSort(if (event.scrollY > 0.0) CYCLE_FORWARD else CYCLE_BACKWARD)
+		event.cancelled = true
+	}
+
+	private fun cycleSort(step: Int) {
+		if (statNames.isEmpty()) return
+		val wheel = statNames.size + 1
+		val next = ((statNames.indexOf(sortStat) + 1 + step) % wheel + wheel) % wheel
+		sortStat = if (next == 0) "" else statNames[next - 1]
 		sort()
 		refresh()
 	}
@@ -416,7 +430,7 @@ object ReforgeHelper : Module(
 		val slots = Minecraft.getInstance().player?.containerMenu?.slots
 		if (slots != null) {
 			for (slot in slots) {
-				if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_SLOTS) continue
+				if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_CELLS) continue
 				if (slot.item.isEmpty || ItemFacts.cleanName(slot.item) != name) continue
 				tints[slot.index] = tint
 				return
@@ -439,7 +453,7 @@ object ReforgeHelper : Module(
 	private fun tinted(event: SlotRenderEvent.Pre) {
 		if (!inMenu || !SkyBlockLocation.inSkyBlock) return
 		val slot = event.slot
-		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_SLOTS) return
+		if (slot.container is Inventory || slot.index < 0 || slot.index >= MENU_CELLS) return
 		val tint = tints[slot.index]
 		if (tint != 0) SlotTint.claim(tint, TINT_PRIORITY)
 	}
@@ -488,8 +502,6 @@ object ReforgeHelper : Module(
 	private const val HEX_PAGE_UP = 17
 	private const val HEX_PAGE_DOWN = 35
 	private const val EXIT_BUTTON = 40
-	private const val MENU_SLOTS = 54
-	private const val LEFT_BUTTON = 0
 	private const val MIDDLE_BUTTON = 2
 	private const val REFORGE_SETTLE_TICKS = 2
 	private const val ABILITY_WIDTH = 170
@@ -504,7 +516,7 @@ object ReforgeHelper : Module(
 	private const val FINISHED_ALPHA = 75
 }
 
-internal class ReforgeHelperElement : MenuListElement("Reforge Helper", HudAnchor.TOP_LEFT, MARGIN, MARGIN) {
+internal class ReforgeHelperElement : MenuListElement("Reforge Helper", HudAnchor.TOP_LEFT, HUD_MARGIN, HUD_MARGIN) {
 	fun rebuild() {
 		clearLines(retainHover = true)
 		line().text = HEADER
@@ -528,5 +540,3 @@ internal class ReforgeHelperElement : MenuListElement("Reforge Helper", HudAncho
 		const val SORT_LABEL = "Sorted by: "
 	}
 }
-
-private const val MARGIN = 8

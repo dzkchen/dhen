@@ -1,5 +1,6 @@
 package io.github.dzkchen.dhen.features.inventory
 
+import io.github.dzkchen.dhen.event.SlotRenderEvent
 import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.gui.GlassGui
@@ -17,12 +18,16 @@ import net.minecraft.world.item.ItemStack
 internal const val NO_LINE = -1
 internal const val DEFAULT_INK = 0
 
+internal const val CYCLE_FORWARD = 1
+internal const val CYCLE_BACKWARD = -1
+
 internal const val ALIGN_LEFT = 0
 internal const val ALIGN_CENTER = 1
 internal const val ALIGN_RIGHT = 2
 
 internal class MenuLine {
 	var text: String = ""
+	var search: String = ""
 	var icon: ItemStack = ItemStack.EMPTY
 	var slot: Int = NO_LINE
 	var action: Int = NO_LINE
@@ -30,6 +35,7 @@ internal class MenuLine {
 
 	fun reset(): MenuLine {
 		text = ""
+		search = ""
 		icon = ItemStack.EMPTY
 		slot = NO_LINE
 		action = NO_LINE
@@ -84,6 +90,8 @@ internal abstract class MenuListElement(
 	fun hoveredSlot(): Int = lines.getOrNull(hoveredLine)?.slot ?: NO_LINE
 
 	fun hoveredAction(): Int = lines.getOrNull(hoveredLine)?.action ?: NO_LINE
+
+	fun hoveredSearch(): String = lines.getOrNull(hoveredLine)?.search.orEmpty()
 
 	override val hasContent: Boolean
 		get() = lines.isNotEmpty()
@@ -150,3 +158,12 @@ internal abstract class MenuListElement(
 		const val RADIUS = 5f
 	}
 }
+
+internal fun MenuListElement.highlightHovered(event: SlotRenderEvent.Post) {
+	val slot = event.slot
+	if (slot.index != hoveredSlot()) return
+	val shade = DhenPalette.withAlpha(DhenPalette.SLOT_GREEN, HIGHLIGHT_ALPHA)
+	SharpGui.fill(event.graphics, slot.x, slot.y, slot.x + SLOT_BOX, slot.y + SLOT_BOX, shade)
+}
+
+private const val HIGHLIGHT_ALPHA = 90

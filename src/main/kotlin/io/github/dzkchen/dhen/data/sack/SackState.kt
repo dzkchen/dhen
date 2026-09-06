@@ -6,6 +6,14 @@ import io.github.dzkchen.dhen.data.ProfileHooks
 import io.github.dzkchen.dhen.util.keys
 import io.github.dzkchen.dhen.util.number
 import io.github.dzkchen.dhen.util.obj
+import io.github.dzkchen.dhen.util.text
+
+internal enum class SackStatus {
+	MISSING,
+	CORRECT,
+	ALRIGHT,
+	OUTDATED
+}
 
 internal object SackState {
 	private var store: ConfigStore? = null
@@ -14,9 +22,13 @@ internal object SackState {
 
 	private var key = ""
 	private val counts = HashMap<String, Long>()
+	private val statuses = HashMap<String, SackStatus>()
 	private val openRows = ArrayList<SackRow>()
 
 	private var full = 0L
+
+	var revision = 0
+		private set
 
 	var sackTitle: String = ""
 		private set
@@ -53,12 +65,15 @@ internal object SackState {
 			return counts
 		}
 
+	fun statusOf(marketId: String): SackStatus = statuses[marketId] ?: SackStatus.MISSING
+
 	internal fun install(store: ConfigStore, profile: () -> String? = this.profile) {
 		this.store = store
 		this.profile = profile
 		profiles = store.load().obj(PROFILES) ?: JsonObject()
 		key = ""
 		counts.clear()
+		statuses.clear()
 	}
 
 	internal fun uninstall() {
@@ -66,6 +81,7 @@ internal object SackState {
 		profiles = JsonObject()
 		key = ""
 		counts.clear()
+		statuses.clear()
 		leaveSack()
 	}
 
@@ -76,8 +92,32 @@ internal object SackState {
 		var changed = false
 		for ((marketId, amount) in amounts) {
 			if (counts.put(marketId, amount) != amount) changed = true
+			if (statuses.put(marketId, SackStatus.CORRECT) != SackStatus.CORRECT) changed = true
 		}
-		if (changed) save()
+		if (changed) touched()
+	}
+
+	fun changed(deltas: Map<String, Long>, othersChanged: Boolean) {
+		if (deltas.isEmpty() && !othersChanged) return
+		load()
+		if (key.isEmpty()) return
+		for ((marketId, delta) in deltas) {
+			val held = counts[marketId]
+			if (held == null) statuses[marketId] = SackStatus.OUTDATED
+			counts[marketId] = maxOf(0L, (held ?: 0L) + delta)
+		}
+		if (othersChanged) {
+			for (marketId in counts.keys) {
+				if (marketId in deltas) continue
+				statuses[marketId] = SackStatus.ALRIGHT
+			}
+		}
+		touched()
+	}
+
+	private fun touched() {
+		revision++
+		save()
 	}
 
 	private fun load() {
@@ -85,16 +125,29 @@ internal object SackState {
 		if (owner == key) return
 		key = owner
 		counts.clear()
+		statuses.clear()
 		val stored = profiles.obj(owner) ?: return
 		for (marketId in stored.keys()) {
-			val amount = stored.number(marketId)?.toLong() ?: continue
-			if (amount > 0L) counts[marketId] = amount
+			val entry = stored.obj(marketId)
+			val amount = (entry?.number(AMOUNT) ?: stored.number(marketId))?.toLong() ?: continue
+			if (amount < 0L) continue
+			counts[marketId] = amount
+			statuses[marketId] = named(entry?.text(STATUS))
 		}
 	}
 
+	private fun named(status: String?): SackStatus =
+		SackStatus.entries.firstOrNull { it.name == status } ?: SackStatus.CORRECT
+
 	private fun save() {
 		val stored = JsonObject()
-		for ((marketId, amount) in counts) if (amount > 0L) stored.addProperty(marketId, amount)
+		for ((marketId, amount) in counts) {
+			if (amount < 0L) continue
+			val entry = JsonObject()
+			entry.addProperty(AMOUNT, amount)
+			entry.addProperty(STATUS, (statuses[marketId] ?: SackStatus.CORRECT).name)
+			stored.add(marketId, entry)
+		}
 		profiles.add(key, stored)
 		val document = JsonObject()
 		document.add(PROFILES, profiles.deepCopy())
@@ -103,6 +156,8 @@ internal object SackState {
 
 	private const val FULL_SLOTS = 64
 	private const val PROFILES = "profiles"
+	private const val AMOUNT = "amount"
+	private const val STATUS = "status"
 
 	val authoritative = setOf(PROFILES)
 }

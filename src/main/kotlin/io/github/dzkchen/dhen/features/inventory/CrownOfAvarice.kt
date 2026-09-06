@@ -28,6 +28,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.util.Util
 import net.minecraft.world.entity.EquipmentSlot
+import org.lwjgl.glfw.GLFW
 
 object CrownOfAvarice : Module(
 	name = "Crown of Avarice",
@@ -234,7 +235,7 @@ object CrownOfAvarice : Module(
 
 	private fun clicked(event: ContainerClickEvent) {
 		if (hovered == NO_BUTTON || event.screen !is InventoryScreen) return
-		if (event.click.button() != LEFT_BUTTON) return
+		if (event.click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
 		val now = Util.getMillis()
 		if (hovered == RESET_BUTTON) reset() else session.pause(now, revert = false)
 		update(now)
@@ -389,7 +390,6 @@ private const val MAX_AVARICE_COINS = 1_000_000_000L
 private const val NO_BUTTON = -1
 private const val RESET_BUTTON = 0
 private const val PAUSE_BUTTON = 1
-private const val LEFT_BUTTON = 0
 private const val TOTAL_COLOR = "§6"
 private const val RATE_LABEL = "§aCoins Per Hour: §6"
 private const val MAX_LABEL = "§aTime until Max: §b"

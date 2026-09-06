@@ -138,6 +138,10 @@ object ItemTooltip : Module(
 	private val priceHold = RequirementHold(Prices::active, Prices::require)
 	private var cachedStack: ItemStack? = null
 	private var cachedFingerprint = 0
+	private var strippedStack: ItemStack? = null
+	private var strippedKey = 0
+	private var stripCuts = IntArray(STRIP_ROOM)
+	private var stripCount = 0
 	private var cachedLines: List<Component> = emptyList()
 	private var agedStamp = 0L
 	private var agedSecond = 0L
@@ -292,19 +296,32 @@ object ItemTooltip : Module(
 		itemAgeSetting.on || hideGearScoreSetting.on || hideVanillaEnchantsSetting.on
 
 	internal fun shape(lines: MutableList<Component>, stack: ItemStack) {
-		strip(lines)
+		strip(lines, stack)
 		age(lines, stack)
 	}
 
-	private fun strip(lines: MutableList<Component>) {
+	private fun strip(lines: MutableList<Component>, stack: ItemStack) {
 		val gearScore = hideGearScoreSetting.on
 		val enchants = hideVanillaEnchantsSetting.on
 		if (!gearScore && !enchants) return
+		val key = flag(gearScore) + flag(enchants) * 2 + lines.size * 4
+		if (stack !== strippedStack || key != strippedKey) {
+			strippedStack = stack
+			strippedKey = key
+			findStripped(lines, gearScore, enchants)
+		}
+		for (index in 0 until stripCount) lines.removeAt(stripCuts[index])
+	}
+
+	private fun findStripped(lines: List<Component>, gearScore: Boolean, enchants: Boolean) {
+		stripCount = 0
 		for (index in lines.indices.reversed()) {
 			val line = lines[index]
 			val plain = withoutCodes(line.string)
 			val greyEnchant = enchants && vanillaEnchant(plain) && legacyCodes(line).contains(GREY_CODE)
-			if (stripped(plain, gearScore, greyEnchant)) lines.removeAt(index)
+			if (!stripped(plain, gearScore, greyEnchant)) continue
+			if (stripCount == stripCuts.size) stripCuts = stripCuts.copyOf(stripCount * 2)
+			stripCuts[stripCount++] = index
 		}
 	}
 
@@ -403,6 +420,7 @@ object ItemTooltip : Module(
 	private const val MILLIS_PER_SECOND = 1000L
 	private const val CATACOMBS = "CATACOMBS"
 	private const val NO_SLOT = -1
+	private const val STRIP_ROOM = 8
 	private const val MASTER_GAP = 19
 	private const val MASTER_OFFSET = 3
 	private const val POOR = 17

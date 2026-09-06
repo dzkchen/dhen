@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.lwjgl.glfw.GLFW
 
 class UtilityHudsTest {
 	private val sample = UtilitySample()
@@ -115,9 +116,9 @@ class UtilityHudsTest {
 
 	@Test
 	fun `clicks count inside a one second window and expire out of it`() {
-		ClickRate.pressed(ClickRate.LEFT_BUTTON, 1_000L)
-		ClickRate.pressed(ClickRate.LEFT_BUTTON, 1_400L)
-		ClickRate.pressed(ClickRate.RIGHT_BUTTON, 1_600L)
+		ClickRate.pressed(GLFW.GLFW_MOUSE_BUTTON_LEFT, 1_000L)
+		ClickRate.pressed(GLFW.GLFW_MOUSE_BUTTON_LEFT, 1_400L)
+		ClickRate.pressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 1_600L)
 		sample.millis = 1_800L
 		UtilityHuds.refresh(sample)
 		assertEquals("2 | 1 CPS", UtilityHuds.cpsElement.liveText)
@@ -133,12 +134,12 @@ class UtilityHudsTest {
 
 	@Test
 	fun `a middle click is not a click per second`() {
-		ClickRate.pressed(ClickRate.LEFT_BUTTON, 1_000L)
-		ClickRate.pressed(ClickRate.RIGHT_BUTTON, 1_000L)
+		ClickRate.pressed(GLFW.GLFW_MOUSE_BUTTON_LEFT, 1_000L)
+		ClickRate.pressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 1_000L)
 		ClickRate.pressed(MIDDLE_BUTTON, 1_000L)
 
-		assertEquals(1, ClickRate.count(ClickRate.LEFT_BUTTON, 1_000L))
-		assertEquals(1, ClickRate.count(ClickRate.RIGHT_BUTTON, 1_000L))
+		assertEquals(1, ClickRate.count(GLFW.GLFW_MOUSE_BUTTON_LEFT, 1_000L))
+		assertEquals(1, ClickRate.count(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 1_000L))
 	}
 
 	@Test

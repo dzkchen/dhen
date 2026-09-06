@@ -6,6 +6,7 @@ import io.github.dzkchen.dhen.data.price.PriceSource
 import io.github.dzkchen.dhen.data.price.Prices
 import io.github.dzkchen.dhen.data.repo.ItemRepo
 import io.github.dzkchen.dhen.data.sack.SackState
+import io.github.dzkchen.dhen.data.sack.SackStatus
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClosedEvent
 import io.github.dzkchen.dhen.event.ContainerReadyEvent
@@ -14,6 +15,7 @@ import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.HUD_MARGIN
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
@@ -35,6 +37,8 @@ object OutsideSackValue : Module(
 	internal val element = hud(OutsideSackValueElement())
 
 	private var ticks = 0
+
+	private var settledRevision = 0
 
 	init {
 		on<ClientTickEvent.End> { ticked() }
@@ -58,6 +62,12 @@ object OutsideSackValue : Module(
 	private fun ticked() {
 		priceHold.ensure()
 		repoHold.ensure()
+		if (SackState.revision != settledRevision) {
+			settledRevision = SackState.revision
+			ticks = 0
+			refresh()
+			return
+		}
 		if (++ticks < REFRESH_TICKS) return
 		ticks = 0
 		refresh()
@@ -68,19 +78,18 @@ object OutsideSackValue : Module(
 			element.clear()
 			return
 		}
+		val source = SackDisplay.priceSource()
 		val bazaar = ItemRepo.constants.sackItemIds
-		var lowest = 0.0
-		var highest = 0.0
+		var worth = 0.0
 		var items = 0L
+		var guessed = false
 		for ((marketId, amount) in SackState.contents) {
 			if (amount <= 0L || marketId !in bazaar) continue
-			val sell = Prices.price(marketId, PriceSource.BAZAAR_INSTANT_SELL) ?: continue
-			val buy = Prices.priceOr(marketId, PriceSource.BAZAAR_INSTANT_BUY, sell)
-			lowest += sell * amount
-			highest += buy * amount
+			worth += Prices.priceOr(marketId, source, 0.0) * amount
 			items += amount
+			if (SackState.statusOf(marketId) == SackStatus.OUTDATED) guessed = true
 		}
-		element.show(lowest.toLong(), highest.toLong(), items)
+		element.show(worth.toLong(), items, guessed)
 	}
 
 	private const val REFRESH_TICKS = 100
@@ -89,20 +98,24 @@ object OutsideSackValue : Module(
 internal class OutsideSackValueElement : HudElement(
 	"Outside Sack Value",
 	HudAnchor.BOTTOM_RIGHT,
-	-MARGIN,
-	-MARGIN,
+	-HUD_MARGIN,
+	-HUD_MARGIN,
 	inMenus = true
 ) {
 	private val memo = DhenType.memo()
 
 	private var text = ""
 
+	private var guessed = false
+
 	fun clear() {
 		text = ""
+		guessed = false
 	}
 
-	fun show(lowest: Long, highest: Long, items: Long) {
-		text = if (items <= 0L) "" else "${shortNumber(lowest)}-${shortNumber(highest)} in sacks (${grouped(items)} items)"
+	fun show(worth: Long, items: Long, guessed: Boolean) {
+		this.guessed = guessed
+		text = if (items <= 0L) "" else "${shortNumber(worth)} in sacks (${grouped(items)} items)"
 	}
 
 	override val hasContent: Boolean
@@ -118,7 +131,8 @@ internal class OutsideSackValueElement : HudElement(
 	override fun height(font: Font): Int = DhenType.lineHeight(font)
 
 	override fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		memo.shadowed(graphics, font, shown(), 0, 0, DhenPalette.SLOT_GOLD, scale)
+		val ink = if (guessed && text.isNotEmpty()) DhenPalette.TEXT_SECONDARY else DhenPalette.SLOT_GOLD
+		memo.shadowed(graphics, font, shown(), 0, 0, ink, scale)
 	}
 
 	override fun invalidateMeasurement() = memo.invalidate()
@@ -126,8 +140,6 @@ internal class OutsideSackValueElement : HudElement(
 	private fun shown(): String = text.ifEmpty { PREVIEW }
 
 	private companion object {
-		const val PREVIEW = "0-0 in sacks (0 items)"
+		const val PREVIEW = "0 in sacks (0 items)"
 	}
 }
-
-private const val MARGIN = 8

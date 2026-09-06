@@ -66,7 +66,7 @@ internal object MenuKeybinds {
 	}
 
 	fun click(screen: AbstractContainerScreen<*>, slot: Int) =
-		clickSlot(screen.menu, slot, LEFT_BUTTON, ContainerInput.PICKUP)
+		clickSlot(screen.menu, slot, GLFW.GLFW_MOUSE_BUTTON_LEFT, ContainerInput.PICKUP)
 
 	fun bound(setting: KeybindSetting, code: Int, mouse: Boolean): Boolean =
 		setting.isBound && setting.code == code && (setting.code in MOUSE_BUTTONS) == mouse
@@ -103,7 +103,6 @@ internal object MenuKeybinds {
 	fun namePrompt(matcher: Matcher, stack: ItemStack): Boolean =
 		!stack.isEmpty && matcher.reset(withoutCodes(stack.hoverName.string)).matches()
 
-	private const val LEFT_BUTTON = 0
 	private const val REPEAT_GUARD_MS = 300L
 	private val MOUSE_BUTTONS = GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_LAST
 }

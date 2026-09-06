@@ -31,9 +31,9 @@ object MagicalPower : Module(
 	)
 
 	private val menuTitle = Pattern.compile(MENU_TITLE).matcher("")
-	private val seen = arrayOfNulls<ItemStack>(MENU_SLOTS)
-	private val powers = IntArray(MENU_SLOTS)
-	private val inks = IntArray(MENU_SLOTS)
+	private val seen = arrayOfNulls<ItemStack>(MAX_SCREEN_SLOTS)
+	private val powers = IntArray(MAX_SCREEN_SLOTS)
+	private val inks = IntArray(MAX_SCREEN_SLOTS)
 
 	private var host: AbstractContainerScreen<*>? = null
 	private var showing = false
@@ -65,7 +65,7 @@ object MagicalPower : Module(
 		if (!showing) return
 		val slot = event.slot
 		val index = slot.index
-		if (index < 0 || index >= MENU_SLOTS) return
+		if (index < 0 || index >= MAX_SCREEN_SLOTS) return
 		val stack = slot.item
 		if (stack.isEmpty) return
 		if (seen[index] !== stack) measure(index, stack)
@@ -104,6 +104,5 @@ object MagicalPower : Module(
 	private const val ABICASE = "ABICASE_"
 	private const val PRISM_POWER = 11
 	private const val CONTACTS_PER_POWER = 2
-	private const val MENU_SLOTS = 128
 	private const val MENU_TITLE = "Accessory Bag(?: \\(\\d+/\\d+\\))?|Auctions Browser|Manage Auctions|Auctions: \".*\"?"
 }

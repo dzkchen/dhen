@@ -31,6 +31,7 @@ import net.minecraft.network.protocol.ping.ServerboundPingRequestPacket
 import net.minecraft.util.Util
 import java.time.Instant
 import java.time.ZoneId
+import org.lwjgl.glfw.GLFW
 
 object UtilityHuds : Module(
 	name = "Utility HUDs",
@@ -207,9 +208,6 @@ internal class UtilitySample {
 }
 
 internal object ClickRate {
-	const val LEFT_BUTTON = 0
-	const val RIGHT_BUTTON = 1
-
 	private const val CAPACITY = 40
 	private const val WINDOW_MILLIS = 1000L
 
@@ -220,11 +218,11 @@ internal object ClickRate {
 
 	fun pressed(button: Int, nowMillis: Long) {
 		when (button) {
-			LEFT_BUTTON -> {
+			GLFW.GLFW_MOUSE_BUTTON_LEFT -> {
 				left[leftHead] = nowMillis
 				leftHead = (leftHead + 1) % CAPACITY
 			}
-			RIGHT_BUTTON -> {
+			GLFW.GLFW_MOUSE_BUTTON_RIGHT -> {
 				right[rightHead] = nowMillis
 				rightHead = (rightHead + 1) % CAPACITY
 			}
@@ -232,7 +230,7 @@ internal object ClickRate {
 	}
 
 	fun count(button: Int, nowMillis: Long): Int {
-		val ring = if (button == LEFT_BUTTON) left else right
+		val ring = if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) left else right
 		var total = 0
 		for (index in ring.indices) {
 			val at = ring[index]
@@ -441,8 +439,8 @@ internal class UtilityReadout(
 				a = PingProbe.average.toLong()
 			}
 			Readout.CPS -> {
-				a = ClickRate.count(ClickRate.LEFT_BUTTON, sample.millis).toLong()
-				b = ClickRate.count(ClickRate.RIGHT_BUTTON, sample.millis).toLong()
+				a = ClickRate.count(GLFW.GLFW_MOUSE_BUTTON_LEFT, sample.millis).toLong()
+				b = ClickRate.count(GLFW.GLFW_MOUSE_BUTTON_RIGHT, sample.millis).toLong()
 			}
 			Readout.CLOCK -> {
 				b = if (UtilityHuds.clockSeconds) 1L else 0L

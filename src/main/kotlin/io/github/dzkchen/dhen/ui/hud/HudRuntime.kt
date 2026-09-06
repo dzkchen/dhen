@@ -35,33 +35,33 @@ class HudRuntime(
 	}
 
 	fun render(graphics: GuiGraphicsExtractor, font: Font) {
-		val screenWidth = graphics.guiWidth()
-		val screenHeight = graphics.guiHeight()
 		val overMenu = Minecraft.getInstance().gui.screen() is AbstractContainerScreen<*>
 		if (overMenu && MenuHudEditor.editing) return
-		manager.forEachActiveHudElement { module, element ->
-			if (overMenu && element.inMenus) return@forEachActiveHudElement
-			renderElement(graphics, font, screenWidth, screenHeight, module, element)
-		}
-		for (index in coreElements.indices) {
-			val element = coreElements[index]
-			if (!element.isActive || overMenu && element.inMenus) continue
-			renderElement(graphics, font, screenWidth, screenHeight, null, element)
-		}
+		renderPass(graphics, font, if (overMenu) OUTSIDE_MENUS_ONLY else EVERY_ELEMENT)
 	}
 
 	internal fun renderOverMenu(graphics: GuiGraphicsExtractor, font: Font, everything: Boolean) {
+		renderPass(graphics, font, if (everything) EVERY_ELEMENT else IN_MENUS_ONLY)
+	}
+
+	private fun renderPass(graphics: GuiGraphicsExtractor, font: Font, pass: Int) {
 		val screenWidth = graphics.guiWidth()
 		val screenHeight = graphics.guiHeight()
 		manager.forEachActiveHudElement { module, element ->
-			if (!everything && !element.inMenus) return@forEachActiveHudElement
-			renderElement(graphics, font, screenWidth, screenHeight, module, element)
+			if (drawnIn(pass, element)) renderElement(graphics, font, screenWidth, screenHeight, module, element)
 		}
 		for (index in coreElements.indices) {
 			val element = coreElements[index]
-			if (!element.isActive || !everything && !element.inMenus) continue
-			renderElement(graphics, font, screenWidth, screenHeight, null, element)
+			if (element.isActive && drawnIn(pass, element)) {
+				renderElement(graphics, font, screenWidth, screenHeight, null, element)
+			}
 		}
+	}
+
+	private fun drawnIn(pass: Int, element: HudElement): Boolean = when (pass) {
+		IN_MENUS_ONLY -> element.inMenus
+		OUTSIDE_MENUS_ONLY -> !element.inMenus
+		else -> true
 	}
 
 	private fun renderElement(
@@ -93,6 +93,12 @@ class HudRuntime(
 			}
 		}
 		for (index in coreElements.indices) coreElements[index].invalidateMeasurement()
+	}
+
+	private companion object {
+		const val EVERY_ELEMENT = 0
+		const val IN_MENUS_ONLY = 1
+		const val OUTSIDE_MENUS_ONLY = 2
 	}
 }
 

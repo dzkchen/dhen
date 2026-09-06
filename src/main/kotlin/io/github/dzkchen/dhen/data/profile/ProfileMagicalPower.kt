@@ -9,7 +9,7 @@ import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.text
 import net.minecraft.world.item.ItemStack
 
-internal object MagicalPower {
+internal object ProfileMagicalPower {
 	private const val HEGEMONY = "HEGEMONY_ARTIFACT"
 	private const val ABIPHONE = "ABICASE_"
 	private const val HAT_FAMILY = "PARTY_HAT"

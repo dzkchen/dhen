@@ -47,6 +47,10 @@ object FocusMode : Module(
 	private var inAuctions = false
 	private var inBazaar = false
 	private var hintCode = NO_MENU_BIND
+	private val tail = ArrayList<Component>(AUCTION_LINES)
+	private var tailStack: ItemStack? = null
+	private var tailCount = 0
+	private var tailStart = NO_SEPARATOR
 	private var enableHint: Component? = null
 	private var activeHint: Component? = null
 	private var disableHint: Component? = null
@@ -74,7 +78,7 @@ object FocusMode : Module(
 			if (hinted) event.edit().add(1, enableHint!!)
 			return
 		}
-		val kept = auctionTail(event.lines)
+		val kept = auctionTail(event.stack, event.lines)
 		val lines = event.edit()
 		val name = lines[0]
 		lines.clear()
@@ -107,6 +111,7 @@ object FocusMode : Module(
 	private fun forget() {
 		inAuctions = false
 		inBazaar = false
+		tailStack = null
 	}
 
 	private fun keptWhole(event: TooltipEvent): Boolean {
@@ -115,17 +120,28 @@ object FocusMode : Module(
 		return inBazaar && event.hoveredSlot.container is SimpleContainer
 	}
 
-	private fun auctionTail(lines: List<Component>): List<Component> {
-		if (!inAuctions) return emptyList()
-		for (index in lines.indices) {
-			if (!lines[index].string.contains(SEPARATOR)) continue
-			return ArrayList(lines.subList(index, minOf(lines.size, index + AUCTION_LINES)))
+	private fun auctionTail(stack: ItemStack, lines: List<Component>): List<Component> {
+		tail.clear()
+		if (!inAuctions) return tail
+		if (stack !== tailStack || lines.size != tailCount) {
+			tailStack = stack
+			tailCount = lines.size
+			tailStart = separatorAt(lines)
 		}
-		return emptyList()
+		if (tailStart < 0) return tail
+		val end = minOf(lines.size, tailStart + AUCTION_LINES)
+		for (index in tailStart until end) tail += lines[index]
+		return tail
+	}
+
+	private fun separatorAt(lines: List<Component>): Int {
+		for (index in lines.indices) if (lines[index].string.contains(SEPARATOR)) return index
+		return NO_SEPARATOR
 	}
 
 	private const val AUCTIONS = "Auctions"
 	private const val AUCTION_LINES = 20
+	private const val NO_SEPARATOR = -1
 	private const val SEPARATOR = "-----------------"
 	private const val HINT = "§7"
 	private const val PRESS = "Press "

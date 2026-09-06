@@ -46,11 +46,11 @@ object ChatScreenBar {
 	}
 
 	@JvmStatic
-	fun keyed(key: KeyEvent, box: EditBox?): Int {
+	fun keyed(key: KeyEvent, box: EditBox?, suggesting: Boolean): Int {
 		if (!ChatSearch.enabled) return IGNORED
 		if (key.key() == GLFW.GLFW_KEY_F && key.hasControlDown()) return toggled(box)
 		if (!ChatSearch.open || box == null) return IGNORED
-		if (key.key() == GLFW.GLFW_KEY_ESCAPE) return escaped(box)
+		if (key.key() == GLFW.GLFW_KEY_ESCAPE) return if (suggesting) IGNORED else escaped(box)
 		if (!box.isFocused) return IGNORED
 		if (key.key() != GLFW.GLFW_KEY_ENTER && key.key() != GLFW.GLFW_KEY_KP_ENTER) return IGNORED
 		return TO_INPUT

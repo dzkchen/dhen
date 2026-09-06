@@ -9,6 +9,7 @@ import io.github.dzkchen.dhen.gui.DhenPalette
 import io.github.dzkchen.dhen.gui.DhenType
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.HUD_MARGIN
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
@@ -69,7 +70,7 @@ object NpcDayLimit : Module(
 	private const val SOLD_LINE = "You sold .+ for (?<amount>[\\d,]+) Coins!"
 }
 
-internal class NpcDayLimitElement : HudElement("NPC Day Limit", HudAnchor.BOTTOM_LEFT, MARGIN, -MARGIN) {
+internal class NpcDayLimitElement : HudElement("NPC Day Limit", HudAnchor.BOTTOM_LEFT, HUD_MARGIN, -HUD_MARGIN) {
 	private val memo = DhenType.memo()
 
 	override val hasContent: Boolean
@@ -85,5 +86,3 @@ internal class NpcDayLimitElement : HudElement("NPC Day Limit", HudAnchor.BOTTOM
 
 	override fun invalidateMeasurement() = memo.invalidate()
 }
-
-private const val MARGIN = 8

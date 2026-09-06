@@ -21,6 +21,7 @@ import io.github.dzkchen.dhen.gui.TextMemo
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.HudElement
 import io.github.dzkchen.dhen.ui.hud.editingHud
+import io.github.dzkchen.dhen.util.grouped
 import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -31,6 +32,7 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import kotlin.math.ceil
 import kotlin.math.round
+import kotlin.math.roundToLong
 
 internal class PetExpTooltip {
 	private val items = SkyBlockItems.memo(1)
@@ -223,7 +225,7 @@ internal class GeorgeHelper {
 		else " §7- $rarity$tier $name§7: §6${coins(price)} coins"
 	}
 
-	private fun coins(value: Double): String = String.format(Locale.US, "%,.0f", value)
+	private fun coins(value: Double): String = grouped(value.roundToLong())
 
 	private class WantedPet(val name: String, val tier: Int)
 

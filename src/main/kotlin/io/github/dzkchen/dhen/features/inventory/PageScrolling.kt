@@ -73,7 +73,7 @@ object PageScrolling : Module(
 		val button = pageButton(event.screen.menu, wanted)
 		if (button == NO_MENU_SLOT) return
 		event.cancelled = true
-		clickSlot(event.screen.menu, button, LEFT_BUTTON, ContainerInput.PICKUP)
+		clickSlot(event.screen.menu, button, GLFW.GLFW_MOUSE_BUTTON_LEFT, ContainerInput.PICKUP)
 		scrollable = false
 		readyAt = System.currentTimeMillis() + COOLDOWN_MS
 	}
@@ -90,7 +90,6 @@ object PageScrolling : Module(
 		return NO_MENU_SLOT
 	}
 
-	private const val LEFT_BUTTON = 0
 	private const val COOLDOWN_MS = 1_000L
 }
 
@@ -114,4 +113,3 @@ private val PLAIN_CHEST = matcher("Large Chest|Chest")
 private val FORWARD = matcher("§aNext Page|§aScroll Up|§aLevels 26 - 50|§aNext Page →|§aScroll Right")
 
 private val BACKWARD = matcher("§aPrevious Page|§aScroll Down|§aLevels 1 - 25|§a← Previous Page|§aScroll Left")
-

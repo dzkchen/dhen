@@ -4,6 +4,7 @@ import io.github.dzkchen.dhen.features.chat.ChatContextMenu;
 import io.github.dzkchen.dhen.features.chat.ChatScreenBar;
 import io.github.dzkchen.dhen.features.chat.ChatTweaks;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -26,6 +27,9 @@ public abstract class ChatScreenMixin extends Screen {
 
 	@Shadow
 	protected String initial;
+
+	@Shadow
+	private CommandSuggestions commandSuggestions;
 
 	@Unique
 	private EditBox dhen$search;
@@ -82,7 +86,7 @@ public abstract class ChatScreenMixin extends Screen {
 			callback.setReturnValue(true);
 			return;
 		}
-		final int outcome = ChatScreenBar.keyed(key, this.dhen$search);
+		final int outcome = ChatScreenBar.keyed(key, this.dhen$search, this.commandSuggestions.isVisible());
 		if (outcome == ChatScreenBar.IGNORED) {
 			return;
 		}

@@ -135,6 +135,7 @@ object ChatContextMenu {
 		if (index < 0) return
 		val scroll = access.chatScrollbarPos()
 		all.removeAt(index)
+		access.chatScrollbarPos(0)
 		access.chatRefreshTrimmed()
 		val deepest = maxOf(0, access.chatTrimmedMessages().size - chat.linesPerPage)
 		access.chatScrollbarPos(scroll.coerceIn(0, deepest))

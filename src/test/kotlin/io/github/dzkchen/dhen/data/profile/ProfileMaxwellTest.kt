@@ -27,7 +27,7 @@ class ProfileMaxwellTest {
 		val member = DataFixture.json(MEMBER)
 
 		assertEquals(10, MaxwellProfiles.of(member)!!.tunings.values.sum())
-		assertEquals(100, MagicalPower.assumed(MaxwellProfiles.tunings(member), null))
+		assertEquals(100, ProfileMagicalPower.assumed(MaxwellProfiles.tunings(member), null))
 	}
 
 	@Test

@@ -16,23 +16,25 @@ import io.github.dzkchen.dhen.data.sack.SackMenu
 import io.github.dzkchen.dhen.data.sack.SackRow
 import io.github.dzkchen.dhen.data.sack.UNREPORTED
 import io.github.dzkchen.dhen.data.sack.SackState
+import io.github.dzkchen.dhen.event.BEFORE_FEATURES
 import io.github.dzkchen.dhen.event.ClientTickEvent
 import io.github.dzkchen.dhen.event.ContainerClickEvent
 import io.github.dzkchen.dhen.event.ContainerClosedEvent
 import io.github.dzkchen.dhen.event.ContainerReadyEvent
+import io.github.dzkchen.dhen.event.ContainerScrollEvent
 import io.github.dzkchen.dhen.event.ContainerUpdatedEvent
 import io.github.dzkchen.dhen.event.ScreenRenderEvent
 import io.github.dzkchen.dhen.event.withoutCodes
 import io.github.dzkchen.dhen.event.SlotRenderEvent
-import io.github.dzkchen.dhen.gui.DhenPalette
-import io.github.dzkchen.dhen.gui.SLOT_BOX
-import io.github.dzkchen.dhen.gui.SharpGui
 import io.github.dzkchen.dhen.module.Category
 import io.github.dzkchen.dhen.module.Module
+import io.github.dzkchen.dhen.ui.hud.HUD_MARGIN
 import io.github.dzkchen.dhen.ui.hud.HudAnchor
 import io.github.dzkchen.dhen.ui.hud.MenuHudEditor
 import io.github.dzkchen.dhen.util.grouped
 import io.github.dzkchen.dhen.util.shortNumber
+import net.minecraft.client.Minecraft
+import org.lwjgl.glfw.GLFW
 
 internal const val SACK_SORTING = 0
 internal const val SACK_NUMBER_FORMAT = 1
@@ -44,7 +46,7 @@ object SackDisplay : Module(
 	category = Category.INVENTORY,
 	description = "Lists what an open sack holds and what it is worth."
 ) {
-	private val numberFormatSetting = SelectorSetting(
+	internal val numberFormatSetting = SelectorSetting(
 		"Sack Number Format",
 		FORMATTED,
 		listOf(DEFAULT, FORMATTED, UNFORMATTED),
@@ -66,7 +68,7 @@ object SackDisplay : Module(
 		description = "Extra pixels between the rows."
 	)
 
-	private val sortingSetting = SelectorSetting(
+	internal val sortingSetting = SelectorSetting(
 		"Sack Sorting",
 		STORED_DESC,
 		listOf(STORED_DESC, STORED_ASC, PRICE_DESC, PRICE_ASC),
@@ -87,20 +89,20 @@ object SackDisplay : Module(
 		description = "Keeps rows for items the sack holds none of."
 	)
 
-	private val showPriceSetting = BooleanSetting(
+	internal val showPriceSetting = BooleanSetting(
 		"Show Price",
 		default = true,
 		description = "Puts each row's value at the end of its line."
 	)
 
-	private val priceFormatSetting = SelectorSetting(
+	internal val priceFormatSetting = SelectorSetting(
 		"Price Format",
 		FORMATTED,
 		listOf(FORMATTED, UNFORMATTED),
 		description = "Whether prices read 1.2M or 1,200,000."
 	).withDependency { showPriceSetting.on }
 
-	private val priceSourceSetting = SelectorSetting(
+	internal val priceSourceSetting = SelectorSetting(
 		"Price Source",
 		INSTANT_BUY,
 		listOf(INSTANT_BUY, INSTANT_SELL, NPC_SELL),
@@ -119,7 +121,7 @@ object SackDisplay : Module(
 		description = "Drops rows the price service cannot price."
 	)
 
-	private val showTotalSetting = BooleanSetting(
+	internal val showTotalSetting = BooleanSetting(
 		"Show Total",
 		default = true,
 		description = "Adds a line with everything in the sack added up."
@@ -153,8 +155,9 @@ object SackDisplay : Module(
 		on<ContainerUpdatedEvent> { opened() }
 		on<ContainerClosedEvent> { element.clear() }
 		on<ScreenRenderEvent.Post> { element.pointer(it.mouseX, it.mouseY) }
-		on<SlotRenderEvent.Post> { highlighted(it) }
+		on<SlotRenderEvent.Post> { element.highlightHovered(it) }
 		on<ContainerClickEvent> { clicked(it) }
+		on<ContainerScrollEvent>(BEFORE_FEATURES) { scrolled(it) }
 	}
 
 	override fun onEnabled() {
@@ -222,24 +225,38 @@ object SackDisplay : Module(
 	}
 
 	private fun clicked(event: ContainerClickEvent) {
-		if (MenuHudEditor.editing || event.click.button() != LEFT_BUTTON) return
-		when (element.hoveredAction()) {
-			SACK_SORTING -> sortingSetting.index++
-			SACK_NUMBER_FORMAT -> numberFormatSetting.index++
-			SACK_PRICE_SOURCE -> priceSourceSetting.index++
-			SACK_PRICE_FORMAT -> priceFormatSetting.index++
-			else -> return
+		if (MenuHudEditor.editing || event.click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
+		if (cycled(CYCLE_FORWARD)) {
+			event.cancelled = true
+			return
 		}
-		persist()
-		event.cancelled = true
-		opened()
+		searchedBazaar(event)
 	}
 
-	private fun highlighted(event: SlotRenderEvent.Post) {
-		val slot = event.slot
-		if (slot.index != element.hoveredSlot()) return
-		val shade = DhenPalette.withAlpha(DhenPalette.SLOT_GREEN, HIGHLIGHT_ALPHA)
-		SharpGui.fill(event.graphics, slot.x, slot.y, slot.x + SLOT_BOX, slot.y + SLOT_BOX, shade)
+	private fun scrolled(event: ContainerScrollEvent) {
+		if (MenuHudEditor.editing || event.scrollY == 0.0) return
+		if (cycled(if (event.scrollY > 0.0) CYCLE_FORWARD else CYCLE_BACKWARD)) event.cancelled = true
+	}
+
+	private fun cycled(step: Int): Boolean {
+		when (element.hoveredAction()) {
+			SACK_SORTING -> sortingSetting.index += step
+			SACK_NUMBER_FORMAT -> numberFormatSetting.index += step
+			SACK_PRICE_SOURCE -> priceSourceSetting.index += step
+			SACK_PRICE_FORMAT -> priceFormatSetting.index += step
+			else -> return false
+		}
+		persist()
+		opened()
+		return true
+	}
+
+	private fun searchedBazaar(event: ContainerClickEvent) {
+		if (SackMenu.isTrophySack(SackState.sackTitle)) return
+		val name = element.hoveredSearch()
+		if (name.isEmpty()) return
+		Minecraft.getInstance().connection?.sendCommand("$BAZAAR $name")
+		event.cancelled = true
 	}
 
 	internal fun priceOf(row: SackRow): Long {
@@ -297,18 +314,6 @@ object SackDisplay : Module(
 		else -> ALIGN_LEFT
 	}
 
-	internal fun showsPrice(): Boolean = showPriceSetting.on
-
-	internal fun showsTotal(): Boolean = showTotalSetting.on
-
-	internal fun sortingLabel(): String = sortingSetting.value
-
-	internal fun numberFormatLabel(): String = numberFormatSetting.value
-
-	internal fun priceSourceLabel(): String = priceSourceSetting.value
-
-	internal fun priceFormatLabel(): String = priceFormatSetting.value
-
 	internal fun priceSource(): PriceSource = when (priceSourceSetting.value) {
 		INSTANT_SELL -> PriceSource.BAZAAR_INSTANT_SELL
 		NPC_SELL -> PriceSource.NPC_SELL
@@ -329,12 +334,11 @@ object SackDisplay : Module(
 	internal const val INSTANT_SELL = "Bazaar Instant Sell"
 	internal const val NPC_SELL = "NPC Sell"
 
-	private const val LEFT_BUTTON = 0
+	private const val BAZAAR = "bz"
 	private const val PRIME = 31
-	private const val HIGHLIGHT_ALPHA = 90
 }
 
-internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TOP_RIGHT, -MARGIN, MARGIN) {
+internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TOP_RIGHT, -HUD_MARGIN, HUD_MARGIN) {
 	override fun alignment(): Int = SackDisplay.alignment()
 
 	override fun rowHeight(font: net.minecraft.client.gui.Font): Int =
@@ -358,22 +362,30 @@ internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TO
 			row(row, price)
 		}
 		if (magmafish > 0L) line().text = MAGMAFISH_LABEL + grouped(magmafish)
-		button(SORTING_LABEL + SackDisplay.sortingLabel(), SACK_SORTING)
-		button(NUMBER_LABEL + SackDisplay.numberFormatLabel(), SACK_NUMBER_FORMAT)
-		if (SackDisplay.showsPrice()) {
-			button(SOURCE_LABEL + SackDisplay.priceSourceLabel(), SACK_PRICE_SOURCE)
-			button(PRICE_FORMAT_LABEL + SackDisplay.priceFormatLabel(), SACK_PRICE_FORMAT)
+		button(SORTING_LABEL + SackDisplay.sortingSetting.value, SACK_SORTING)
+		button(NUMBER_LABEL + SackDisplay.numberFormatSetting.value, SACK_NUMBER_FORMAT)
+		if (SackDisplay.showPriceSetting.on) {
+			button(SOURCE_LABEL + SackDisplay.priceSourceSetting.value, SACK_PRICE_SOURCE)
+			button(PRICE_FORMAT_LABEL + SackDisplay.priceFormatSetting.value, SACK_PRICE_FORMAT)
 		}
-		if (SackDisplay.showsTotal()) line().text = TOTAL_LABEL + SackDisplay.priceText(total)
+		if (SackDisplay.showTotalSetting.on) line().text = TOTAL_LABEL + SackDisplay.priceText(total)
 	}
 
 	private fun row(row: SackRow, price: Long) {
 		val line = line()
 		line.icon = row.stack
 		line.slot = row.slot
+		line.search = searchTerm(row)
 		val counts = countText(row)
-		val tail = if (SackDisplay.showsPrice() && price > 0L) "  ${SackDisplay.priceText(price)}" else ""
-		line.text = "${row.label}  $counts$tail"
+		val fish = if (row.magmafish > 0L) "  ${grouped(row.magmafish)} magmafish" else ""
+		val tail = if (SackDisplay.showPriceSetting.on && price > 0L) "  ${SackDisplay.priceText(price)}" else ""
+		line.text = "${row.label}  $counts$fish$tail"
+	}
+
+	private fun searchTerm(row: SackRow): String = when {
+		row.partIds != null -> row.label.removeSuffix(PLURAL)
+		row.parts != null -> ""
+		else -> row.label
 	}
 
 	private fun countText(row: SackRow): String {
@@ -395,6 +407,7 @@ internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TO
 	}
 
 	private companion object {
+		const val PLURAL = "s"
 		const val HEADER = "Items in sacks"
 		const val MAGMAFISH_LABEL = "Total magmafish: "
 		const val SORTING_LABEL = "Sorted by: "
@@ -404,5 +417,3 @@ internal class SackDisplayElement : MenuListElement("Sack Display", HudAnchor.TO
 		const val TOTAL_LABEL = "Total price: "
 	}
 }
-
-private const val MARGIN = 8

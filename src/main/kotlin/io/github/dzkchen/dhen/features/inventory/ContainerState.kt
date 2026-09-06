@@ -11,9 +11,11 @@ import io.github.dzkchen.dhen.util.obj
 import io.github.dzkchen.dhen.util.texts
 import java.util.Locale
 
+internal const val MAX_SCREEN_SLOTS = 128
+
 internal object ContainerState {
 	const val NO_SLOT = -1
-	const val MENU_SLOTS = 46
+	const val INVENTORY_MENU_SLOTS = 46
 	const val INVENTORY_SLOTS = 41
 	const val HOTBAR_FIRST = 36
 	const val HOTBAR_LAST = 44
@@ -23,7 +25,7 @@ internal object ContainerState {
 	val protectedUuids = HashSet<String>()
 	val protectedIds = HashSet<String>()
 
-	private val partners = IntArray(MENU_SLOTS) { NO_SLOT }
+	private val partners = IntArray(INVENTORY_MENU_SLOTS) { NO_SLOT }
 
 	private val blockedSlots = HashMap<String, MutableSet<Int>>()
 
@@ -70,10 +72,10 @@ internal object ContainerState {
 	}
 
 	fun partner(menuSlot: Int): Int =
-		if (menuSlot in 0 until MENU_SLOTS) partners[menuSlot] else NO_SLOT
+		if (menuSlot in 0 until INVENTORY_MENU_SLOTS) partners[menuSlot] else NO_SLOT
 
 	fun bind(inventorySlot: Int, hotbarSlot: Int) {
-		if (inventorySlot !in 0 until MENU_SLOTS || hotbarSlot !in 0 until MENU_SLOTS) return
+		if (inventorySlot !in 0 until INVENTORY_MENU_SLOTS || hotbarSlot !in 0 until INVENTORY_MENU_SLOTS) return
 		clear(inventorySlot)
 		clear(hotbarSlot)
 		partners[inventorySlot] = hotbarSlot
@@ -107,7 +109,7 @@ internal object ContainerState {
 		for (slot in 0 until INVENTORY_SLOTS) if (isLocked(slot)) slots.add(slot)
 		document.add(LOCKED_SLOTS, slots)
 		val binds = JsonObject()
-		for (slot in 0 until MENU_SLOTS) {
+		for (slot in 0 until INVENTORY_MENU_SLOTS) {
 			val held = partners[slot]
 			if (held in HOTBAR_FIRST..HOTBAR_LAST) binds.addProperty(slot.toString(), held)
 		}
@@ -137,7 +139,7 @@ internal object ContainerState {
 		for ((key, hotbarSlot) in document.obj(BINDS).numericInts()) {
 			val inventorySlot = key.toIntOrNull() ?: continue
 			if (hotbarSlot !in HOTBAR_FIRST..HOTBAR_LAST) continue
-			if (inventorySlot !in 0 until MENU_SLOTS) continue
+			if (inventorySlot !in 0 until INVENTORY_MENU_SLOTS) continue
 			if (partners[inventorySlot] != NO_SLOT || partners[hotbarSlot] != NO_SLOT) continue
 			partners[inventorySlot] = hotbarSlot
 			partners[hotbarSlot] = inventorySlot

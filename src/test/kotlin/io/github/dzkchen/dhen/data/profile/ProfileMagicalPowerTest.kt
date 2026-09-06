@@ -61,10 +61,10 @@ class ProfileMagicalPowerTest {
 	}
 
 	private fun power(member: JsonObject): Int? =
-		MagicalPower.of(member, CrimsonIsleProfiles.abiphoneContacts(member), RiftProfiles.consumedPrism(member))
+		ProfileMagicalPower.of(member, CrimsonIsleProfiles.abiphoneContacts(member), RiftProfiles.consumedPrism(member))
 
 	private fun assumedPower(member: JsonObject): Int =
-		MagicalPower.assumed(MaxwellProfiles.tunings(member), power(member))
+		ProfileMagicalPower.assumed(MaxwellProfiles.tunings(member), power(member))
 
 	private companion object {
 		@JvmStatic

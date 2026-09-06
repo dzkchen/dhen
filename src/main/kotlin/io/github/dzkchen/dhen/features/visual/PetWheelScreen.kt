@@ -449,7 +449,7 @@ internal class PetWheelScreen {
 		val slot = screen.menu.slots[slotIndex]
 		if (slot.index != slotIndex || !samePetStack(visibleStacks[visibleIndex], slot.item)) return
 		if (!session.accept(visibleIndex, quickMove, System.currentTimeMillis())) return
-		clickSlot(screen.menu, session.actionSlot, LEFT_BUTTON, session.actionInput)
+		clickSlot(screen.menu, session.actionSlot, GLFW.GLFW_MOUSE_BUTTON_LEFT, session.actionInput)
 		if (session.closesAfterAction) player.closeContainer()
 	}
 
@@ -723,7 +723,6 @@ internal class PetWheelScreen {
 
 	private companion object {
 		const val SNAPSHOT_SIZE = 44
-		const val LEFT_BUTTON = 0
 		const val ITEM_SIZE = 16f
 		const val ITEM_HALF = 8
 		const val SEGMENT_ITEM_SCALE = 2.25f

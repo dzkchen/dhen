@@ -4,6 +4,8 @@ import io.github.dzkchen.dhen.gui.DhenPalette
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
+const val HUD_MARGIN = 8
+
 abstract class HudElement(
 	val name: String,
 	var anchor: HudAnchor = HudAnchor.TOP_LEFT,

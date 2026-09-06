@@ -1,5 +1,8 @@
 package io.github.dzkchen.dhen.features.chat
 
+import net.minecraft.client.multiplayer.chat.GuiMessage
+import net.minecraft.client.multiplayer.chat.GuiMessageSource
+import net.minecraft.network.chat.Component
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -50,4 +53,52 @@ class ChatTabTest {
 			ChatTab.entries.filter { it.claims(ambiguous) }
 		)
 	}
+
+	@Test
+	fun `a party banner's opening separator waits for the block, then belongs to it`() {
+		val older = message(2, "Bob: hi")
+		val opening = message(7, "-----------------------")
+		val invite = message(7, "[MVP+] Bob has invited you to join their party!")
+
+		val onArrival = listOf(older)
+		assertEquals(
+			SEPARATOR_UNSETTLED,
+			separatorBelongs(onArrival, opening, positionOf(onArrival, opening), ChatTab.PARTY)
+		)
+
+		val settled = listOf(invite, opening, older)
+		assertEquals(
+			SEPARATOR_SHOWN,
+			separatorBelongs(settled, opening, positionOf(settled, opening), ChatTab.PARTY)
+		)
+	}
+
+	@Test
+	fun `a closing separator belongs on arrival because its block is already in the history`() {
+		val older = message(2, "Bob: hi")
+		val opening = message(7, "-----------------------")
+		val invite = message(7, "[MVP+] Bob has invited you to join their party!")
+		val closing = message(7, "-----------------------")
+
+		val history = listOf(invite, opening, older)
+		assertEquals(
+			SEPARATOR_SHOWN,
+			separatorBelongs(history, closing, positionOf(history, closing), ChatTab.PARTY)
+		)
+	}
+
+	@Test
+	fun `a separator whose tick holds nothing the tab claims stays hidden`() {
+		val chatter = message(7, "Guild > Bob: hi")
+		val separator = message(7, "-----------------------")
+
+		val history = listOf(chatter)
+		assertEquals(
+			SEPARATOR_HIDDEN,
+			separatorBelongs(history, separator, positionOf(history, separator), ChatTab.PARTY)
+		)
+	}
+
+	private fun message(tick: Int, text: String): GuiMessage =
+		GuiMessage(tick, Component.literal(text), null, GuiMessageSource.SYSTEM_SERVER, null)
 }

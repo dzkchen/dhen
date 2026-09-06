@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
+import org.lwjgl.glfw.GLFW
 
 object ContainerClicks : Module(
 	name = "Container Clicks",
@@ -89,7 +90,7 @@ object ContainerClicks : Module(
 		if (!routed(slot)) return
 		if (!shiftable(slot, event.click.button())) return
 		event.cancelled = true
-		clickSlot(event.screen.menu, slot.index, LEFT_BUTTON, ContainerInput.QUICK_MOVE)
+		clickSlot(event.screen.menu, slot.index, GLFW.GLFW_MOUSE_BUTTON_LEFT, ContainerInput.QUICK_MOVE)
 	}
 
 	private fun blockedTrap(slot: Slot): Boolean {
@@ -107,7 +108,7 @@ object ContainerClicks : Module(
 	}
 
 	private fun shiftable(slot: Slot, button: Int): Boolean =
-		button != RIGHT_BUTTON || !ItemFacts.isSack(slot.item)
+		button != GLFW.GLFW_MOUSE_BUTTON_RIGHT || !ItemFacts.isSack(slot.item)
 
 	private fun warnOnce() {
 		val now = System.currentTimeMillis()
@@ -116,8 +117,6 @@ object ContainerClicks : Module(
 		Notifications.push(TRAP_ICON, name, "Stopped a click on an empty trap.")
 	}
 
-	private const val LEFT_BUTTON = 0
-	private const val RIGHT_BUTTON = 1
 	private const val BREWING_CLOSE_SLOT = 49
 	private const val NOTICE_GAP_MS = 10_000L
 	private const val HUNTING_TOOLKIT = "Hunting Toolkit"
@@ -126,4 +125,3 @@ object ContainerClicks : Module(
 	private const val EMPTY_TRAP = "Status: EMPTY"
 	private const val TRAP_ICON = "⛔"
 }
-

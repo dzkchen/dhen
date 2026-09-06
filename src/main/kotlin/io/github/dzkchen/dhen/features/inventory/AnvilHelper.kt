@@ -23,7 +23,7 @@ object AnvilHelper : Module(
 	category = Category.INVENTORY,
 	description = "Paints your own copies of whatever sits in one side of the anvil, so you can see what combines."
 ) {
-	private val slots = SkyBlockItems.memo(MENU_SLOTS)
+	private val slots = SkyBlockItems.memo(MAX_SCREEN_SLOTS)
 
 	internal var inAnvil = false
 		private set
@@ -97,7 +97,6 @@ object AnvilHelper : Module(
 	internal const val RIGHT_SLOT = 33
 
 	private const val ANVIL = "Anvil"
-	private const val MENU_SLOTS = 128
 	private const val RETURN_MILLIS = 3_000L
 	private const val TINT_PRIORITY = 15
 }

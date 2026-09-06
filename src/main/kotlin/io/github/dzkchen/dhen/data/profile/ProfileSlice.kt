@@ -87,13 +87,13 @@ internal object ProfileSlices {
 
 	fun of(profile: JsonObject, member: JsonObject): ProfileSlice {
 		val magicalPower =
-			MagicalPower.of(member, CrimsonIsleProfiles.abiphoneContacts(member), RiftProfiles.consumedPrism(member))
+			ProfileMagicalPower.of(member, CrimsonIsleProfiles.abiphoneContacts(member), RiftProfiles.consumedPrism(member))
 		return ProfileSlice(
 			profileId = profile.text("profile_id") ?: "",
 			cuteName = profile.text("cute_name") ?: "",
 			dungeons = dungeons(member),
 			magicalPower = magicalPower,
-			assumedMagicalPower = MagicalPower.assumed(MaxwellProfiles.tunings(member), magicalPower),
+			assumedMagicalPower = ProfileMagicalPower.assumed(MaxwellProfiles.tunings(member), magicalPower),
 			inventoryApi = inventoryApi(member)
 		)
 	}

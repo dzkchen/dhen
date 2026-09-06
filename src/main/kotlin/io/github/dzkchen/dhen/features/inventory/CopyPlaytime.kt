@@ -15,6 +15,7 @@ import io.github.dzkchen.dhen.module.Module
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.world.inventory.Slot
+import org.lwjgl.glfw.GLFW
 
 object CopyPlaytime : Module(
 	name = "Copy Playtime",
@@ -35,7 +36,7 @@ object CopyPlaytime : Module(
 
 	private fun clicked(event: ContainerClickEvent) {
 		val slot = event.hoveredSlot ?: return
-		if (event.click.button() != LEFT_BUTTON) return
+		if (event.click.button() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return
 		if (!statsSlot(withoutCodes(event.screen.title.string), slot)) return
 		event.cancelled = true
 		val lore = SkyBlockItems.lore(slot.item)
@@ -56,7 +57,6 @@ object CopyPlaytime : Module(
 
 	private const val MENU_TITLE = "Detailed /playtime"
 	private const val STATS_SLOT = 4
-	private const val LEFT_BUTTON = 0
 	private const val PROFILE = "profile"
 	private const val HINT = "§eClick to Copy!"
 	private const val COPIED = "Copied your playtime stats to the clipboard."
