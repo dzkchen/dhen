@@ -245,6 +245,13 @@ object MarkedPlayers : Module(
 		if (usePrefixSetting.on) Dhen.announce(line) else Minecraft.getInstance().player?.sendSystemMessage(DhenType.component(line))
 	}
 
+	internal fun markedInTab(name: String): Boolean {
+		refreshMarked()
+		return name.lowercase(Locale.ROOT) in marked
+	}
+
+	internal fun tabColor(): String = chatColorNamed(chatColorSetting.value).toString()
+
 	private fun refreshMarked() {
 		val self = if (markOwnNameSetting.on) Minecraft.getInstance().user.name else ""
 		if (namesSetting.value == markedRevision && self == selfRevision) return

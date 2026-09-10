@@ -114,6 +114,9 @@ import io.github.dzkchen.dhen.features.qol.Tweaks
 import io.github.dzkchen.dhen.features.qol.ZeroPingEtherwarp
 import io.github.dzkchen.dhen.features.visual.Animations
 import io.github.dzkchen.dhen.features.visual.Camera
+import io.github.dzkchen.dhen.features.visual.CompactTabList
+import io.github.dzkchen.dhen.features.inventory.CustomWardrobe
+import io.github.dzkchen.dhen.features.inventory.CraftingHelpers
 import io.github.dzkchen.dhen.features.visual.CustomScoreboard
 import io.github.dzkchen.dhen.features.visual.CustomTextBox
 import io.github.dzkchen.dhen.features.dev.CompTest
@@ -397,6 +400,9 @@ object Dhen : ClientModInitializer {
 			Camera,
 			ClassColors,
 			CustomScoreboard,
+			CompactTabList,
+			CustomWardrobe,
+			CraftingHelpers,
 			CustomTextBox,
 			DamageSplash,
 			EntityHighlight,
@@ -468,6 +474,7 @@ object Dhen : ClientModInitializer {
 		ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
 			failsafe.guard("command registration") { commands.install(dispatcher) }
 		}
+		HudElementRegistry.replaceElement(VanillaHudElements.PLAYER_LIST, CompactTabList.replacement(failsafe))
 		HudElementRegistry.attachElementAfter(VanillaHudElements.SUBTITLES, id("hud")) { graphics, _ ->
 			failsafe.guard("HUD render") {
 				val font = Minecraft.getInstance().font

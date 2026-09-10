@@ -4,6 +4,16 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 internal object DhenPalette {
+	val WARDROBE_BACKGROUND: Int get() = DhenTheme.WARDROBE_BACKGROUND
+	val WARDROBE_EQUIPPED: Int get() = DhenTheme.WARDROBE_EQUIPPED
+	val WARDROBE_FAVORITE: Int get() = DhenTheme.WARDROBE_FAVORITE
+	val WARDROBE_SAME_PAGE: Int get() = DhenTheme.WARDROBE_SAME_PAGE
+	val WARDROBE_OUTLINE_TOP: Int get() = DhenTheme.WARDROBE_OUTLINE_TOP
+	val WARDROBE_OUTLINE_BOTTOM: Int get() = DhenTheme.WARDROBE_OUTLINE_BOTTOM
+	val TAB_BACKGROUND: Int get() = DhenTheme.TAB_BACKGROUND
+	val TAB_COLUMN: Int get() = DhenTheme.TAB_COLUMN
+	val TAB_COLUMN_DARK: Int get() = DhenTheme.TAB_COLUMN_DARK
+
 	val DEFAULT_ACCENT: Int get() = DhenTheme.DEFAULT.accent
 
 	val CANVAS: Int get() = DhenTheme.activeOnRenderThread.canvas

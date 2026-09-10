@@ -42,6 +42,16 @@ internal data class DhenTheme(
 		if (accent == this.accent && font == this.font) this else copy(accent = accent, font = font)
 
 	companion object {
+		const val WARDROBE_BACKGROUND = 0x7F000000
+		const val WARDROBE_EQUIPPED = 0x7F55FF55
+		const val WARDROBE_FAVORITE = 0x7FFF5555
+		const val WARDROBE_SAME_PAGE = 0x7F5E6CFF
+		val WARDROBE_OUTLINE_TOP = 0xFFFFC800u.toInt()
+		val WARDROBE_OUTLINE_BOTTOM = 0xFFFF0000u.toInt()
+		val TAB_BACKGROUND = 0x80000000u.toInt()
+		const val TAB_COLUMN = 0x20AAAAAA
+		val TAB_COLUMN_DARK = 0x8F262626u.toInt()
+
 		private const val MUTED_BLEND = 0.55f
 		private const val RGB_MASK = 0xFFFFFF
 		private const val ALPHA_SHIFT = 24
